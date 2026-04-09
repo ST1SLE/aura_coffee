@@ -5,7 +5,8 @@
     "cart": "Cart",
     "orders": "Orders",
     "profile": "Profile",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "logout": "Sign Out"
   },
   "pages": {
     "home": {
@@ -35,7 +36,8 @@
       "nameRequired": "Name cannot be empty",
       "nameTooLong": "Name is too long (max 100 characters)",
       "loadError": "Failed to load profile",
-      "saveError": "Failed to save changes"
+      "saveError": "Failed to save changes",
+      "logout": "Sign Out"
     },
     "notFound": {
       "title": "Page Not Found",

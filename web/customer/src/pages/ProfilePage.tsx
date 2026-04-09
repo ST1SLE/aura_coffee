@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/auth/useAuth';
 import {
   getProfile,
   updateProfile,
@@ -9,6 +11,8 @@ import {
 
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -155,6 +159,18 @@ export function ProfilePage() {
       {error && profile && (
         <p className="text-sm text-destructive">{error}</p>
       )}
+
+      {/* Выход */}
+      <Button
+        variant="outline"
+        className="w-full text-destructive"
+        onClick={async () => {
+          await logout();
+          navigate('/login');
+        }}
+      >
+        {t('pages.profile.logout')}
+      </Button>
     </div>
   );
 }
