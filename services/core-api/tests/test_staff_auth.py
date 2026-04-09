@@ -1,0 +1,271 @@
+"""Тесты staff auth endpoints и RBAC."""
+
+import json
+import uuid
+from unittest.mock import MagicMock, patch
+
+import bcrypt
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.fixture
+def client():
+    from core_api.main import app
+
+    return TestClient(app)
+
+
+def _make_staff_account(
+    login: str = "admin",
+    password: str = "secret123",
+    role_value: str = "admin",
+    is_active: bool = True,
+):
+    """Мок объекта StaffAccount."""
+    password_hash = bcrypt.hashpw(
+        password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+
+    staff = MagicMock()
+    staff.id = uuid.uuid4()
+    staff.login = login
+    staff.password_hash = password_hash
+    staff.role = MagicMock()
+    staff.role.value = role_value
+    staff.is_active = is_active
+    staff.display_name = "Test Staff"
+    return staff
+
+
+def _mock_deps(mock_db=None, mock_redis=None):
+    """Контекстный менеджер для мока зависимостей staff_auth роутера."""
+    if mock_db is None:
+        mock_db = MagicMock()
+    if mock_redis is None:
+        mock_redis = MagicMock()
+
+    return (
+        patch("core_api.routers.staff_auth.get_db", return_value=iter([mock_db])),
+        patch("core_api.routers.staff_auth.get_redis", return_value=iter([mock_redis])),
+    )
+
+
+class TestStaffLogin:
+    def test_valid_credentials(self, client: TestClient) -> None:
+        staff = _make_staff_account()
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+        mock_redis = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "secret123"},
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["token_type"] == "bearer"
+        assert data["role"] == "admin"
+
+    def test_wrong_password(self, client: TestClient) -> None:
+        staff = _make_staff_account(password="correct_pass")
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+        mock_redis = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "wrong_pass"},
+            )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
+
+    def test_nonexistent_login(self, client: TestClient) -> None:
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+        mock_redis = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "nobody", "password": "pass"},
+            )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
+
+    def test_inactive_account(self, client: TestClient) -> None:
+        staff = _make_staff_account(is_active=False)
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+        mock_redis = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "secret123"},
+            )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
+
+
+class TestStaffRefresh:
+    def test_valid_refresh(self, client: TestClient) -> None:
+        session_data = json.dumps({
+            "staff_id": str(uuid.uuid4()),
+            "role": "barista",
+            "issued_at": "2026-01-01T00:00:00+00:00",
+        })
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = session_data.encode()
+        mock_db = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/refresh",
+                json={"refresh_token": "valid-token"},
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        mock_redis.delete.assert_called_once()
+
+    def test_expired_token(self, client: TestClient) -> None:
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+        mock_db = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/refresh",
+                json={"refresh_token": "expired"},
+            )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid or expired refresh token"
+
+    def test_replayed_token(self, client: TestClient) -> None:
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+        mock_db = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/refresh",
+                json={"refresh_token": "already-used"},
+            )
+        assert response.status_code == 401
+
+
+class TestStaffLogout:
+    def test_successful_logout(self, client: TestClient) -> None:
+        from core_api.settings import settings
+
+        token_payload = {
+            "sub": str(uuid.uuid4()),
+            "role": "admin",
+        }
+        access_token = jwt.encode(
+            token_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        )
+        mock_redis = MagicMock()
+        mock_db = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/logout",
+                json={"refresh_token": "token-to-delete"},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        assert response.status_code == 200
+        assert response.json()["detail"] == "Logged out"
+
+    def test_unauthenticated(self, client: TestClient) -> None:
+        mock_db = MagicMock()
+        mock_redis = MagicMock()
+
+        p1, p2 = _mock_deps(mock_db, mock_redis)
+        with p1, p2:
+            response = client.post(
+                "/api/v1/staff/auth/logout",
+                json={"refresh_token": "test"},
+            )
+        assert response.status_code in (401, 403)
+
+
+class TestRequireRole:
+    """Тесты RBAC-зависимости require_role через реальный эндпоинт."""
+
+    @pytest.fixture
+    def rbac_app(self):
+        """Тестовое приложение с защищённым эндпоинтом."""
+        from fastapi import Depends, FastAPI
+
+        from core_api.deps.rbac import require_role
+
+        app = FastAPI()
+
+        @app.get("/admin-only")
+        def admin_only(user: dict = Depends(require_role("admin"))):
+            return {"ok": True, "role": user["role"]}
+
+        @app.get("/staff")
+        def staff_endpoint(
+            user: dict = Depends(require_role("admin", "barista")),
+        ):
+            return {"ok": True, "role": user["role"]}
+
+        return TestClient(app)
+
+    def _make_token(self, role: str) -> str:
+        from core_api.settings import settings
+
+        payload = {"sub": str(uuid.uuid4()), "role": role}
+        return jwt.encode(
+            payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        )
+
+    def test_authorized_role(self, rbac_app: TestClient) -> None:
+        token = self._make_token("admin")
+        response = rbac_app.get(
+            "/admin-only", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+
+    def test_unauthorized_role(self, rbac_app: TestClient) -> None:
+        token = self._make_token("barista")
+        response = rbac_app.get(
+            "/admin-only", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Insufficient permissions"
+
+    def test_no_auth_header(self, rbac_app: TestClient) -> None:
+        response = rbac_app.get("/admin-only")
+        assert response.status_code in (401, 403)
+
+    def test_customer_denied_on_staff_endpoint(self, rbac_app: TestClient) -> None:
+        token = self._make_token("customer")
+        response = rbac_app.get(
+            "/staff", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
+
+    def test_multi_role_access(self, rbac_app: TestClient) -> None:
+        token = self._make_token("barista")
+        response = rbac_app.get(
+            "/staff", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200

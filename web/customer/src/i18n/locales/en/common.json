@@ -26,7 +26,16 @@
     },
     "profile": {
       "title": "Profile",
-      "description": "Account settings and delivery addresses"
+      "description": "Account settings and delivery addresses",
+      "phoneLabel": "Phone number",
+      "nameLabel": "Display name",
+      "languageLabel": "Language",
+      "save": "Save",
+      "retry": "Retry",
+      "nameRequired": "Name cannot be empty",
+      "nameTooLong": "Name is too long (max 100 characters)",
+      "loadError": "Failed to load profile",
+      "saveError": "Failed to save changes"
     },
     "notFound": {
       "title": "Page Not Found",

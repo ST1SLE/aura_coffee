@@ -14,3 +14,9 @@ class OTPStatus(str, enum.Enum):
     VERIFIED = "verified"
     EXPIRED = "expired"
     FAILED = "failed"
+
+
+class StaffRole(str, enum.Enum):
+    ADMIN = "admin"
+    BARISTA = "barista"
+    COURIER = "courier"
