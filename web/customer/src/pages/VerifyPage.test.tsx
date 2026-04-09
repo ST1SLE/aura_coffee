@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import '@/i18n/config';
 import { AuthContext } from '@/auth/AuthProvider';
@@ -87,5 +87,45 @@ describe('VerifyPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
     });
+  });
+
+  // Повторная отправка кода через ResendTimer
+  it('calls login() with phone when resend button is clicked', async () => {
+    vi.useFakeTimers();
+    const loginMock = vi.fn().mockResolvedValue(undefined);
+    renderVerifyPage({ login: loginMock });
+
+    // Прокручиваем таймер на 60 секунд, чтобы кнопка появилась
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    const resendButton = screen.getByRole('button', { name: /resend|отправить/i });
+    await act(async () => {
+      fireEvent.click(resendButton);
+    });
+
+    expect(loginMock).toHaveBeenCalledWith('+79991234567');
+    vi.useRealTimers();
+  });
+
+  it('shows error when resend login() call fails', async () => {
+    vi.useFakeTimers();
+    const loginMock = vi.fn().mockRejectedValue(new Error('network'));
+    renderVerifyPage({ login: loginMock });
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    const resendButton = screen.getByRole('button', { name: /resend|отправить/i });
+    // act отработает микротаски (rejected promise → catch → setError)
+    await act(async () => {
+      fireEvent.click(resendButton);
+      await loginMock.mock.results[0]?.value?.catch?.(() => {});
+    });
+
+    expect(screen.getByText(/error|ошибка/i)).toBeDefined();
+    vi.useRealTimers();
   });
 });
