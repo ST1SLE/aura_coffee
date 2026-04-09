@@ -70,6 +70,7 @@ def send_code(
     celery_app.send_task(
         "sms_worker.tasks.otp.send_otp_sms",
         args=[phone_hash, encrypted_phone.hex(), code],
+        queue="sms",
     )
 
     return {"message": "OTP sent", "phone_hash": phone_hash}
