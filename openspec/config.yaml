@@ -5,14 +5,22 @@ context: |
   Production system for a real coffee shop with real customers.
   Single location, single menu, no multitenancy. Not a marketplace, not an aggregator.
 
-  Modules (tech stack TBD):
-  - core-api — central server: HTTP API, business logic, CRUD, sessions, authorization, all state mutations
-  - payment-worker — YuKassa interaction: payment creation, webhook processing, refunds
-  - sms-worker — SMS.ru/SMSC: OTP codes, order status notifications
-  - web-customer — customer frontend: menu, cart, checkout, payment, profile, order tracking (responsive web, mobile-first)
-  - web-admin — admin panel: menu CRUD, orders, users, promocodes, settings; role-filtered (admin/barista/courier)
-  - database — PostgreSQL schema, migrations, seeds
-  - redis — ephemeral storage: cart (TTL), OTP, rate-limiting counters, task queues, sessions
+  Tech stack:
+  - Backend: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2.0 (sync) + Alembic, Celery + Redis, PyJWT, pytest + httpx
+  - Frontend: React 19 + TypeScript, Vite, Tailwind CSS, shadcn/ui, react-i18next, React Router
+  - API client: auto-generated from FastAPI OpenAPI spec
+  - Data: PostgreSQL 16, Redis 7
+  - Infra: Docker + Docker Compose, Nginx
+
+  Modules:
+  - core-api (services/core-api/) — FastAPI server: HTTP API, business logic, CRUD, sessions, authorization, all state mutations
+  - payment-worker (services/payment-worker/) — Celery worker: YuKassa payment creation, webhook processing, refunds
+  - sms-worker (services/sms-worker/) — Celery worker: SMS.ru/SMSC OTP codes, order status notifications
+  - web-customer (web/customer/) — React SPA: menu, cart, checkout, payment, profile, order tracking (responsive, mobile-first)
+  - web-admin (web/admin/) — React SPA: menu CRUD, orders, users, promocodes, settings; role-filtered (admin/barista/courier)
+  - shared (packages/shared/) — shared domain models, enums, constants, validation; imported by all backend services
+  - database (database/) — Alembic migrations, seeds, schema
+  - redis — ephemeral storage: cart (TTL), OTP, rate-limiting counters, Celery broker, sessions
 
   Key constraints:
   - Prepayment only via YuKassa. No cash, no pay-on-delivery (INV-001).
@@ -40,7 +48,7 @@ rules:
     - "Reference PDD sections and Inviolable Rules (INV-XXX) when scoping. Do not restate architecture — point to it."
     - "Every proposal MUST specify which MVP phase(s) it belongs to (section 7.1: Phase 1-6)."
   design:
-    - "Every design MUST declare affected modules: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [database], [redis]."
+    - "Every design MUST declare affected modules: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [shared], [database], [redis]."
     - "Any design involving financial operations (payments, loyalty, promocodes) MUST include an 'Atomicity Analysis' section referencing INV-004."
     - "Any design proposing a state mutation MUST reference the relevant state machine from section 6 and list all affected transitions."
     - "Use RFC 2119 language: MUST, SHALL, SHOULD, MAY. No ambiguous phrasing ('ideally', 'preferably', 'it would be nice')."
@@ -49,10 +57,10 @@ rules:
   tasks:
     - "Use sequential hierarchical numbering: 1.1, 1.2, 2.1, 2.2. This gives the agent a 'program counter' to track position."
     - "Each task MUST be a single testable unit. If you cannot write one test for it, split it further."
-    - "Every task MUST be prefixed with a module tag: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [database], [redis]."
+    - "Every task MUST be prefixed with a module tag: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [shared], [database], [redis]."
     - "Maximum 1 file creation or modification per task. If a task touches 3 files, it is 3 tasks."
     - "Group related tasks under a numbered parent for logical ordering, but each sub-task is independently executable."
-  spec:
+  specs:
     - "Delta specs MUST use markers: ADDED, MODIFIED, REMOVED."
     - "Each marker block must reference the original PDD section or Inviolable Rule (INV-XXX) it modifies."
     - "MODIFIED blocks must include 'Previously:' and 'Now:' lines to make the diff explicit."
