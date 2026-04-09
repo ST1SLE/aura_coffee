@@ -56,6 +56,7 @@
         "invalid": "Invalid code",
         "expired": "Code expired, request a new one",
         "rateLimit": "Too many attempts, please wait",
+        "notDelivered": "Code is on its way — please wait a moment and try again",
         "network": "Network error, try again later"
       }
     }

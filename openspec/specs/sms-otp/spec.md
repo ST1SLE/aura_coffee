@@ -56,6 +56,7 @@ The system SHALL verify OTP by comparing the submitted code against the stored c
 #### Scenario: Code submitted before SMS sent (status CREATED)
 - **WHEN** client submits code while OTP status is still `CREATED`
 - **THEN** system returns HTTP 409 indicating code is not yet delivered (§6.4: CREATED → VERIFIED forbidden)
+- **AND** HTTP 409 is documented in the endpoint's OpenAPI `responses` dict with `ErrorResponse` model
 
 ### Requirement: SMS delivery via sms-worker
 The system SHALL dispatch OTP SMS delivery to sms-worker as a Celery task. SMS Worker SHALL call SMS.ru `POST /sms/send` with message "Код подтверждения: {code}. Aura Coffee" (§8.2, max 70 chars). On success, OTP status SHALL transition CREATED → SENT. On failure after 3 retries (backoff 2s/8s/32s), OTP status SHALL transition CREATED → FAILED (§7.8).

@@ -42,6 +42,9 @@ export function VerifyPage() {
             case 'CODE_EXPIRED':
               setError(t('auth.otp.error.expired'));
               break;
+            case 'CODE_NOT_DELIVERED':
+              setError(t('auth.otp.error.notDelivered'));
+              break;
             case 'RATE_LIMITED':
               setError(t('auth.otp.error.rateLimit'));
               break;

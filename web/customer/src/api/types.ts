@@ -22,6 +22,7 @@ export interface VerifyCodeResponse {
 export type AuthErrorCode =
   | 'INVALID_CODE'
   | 'CODE_EXPIRED'
+  | 'CODE_NOT_DELIVERED'
   | 'RATE_LIMITED'
   | 'NETWORK_ERROR'
   | 'UNKNOWN_ERROR';
