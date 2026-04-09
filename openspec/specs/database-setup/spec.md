@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Alembic initialization
-The `database/` directory SHALL contain a working Alembic setup with `alembic.ini` and `migrations/` directory. Alembic SHALL read `DATABASE_URL` from environment variables (INV-015).
+The `database/` directory SHALL contain a working Alembic setup with `alembic.ini` and `migrations/` directory. Alembic SHALL read `DATABASE_URL` from environment variables (INV-015). The `alembic.ini` SHALL use a dummy placeholder for `sqlalchemy.url`; the actual URL is set at runtime by `env.py` from `os.environ["DATABASE_URL"]`.
 
 #### Scenario: Alembic recognizes configuration
 - **WHEN** a developer runs `alembic current` from `database/`

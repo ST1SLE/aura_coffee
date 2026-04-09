@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Docker Compose stack
-A `docker-compose.yml` at the repo root SHALL define services: `postgres` (PostgreSQL 16), `redis` (Redis 7), `core-api`, `payment-worker`, `sms-worker`. All services SHALL start with `docker compose up`.
+A `docker-compose.yml` at the repo root SHALL define services: `postgres` (PostgreSQL 16), `redis` (Redis 7), `core-api`, `payment-worker`, `sms-worker`. All services SHALL start with `docker compose up`. The core-api service SHALL mount `./database:/app/database` so that Alembic migrations can be executed inside the container.
 
 #### Scenario: Full stack startup
 - **WHEN** a developer runs `docker compose up` from the repo root
@@ -10,6 +10,10 @@ A `docker-compose.yml` at the repo root SHALL define services: `postgres` (Postg
 #### Scenario: PostgreSQL is accessible
 - **WHEN** the stack is running
 - **THEN** `core-api` can connect to PostgreSQL on the internal Docker network
+
+#### Scenario: Run migrations inside container
+- **WHEN** a developer runs `docker compose exec core-api sh -c "cd /app/database && alembic upgrade head"`
+- **THEN** Alembic connects to PostgreSQL and applies all pending migrations
 
 #### Scenario: Redis is accessible
 - **WHEN** the stack is running
