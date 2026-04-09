@@ -17,6 +17,8 @@ vi.mock('@/api/auth', () => ({
   logout: vi.fn().mockResolvedValue(undefined),
 }));
 
+import * as authApi from '@/api/auth';
+
 function TestConsumer() {
   const { isAuthenticated, isLoading, user, login, verifyCode, logout } = useAuth();
   return (
@@ -89,5 +91,23 @@ describe('AuthProvider', () => {
       screen.getByText('logout').click();
     });
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
+  });
+
+  // Просроченный refresh token — очистка состояния
+  it('expired refresh token clears state', async () => {
+    localStorage.setItem('aura_refresh_token', 'expired-token');
+    vi.mocked(authApi.refreshTokens).mockRejectedValueOnce(new Error('token expired'));
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+    expect(screen.getByTestId('authenticated').textContent).toBe('false');
+    expect(localStorage.getItem('aura_refresh_token')).toBeNull();
   });
 });
