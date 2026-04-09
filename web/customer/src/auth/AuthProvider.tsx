@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthUser } from '@/api/types';
 import * as authApi from '@/api/auth';
@@ -42,7 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const refreshAttempted = useRef(false);
+
   useEffect(() => {
+    if (refreshAttempted.current) return;
+    refreshAttempted.current = true;
+
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       setIsLoading(false);
