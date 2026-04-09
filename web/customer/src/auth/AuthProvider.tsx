@@ -8,6 +8,7 @@ import {
   getRefreshToken,
   clearAllTokens,
 } from './token';
+import { registerAuthFailureHandler } from '@/api/client';
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -33,6 +34,13 @@ function parseUserFromJwt(token: string): AuthUser {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    registerAuthFailureHandler(() => {
+      clearAllTokens();
+      setUser(null);
+    });
+  }, []);
 
   useEffect(() => {
     const refreshToken = getRefreshToken();

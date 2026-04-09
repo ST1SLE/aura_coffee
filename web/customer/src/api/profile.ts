@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/auth/token';
+import { authenticatedFetch } from './client';
 
 const API_BASE = '/api/v1/profile';
 
@@ -14,19 +14,8 @@ export interface ProfileUpdateData {
   preferred_language?: 'ru' | 'en';
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = getAccessToken();
-  if (!token) throw new Error('Not authenticated');
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-}
-
 export async function getProfile(): Promise<ProfileData> {
-  const res = await fetch(API_BASE, {
-    headers: await authHeaders(),
-  });
+  const res = await authenticatedFetch(API_BASE);
   if (!res.ok) {
     throw new Error(`Failed to fetch profile: ${res.status}`);
   }
@@ -36,9 +25,9 @@ export async function getProfile(): Promise<ProfileData> {
 export async function updateProfile(
   data: ProfileUpdateData,
 ): Promise<ProfileData> {
-  const res = await fetch(API_BASE, {
+  const res = await authenticatedFetch(API_BASE, {
     method: 'PATCH',
-    headers: await authHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) {

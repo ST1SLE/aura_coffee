@@ -1,6 +1,6 @@
 import type { SendCodeResponse, VerifyCodeResponse, AuthTokens } from './types';
 import { AuthError } from './types';
-import { getAccessToken } from '@/auth/token';
+import { getAccessToken, getRefreshToken } from '@/auth/token';
 
 export { AuthError } from './types';
 export type {
@@ -117,7 +117,7 @@ export async function logout(): Promise<void> {
     await fetch(`${API_BASE}/logout`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({}),
+      body: JSON.stringify({ refresh_token: getRefreshToken() }),
     });
   } catch {
     // Игнорируем ошибки сети при logout — токены очистятся на клиенте

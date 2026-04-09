@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Auth API client interface
-The system SHALL provide an auth API client module at `src/api/auth.ts` exporting functions: `sendCode(phone: string)`, `verifyCode(phone: string, code: string)`, `refreshTokens(refreshToken: string)`, `logout()`. Each function SHALL call the backend at `/api/v1/auth/*` via `fetch` and return a typed Promise. The module SHALL map backend snake_case responses to camelCase frontend types.
+The system SHALL provide an auth API client module at `src/api/auth.ts` exporting functions: `sendCode(phone: string)`, `verifyCode(phone: string, code: string)`, `refreshTokens(refreshToken: string)`, `logout()`. Each function SHALL call the backend at `/api/v1/auth/*` via `fetch` and return a typed Promise. The module SHALL map backend snake_case responses to camelCase frontend types. The `logout` function SHALL include the refresh token in the request body.
 
 #### Scenario: sendCode request
 - **WHEN** `sendCode` is called with a valid E.164 phone string
@@ -23,9 +23,17 @@ The system SHALL provide an auth API client module at `src/api/auth.ts` exportin
 - **WHEN** `refreshTokens` is called with a valid refresh token
 - **THEN** it sends `POST /api/v1/auth/refresh` with `{ refresh_token }` and returns `{ accessToken, refreshToken }`
 
-#### Scenario: logout
-- **WHEN** `logout` is called
-- **THEN** it sends `POST /api/v1/auth/logout` with `Authorization: Bearer <accessToken>` header from in-memory token storage. Network errors are silently ignored.
+#### Scenario: logout sends refresh token
+- **WHEN** `logout` is called and a refresh token exists in localStorage
+- **THEN** it sends `POST /api/v1/auth/logout` with `Authorization: Bearer <accessToken>` header and body `{ "refresh_token": "<refreshToken>" }`
+
+#### Scenario: logout with no refresh token
+- **WHEN** `logout` is called and no refresh token exists in localStorage
+- **THEN** it sends `POST /api/v1/auth/logout` with `Authorization: Bearer <accessToken>` header and body `{ "refresh_token": null }`. Network errors are silently ignored.
+
+#### Scenario: logout network error
+- **WHEN** `logout` is called and the network request fails
+- **THEN** the error is silently ignored (tokens will be cleared client-side by AuthProvider)
 
 ### Requirement: HTTP error mapping
 The auth API client SHALL map backend HTTP error responses to typed `AuthError` instances using the following rules:
