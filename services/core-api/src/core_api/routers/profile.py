@@ -9,16 +9,9 @@ from core_api.services.profile import get_profile, update_profile
 router = APIRouter(prefix="/api/v1/profile", tags=["profile"])
 
 
-def _require_customer(current_user: dict = Depends(get_current_user)) -> dict:
-    """Проверка роли customer."""
-    if current_user["role"] != "customer":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    return current_user
-
-
 @router.get("", response_model=ProfileResponse)
 def get_my_profile(
-    current_user: dict = Depends(_require_customer),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ProfileResponse:
     result = get_profile(current_user["user_id"], db)
@@ -30,7 +23,7 @@ def get_my_profile(
 @router.patch("", response_model=ProfileResponse)
 def update_my_profile(
     body: ProfileUpdateRequest,
-    current_user: dict = Depends(_require_customer),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ProfileResponse:
     result = update_profile(current_user["user_id"], body, db)

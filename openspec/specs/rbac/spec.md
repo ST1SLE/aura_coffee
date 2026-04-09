@@ -1,19 +1,19 @@
 ## ADDED Requirements
 
 ### Requirement: require_role dependency
-The system SHALL provide a `require_role(*allowed_roles)` function that returns a FastAPI dependency. This dependency SHALL call `get_current_user` to extract the authenticated user, then check `user.role` against `allowed_roles`. If the role is not in the allowed set, the dependency SHALL raise HTTP 403 with `{detail: "Insufficient permissions"}`. Ref: INV-002, INV-010.
+The system SHALL provide a `require_role(*allowed_roles)` function that returns a FastAPI dependency. This dependency is an optional secondary guard — primary enforcement is handled by RBAC middleware (see `rbac-middleware` spec). Existing `Depends(require_role(...))` calls in routers are removed. The function remains available in `deps/rbac.py` for edge cases where endpoint logic needs the authenticated user dict with role validation. Ref: INV-002, INV-010.
 
-#### Scenario: Authorized role
-- **WHEN** a request with a valid JWT whose `role` is in the endpoint's `allowed_roles` list
-- **THEN** the dependency resolves successfully and the endpoint executes
+#### Scenario: Authorized role (via middleware)
+- **WHEN** a request with a valid JWT whose `role` is in the route matrix's allowed roles
+- **THEN** the request reaches the endpoint handler without requiring `Depends(require_role(...))`
 
-#### Scenario: Unauthorized role
-- **WHEN** a request with a valid JWT whose `role` is NOT in the endpoint's `allowed_roles` list
-- **THEN** the dependency raises HTTP 403 with `{detail: "Insufficient permissions"}`
+#### Scenario: Unauthorized role (via middleware)
+- **WHEN** a request with a valid JWT whose `role` is NOT in the route matrix's allowed roles
+- **THEN** the middleware returns HTTP 403 with `{"detail": "Insufficient permissions"}` before the endpoint handler runs
 
-#### Scenario: No authentication
-- **WHEN** a request without an Authorization header reaches a `require_role`-protected endpoint
-- **THEN** `get_current_user` raises HTTP 401 before role check occurs
+#### Scenario: require_role used as optional secondary guard
+- **WHEN** an endpoint uses `Depends(require_role("admin"))` alongside middleware enforcement
+- **THEN** the middleware checks role first; the dependency provides the `current_user` dict to the handler
 
 ### Requirement: Admin role isolation
 Admin role SHALL have access to all staff endpoints. Ref: INV-010.
