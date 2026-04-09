@@ -2,18 +2,21 @@
 
 import json
 import uuid
-from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
+from unittest.mock import MagicMock
 
 import bcrypt
 import jwt
 import pytest
 from fastapi.testclient import TestClient
 
+from core_api.deps.database import get_db
+from core_api.deps.redis import get_redis
+from core_api.main import app
+
 
 @pytest.fixture
 def client():
-    from core_api.main import app
-
     return TestClient(app)
 
 
@@ -39,17 +42,21 @@ def _make_staff_account(
     return staff
 
 
-def _mock_deps(mock_db=None, mock_redis=None):
-    """Контекстный менеджер для мока зависимостей staff_auth роутера."""
+@contextmanager
+def _override_deps(mock_db=None, mock_redis=None):
+    """Подмена FastAPI-зависимостей get_db и get_redis."""
     if mock_db is None:
         mock_db = MagicMock()
     if mock_redis is None:
         mock_redis = MagicMock()
 
-    return (
-        patch("core_api.routers.staff_auth.get_db", return_value=iter([mock_db])),
-        patch("core_api.routers.staff_auth.get_redis", return_value=iter([mock_redis])),
-    )
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_redis] = lambda: mock_redis
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_redis, None)
 
 
 class TestStaffLogin:
@@ -59,8 +66,7 @@ class TestStaffLogin:
         mock_db.query.return_value.filter.return_value.first.return_value = staff
         mock_redis = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/login",
                 json={"login": "admin", "password": "secret123"},
@@ -78,8 +84,7 @@ class TestStaffLogin:
         mock_db.query.return_value.filter.return_value.first.return_value = staff
         mock_redis = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/login",
                 json={"login": "admin", "password": "wrong_pass"},
@@ -92,8 +97,7 @@ class TestStaffLogin:
         mock_db.query.return_value.filter.return_value.first.return_value = None
         mock_redis = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/login",
                 json={"login": "nobody", "password": "pass"},
@@ -107,8 +111,7 @@ class TestStaffLogin:
         mock_db.query.return_value.filter.return_value.first.return_value = staff
         mock_redis = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/login",
                 json={"login": "admin", "password": "secret123"},
@@ -128,8 +131,7 @@ class TestStaffRefresh:
         mock_redis.get.return_value = session_data.encode()
         mock_db = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/refresh",
                 json={"refresh_token": "valid-token"},
@@ -145,8 +147,7 @@ class TestStaffRefresh:
         mock_redis.get.return_value = None
         mock_db = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/refresh",
                 json={"refresh_token": "expired"},
@@ -159,8 +160,7 @@ class TestStaffRefresh:
         mock_redis.get.return_value = None
         mock_db = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/refresh",
                 json={"refresh_token": "already-used"},
@@ -182,8 +182,7 @@ class TestStaffLogout:
         mock_redis = MagicMock()
         mock_db = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/logout",
                 json={"refresh_token": "token-to-delete"},
@@ -196,8 +195,7 @@ class TestStaffLogout:
         mock_db = MagicMock()
         mock_redis = MagicMock()
 
-        p1, p2 = _mock_deps(mock_db, mock_redis)
-        with p1, p2:
+        with _override_deps(mock_db, mock_redis):
             response = client.post(
                 "/api/v1/staff/auth/logout",
                 json={"refresh_token": "test"},
