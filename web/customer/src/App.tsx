@@ -19,8 +19,8 @@ export function App() {
           <Route path="login" element={<LoginPage />} />
           <Route path="login/verify" element={<VerifyPage />} />
           <Route element={<Layout />}>
-            <Route index element={<HomePage />} />
             <Route element={<ProtectedRoute />}>
+              <Route index element={<HomePage />} />
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="orders" element={<OrdersPage />} />

@@ -11,6 +11,10 @@ SMSRU_SEND_URL = "https://sms.ru/sms/send"
 
 def send_sms(phone: str, message: str) -> bool:
     """Отправка SMS через SMS.ru API. Возвращает True при успехе."""
+    if not settings.smsru_api_key:
+        logger.warning("[DEV] SMS to %s: %s", phone, message)
+        return True
+
     try:
         response = httpx.post(
             SMSRU_SEND_URL,

@@ -10,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aura}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aura} -d ${POSTGRES_DB:-aura_coffee}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -98,6 +98,7 @@ services:
     depends_on:
       - web-customer
       - web-admin
+      - core-api
 
 volumes:
   pgdata:
