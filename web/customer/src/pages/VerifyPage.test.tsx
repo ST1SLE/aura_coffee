@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => mockNavigate,
     useLocation: () => ({
-      state: { phone: '+79991234567', returnUrl: '/' },
+      state: { phone: '+79991234567', returnUrl: '/profile' },
       pathname: '/login/verify',
       search: '',
       hash: '',
@@ -85,7 +85,7 @@ describe('VerifyPage', () => {
     });
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
     });
   });
 });

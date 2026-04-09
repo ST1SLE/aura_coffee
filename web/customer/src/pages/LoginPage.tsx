@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
 import { useAuth } from '@/auth/useAuth';
@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const returnUrl = (location.state as { returnUrl?: string })?.returnUrl;
   const [phone, setPhone] = useState('+7');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(phone);
-      navigate('/login/verify', { state: { phone } });
+      navigate('/login/verify', { state: { phone, returnUrl } });
     } catch (err) {
       if (err instanceof AuthError) {
         if (err.code === 'RATE_LIMITED') {

@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => vi.fn(),
     useLocation: () => ({
-      state: { phone: '+79991234567', returnUrl: '/' },
+      state: { phone: '+79991234567', returnUrl: '/profile' },
       pathname: '/login/verify',
       search: '',
       hash: '',

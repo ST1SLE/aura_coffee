@@ -9,7 +9,17 @@ import { LoginPage } from './LoginPage';
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({
+      state: { returnUrl: '/profile' },
+      pathname: '/login',
+      search: '',
+      hash: '',
+      key: 'default',
+    }),
+  };
 });
 
 function renderLoginPage(authOverrides: Partial<AuthContextValue> = {}) {
@@ -57,7 +67,7 @@ describe('LoginPage', () => {
       expect(auth.login).toHaveBeenCalledWith('+79991234567');
     });
     expect(mockNavigate).toHaveBeenCalledWith('/login/verify', {
-      state: { phone: '+79991234567' },
+      state: { phone: '+79991234567', returnUrl: '/profile' },
     });
   });
 
