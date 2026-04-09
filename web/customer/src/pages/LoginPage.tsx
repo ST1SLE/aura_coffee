@@ -1,0 +1,66 @@
+import { FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
+import { useAuth } from '@/auth/useAuth';
+import { AuthError } from '@/api/auth';
+import { Button } from '@/components/ui/button';
+
+export function LoginPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [phone, setPhone] = useState('+7');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const valid = isValidPhone(phone);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!valid || isSubmitting) return;
+
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await login(phone);
+      navigate('/login/verify', { state: { phone } });
+    } catch (err) {
+      if (err instanceof AuthError) {
+        if (err.code === 'RATE_LIMITED') {
+          setError(t('auth.otp.error.rateLimit'));
+        } else {
+          setError(t('auth.otp.error.network'));
+        }
+      } else {
+        setError(t('auth.otp.error.network'));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-6">
+        <h1 className="text-center text-2xl font-bold">{t('auth.phone.title')}</h1>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <PhoneInput value={phone} onChange={setPhone} disabled={isSubmitting} />
+
+          {error && (
+            <p className="text-center text-sm text-red-600">{error}</p>
+          )}
+
+          <Button
+            type="submit"
+            disabled={!valid || isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? '...' : t('auth.phone.submit')}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}

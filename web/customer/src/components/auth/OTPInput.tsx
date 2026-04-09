@@ -1,0 +1,94 @@
+import { useCallback, useRef } from 'react';
+
+const CODE_LENGTH = 6;
+
+interface OTPInputProps {
+  value: string;
+  onChange: (code: string) => void;
+  onComplete: (code: string) => void;
+  disabled?: boolean;
+}
+
+export function OTPInput({ value, onChange, onComplete, disabled }: OTPInputProps) {
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = value.padEnd(CODE_LENGTH, ' ').slice(0, CODE_LENGTH).split('');
+
+  const focusInput = (index: number) => {
+    inputsRef.current[index]?.focus();
+  };
+
+  const updateCode = useCallback(
+    (newDigits: string[]) => {
+      const code = newDigits.join('');
+      onChange(code);
+      if (code.length === CODE_LENGTH && !code.includes(' ') && /^\d{6}$/.test(code)) {
+        onComplete(code);
+      }
+    },
+    [onChange, onComplete],
+  );
+
+  const handleInput = useCallback(
+    (index: number, char: string) => {
+      if (!/^\d$/.test(char)) return;
+      const newDigits = [...digits];
+      newDigits[index] = char;
+      updateCode(newDigits);
+      if (index < CODE_LENGTH - 1) {
+        focusInput(index + 1);
+      }
+    },
+    [digits, updateCode],
+  );
+
+  const handleKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        const newDigits = [...digits];
+        if (digits[index] && digits[index] !== ' ') {
+          newDigits[index] = ' ';
+          updateCode(newDigits);
+        } else if (index > 0) {
+          newDigits[index - 1] = ' ';
+          updateCode(newDigits);
+          focusInput(index - 1);
+        }
+      }
+    },
+    [digits, updateCode],
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault();
+      const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
+      if (pasted.length === 0) return;
+      const newDigits = pasted.padEnd(CODE_LENGTH, ' ').split('');
+      updateCode(newDigits);
+      focusInput(Math.min(pasted.length, CODE_LENGTH - 1));
+    },
+    [updateCode],
+  );
+
+  return (
+    <div className="flex justify-center gap-2">
+      {digits.map((digit, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputsRef.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digit === ' ' ? '' : digit}
+          disabled={disabled}
+          onChange={(e) => handleInput(i, e.target.value.slice(-1))}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          className="h-12 w-12 rounded-lg border border-gray-300 text-center text-xl font-semibold focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:opacity-50"
+          autoComplete={i === 0 ? 'one-time-code' : 'off'}
+        />
+      ))}
+    </div>
+  );
+}

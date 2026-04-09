@@ -7,4 +7,4 @@ celery_app = Celery(
     broker=settings.redis_url,
 )
 
-celery_app.autodiscover_tasks(["sms_worker"])
+celery_app.autodiscover_tasks(["sms_worker", "sms_worker.tasks"])

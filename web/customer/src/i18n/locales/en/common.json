@@ -33,6 +33,24 @@
       "description": "The requested page does not exist"
     }
   },
+  "auth": {
+    "phone": {
+      "title": "Sign In",
+      "placeholder": "(999) 123-45-67",
+      "submit": "Get Code"
+    },
+    "otp": {
+      "title": "Enter Code",
+      "resend": "Resend Code",
+      "resendIn": "Resend in {{seconds}}s",
+      "error": {
+        "invalid": "Invalid code",
+        "expired": "Code expired, request a new one",
+        "rateLimit": "Too many attempts, please wait",
+        "network": "Network error, try again later"
+      }
+    }
+  },
   "language": {
     "ru": "РУ",
     "en": "EN"
