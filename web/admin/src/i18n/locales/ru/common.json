@@ -1,0 +1,45 @@
+{
+  "appTitle": "Aura Coffee — Админ",
+  "nav": {
+    "dashboard": "Панель",
+    "orders": "Заказы",
+    "menu": "Меню",
+    "users": "Пользователи",
+    "promos": "Промокоды",
+    "settings": "Настройки"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Панель управления",
+      "description": "Статистика и аналитика"
+    },
+    "orders": {
+      "title": "Заказы",
+      "description": "Управление заказами"
+    },
+    "menu": {
+      "title": "Меню",
+      "description": "Управление позициями меню"
+    },
+    "users": {
+      "title": "Пользователи",
+      "description": "Управление клиентами"
+    },
+    "promos": {
+      "title": "Промокоды",
+      "description": "Управление промокодами"
+    },
+    "settings": {
+      "title": "Настройки",
+      "description": "Настройки кофейни"
+    },
+    "notFound": {
+      "title": "Страница не найдена",
+      "description": "Запрашиваемая страница не существует"
+    }
+  },
+  "language": {
+    "ru": "РУ",
+    "en": "EN"
+  }
+}

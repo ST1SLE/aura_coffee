@@ -1,0 +1,40 @@
+{
+  "appTitle": "Aura Coffee",
+  "nav": {
+    "menu": "Menu",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile",
+    "checkout": "Checkout"
+  },
+  "pages": {
+    "home": {
+      "title": "Menu",
+      "description": "Browse our drinks and food"
+    },
+    "cart": {
+      "title": "Cart",
+      "description": "Your selected items"
+    },
+    "checkout": {
+      "title": "Checkout",
+      "description": "Choose delivery method and pay"
+    },
+    "orders": {
+      "title": "My Orders",
+      "description": "Your order history"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Account settings and delivery addresses"
+    },
+    "notFound": {
+      "title": "Page Not Found",
+      "description": "The requested page does not exist"
+    }
+  },
+  "language": {
+    "ru": "РУ",
+    "en": "EN"
+  }
+}

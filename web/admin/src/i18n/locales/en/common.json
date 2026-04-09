@@ -1,0 +1,45 @@
+{
+  "appTitle": "Aura Coffee — Admin",
+  "nav": {
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "menu": "Menu",
+    "users": "Users",
+    "promos": "Promo Codes",
+    "settings": "Settings"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Statistics and analytics"
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "Order management"
+    },
+    "menu": {
+      "title": "Menu",
+      "description": "Menu item management"
+    },
+    "users": {
+      "title": "Users",
+      "description": "Customer management"
+    },
+    "promos": {
+      "title": "Promo Codes",
+      "description": "Promo code management"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Shop settings"
+    },
+    "notFound": {
+      "title": "Page Not Found",
+      "description": "The requested page does not exist"
+    }
+  },
+  "language": {
+    "ru": "РУ",
+    "en": "EN"
+  }
+}
