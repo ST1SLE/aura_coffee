@@ -44,6 +44,13 @@ Reference PDD §5.2 for full schema. Groups:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** Alembic CLI
+- **Validation:** every migration MUST be verified with `alembic upgrade head` + `alembic downgrade -1` (or full downgrade)
+- **No unit tests** — migrations are validated by running them, not by pytest
+- **TDD:** MIGRATE → VERIFY pattern. Not split into red/green — migrations are in the GREEN change.
+
 ## This Module MUST NOT
 
 - Contain application logic (that's core-api)

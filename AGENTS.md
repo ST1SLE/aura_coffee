@@ -47,6 +47,48 @@ All state machines are defined in PDD §6. Reference them by section:
 - §6.5 — User Account (PENDING_VERIFICATION → ACTIVE → BLOCKED → DELETED)
 - §6.6 — Promocode (DRAFT → ACTIVE → PAUSED → EXPIRED / EXHAUSTED)
 
+## Development Methodology: TDD
+
+This project follows Test-Driven Development for all backend code.
+
+### The Two-Change Model
+
+Every backend feature is split into two sequential OpenSpec changes:
+
+| Change | Phase | Contains | End State |
+|--------|-------|----------|-----------|
+| `<name>-red` | RED | PREREQ + RED tasks | All tests exist and FAIL |
+| `<name>-green` | GREEN | GREEN + REFACTOR + MIGRATE + VERIFY | All tests PASS |
+
+Both changes land on the same feature branch, applied sequentially.
+The branch is only considered complete when the GREEN change passes.
+
+### Task Type Prefixes
+
+| Prefix | Meaning | TDD Phase |
+|--------|---------|-----------|
+| `RED` | Write failing test | Red |
+| `GREEN` | Write minimal code to pass test | Green |
+| `REFACTOR` | Clean up, no behavior change | Refactor |
+| `PREREQ` | Dependencies, config (no test) | Setup |
+| `MIGRATE` | Alembic migration | Green |
+| `VERIFY` | Run and confirm (migration, full suite) | Green |
+| `IMPL` | Frontend component (test follows) | Frontend |
+| `TEST` | Frontend test after implementation | Frontend |
+
+### REFACTOR Granularity
+
+- Group has ≥3 RED tests OR >50% RED density → one REFACTOR at end of group
+- Otherwise → REFACTOR after each GREEN
+
+### Frontend Exception
+
+Frontend modules (`[web-customer]`, `[web-admin]`) use lighter TDD:
+- **Logic** (hooks, utils, API clients, state management): RED → GREEN → REFACTOR
+- **UI** (components, pages): IMPL → TEST → REFACTOR
+- **Pure presentation**: tests optional
+- Frontend changes are NOT split into two changes.
+
 ## General Rules
 
 - Prices are stored as integers in kopecks (1₽ = 100). Display conversion is frontend responsibility.

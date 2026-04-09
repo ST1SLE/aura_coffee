@@ -33,6 +33,14 @@ This module is responsible for:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** pytest
+- **Runner:** `pytest packages/shared/tests/ -v`
+- **Test files:** `tests/test_<module>.py`
+- **Scope:** pure unit tests only — no DB, no Redis, no network
+- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+
 ## This Module MUST NOT
 
 - Import from core-api, payment-worker, or sms-worker (dependency flows one way: services → shared)

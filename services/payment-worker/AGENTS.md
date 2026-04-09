@@ -34,6 +34,15 @@ This module is responsible for:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** pytest
+- **Runner:** `pytest services/payment-worker/tests/ -v`
+- **Test files:** `tests/test_<module>.py` mirrors `src/payment_worker/<module>.py`
+- **Mocks:** mock YuKassa API responses, mock DB sessions for unit tests
+- **Idempotency:** every payment test MUST verify idempotency key is included
+- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+
 ## This Module MUST NOT
 
 - Handle HTTP requests from clients (that's core-api)

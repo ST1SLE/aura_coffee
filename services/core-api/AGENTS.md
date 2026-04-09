@@ -37,6 +37,16 @@ This module is responsible for:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** pytest + httpx
+- **Runner:** `pytest services/core-api/tests/ -v`
+- **Test files:** `tests/test_<module>.py` mirrors `src/core_api/<module>.py`
+- **Redis:** use `fakeredis` — no real Redis in tests
+- **DB:** test fixtures with test database (to be configured with CI)
+- **Mocks:** mock external boundaries (Celery task dispatch, SMS API), NOT internal services
+- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+
 ## This Module MUST NOT
 
 - Store or process audio/video files

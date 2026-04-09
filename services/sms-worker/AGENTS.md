@@ -34,6 +34,14 @@ This module is responsible for:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** pytest
+- **Runner:** `pytest services/sms-worker/tests/ -v`
+- **Test files:** `tests/test_<module>.py` mirrors `src/sms_worker/<module>.py`
+- **Mocks:** mock SMS.ru API responses, mock Redis for OTP status updates
+- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+
 ## This Module MUST NOT
 
 - Generate or store OTP codes (core-api + Redis handle this)

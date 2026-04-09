@@ -37,6 +37,15 @@ This module is responsible for:
 
 _(to be updated as code is added)_
 
+## Testing
+
+- **Framework:** Vitest + React Testing Library
+- **Runner:** `npm test` in `web/customer/`
+- **Test files:** colocated `<Component>.test.tsx` next to source
+- **TDD mode:** RED → GREEN → REFACTOR for logic (hooks, utils, API clients, state management). IMPL → TEST → REFACTOR for UI components and pages. Pure presentation components may omit tests.
+- **Mocks:** mock API calls, never mock React internals
+- **NOT split** into two changes — single change with lighter TDD.
+
 ## This Module MUST NOT
 
 - Calculate prices, discounts, or delivery fees
