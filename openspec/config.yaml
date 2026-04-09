@@ -1,20 +1,59 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Domain: Aura Coffee — web platform for a local coffee shop (online ordering with pickup and own-courier delivery).
+  Production system for a real coffee shop with real customers.
+  Single location, single menu, no multitenancy. Not a marketplace, not an aggregator.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Modules (tech stack TBD):
+  - core-api — central server: HTTP API, business logic, CRUD, sessions, authorization, all state mutations
+  - payment-worker — YuKassa interaction: payment creation, webhook processing, refunds
+  - sms-worker — SMS.ru/SMSC: OTP codes, order status notifications
+  - web-customer — customer frontend: menu, cart, checkout, payment, profile, order tracking (responsive web, mobile-first)
+  - web-admin — admin panel: menu CRUD, orders, users, promocodes, settings; role-filtered (admin/barista/courier)
+  - database — PostgreSQL schema, migrations, seeds
+  - redis — ephemeral storage: cart (TTL), OTP, rate-limiting counters, task queues, sessions
+
+  Key constraints:
+  - Prepayment only via YuKassa. No cash, no pay-on-delivery (INV-001).
+  - All state mutations require server-side auth + role-based authorization (INV-002, INV-010).
+  - Atomic financial transactions: points + promo + payment in single DB transaction (INV-004).
+  - Order items are immutable snapshots — no UPDATE/DELETE (INV-014).
+  - PII isolated from order data, 152-FZ compliance (INV-013).
+  - Secrets exclusively in environment variables (INV-015).
+  - State machines (section 6) are exhaustive — unlisted transitions are forbidden (INV-016).
+  - Bilingual interface: RU + EN. Prices stored as integers in kopecks.
+  - MVP phases (section 7.1): Auth -> Menu & Cart -> Order & Payment -> Delivery -> Loyalty & Promocodes -> Admin Panel.
+
+  Domain language (section 3): Customer, Admin, Barista, Courier, Category, Menu Item, Modifier, Size Option,
+  Stop List, Cart, Order, Order Item, Payment, Refund, Loyalty Account, Loyalty Transaction, Promocode,
+  Delivery Zone, Delivery Address, Notification, Shop Settings.
+
+  External APIs: YuKassa (payments), SMS.ru (SMS), Yandex.Maps (Suggest + Geocoder).
+
+  Authoritative design doc: docs/PRODUCT_DESIGN_DOCUMENT.md
+
+rules:
+  proposal:
+    - "Every proposal MUST include a 'Non-Goals' section listing what is explicitly out of scope."
+    - "Non-Goals section must contain at least 2 items. If you cannot identify boundaries, the scope is too vague — ask the user."
+    - "Reference PDD sections and Inviolable Rules (INV-XXX) when scoping. Do not restate architecture — point to it."
+    - "Every proposal MUST specify which MVP phase(s) it belongs to (section 7.1: Phase 1-6)."
+  design:
+    - "Every design MUST declare affected modules: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [database], [redis]."
+    - "Any design involving financial operations (payments, loyalty, promocodes) MUST include an 'Atomicity Analysis' section referencing INV-004."
+    - "Any design proposing a state mutation MUST reference the relevant state machine from section 6 and list all affected transitions."
+    - "Use RFC 2119 language: MUST, SHALL, SHOULD, MAY. No ambiguous phrasing ('ideally', 'preferably', 'it would be nice')."
+    - "If the design affects database schema, include migration strategy (forward-only, rollback plan, data backfill)."
+    - "Designs touching PII MUST include a '152-FZ Compliance' section referencing INV-013."
+  tasks:
+    - "Use sequential hierarchical numbering: 1.1, 1.2, 2.1, 2.2. This gives the agent a 'program counter' to track position."
+    - "Each task MUST be a single testable unit. If you cannot write one test for it, split it further."
+    - "Every task MUST be prefixed with a module tag: [core-api], [payment-worker], [sms-worker], [web-customer], [web-admin], [database], [redis]."
+    - "Maximum 1 file creation or modification per task. If a task touches 3 files, it is 3 tasks."
+    - "Group related tasks under a numbered parent for logical ordering, but each sub-task is independently executable."
+  spec:
+    - "Delta specs MUST use markers: ADDED, MODIFIED, REMOVED."
+    - "Each marker block must reference the original PDD section or Inviolable Rule (INV-XXX) it modifies."
+    - "MODIFIED blocks must include 'Previously:' and 'Now:' lines to make the diff explicit."
+    - "Never rewrite the full spec. Only describe the delta."
