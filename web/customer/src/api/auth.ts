@@ -25,6 +25,9 @@ async function handleErrorResponse(res: Response): Promise<never> {
   if (res.status === 429) {
     throw new AuthError('RATE_LIMITED', body.detail, body.retry_after);
   }
+  if (res.status === 409) {
+    throw new AuthError('CODE_NOT_DELIVERED', body.detail);
+  }
   if (res.status === 410) {
     throw new AuthError('CODE_EXPIRED', body.detail);
   }

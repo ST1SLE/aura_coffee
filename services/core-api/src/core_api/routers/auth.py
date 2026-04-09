@@ -78,7 +78,7 @@ def send_code(
 @router.post(
     "/verify-code",
     response_model=TokenResponse,
-    responses={401: {"model": ErrorResponse}, 410: {"model": ErrorResponse}},
+    responses={401: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 410: {"model": ErrorResponse}},
 )
 def verify_code(
     body: VerifyCodeRequest,
