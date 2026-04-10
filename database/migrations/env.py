@@ -11,7 +11,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+# Если URL уже задан явно (например, в тестах), не перезаписываем его.
+_placeholder = "driver://user:pass@localhost/dbname"
+if config.get_main_option("sqlalchemy.url", _placeholder) == _placeholder:
+    config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 
 target_metadata = Base.metadata
 

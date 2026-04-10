@@ -54,3 +54,7 @@ When core-api publishes Celery tasks via `send_task()`, it SHALL specify the tar
 #### Scenario: Payment task routed to payments queue
 - **WHEN** core-api calls `send_task()` for a payment worker task
 - **THEN** the task message SHALL be published to the `payments` queue (`queue="payments"`)
+
+### MODIFIED: SMS delivery with dev-mode bypass
+- **Previously:** `send_sms()` always calls SMS.ru API; fails silently if API key is invalid
+- **Now:** `send_sms()` checks `smsru_api_key` first; if empty, logs phone + message at WARNING level with "DEV" prefix and returns `True` without HTTP call

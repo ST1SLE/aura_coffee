@@ -26,8 +26,6 @@ staff_role_enum = sa.Enum("admin", "barista", "courier", name="staff_role")
 
 
 def upgrade() -> None:
-    staff_role_enum.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "staff_accounts",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
