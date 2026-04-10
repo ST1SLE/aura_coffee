@@ -19,7 +19,92 @@
     },
     "menu": {
       "title": "Menu",
-      "description": "Menu item management"
+      "description": "Menu item management",
+      "categories": {
+        "title": "Categories",
+        "newCategory": "New category",
+        "namePlaceholder": "Category name",
+        "editCategory": "Rename",
+        "deleteCategory": "Delete",
+        "deleteConfirm": "Delete category?",
+        "deleteConfirmDesc": "This action cannot be undone.",
+        "deleteHasItems": "This category still has items. Remove or move all items first.",
+        "allCategories": "All categories",
+        "empty": "No categories"
+      },
+      "items": {
+        "title": "Items",
+        "newItem": "New item",
+        "name": "Name",
+        "price": "Price",
+        "availability": "Availability",
+        "actions": "Actions",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleteConfirm": "Delete item?",
+        "deleteConfirmDesc": "This action cannot be undone.",
+        "empty": "No items in this category",
+        "badge": {
+          "available": "Available",
+          "stopList": "Stop",
+          "archived": "Archived"
+        }
+      },
+      "itemForm": {
+        "titleCreate": "New item",
+        "titleEdit": "Edit item",
+        "name": "Name",
+        "namePlaceholder": "E.g. Latte",
+        "description": "Description",
+        "descriptionPlaceholder": "Short description",
+        "category": "Category",
+        "categoryPlaceholder": "Select a category",
+        "price": "Price (₽)",
+        "pricePlaceholder": "0.00",
+        "archived": "Archived",
+        "save": "Save",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "validationName": "Please enter a name",
+        "validationPrice": "Price must be ≥ 0",
+        "validationCategory": "Please select a category",
+        "error422": "Validation error: {{fields}}",
+        "errorGeneric": "Could not save. Please try again."
+      },
+      "sizes": {
+        "title": "Sizes / Volumes",
+        "label": "Label",
+        "labelPlaceholder": "S / M / L / 200ml",
+        "volume": "Volume (ml)",
+        "price": "Price (₽)",
+        "add": "Add size",
+        "adding": "Adding...",
+        "delete": "Delete",
+        "deleteSizeConfirm": "Delete size?",
+        "duplicateLabel": "A size with this label already exists for this item.",
+        "disabledHint": "Save the item first.",
+        "empty": "No sizes defined",
+        "errorGeneric": "Could not save size.",
+        "mlUnit": "ml"
+      },
+      "modifiers": {
+        "title": "Modifiers",
+        "newModifier": "New modifier",
+        "name": "Name",
+        "namePlaceholder": "E.g. Vanilla syrup",
+        "price": "Price (₽)",
+        "availability": "Availability",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleteConfirm": "Delete modifier?",
+        "deleteConfirmDesc": "This action cannot be undone.",
+        "save": "Save",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "empty": "No modifiers",
+        "errorToggle": "Could not change availability.",
+        "errorGeneric": "Could not save modifier."
+      }
     },
     "users": {
       "title": "Users",
@@ -37,6 +122,18 @@
       "title": "Page Not Found",
       "description": "The requested page does not exist"
     }
+  },
+  "common": {
+    "new": "New",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "sessionExpired": "Session expired. Please reload.",
+    "errorToggle": "Could not change availability."
   },
   "language": {
     "ru": "РУ",
