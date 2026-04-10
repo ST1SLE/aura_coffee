@@ -10,7 +10,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/admin">
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
