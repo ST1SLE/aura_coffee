@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { listCategories, listMenuItems } from '@/api/menu';
-import type { CategoryResponse, MenuItemResponse } from '@/api/menuTypes';
+import { fetchPublicMenu } from '@/api/menu';
+import type { PublicMenuResponse, PublicMenuItem } from '@/api/menuTypes';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from './MenuItemCard';
 import { ItemDetail } from './ItemDetail';
@@ -10,19 +10,17 @@ export function MenuPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
 
-  const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [items, setItems] = useState<MenuItemResponse[]>([]);
+  const [menu, setMenu] = useState<PublicMenuResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [selected, setSelected] = useState<MenuItemResponse | null>(null);
+  const [selected, setSelected] = useState<PublicMenuItem | null>(null);
 
-  async function load() {
+  async function load(language: 'ru' | 'en') {
     setLoading(true);
     setError(false);
     try {
-      const [cats, its] = await Promise.all([listCategories(), listMenuItems()]);
-      setCategories([...cats].sort((a, b) => a.sort_order - b.sort_order));
-      setItems(its);
+      const data = await fetchPublicMenu(language);
+      setMenu(data);
     } catch {
       setError(true);
     } finally {
@@ -30,7 +28,18 @@ export function MenuPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load(lang);
+
+    // Перезагружаем меню при смене языка через react-i18next
+    function handleLangChange(newLang: string) {
+      const l = newLang.startsWith('ru') ? 'ru' : 'en';
+      load(l);
+    }
+
+    i18n.on('languageChanged', handleLangChange);
+    return () => { i18n.off('languageChanged', handleLangChange); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -49,12 +58,12 @@ export function MenuPage() {
     return (
       <div className="p-4 flex flex-col items-center gap-4">
         <p className="text-destructive">{t('menu.error')}</p>
-        <Button variant="outline" onClick={load}>{t('menu.retry')}</Button>
+        <Button variant="outline" onClick={() => load(lang)}>{t('menu.retry')}</Button>
       </div>
     );
   }
 
-  if (categories.length === 0) {
+  if (!menu || menu.categories.length === 0) {
     return (
       <div className="p-4 text-center text-muted-foreground">
         {t('menu.empty')}
@@ -65,26 +74,20 @@ export function MenuPage() {
   return (
     <>
       <div className="p-4 space-y-8">
-        {categories.map((cat) => {
-          const catItems = items.filter((it) => it.category_id === cat.id);
-          if (catItems.length === 0) return null;
+        {menu.categories.map((cat) => {
+          if (cat.items.length === 0) return null;
           return (
             <section key={cat.id}>
-              <h2 className="text-lg font-semibold mb-3">
-                {lang === 'ru' ? cat.name_ru : cat.name_en}
-              </h2>
+              <h2 className="text-lg font-semibold mb-3">{cat.name}</h2>
               <div className="grid grid-cols-2 gap-3">
-                {catItems
-                  .slice()
-                  .sort((a, b) => a.sort_order - b.sort_order)
-                  .map((item) => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      lang={lang}
-                      onOpen={() => setSelected(item)}
-                    />
-                  ))}
+                {cat.items.map((item) => (
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    lang={lang}
+                    onOpen={() => setSelected(item)}
+                  />
+                ))}
               </div>
             </section>
           );

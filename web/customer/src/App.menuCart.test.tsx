@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: { language: 'ru' },
+    i18n: { language: 'ru', on: vi.fn(), off: vi.fn() },
   }),
 }));
 vi.mock('@/api/auth', () => ({
@@ -20,8 +20,7 @@ vi.mock('@/api/client', () => ({
   apiRequest: vi.fn(),
 }));
 vi.mock('@/api/menu', () => ({
-  listCategories: vi.fn().mockResolvedValue([]),
-  listMenuItems: vi.fn().mockResolvedValue([]),
+  fetchPublicMenu: vi.fn().mockResolvedValue({ categories: [] }),
 }));
 vi.mock('@/store/cart', () => ({
   useCartStore: vi.fn(() => ({

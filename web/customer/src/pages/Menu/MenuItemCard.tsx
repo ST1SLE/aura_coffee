@@ -1,17 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import type { MenuItemResponse } from '@/api/menuTypes';
+import type { PublicMenuItem } from '@/api/menuTypes';
 import { formatPrice } from '@/lib/formatPrice';
 
 interface Props {
-  item: MenuItemResponse;
+  item: PublicMenuItem;
   lang: 'ru' | 'en';
   onOpen: () => void;
 }
 
 export function MenuItemCard({ item, lang, onOpen }: Props) {
   const { t } = useTranslation();
-  const unavailable = !item.available || item.archived;
-  const name = lang === 'ru' ? item.name_ru : item.name_en;
+  const unavailable = !item.available;
 
   return (
     <div
@@ -32,11 +31,11 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
       {item.image_url && (
         <img
           src={item.image_url}
-          alt={name}
+          alt={item.name}
           className="w-full h-24 object-cover rounded-md"
         />
       )}
-      <span className="text-sm font-medium leading-tight">{name}</span>
+      <span className="text-sm font-medium leading-tight">{item.name}</span>
       <span className="text-xs text-muted-foreground">
         {formatPrice(item.base_price, lang === 'ru' ? 'ru' : 'en')}
       </span>

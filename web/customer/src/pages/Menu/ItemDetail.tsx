@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MenuItemResponse, SizeOptionResponse, ModifierResponse } from '@/api/menuTypes';
+import type { PublicMenuItem, PublicMenuSizeOption, PublicMenuModifier } from '@/api/menuTypes';
 import { formatPrice } from '@/lib/formatPrice';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 
 interface Props {
-  item: MenuItemResponse;
+  item: PublicMenuItem;
   lang: 'ru' | 'en';
   onClose: () => void;
 }
@@ -16,16 +16,14 @@ export function ItemDetail({ item, lang, onClose }: Props) {
   const addToCart = useCartStore((s) => s.addItem);
 
   const availableSizes = item.size_options.filter((s) => s.available);
-  const [selectedSize, setSelectedSize] = useState<SizeOptionResponse | null>(
+  const [selectedSize, setSelectedSize] = useState<PublicMenuSizeOption | null>(
     availableSizes[0] ?? null,
   );
-  const [selectedModifiers, setSelectedModifiers] = useState<ModifierResponse[]>([]);
+  const [selectedModifiers, setSelectedModifiers] = useState<PublicMenuModifier[]>([]);
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const locale = lang === 'ru' ? 'ru' : 'en';
-  const name = lang === 'ru' ? item.name_ru : item.name_en;
-  const description = lang === 'ru' ? item.description_ru : item.description_en;
 
   const currentPrice =
     (selectedSize?.price ?? item.base_price) +
@@ -33,7 +31,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
 
   const canAdd = item.size_options.length === 0 || selectedSize !== null;
 
-  function toggleModifier(mod: ModifierResponse) {
+  function toggleModifier(mod: PublicMenuModifier) {
     setSelectedModifiers((prev) =>
       prev.some((m) => m.id === mod.id)
         ? prev.filter((m) => m.id !== mod.id)
@@ -68,7 +66,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     >
       <div className="w-full max-w-lg rounded-t-2xl bg-background p-5 space-y-4">
         <div className="flex items-start justify-between">
-          <h2 className="text-lg font-semibold">{name}</h2>
+          <h2 className="text-lg font-semibold">{item.name}</h2>
           <button
             aria-label="close"
             onClick={onClose}
@@ -78,8 +76,8 @@ export function ItemDetail({ item, lang, onClose }: Props) {
           </button>
         </div>
 
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+        {item.description && (
+          <p className="text-sm text-muted-foreground">{item.description}</p>
         )}
 
         {item.size_options.length > 0 && (
@@ -127,7 +125,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                         : 'border-input hover:bg-accent',
                     ].join(' ')}
                   >
-                    {lang === 'ru' ? mod.name_ru : mod.name_en} +{formatPrice(mod.price, locale)}
+                    {mod.name} +{formatPrice(mod.price, locale)}
                   </button>
                 );
               })}

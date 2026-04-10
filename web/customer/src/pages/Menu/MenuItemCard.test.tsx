@@ -9,20 +9,25 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { MenuItemCard } from './MenuItemCard';
-import type { MenuItemResponse } from '@/api/menuTypes';
+import type { PublicMenuItem } from '@/api/menuTypes';
 
-function makeItem(overrides: Partial<MenuItemResponse> = {}): MenuItemResponse {
+function makeItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   return {
-    id: 1, category_id: 1, name_ru: 'Лате', name_en: 'Latte',
-    description_ru: null, description_en: null, base_price: 25000,
-    image_url: null, available: true, archived: false, sort_order: 0,
-    created_at: null, updated_at: null, size_options: [], modifiers: [],
-    availability: 'available',
+    id: 1, category_id: 1,
+    name: 'Лате', name_ru: 'Лате', name_en: 'Latte',
+    description: null, description_ru: null, description_en: null,
+    base_price: 25000, image_url: null, available: true, sort_order: 0,
+    size_options: [], modifiers: [],
     ...overrides,
   };
 }
 
 describe('MenuItemCard', () => {
+  it('renders item.name verbatim', () => {
+    render(<MenuItemCard item={makeItem({ name: 'Капучино' })} lang="ru" onOpen={vi.fn()} />);
+    expect(screen.getByText('Капучино')).toBeDefined();
+  });
+
   it('clicking available card fires onOpen once', () => {
     const onOpen = vi.fn();
     render(<MenuItemCard item={makeItem()} lang="ru" onOpen={onOpen} />);
@@ -41,11 +46,6 @@ describe('MenuItemCard', () => {
 
   it('unavailable badge renders for available=false', () => {
     render(<MenuItemCard item={makeItem({ available: false })} lang="ru" onOpen={vi.fn()} />);
-    expect(screen.getByText('menu.unavailable')).toBeDefined();
-  });
-
-  it('unavailable badge renders for archived=true', () => {
-    render(<MenuItemCard item={makeItem({ archived: true })} lang="ru" onOpen={vi.fn()} />);
     expect(screen.getByText('menu.unavailable')).toBeDefined();
   });
 });

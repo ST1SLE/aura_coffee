@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, type Mock } from 'vitest';
+import { expectTypeOf } from 'vitest';
 
 vi.mock('./client', () => ({
   apiRequest: vi.fn(),
@@ -6,59 +7,46 @@ vi.mock('./client', () => ({
 }));
 
 import { apiRequest } from './client';
-import { listCategories, listMenuItems, getMenuItem } from './menu';
+import { fetchPublicMenu } from './menu';
+import type { PublicMenuResponse, PublicCategory } from './menuTypes';
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('listCategories', () => {
-  it('calls GET /api/v1/menu/categories', async () => {
-    (apiRequest as Mock).mockResolvedValue([]);
+// Задача 1.1: типы экспортируются с правильной структурой
+test('menuTypes exports PublicMenuResponse with categories: PublicCategory[]', () => {
+  expectTypeOf<PublicMenuResponse['categories']>().toEqualTypeOf<PublicCategory[]>();
+});
 
-    await listCategories();
+describe('fetchPublicMenu', () => {
+  // Задача 2.1
+  it('GETs /api/v1/menu with Accept-Language header', async () => {
+    const mockMenu: PublicMenuResponse = { categories: [] };
+    (apiRequest as Mock).mockResolvedValue(mockMenu);
+
+    const result = await fetchPublicMenu('en');
 
     expect(apiRequest).toHaveBeenCalledOnce();
-    const [url] = (apiRequest as Mock).mock.calls[0];
-    expect(url).toBe('/api/v1/menu/categories');
-  });
-});
-
-describe('listMenuItems', () => {
-  it('calls /api/v1/menu/items without filter', async () => {
-    (apiRequest as Mock).mockResolvedValue([]);
-
-    await listMenuItems();
-
-    const [url] = (apiRequest as Mock).mock.calls[0];
-    expect(url).toBe('/api/v1/menu/items');
+    const [url, opts] = (apiRequest as Mock).mock.calls[0];
+    expect(url).toBe('/api/v1/menu');
+    expect((opts as RequestInit | undefined)?.headers).toMatchObject({ 'Accept-Language': 'en' });
+    expect(result).toBe(mockMenu);
   });
 
-  it('appends category_id query param when provided', async () => {
-    (apiRequest as Mock).mockResolvedValue([]);
+  // Задача 2.2
+  it('sends Accept-Language: ru', async () => {
+    (apiRequest as Mock).mockResolvedValue({ categories: [] });
 
-    await listMenuItems({ categoryId: 7 });
+    await fetchPublicMenu('ru');
 
-    const [url] = (apiRequest as Mock).mock.calls[0];
-    expect(url).toBe('/api/v1/menu/items?category_id=7');
+    const [, opts] = (apiRequest as Mock).mock.calls[0];
+    expect((opts as RequestInit | undefined)?.headers).toMatchObject({ 'Accept-Language': 'ru' });
   });
-});
 
-describe('getMenuItem', () => {
-  it('calls /api/v1/menu/items/:id', async () => {
-    (apiRequest as Mock).mockResolvedValue({ id: 3 });
-
-    await getMenuItem(3);
-
-    const [url] = (apiRequest as Mock).mock.calls[0];
-    expect(url).toBe('/api/v1/menu/items/3');
-  });
-});
-
-describe('error handling', () => {
   it('propagates rejection from apiRequest', async () => {
-    (apiRequest as Mock).mockRejectedValue(new Error('HTTP 500: /api/v1/menu/categories'));
+    (apiRequest as Mock).mockRejectedValue(new Error('HTTP 500: /api/v1/menu'));
 
-    await expect(listCategories()).rejects.toThrow('500');
+    await expect(fetchPublicMenu('ru')).rejects.toThrow('500');
   });
 });

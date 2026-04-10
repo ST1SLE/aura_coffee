@@ -13,15 +13,15 @@ vi.mock('@/store/cart', () => ({
 
 import { useCartStore } from '@/store/cart';
 import { ItemDetail } from './ItemDetail';
-import type { MenuItemResponse } from '@/api/menuTypes';
+import type { PublicMenuItem } from '@/api/menuTypes';
 
-function baseItem(overrides: Partial<MenuItemResponse> = {}): MenuItemResponse {
+function baseItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   return {
-    id: 1, category_id: 1, name_ru: 'Кофе', name_en: 'Coffee',
-    description_ru: null, description_en: null, base_price: 15000,
-    image_url: null, available: true, archived: false, sort_order: 0,
-    created_at: null, updated_at: null, size_options: [], modifiers: [],
-    availability: 'available',
+    id: 1, category_id: 1,
+    name: 'Кофе', name_ru: 'Кофе', name_en: 'Coffee',
+    description: null, description_ru: null, description_en: null,
+    base_price: 15000, image_url: null, available: true, sort_order: 0,
+    size_options: [], modifiers: [],
     ...overrides,
   };
 }
@@ -35,8 +35,8 @@ describe('ItemDetail — price display', () => {
   it('selecting size L (price 22000) shows 220 ₽', () => {
     const item = baseItem({
       size_options: [
-        { id: 1, menu_item_id: 1, label: 'S', price: 15000, available: true },
-        { id: 2, menu_item_id: 1, label: 'L', price: 22000, available: true },
+        { id: 1, label: 'S', price: 15000, available: true },
+        { id: 2, label: 'L', price: 22000, available: true },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={vi.fn()} />);
@@ -50,10 +50,10 @@ describe('ItemDetail — price display', () => {
   it('adding a modifier (price 5000) on top of size (15000) shows 200 ₽', () => {
     const item = baseItem({
       size_options: [
-        { id: 1, menu_item_id: 1, label: 'M', price: 15000, available: true },
+        { id: 1, label: 'M', price: 15000, available: true },
       ],
       modifiers: [
-        { id: 10, name_ru: 'Сироп', name_en: 'Syrup', price: 5000, available: true, sort_order: 0 },
+        { id: 10, name: 'Сироп', name_ru: 'Сироп', name_en: 'Syrup', price: 5000, available: true },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={vi.fn()} />);
@@ -69,8 +69,8 @@ describe('ItemDetail — unavailable options', () => {
   it('unavailable size option renders as disabled', () => {
     const item = baseItem({
       size_options: [
-        { id: 1, menu_item_id: 1, label: 'S', price: 10000, available: false },
-        { id: 2, menu_item_id: 1, label: 'L', price: 20000, available: true },
+        { id: 1, label: 'S', price: 10000, available: false },
+        { id: 2, label: 'L', price: 20000, available: true },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={vi.fn()} />);
@@ -86,8 +86,8 @@ describe('ItemDetail — Add-to-Cart guard', () => {
     // Создаём item без доступных размеров (все недоступны) → selectedSize будет null
     const item = baseItem({
       size_options: [
-        { id: 1, menu_item_id: 1, label: 'S', price: 10000, available: false },
-        { id: 2, menu_item_id: 1, label: 'L', price: 20000, available: false },
+        { id: 1, label: 'S', price: 10000, available: false },
+        { id: 2, label: 'L', price: 20000, available: false },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={vi.fn()} />);
@@ -105,7 +105,7 @@ describe('ItemDetail — Add-to-Cart actions (task 6.8)', () => {
     const onClose = vi.fn();
     const item = baseItem({
       modifiers: [
-        { id: 5, name_ru: 'Экстра', name_en: 'Extra', price: 3000, available: true, sort_order: 0 },
+        { id: 5, name: 'Экстра', name_ru: 'Экстра', name_en: 'Extra', price: 3000, available: true },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={onClose} />);
