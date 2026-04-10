@@ -63,6 +63,20 @@ docker compose exec core-api pytest services/core-api/tests/ -v
 
 The test database `aura_coffee_test` is auto-created on first run by the `_ensure_test_database` fixture in `services/core-api/tests/conftest.py`. Migrations are schema-only — they run without any application env vars (no `ADMIN_LOGIN`, no `ADMIN_PASSWORD`). Seed data lives in `database/seeds/`. See `services/core-api/AGENTS.md` for fixture details and `database/AGENTS.md` for the migration/seed contract.
 
+### Running multiple worktrees at once
+
+Each worktree that brings up the docker stack binds host ports. Two worktrees cannot share the same host ports. All host bindings are templated in `docker-compose.yml` as `${VAR:-default}` so each worktree can override them in its own `.env` (which is git-ignored).
+
+The ports to override are listed at the bottom of `.env.example` under `# Host port bindings`:
+
+```
+POSTGRES_PORT, REDIS_PORT, CORE_API_PORT, WEB_CUSTOMER_PORT, WEB_ADMIN_PORT, NGINX_PORT
+```
+
+Convention: pick an offset per worktree and add it to every port. E.g. your second worktree uses offset `+10` → `5443 / 6389 / 8010 / 5183 / 5184 / 90`. Your third uses `+20`. Consistency keeps the math easy when you need to curl a specific service.
+
+Caveat: `CORS_ORIGINS` in `.env` hardcodes `5173,5174`. If you change `WEB_CUSTOMER_PORT` or `WEB_ADMIN_PORT` in a worktree, also update `CORS_ORIGINS` to match — otherwise browser requests to the admin/customer SPAs will be rejected.
+
 ### The Two-Change Model
 
 Every backend feature is split into two sequential OpenSpec changes:

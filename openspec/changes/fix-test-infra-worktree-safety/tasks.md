@@ -44,8 +44,8 @@
 ## 8. VERIFY — end-to-end worktree flow
 
 - [ ] 8.1 VERIFY [core-api] On a fresh Postgres volume (`docker compose down -v && docker compose up -d postgres redis`) with a `.env` copied verbatim from `.env.example`, run `docker compose exec core-api pytest services/core-api/tests/ -v`. All tests SHALL pass with zero skips due to missing `TEST_DATABASE_URL`.
-- [ ] 8.2 VERIFY [payment-worker] Run `docker compose build payment-worker --target dev` and `docker compose run --rm payment-worker python -c "import shared; print(shared.__file__)"`. The printed path SHALL point inside `/app/packages/shared/src`, confirming the editable install honors the volume mount.
-- [ ] 8.3 VERIFY [sms-worker] Same check for sms-worker.
+- [ ] 8.2 VERIFY [payment-worker] Run `docker compose build payment-worker` (the `target: dev` is already declared in `docker-compose.yml`; there is no `--target` CLI flag on `docker compose build`) then `docker compose run --rm payment-worker python -c "import shared; print(shared.__file__)"`. The printed path SHALL point inside `/app/packages/shared/src`, confirming the editable install honors the volume mount.
+- [ ] 8.3 VERIFY [sms-worker] Same check for sms-worker: `docker compose build sms-worker && docker compose run --rm sms-worker python -c "import shared; print(shared.__file__)"`.
 
 ## 9. Documentation — workflow visible to future agents
 
@@ -69,4 +69,10 @@
 ## 10. Final verification
 
 - [x] 10.1 VERIFY [openspec] Run `openspec validate fix-test-infra-worktree-safety --strict`. SHALL pass with no errors.
-- [ ] 10.2 VERIFY [root] Re-run the full flow from 8.1 in a **second** worktree created via `git worktree add`. Zero manual steps beyond `cp .env.example .env && docker compose up -d`. Confirms the "future agents on future worktrees" goal is met.
+- [ ] 10.2 VERIFY [root] Re-run the full flow from 8.1 in a **second** worktree created via `git worktree add`. In the second worktree's `.env`, bump every host port by `+10` per section 11 (e.g. `POSTGRES_PORT=5443`, `REDIS_PORT=6389`, `CORE_API_PORT=8010`, `WEB_CUSTOMER_PORT=5183`, `WEB_ADMIN_PORT=5184`, `NGINX_PORT=90`) and update `CORS_ORIGINS` to match. Then `docker compose up -d` SHALL succeed without port collisions against the first worktree's stack, and `docker compose exec core-api pytest services/core-api/tests/ -v` SHALL pass.
+
+## 11. Follow-up: per-worktree host port overrides
+
+- [x] 11.1 PREREQ [docker] Parameterize every hardcoded host port in `docker-compose.yml` as `${VAR:-default}`. Added: `redis` (`REDIS_PORT`), `core-api` (`CORE_API_PORT`), `web-customer` (`WEB_CUSTOMER_PORT`), `web-admin` (`WEB_ADMIN_PORT`), `nginx` (`NGINX_PORT`). `postgres` already used `${POSTGRES_PORT:-5433}`.
+- [x] 11.2 PREREQ [docker] Add a `# Host port bindings` section to `.env.example` listing all six port env vars with their defaults and a comment explaining the "pick an offset per worktree, apply to every port" convention.
+- [x] 11.3 PREREQ [root] Document the multi-worktree port override pattern in `AGENTS.md` under the Worktree Testing Workflow subsection, including the `CORS_ORIGINS` gotcha (it hardcodes 5173/5174 and must be updated if web ports are bumped).
