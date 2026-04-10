@@ -56,10 +56,12 @@ This project follows Test-Driven Development for all backend code.
 Every worktree — new or existing — runs tests the same way, with zero manual setup beyond copying `.env.example`:
 
 ```bash
-cp .env.example .env                                           # TEST_DATABASE_URL is pre-set
+./scripts/setup-worktree-env.sh                                # writes .env with a collision-free port offset
 docker compose up -d postgres redis
 docker compose exec core-api pytest services/core-api/tests/ -v
 ```
+
+`setup-worktree-env.sh` derives a deterministic starting offset from `sha1(worktree_path)`, probes the 6 candidate host ports against `127.0.0.1`, and bumps by +10 on collision until a free set is found (max 20 attempts). Idempotent — re-run it any time another stack comes up and collides. The plain `cp .env.example .env` still works for a single-worktree setup.
 
 The test database `aura_coffee_test` is auto-created on first run by the `_ensure_test_database` fixture in `services/core-api/tests/conftest.py`. Migrations are schema-only — they run without any application env vars (no `ADMIN_LOGIN`, no `ADMIN_PASSWORD`). Seed data lives in `database/seeds/`. See `services/core-api/AGENTS.md` for fixture details and `database/AGENTS.md` for the migration/seed contract.
 
