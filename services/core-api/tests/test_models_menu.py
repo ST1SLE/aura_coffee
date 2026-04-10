@@ -4,13 +4,11 @@
 Тесты на relationships (4.5–4.7) требуют PostgreSQL и пропускаются на SQLite.
 """
 
-import os
-
 import pytest
 import sqlalchemy as sa
 from sqlalchemy import inspect as sa_inspect
 
-TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL", "")
+from tests.conftest import _TEST_DB_URL as TEST_DB_URL
 
 _IS_SQLITE = TEST_DB_URL.startswith("sqlite")
 

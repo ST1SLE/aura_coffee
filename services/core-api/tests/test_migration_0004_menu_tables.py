@@ -1,8 +1,7 @@
 """RED: тесты миграции 0004_menu_tables.
 
-Требуют реального PostgreSQL. Используют TEST_DATABASE_URL из env
-(или DATABASE_URL, если он указывает на Postgres).
-Пропускаются при SQLite (нельзя проверять PG-специфичные типы).
+Требуют реального PostgreSQL. URL берётся из TEST_DATABASE_URL через conftest
+(fallback на sqlite, если не задан — тесты тогда skip-аются).
 
 Все тесты ДОЛЖНЫ падать с AssertionError до создания миграции 0004.
 """
@@ -14,13 +13,13 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 
+from tests.conftest import _TEST_DB_URL as TEST_DB_URL
+
 
 # Путь к alembic.ini относительно корня репозитория
 ALEMBIC_INI = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "database", "alembic.ini"
 )
-
-TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL", "")
 
 
 def _is_sqlite(url: str) -> bool:
@@ -28,7 +27,7 @@ def _is_sqlite(url: str) -> bool:
 
 
 @pytest.fixture(scope="module")
-def alembic_cfg() -> Config:
+def alembic_cfg(_ensure_test_database) -> Config:
     if _is_sqlite(TEST_DB_URL):
         pytest.skip("Тесты миграции требуют PostgreSQL, пропущено при SQLite")
     cfg = Config(ALEMBIC_INI)
