@@ -57,11 +57,25 @@ Every worktree — new or existing — runs tests the same way, with zero manual
 
 ```bash
 ./scripts/setup-worktree-env.sh                                # writes .env with a collision-free port offset
-docker compose up -d postgres redis
+./scripts/up.sh                                                # brings the full stack up and prints the real host URLs
 docker compose exec core-api pytest services/core-api/tests/ -v
 ```
 
 `setup-worktree-env.sh` derives a deterministic starting offset from `sha1(worktree_path)`, probes the 6 candidate host ports against `127.0.0.1`, and bumps by +10 on collision until a free set is found (max 20 attempts). Idempotent — re-run it any time another stack comes up and collides. The plain `cp .env.example .env` still works for a single-worktree setup.
+
+`up.sh` is a thin wrapper over `docker compose up -d` that reads `.env` after the stack is up and prints a banner with the actual host-side URLs: the canonical nginx entry point, plus direct customer / admin / core-api URLs. Extra args are forwarded verbatim (e.g. `./scripts/up.sh --build core-api`).
+
+### Canonical local entry point: always nginx
+
+For browsing the site, use `http://localhost:${NGINX_PORT}/` — that is the canonical local entry point. The `.env.example` default is `NGINX_PORT=8240` (non-privileged), so `docker compose up` binds nginx without needing root.
+
+**IGNORE the Vite log URLs.** The `web-customer` and `web-admin` containers print lines like:
+
+```
+Local:   http://localhost:5173/
+```
+
+Those ports are the **container-internal** ports — they are NOT your host ports when you have bumped host ports per worktree (`WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`). Following those URLs on the host produces "connection refused". Use the URLs printed by `./scripts/up.sh`, or open `http://localhost:${NGINX_PORT}/`.
 
 The test database `aura_coffee_test` is auto-created on first run by the `_ensure_test_database` fixture in `services/core-api/tests/conftest.py`. Migrations are schema-only — they run without any application env vars (no `ADMIN_LOGIN`, no `ADMIN_PASSWORD`). Seed data lives in `database/seeds/`. See `services/core-api/AGENTS.md` for fixture details and `database/AGENTS.md` for the migration/seed contract.
 

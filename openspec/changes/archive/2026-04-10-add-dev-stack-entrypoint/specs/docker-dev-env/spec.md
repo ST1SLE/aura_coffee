@@ -1,72 +1,13 @@
-## ADDED Requirements
-
-### Requirement: Docker Compose stack
-A `docker-compose.yml` at the repo root SHALL define services: `postgres` (PostgreSQL 16), `redis` (Redis 7), `core-api`, `payment-worker`, `sms-worker`. All services SHALL start with `docker compose up`. The core-api service SHALL mount `./database:/app/database` so that Alembic migrations can be executed inside the container.
-
-Services that run tests (currently `core-api`; extensible to `payment-worker` and `sms-worker` when their test suites land) SHALL use `build.target: dev` and SHALL mount their `tests/` directory as a volume so that new test files are picked up without rebuilding the image.
-
-#### Scenario: Worker test directory is live-mounted
-- **WHEN** a developer creates a new test file under `services/payment-worker/tests/`
-- **AND** runs `docker compose exec payment-worker pytest /app/services/payment-worker/tests/`
-- **THEN** the new test file is discovered and executed without a container rebuild
-
-#### Scenario: Full stack startup
-- **WHEN** a developer runs `docker compose up` from the repo root
-- **THEN** all services start and reach a healthy state
-
-#### Scenario: PostgreSQL is accessible
-- **WHEN** the stack is running
-- **THEN** `core-api` can connect to PostgreSQL on the internal Docker network
-
-#### Scenario: Run migrations inside container
-- **WHEN** a developer runs `docker compose exec core-api sh -c "cd /app/database && alembic upgrade head"`
-- **THEN** Alembic connects to PostgreSQL and applies all pending migrations
-
-#### Scenario: Redis is accessible
-- **WHEN** the stack is running
-- **THEN** `payment-worker` and `sms-worker` can connect to Redis on the internal Docker network
-
-### Requirement: Persistent PostgreSQL data
-PostgreSQL SHALL use a named Docker volume for data persistence. Stopping and restarting the stack SHALL NOT lose database data.
-
-#### Scenario: Data survives restart
-- **WHEN** a developer runs `docker compose down` followed by `docker compose up`
-- **THEN** previously created database tables and data are still present
-
-### Requirement: Environment configuration
-A `.env.example` file SHALL document all required environment variables with safe local-development defaults. `docker-compose.yml` SHALL reference `.env` for variable substitution.
-
-#### Scenario: Copy and run
-- **WHEN** a developer copies `.env.example` to `.env` without modifications
-- **THEN** `docker compose up` starts all services with working defaults
-
-### Requirement: Live reload for development
-Backend services in Docker Compose SHALL mount source code as volumes so that code changes are reflected without rebuilding containers. `core-api` SHALL use uvicorn's `--reload` flag.
-
-#### Scenario: Code change triggers reload
-- **WHEN** a developer edits a Python file in `services/core-api/src/`
-- **THEN** uvicorn detects the change and restarts the application automatically
-
-### Requirement: Service Dockerfiles
-Each backend service SHALL have a `Dockerfile` that installs the `shared` package and the service's own dependencies in **editable mode** (`pip install -e`), then runs the service entry point. Editable installs are REQUIRED so that `docker-compose.yml` volume mounts on `./packages/shared/src` are honored at runtime. Non-editable installs copy source into `site-packages` and silently ignore volume mounts, causing the worker's view of shared code to diverge from core-api's.
-
-Each backend service Dockerfile SHALL additionally define a `FROM base AS dev` stage that installs the service's `[dev]` extras (pytest and related test dependencies). The production image built without `target: dev` remains lean; the development image with `target: dev` can run the test suite without a rebuild.
-
-#### Scenario: Build core-api image
-- **WHEN** `docker build --target base` is run on the core-api Dockerfile
-- **THEN** the image builds without errors and contains a runnable FastAPI application
-
-#### Scenario: Worker honors shared-package volume mount
-- **WHEN** `docker compose build payment-worker --target dev` is run
-- **AND** `docker compose run --rm payment-worker python -c "import shared; print(shared.__file__)"` is executed
-- **THEN** the printed path points inside `/app/packages/shared/src`, confirming the import resolves through the volume mount and not a copied `site-packages` entry
-
-#### Scenario: Dev target installs test dependencies
-- **WHEN** `docker compose build payment-worker --target dev` is run
-- **THEN** the resulting image contains `pytest` and can execute `python -m pytest --version`
+## MODIFIED Requirements
 
 ### Requirement: Parameterized host ports for multi-worktree coexistence
 Every host port binding in `docker-compose.yml` SHALL be declared as `${VAR:-default}` so that each git worktree running the stack can override it via its own `.env` without editing shared files. The six variables SHALL be `POSTGRES_PORT`, `REDIS_PORT`, `CORE_API_PORT`, `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `NGINX_PORT`. Defaults SHALL be `5433 / 6379 / 8000 / 5173 / 5174 / 8240`. `.env.example` SHALL declare all six variables under a `# Host port bindings` section with an inline comment explaining the per-worktree offset convention (bump every port by the same offset).
+
+**Previously:** `NGINX_PORT` default was `80` (privileged). The six defaults were `5433 / 6379 / 8000 / 5173 / 5174 / 80`.
+
+**Now:** `NGINX_PORT` default is `8240` (non-privileged) so nginx binds without root on developer machines and can serve as the canonical local entry point without privilege escalation. The other five defaults are unchanged.
+
+Relates to: PDD §7 (dev infrastructure, cross-cutting — no INV-XXX impact).
 
 #### Scenario: Defaults preserve single-worktree behavior
 - **GIVEN** a worktree with `.env` copied verbatim from `.env.example`
@@ -87,11 +28,17 @@ Every host port binding in `docker-compose.yml` SHALL be declared as `${VAR:-def
 The repo SHALL provide `scripts/setup-worktree-env.sh` that generates a per-worktree `.env` from `.env.example` with a collision-free host port offset. The script SHALL:
 
 1. Derive a deterministic starting offset from `sha1sum` of the worktree path, in the range `[0, 200)` stepped by 10.
-2. Probe each candidate port set (`POSTGRES_PORT`, `REDIS_PORT`, `CORE_API_PORT`, `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `NGINX_PORT` with the offset applied) against `127.0.0.1` via bash `/dev/tcp`. If any port is bound, bump offset by +10 and retry, up to 20 attempts.
+2. Probe each candidate port set (`POSTGRES_PORT`, `REDIS_PORT`, `CORE_API_PORT`, `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `NGINX_PORT` with the offset applied to the `.env.example` baselines) against `127.0.0.1` via bash `/dev/tcp`. If any port is bound, bump offset by +10 and retry, up to 20 attempts.
 3. On the first free set, write `.env` from `.env.example` with every port replaced and `CORS_ORIGINS` patched to match the chosen `WEB_CUSTOMER_PORT` and `WEB_ADMIN_PORT`.
 4. Be idempotent — re-running SHALL pick a fresh offset if the current `.env` ports have since been taken by another stack.
 
 The script SHALL refuse to run on a host marked as production, to prevent clobbering prod config with dev defaults. Production markers SHALL be any of: a `.env.production` file at repo root, `AURA_PRODUCTION_HOST=1` in the environment, or a `/etc/aura-coffee/production` marker file. The production guard SHALL be overridable only via explicit `FORCE=1`.
+
+**Previously:** The `.env.example` port baselines the script substituted were `5433 / 6379 / 8000 / 5173 / 5174 / 80`.
+
+**Now:** The `NGINX_PORT` baseline is `8240`, matching the new `.env.example` default. All other probing, production-guard, and idempotency behavior is unchanged.
+
+Relates to: PDD §7 (dev infrastructure). No INV-XXX impact.
 
 #### Scenario: Script picks a free offset deterministically
 - **GIVEN** a worktree whose path hashes to starting offset `+N`
@@ -109,8 +56,12 @@ The script SHALL refuse to run on a host marked as production, to prevent clobbe
 - **WHEN** `./scripts/setup-worktree-env.sh` is run without `FORCE=1`
 - **THEN** the script exits with status 1 and does not modify `.env`
 
+## ADDED Requirements
+
 ### Requirement: Dev stack up-wrapper prints real host URLs
 The repo SHALL provide `scripts/up.sh`, a wrapper around `docker compose up -d` that brings the full stack up and prints a banner listing the host-side URLs for the customer app, the admin app, the core API, and the nginx canonical entry point, derived from the current `.env`. The wrapper SHALL (1) require a `.env` file in the repo root and exit non-zero with an actionable message if missing; (2) run `docker compose up -d` and forward any extra arguments verbatim; (3) after compose returns, read `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `CORE_API_PORT`, and `NGINX_PORT` from `.env` without sourcing the file; (4) print a clearly demarcated banner listing the canonical entry point `http://localhost:${NGINX_PORT}/` followed by the direct URLs for customer, admin, and core-api; (5) include in the banner an explicit warning that the `localhost:5173` / `localhost:5174` URLs printed by Vite inside the web containers are container-internal and MUST be ignored. The wrapper exists because Vite dev servers inside `web-customer` and `web-admin` containers log their container-internal ports, which do not match host ports when worktrees bump them — following those logs produces "connection refused".
+
+Relates to: PDD §7 (dev infrastructure, cross-cutting). No INV-XXX impact.
 
 #### Scenario: Banner reflects current .env ports
 - **GIVEN** a `.env` with `WEB_CUSTOMER_PORT=5333`, `WEB_ADMIN_PORT=5334`, `CORE_API_PORT=8160`, `NGINX_PORT=8240`
@@ -128,6 +79,8 @@ The repo SHALL provide `scripts/up.sh`, a wrapper around `docker compose up -d` 
 
 ### Requirement: Nginx is the canonical local entry point
 For local development, `http://localhost:${NGINX_PORT}/` SHALL be documented as the canonical entry point for browsing the site. `.env.example` and `AGENTS.md` SHALL state this explicitly and SHALL warn that the `localhost:5173` / `localhost:5174` URLs printed by Vite dev servers inside the `web-customer` and `web-admin` containers are container-internal and MUST be ignored. Direct access to Vite dev servers via `WEB_CUSTOMER_PORT` / `WEB_ADMIN_PORT` MAY remain available for debugging but SHALL NOT be presented as the recommended access path.
+
+Relates to: PDD §7 (dev infrastructure). No INV-XXX impact. Does not alter production deployment topology.
 
 #### Scenario: .env.example documents the canonical entry point
 - **WHEN** a developer reads `.env.example`
