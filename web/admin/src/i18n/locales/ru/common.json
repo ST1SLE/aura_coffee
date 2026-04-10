@@ -143,6 +143,18 @@
     "sessionExpired": "Сессия истекла. Обновите страницу.",
     "errorToggle": "Не удалось изменить доступность."
   },
+  "auth": {
+    "login": {
+      "title": "Вход",
+      "loginLabel": "Логин",
+      "loginPlaceholder": "Введите логин",
+      "passwordLabel": "Пароль",
+      "passwordPlaceholder": "Введите пароль",
+      "submit": "Войти",
+      "submitLoading": "Вход...",
+      "invalidCredentials": "Неверный логин или пароль"
+    }
+  },
   "language": {
     "ru": "РУ",
     "en": "EN"

@@ -1,6 +1,21 @@
-// TODO: wire via staff-auth — replace this stub with the real token getter
-function getAccessToken(): string | null {
-  return localStorage.getItem('accessToken');
+const STORAGE_KEY = 'accessToken';
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+export function setAccessToken(token: string): void {
+  localStorage.setItem(STORAGE_KEY, token);
+}
+
+export function clearAccessToken(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export function logout(): void {
+  clearAccessToken();
+  // Полная навигация гарантирует сброс состояния React после очистки токена
+  window.location.assign('/admin/login');
 }
 
 export class ApiError extends Error {
@@ -43,6 +58,16 @@ export async function authenticatedFetch(
     } catch {
       // тело не JSON — оставляем null
     }
+
+    if (response.status === 401 && !path.endsWith('/staff/auth/login')) {
+      clearAccessToken();
+      const currentPath = window.location.pathname + window.location.search;
+      const returnUrl = encodeURIComponent(
+        currentPath.replace(/^\/admin/, '') || '/',
+      );
+      window.location.assign(`/admin/login?returnUrl=${returnUrl}`);
+    }
+
     throw new ApiError(
       response.status,
       body,
@@ -51,4 +76,29 @@ export async function authenticatedFetch(
   }
 
   return response;
+}
+
+export async function staffLogin(
+  login: string,
+  password: string,
+): Promise<{ access_token: string; role: string }> {
+  const response = await fetch(`${BASE_URL}/api/v1/staff/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login, password }),
+  });
+  if (!response.ok) {
+    let body: unknown = null;
+    try {
+      body = await response.clone().json();
+    } catch {
+      // тело не JSON — оставляем null
+    }
+    throw new ApiError(
+      response.status,
+      body,
+      `HTTP ${response.status}: /api/v1/staff/auth/login`,
+    );
+  }
+  return response.json() as Promise<{ access_token: string; role: string }>;
 }

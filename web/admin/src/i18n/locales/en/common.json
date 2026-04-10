@@ -143,6 +143,18 @@
     "sessionExpired": "Session expired. Please reload.",
     "errorToggle": "Could not change availability."
   },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "loginLabel": "Login",
+      "loginPlaceholder": "Enter login",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter password",
+      "submit": "Sign in",
+      "submitLoading": "Signing in…",
+      "invalidCredentials": "Invalid login or password"
+    }
+  },
   "language": {
     "ru": "РУ",
     "en": "EN"
