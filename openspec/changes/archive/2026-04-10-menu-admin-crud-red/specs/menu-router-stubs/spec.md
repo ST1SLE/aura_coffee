@@ -1,10 +1,13 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-_References: PDD §7.1 (Phase 2: Menu & Cart), INV-002 (auth required on state mutations — enforced later by feature worktrees), INV-010 (role isolation — enforced later by feature worktrees)._
+_References: PDD §7.1 (Phase 6 replaces the Phase 2 stub for `menu_admin`), INV-002, INV-006, INV-010._
 
 ### Requirement: menu_admin router is populated and mounted
 
 The system SHALL provide a router module `core_api.routers.menu_admin` exporting `router: APIRouter` with `prefix="/api/v1/admin/menu"` and `tags=["menu-admin"]`. This router SHALL be populated with the endpoints specified by the `menu-admin-crud` capability (CRUD for categories, items, modifiers, sizes, plus the two `.../availability` stop-list toggles). `core_api.main` SHALL call `app.include_router(menu_admin_router)` exactly once after the existing Phase 1 `include_router` calls.
+
+**Previously:** the router was required to contain **zero** endpoint functions and OpenAPI was required to contain no `paths` under `/api/v1/admin/menu`.
+**Now:** the router contains the endpoint set specified by `menu-admin-crud`, and OpenAPI SHALL expose those paths.
 
 #### Scenario: Router is importable and mounted
 - **WHEN** importing `core_api.routers.menu_admin`
@@ -18,33 +21,12 @@ The system SHALL provide a router module `core_api.routers.menu_admin` exporting
 - **WHEN** the FastAPI app is instantiated via `TestClient`
 - **THEN** startup SHALL succeed with no exceptions and `GET /openapi.json` SHALL return HTTP 200
 
-### Requirement: Empty menu_public router stub exists and is mounted
-
-The system SHALL provide a router module `core_api.routers.menu_public` exporting `router: APIRouter` with `prefix="/api/v1/menu"` and `tags=["menu-public"]`, containing **zero** endpoint functions. `core_api.main` SHALL mount it via `include_router`.
-
-#### Scenario: Router is importable and empty
-- **WHEN** importing `core_api.routers.menu_public`
-- **THEN** `router` SHALL be an `APIRouter` instance with `prefix == "/api/v1/menu"` and `router.routes` SHALL be empty
-
-#### Scenario: OpenAPI has no paths under the public menu prefix
-- **WHEN** querying `/openapi.json`
-- **THEN** no `paths` key SHALL begin with `/api/v1/menu`
-
-### Requirement: Empty cart router stub exists and is mounted
-
-The system SHALL provide a router module `core_api.routers.cart` exporting `router: APIRouter` with `prefix="/api/v1/cart"` and `tags=["cart"]`, containing **zero** endpoint functions. `core_api.main` SHALL mount it via `include_router`.
-
-#### Scenario: Router is importable and empty
-- **WHEN** importing `core_api.routers.cart`
-- **THEN** `router` SHALL be an `APIRouter` instance with `prefix == "/api/v1/cart"` and `router.routes` SHALL be empty
-
-#### Scenario: Zero operations for cart tag
-- **WHEN** querying `/openapi.json`
-- **THEN** the `cart` tag SHALL be present with no path operations attached to it
-
 ### Requirement: main.py registers all three routers exactly once
 
 `core_api.main` SHALL import the three routers (`menu_admin`, `menu_public`, `cart`) and call `app.include_router(...)` for each exactly once. The file SHALL NOT contain duplicate includes, conditional includes, or feature-flag guards for these routers. The `menu_public` and `cart` routers remain empty stubs until their own feature changes land.
+
+**Previously:** all three routers were empty stubs when mounted.
+**Now:** `menu_admin` carries endpoints; `menu_public` and `cart` remain empty stubs. The "exactly one `include_router` call per router" requirement is unchanged.
 
 #### Scenario: Each router is registered exactly once
 - **WHEN** grepping `services/core-api/src/core_api/main.py` for `include_router`
@@ -53,6 +35,9 @@ The system SHALL provide a router module `core_api.routers.cart` exporting `rout
 ### Requirement: Endpoint-free constraint applies only to menu_public and cart
 
 The stub files `core_api.routers.menu_public` and `core_api.routers.cart` SHALL NOT contain any of: `@router.get`, `@router.post`, `@router.put`, `@router.patch`, `@router.delete`, calls to dependency injection, calls into `core_api.services.*`, or edits to `core_api.rbac_matrix`. The `menu_admin` router is no longer covered by this constraint — its contents are governed by the `menu-admin-crud` capability.
+
+**Previously:** the "no endpoint code" constraint applied to all three stubs including `menu_admin`.
+**Now:** the constraint applies only to `menu_public` and `cart`.
 
 #### Scenario: Static check finds no endpoint decorators in remaining stubs
 - **WHEN** scanning `core_api/routers/menu_public.py` and `core_api/routers/cart.py` for the substring `@router.`
