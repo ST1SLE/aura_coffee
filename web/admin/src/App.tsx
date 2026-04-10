@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { OrdersPage } from '@/pages/OrdersPage';
-import { MenuPage } from '@/pages/MenuPage';
+import { MenuPage } from '@/pages/Menu';
 import { UsersPage } from '@/pages/UsersPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { SettingsPage } from '@/pages/SettingsPage';

@@ -19,7 +19,92 @@
     },
     "menu": {
       "title": "Меню",
-      "description": "Управление позициями меню"
+      "description": "Управление позициями меню",
+      "categories": {
+        "title": "Категории",
+        "newCategory": "Новая категория",
+        "namePlaceholder": "Название категории",
+        "editCategory": "Переименовать",
+        "deleteCategory": "Удалить",
+        "deleteConfirm": "Удалить категорию?",
+        "deleteConfirmDesc": "Это действие нельзя отменить.",
+        "deleteHasItems": "В категории есть позиции. Сначала удалите или перенесите все позиции.",
+        "allCategories": "Все категории",
+        "empty": "Нет категорий"
+      },
+      "items": {
+        "title": "Позиции",
+        "newItem": "Новая позиция",
+        "name": "Название",
+        "price": "Цена",
+        "availability": "Доступность",
+        "actions": "Действия",
+        "edit": "Редактировать",
+        "delete": "Удалить",
+        "deleteConfirm": "Удалить позицию?",
+        "deleteConfirmDesc": "Это действие нельзя отменить.",
+        "empty": "Нет позиций в этой категории",
+        "badge": {
+          "available": "Доступно",
+          "stopList": "Стоп",
+          "archived": "Архив"
+        }
+      },
+      "itemForm": {
+        "titleCreate": "Новая позиция",
+        "titleEdit": "Редактировать позицию",
+        "name": "Название",
+        "namePlaceholder": "Например: Латте",
+        "description": "Описание",
+        "descriptionPlaceholder": "Краткое описание блюда",
+        "category": "Категория",
+        "categoryPlaceholder": "Выберите категорию",
+        "price": "Цена (₽)",
+        "pricePlaceholder": "0.00",
+        "archived": "В архиве",
+        "save": "Сохранить",
+        "saving": "Сохранение...",
+        "cancel": "Отмена",
+        "validationName": "Введите название",
+        "validationPrice": "Цена должна быть ≥ 0",
+        "validationCategory": "Выберите категорию",
+        "error422": "Ошибка валидации: {{fields}}",
+        "errorGeneric": "Не удалось сохранить. Попробуйте ещё раз."
+      },
+      "sizes": {
+        "title": "Размеры / Объёмы",
+        "label": "Метка",
+        "labelPlaceholder": "S / M / L / 200мл",
+        "volume": "Объём (мл)",
+        "price": "Цена (₽)",
+        "add": "Добавить размер",
+        "adding": "Добавление...",
+        "delete": "Удалить",
+        "deleteSizeConfirm": "Удалить размер?",
+        "duplicateLabel": "Такой размер уже есть для этой позиции.",
+        "disabledHint": "Сначала сохраните позицию.",
+        "empty": "Нет размеров",
+        "errorGeneric": "Не удалось сохранить размер.",
+        "mlUnit": "мл"
+      },
+      "modifiers": {
+        "title": "Модификаторы",
+        "newModifier": "Новый модификатор",
+        "name": "Название",
+        "namePlaceholder": "Например: Сироп ваниль",
+        "price": "Цена (₽)",
+        "availability": "Доступность",
+        "edit": "Редактировать",
+        "delete": "Удалить",
+        "deleteConfirm": "Удалить модификатор?",
+        "deleteConfirmDesc": "Это действие нельзя отменить.",
+        "save": "Сохранить",
+        "saving": "Сохранение...",
+        "cancel": "Отмена",
+        "empty": "Нет модификаторов",
+        "errorToggle": "Не удалось изменить доступность.",
+        "errorGeneric": "Не удалось сохранить модификатор."
+      }
     },
     "users": {
       "title": "Пользователи",
@@ -37,6 +122,18 @@
       "title": "Страница не найдена",
       "description": "Запрашиваемая страница не существует"
     }
+  },
+  "common": {
+    "new": "Новый",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "confirm": "Подтвердить",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "sessionExpired": "Сессия истекла. Обновите страницу.",
+    "errorToggle": "Не удалось изменить доступность."
   },
   "language": {
     "ru": "РУ",
