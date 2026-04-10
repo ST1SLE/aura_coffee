@@ -51,6 +51,27 @@ _(to be updated as code is added)_
 - **No unit tests** — migrations are validated by running them, not by pytest
 - **TDD:** MIGRATE → VERIFY pattern. Not split into red/green — migrations are in the GREEN change.
 
+### Test database contract
+
+- Tests use a **separate** database, `aura_coffee_test`, addressed by `TEST_DATABASE_URL` (declared in `.env.example`). Tests MUST NEVER run against `DATABASE_URL`.
+- `database/migrations/env.py` checks whether `sqlalchemy.url` has been set by the caller. If it has (test fixtures do this), `env.py` does NOT overwrite it with `os.environ["DATABASE_URL"]`. This is how Alembic commands get redirected at the test DB.
+- The test DB is auto-created by `services/core-api/tests/conftest.py::_ensure_test_database` on first run — no manual `createdb` needed on fresh worktrees.
+
+### Schema-only migrations
+
+- Migrations MUST contain only DDL (`CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX`, `CREATE TYPE`).
+- **No `op.bulk_insert`, no environment variable reads, no API calls.** Seed data lives under `database/seeds/` as standalone scripts.
+- Reason: migrations that depend on runtime env vars break CI, tests, and fresh worktrees. The old `0003_staff_accounts` bug (required `ADMIN_LOGIN`/`ADMIN_PASSWORD` inside `upgrade()`) is the anti-pattern to avoid.
+
+### Running the initial admin seed
+
+```bash
+# After `alembic upgrade head` on a new deployment:
+docker compose exec core-api python -m database.seeds.initial_admin
+```
+
+The script reads `ADMIN_LOGIN` and `ADMIN_PASSWORD` from env, bcrypts the password, and inserts one row into `staff_accounts` with `ON CONFLICT (login) DO NOTHING` (idempotent).
+
 ## This Module MUST NOT
 
 - Contain application logic (that's core-api)

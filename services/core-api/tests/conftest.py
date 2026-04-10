@@ -6,15 +6,18 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("ENCRYPTION_KEY", "0" * 64)
 
-_TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL", "")
+# Тесты НИКОГДА не падают в DATABASE_URL (prod DB). Если TEST_DATABASE_URL
+# не задан — уходим в in-memory sqlite и Postgres-фикстуры skip-аются.
+_TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
 
 from collections.abc import Generator
 from unittest.mock import patch
+from urllib.parse import urlparse, urlunparse
 
 import fakeredis
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from core_api.main import app
@@ -38,8 +41,41 @@ def otp_svc(r: fakeredis.FakeRedis) -> OTPService:
     return OTPService(r)
 
 
+@pytest.fixture(scope="session")
+def _ensure_test_database() -> None:
+    """Создаёт базу TEST_DATABASE_URL, если её ещё нет.
+
+    Подключается к maintenance-базе ``postgres`` на том же хосте с теми же
+    кредами, проверяет ``pg_database`` и выполняет ``CREATE DATABASE`` при
+    необходимости. Для sqlite ничего не делает.
+    """
+    if _TEST_DB_URL.startswith("sqlite"):
+        return
+
+    parsed = urlparse(_TEST_DB_URL)
+    db_name = parsed.path.lstrip("/")
+    if not db_name:
+        pytest.fail("TEST_DATABASE_URL must include a database name")
+
+    admin_url = urlunparse(parsed._replace(path="/postgres"))
+    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    try:
+        with admin_engine.connect() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": db_name},
+            ).scalar()
+            if not exists:
+                # Имя БД нельзя параметризовать — валидируем вручную.
+                if not db_name.replace("_", "").isalnum():
+                    pytest.fail(f"Unsafe test database name: {db_name!r}")
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+    finally:
+        admin_engine.dispose()
+
+
 @pytest.fixture(scope="module")
-def migrated_db_session():
+def migrated_db_session(_ensure_test_database):
     """Сессия к реальному PostgreSQL с применёнными миграциями.
 
     Пропускается, если TEST_DATABASE_URL не указывает на Postgres.

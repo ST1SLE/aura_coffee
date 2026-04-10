@@ -1,5 +1,8 @@
 """Staff accounts table.
 
+Schema-only migration. Initial admin seeding lives in
+``database/seeds/initial_admin.py`` and must be run separately.
+
 Revision ID: 0003
 Revises: 0002
 Create Date: 2026-04-09
@@ -8,10 +11,6 @@ Create Date: 2026-04-09
 
 from collections.abc import Sequence
 
-import os
-import uuid
-
-import bcrypt
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -45,36 +44,6 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_staff_accounts_login", "staff_accounts", ["login"])
-
-    # Сид начального админа из переменных окружения
-    admin_login = os.environ.get("ADMIN_LOGIN")
-    admin_password = os.environ.get("ADMIN_PASSWORD")
-    if not admin_login or not admin_password:
-        raise RuntimeError(
-            "ADMIN_LOGIN and ADMIN_PASSWORD env vars are required for initial admin seed"
-        )
-
-    password_hash = bcrypt.hashpw(
-        admin_password.encode("utf-8"), bcrypt.gensalt()
-    ).decode("utf-8")
-
-    staff_table = sa.table(
-        "staff_accounts",
-        sa.column("id", UUID(as_uuid=True)),
-        sa.column("login", sa.String),
-        sa.column("password_hash", sa.String),
-        sa.column("role", sa.String),
-        sa.column("display_name", sa.String),
-    )
-    op.bulk_insert(staff_table, [
-        {
-            "id": uuid.uuid4(),
-            "login": admin_login,
-            "password_hash": password_hash,
-            "role": "admin",
-            "display_name": "Admin",
-        },
-    ])
 
 
 def downgrade() -> None:

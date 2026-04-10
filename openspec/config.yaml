@@ -54,6 +54,10 @@ rules:
     - "Use RFC 2119 language: MUST, SHALL, SHOULD, MAY. No ambiguous phrasing ('ideally', 'preferably', 'it would be nice')."
     - "If the design affects database schema, include migration strategy (forward-only, rollback plan, data backfill)."
     - "Designs touching PII MUST include a '152-FZ Compliance' section referencing INV-013."
+    - "Python service Dockerfiles MUST install monorepo packages (packages/*) and the service itself with `pip install -e`. Non-editable installs copy source into site-packages and silently break docker-compose volume mounts — the worker then runs stale code while core-api runs fresh code."
+    - "Python service Dockerfiles SHOULD provide a `FROM base AS dev` target that installs `[dev]` extras (pytest and friends). docker-compose.yml MUST set `target: dev` for any service whose tests are runnable from a container, and mount the service's `tests/` directory as a volume."
+    - "Alembic migrations MUST be schema-only (DDL). Data seeding MUST live under `database/seeds/` as standalone scripts invoked independently of `alembic upgrade`. Migrations MUST NOT read application env vars (e.g. `ADMIN_LOGIN`) — only `DATABASE_URL` via env.py. This keeps `alembic upgrade head` runnable on fresh worktrees and in CI without secret provisioning."
+    - "Tests MUST use a separate database configured via `TEST_DATABASE_URL` (declared in `.env.example`). `services/core-api/tests/conftest.py` MUST NOT fall back to `DATABASE_URL` — fallback is sqlite only, so there is no code path from tests to the production DB. `database/migrations/env.py` MUST NOT overwrite a caller-provided `sqlalchemy.url` on the Alembic `Config` object."
   tasks:
     - "Use sequential hierarchical numbering: 1.1, 1.2, 2.1, 2.2. This gives the agent a 'program counter' to track position."
     - "Each task MUST be a single testable unit. If you cannot write one test for it, split it further."

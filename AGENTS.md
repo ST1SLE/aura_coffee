@@ -51,6 +51,18 @@ All state machines are defined in PDD §6. Reference them by section:
 
 This project follows Test-Driven Development for all backend code.
 
+### Worktree Testing Workflow
+
+Every worktree — new or existing — runs tests the same way, with zero manual setup beyond copying `.env.example`:
+
+```bash
+cp .env.example .env                                           # TEST_DATABASE_URL is pre-set
+docker compose up -d postgres redis
+docker compose exec core-api pytest services/core-api/tests/ -v
+```
+
+The test database `aura_coffee_test` is auto-created on first run by the `_ensure_test_database` fixture in `services/core-api/tests/conftest.py`. Migrations are schema-only — they run without any application env vars (no `ADMIN_LOGIN`, no `ADMIN_PASSWORD`). Seed data lives in `database/seeds/`. See `services/core-api/AGENTS.md` for fixture details and `database/AGENTS.md` for the migration/seed contract.
+
 ### The Two-Change Model
 
 Every backend feature is split into two sequential OpenSpec changes:

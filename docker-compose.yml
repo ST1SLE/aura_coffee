@@ -49,10 +49,12 @@ services:
     build:
       context: .
       dockerfile: services/payment-worker/Dockerfile
+      target: dev
     env_file: .env
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/payment-worker/src:/app/services/payment-worker/src
+      - ./services/payment-worker/tests:/app/services/payment-worker/tests
     depends_on:
       redis:
         condition: service_healthy
@@ -61,10 +63,12 @@ services:
     build:
       context: .
       dockerfile: services/sms-worker/Dockerfile
+      target: dev
     env_file: .env
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/sms-worker/src:/app/services/sms-worker/src
+      - ./services/sms-worker/tests:/app/services/sms-worker/tests
     depends_on:
       redis:
         condition: service_healthy

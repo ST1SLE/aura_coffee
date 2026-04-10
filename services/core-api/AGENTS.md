@@ -40,12 +40,39 @@ _(to be updated as code is added)_
 ## Testing
 
 - **Framework:** pytest + httpx
-- **Runner:** `pytest services/core-api/tests/ -v`
+- **Canonical runner:** `docker compose exec core-api pytest services/core-api/tests/ -v`
 - **Test files:** `tests/test_<module>.py` mirrors `src/core_api/<module>.py`
 - **Redis:** use `fakeredis` — no real Redis in tests
-- **DB:** test fixtures with test database (to be configured with CI)
 - **Mocks:** mock external boundaries (Celery task dispatch, SMS API), NOT internal services
 - **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+
+### Database fixtures
+
+Two fixture tiers. Pick the lightest one that works.
+
+1. **Default — sqlite in-memory.** Most tests (services, schemas, RBAC, auth logic) run against `sqlite://` via the `DATABASE_URL=sqlite://` default set in `conftest.py`. Fast, zero setup, no Postgres required.
+2. **Postgres — `migrated_db_session`.** Tests that exercise models, ORM relationships, or migrations depend on this module-scoped fixture. It:
+   - Reads `TEST_DATABASE_URL` (from `.env`, which you copied from `.env.example`).
+   - Auto-creates `aura_coffee_test` via `_ensure_test_database` if it does not exist yet (maintenance connection to the `postgres` admin DB).
+   - Runs `alembic upgrade head` against the test DB.
+   - Yields a SQLAlchemy `Session` and rolls it back on teardown.
+   - Skips entirely if `TEST_DATABASE_URL` is unset — conftest falls back to `sqlite://`, **never** to `DATABASE_URL`, so there is no path to corrupt the dev DB.
+
+### Worktree testing workflow
+
+A brand-new worktree is expected to run tests with zero troubleshooting:
+
+```bash
+cp .env.example .env                        # has TEST_DATABASE_URL pre-set
+docker compose up -d postgres redis         # or the full stack
+docker compose exec core-api pytest services/core-api/tests/ -v
+```
+
+On the first run the fixture creates `aura_coffee_test` and migrates it (~2s one-off). Subsequent runs reuse the DB. To reset:
+
+```bash
+docker compose exec postgres dropdb -U aura aura_coffee_test
+```
 
 ## This Module MUST NOT
 
