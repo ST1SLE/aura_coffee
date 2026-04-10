@@ -23,7 +23,8 @@ def test_main_registers_three_new_routers(client: TestClient) -> None:
         assert expected_tag in tag_names, f"Тег {expected_tag!r} не найден в /openapi.json"
 
     paths = schema.get("paths", {})
-    for prefix in ("/api/v1/admin/menu", "/api/v1/menu", "/api/v1/cart"):
+    # menu_admin и menu_public пока стабы — путей нет; cart реализован в GREEN
+    for prefix in ("/api/v1/admin/menu", "/api/v1/menu"):
         matching = [p for p in paths if p.startswith(prefix)]
         assert matching == [], (
             f"Ожидается 0 путей под {prefix!r}, найдено: {matching}"

@@ -46,7 +46,8 @@ def test_cart_router_exists() -> None:
     assert isinstance(router, APIRouter)
     assert router.prefix == "/api/v1/cart"
     assert router.tags == ["cart"]
-    assert list(router.routes) == [], "Роутер cart должен быть пустым (0 endpoints)"
+    # В GREEN фазе cart реализован — роутер содержит endpoints
+    assert len(list(router.routes)) > 0, "Роутер cart должен содержать endpoints (реализован в GREEN)"
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +56,8 @@ def test_cart_router_exists() -> None:
 
 def test_stubs_have_no_endpoint_decorators() -> None:
     routers_dir = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "routers"
-    stub_files = ["menu_admin.py", "menu_public.py", "cart.py"]
+    # cart.py реализован в GREEN; menu_admin и menu_public остаются стабами
+    stub_files = ["menu_admin.py", "menu_public.py"]
 
     for filename in stub_files:
         path = routers_dir / filename

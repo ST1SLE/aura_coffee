@@ -1,6 +1,7 @@
 """RED: тесты Pydantic-схем корзины в core_api.schemas.cart.
 
 Все тесты ДОЛЖНЫ падать с ImportError до создания schemas/cart.py.
+Группа 3.x: тесты line_id и compute_line_id (добавлены в рамках cart-redis-pricing-red).
 """
 
 import ast
@@ -73,6 +74,7 @@ def _make_cart_item_response(unit_price: int, quantity: int, line_total: int):
     from core_api.schemas.cart import CartItemResponse
 
     return CartItemResponse(
+        line_id=CartItemResponse.compute_line_id(1, None, []),
         menu_item_id=1,
         size_option_id=None,
         modifier_ids=[],
@@ -102,8 +104,10 @@ def test_cart_item_response_line_total_invariant() -> None:
 def _make_cart_response(subtotal: int):
     from core_api.schemas.cart import CartResponse
 
+    from core_api.schemas.cart import CartItemResponse as _CIR
     items_data = [
         {
+            "line_id": _CIR.compute_line_id(1, None, []),
             "menu_item_id": 1,
             "size_option_id": None,
             "modifier_ids": [],
@@ -115,6 +119,7 @@ def _make_cart_response(subtotal: int):
             "modifiers_snapshot": [],
         },
         {
+            "line_id": _CIR.compute_line_id(2, None, []),
             "menu_item_id": 2,
             "size_option_id": None,
             "modifier_ids": [],
@@ -126,6 +131,7 @@ def _make_cart_response(subtotal: int):
             "modifiers_snapshot": [],
         },
         {
+            "line_id": _CIR.compute_line_id(3, None, []),
             "menu_item_id": 3,
             "size_option_id": None,
             "modifier_ids": [],
@@ -197,3 +203,133 @@ def test_cart_schemas_do_not_import_orm_or_redis() -> None:
                     assert not module.startswith(bad), (
                         f"schemas/cart.py не должен импортировать {bad!r}, найдено: {module!r}"
                     )
+
+
+# ===========================================================================
+# Группа 3.x — line_id в CartItemResponse (cart-redis-pricing-red)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# 3.1 line_id присутствует в CartItemResponse.model_fields
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_has_line_id() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    assert "line_id" in CartItemResponse.model_fields, (
+        "CartItemResponse должен содержать поле line_id: str"
+    )
+    field = CartItemResponse.model_fields["line_id"]
+    # Проверяем аннотацию типа
+    import typing
+    annotation = field.annotation
+    assert annotation is str or annotation == str, (
+        f"line_id должен быть str, получено: {annotation}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3.2 compute_line_id детерминирован и возвращает 16-символьный hex
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_compute_line_id_is_deterministic() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    result1 = CartItemResponse.compute_line_id(1, 3, [5, 7])
+    result2 = CartItemResponse.compute_line_id(1, 3, [5, 7])
+
+    assert result1 == result2
+    assert len(result1) == 16
+    assert result1 == result1.lower()
+    # Проверяем что это hex
+    int(result1, 16)  # поднимет ValueError если не hex
+
+
+# ---------------------------------------------------------------------------
+# 3.3 Порядок модификаторов не влияет на line_id
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_compute_line_id_modifier_order_independent() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    assert (
+        CartItemResponse.compute_line_id(1, 3, [5, 7])
+        == CartItemResponse.compute_line_id(1, 3, [7, 5])
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3.4 line_id чувствителен к size_option_id
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_compute_line_id_size_sensitive() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    assert (
+        CartItemResponse.compute_line_id(1, 3, [5])
+        != CartItemResponse.compute_line_id(1, 4, [5])
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3.5 line_id чувствителен к набору модификаторов
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_compute_line_id_modifier_sensitive() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    assert (
+        CartItemResponse.compute_line_id(1, 3, [5])
+        != CartItemResponse.compute_line_id(1, 3, [5, 7])
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3.6 size_option_id=None стабильно
+# ---------------------------------------------------------------------------
+
+def test_cart_item_response_compute_line_id_size_option_none_stable() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    result1 = CartItemResponse.compute_line_id(1, None, [])
+    result2 = CartItemResponse.compute_line_id(1, None, [])
+
+    assert result1 == result2
+    assert len(result1) == 16
+    int(result1, 16)  # hex guard
+
+
+# ---------------------------------------------------------------------------
+# 3.7 CartItemCreate не имеет поля line_id
+# ---------------------------------------------------------------------------
+
+def test_cart_item_create_has_no_line_id_field() -> None:
+    from core_api.schemas.cart import CartItemCreate
+
+    assert "line_id" not in CartItemCreate.model_fields
+
+
+# ---------------------------------------------------------------------------
+# 3.8 Полный round-trip CartItemResponse с line_id
+# ---------------------------------------------------------------------------
+
+def test_full_cart_item_response_round_trip_with_line_id() -> None:
+    from core_api.schemas.cart import CartItemResponse
+
+    expected_line_id = CartItemResponse.compute_line_id(1, None, [])
+
+    item = CartItemResponse(
+        line_id=expected_line_id,
+        menu_item_id=1,
+        size_option_id=None,
+        modifier_ids=[],
+        quantity=3,
+        unit_price=15000,
+        line_total=45000,
+        menu_item_snapshot={"name_ru": "Латте", "name_en": "Latte", "availability": "available"},
+        size_snapshot=None,
+        modifiers_snapshot=[],
+    )
+
+    assert item.line_id == expected_line_id
+    assert item.line_total == 45000

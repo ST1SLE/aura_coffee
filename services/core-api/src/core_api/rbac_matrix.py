@@ -18,6 +18,12 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # Logout — любой аутентифицированный пользователь
     ("POST", "/api/v1/auth/logout"): ALL_ROLES,
     ("POST", "/api/v1/staff/auth/logout"): ALL_STAFF,
+    # Корзина — только CUSTOMER (INV-002, design D6)
+    ("GET",    "/api/v1/cart"):                 {CUSTOMER},
+    ("DELETE", "/api/v1/cart"):                 {CUSTOMER},
+    ("POST",   "/api/v1/cart/items"):            {CUSTOMER},
+    ("PATCH",  "/api/v1/cart/items/{line_id}"): {CUSTOMER},
+    ("DELETE", "/api/v1/cart/items/{line_id}"): {CUSTOMER},
 }
 
 # Маршруты без аутентификации
