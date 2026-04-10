@@ -51,3 +51,46 @@ Now: `payment-worker` and `sms-worker` also use `target: dev` and mount `./servi
 #### Scenario: Redis is accessible
 - **WHEN** the stack is running
 - **THEN** `payment-worker` and `sms-worker` can connect to Redis on the internal Docker network
+
+## ADDED Requirements
+
+### Requirement: Parameterized host ports for multi-worktree coexistence
+Every host port binding in `docker-compose.yml` SHALL be declared as `${VAR:-default}` so that each git worktree running the stack can override it via its own `.env` without editing shared files. The six variables SHALL be `POSTGRES_PORT`, `REDIS_PORT`, `CORE_API_PORT`, `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `NGINX_PORT`. Defaults SHALL match the pre-existing hardcoded values (`5433 / 6379 / 8000 / 5173 / 5174 / 80`) so single-worktree usage is unchanged.
+
+`.env.example` SHALL declare all six variables under a `# Host port bindings` section with an inline comment explaining the per-worktree offset convention (bump every port by the same offset).
+
+#### Scenario: Defaults preserve single-worktree behavior
+- **GIVEN** a worktree with `.env` copied verbatim from `.env.example`
+- **WHEN** `docker compose up -d` is run
+- **THEN** host ports bind to `5433 / 6379 / 8000 / 5173 / 5174 / 80`, matching the pre-parameterization defaults
+
+#### Scenario: Two worktrees coexist on distinct ports
+- **GIVEN** two worktrees each with their own `.env` using port offsets `+0` and `+10` respectively
+- **WHEN** both run `docker compose up -d`
+- **THEN** both stacks start successfully with no host port conflicts
+
+### Requirement: Bootstrap script for per-worktree environment
+The repo SHALL provide `scripts/setup-worktree-env.sh` that generates a per-worktree `.env` from `.env.example` with a collision-free host port offset. The script SHALL:
+
+1. Derive a deterministic starting offset from `sha1sum` of the worktree path, in the range `[0, 200)` stepped by 10.
+2. Probe each candidate port set (`POSTGRES_PORT`, `REDIS_PORT`, `CORE_API_PORT`, `WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`, `NGINX_PORT` with the offset applied) against `127.0.0.1` via bash `/dev/tcp`. If any port is bound, bump offset by +10 and retry, up to 20 attempts.
+3. On the first free set, write `.env` from `.env.example` with every port replaced and `CORS_ORIGINS` patched to match the chosen `WEB_CUSTOMER_PORT` and `WEB_ADMIN_PORT`.
+4. Be idempotent — re-running SHALL pick a fresh offset if the current `.env` ports have since been taken by another stack.
+
+The script SHALL refuse to run on a host marked as production, to prevent clobbering prod config with dev defaults. Production markers SHALL be any of: a `.env.production` file at repo root, `AURA_PRODUCTION_HOST=1` in the environment, or a `/etc/aura-coffee/production` marker file. The production guard SHALL be overridable only via explicit `FORCE=1`.
+
+#### Scenario: Script picks a free offset deterministically
+- **GIVEN** a worktree whose path hashes to starting offset `+N`
+- **AND** no other stack is bound on any of the six ports at offset `+N`
+- **WHEN** `./scripts/setup-worktree-env.sh` is run
+- **THEN** `.env` is written with all six ports at offset `+N` and `CORS_ORIGINS` patched to match, and the same worktree path always produces the same starting offset
+
+#### Scenario: Script skips collisions and picks the next free offset
+- **GIVEN** another stack is already bound on at least one port at starting offset `+N`
+- **WHEN** `./scripts/setup-worktree-env.sh` is run
+- **THEN** the script detects the collision, bumps offset by +10, re-probes, and writes `.env` with the first fully-free offset it finds
+
+#### Scenario: Production guard refuses to run
+- **GIVEN** a `.env.production` file exists at repo root (or `AURA_PRODUCTION_HOST=1`, or `/etc/aura-coffee/production` exists)
+- **WHEN** `./scripts/setup-worktree-env.sh` is run without `FORCE=1`
+- **THEN** the script exits with status 1 and does not modify `.env`

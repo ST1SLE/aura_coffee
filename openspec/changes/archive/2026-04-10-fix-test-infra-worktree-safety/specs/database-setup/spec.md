@@ -40,6 +40,11 @@ Alembic's `env.py` SHALL NOT overwrite a caller-provided `sqlalchemy.url` on the
 - **WHEN** `env.py` runs
 - **THEN** `env.py` does NOT overwrite the URL with `os.environ["DATABASE_URL"]`, and migrations run against `TEST_DATABASE_URL`
 
+#### Scenario: Test modules single-source the URL lookup
+- **GIVEN** a test module under `services/core-api/tests/` that needs `TEST_DATABASE_URL` (e.g. for a module-scoped Alembic config or a sqlite-skip guard)
+- **WHEN** the module is loaded
+- **THEN** it imports `_TEST_DB_URL` from `tests.conftest` rather than re-reading `os.environ.get("TEST_DATABASE_URL")`, so the fallback-trap fix in conftest propagates to every consumer
+
 ### Requirement: Test database auto-provisioning
 The `migrated_db_session` fixture in `services/core-api/tests/conftest.py` SHALL create the `aura_coffee_test` database at session start if it does not already exist. Creation SHALL use a maintenance connection to the `postgres` administrative database on the same host, with `isolation_level="AUTOCOMMIT"`, and SHALL issue `CREATE DATABASE aura_coffee_test` only if `pg_database` does not already contain a row for it.
 
@@ -60,3 +65,8 @@ The fixture SHALL NOT drop the test database on teardown; per-test isolation is 
 - **GIVEN** `TEST_DATABASE_URL` is unset (fallback to `sqlite://`)
 - **WHEN** `pytest` is run
 - **THEN** no connection to PostgreSQL is attempted and no `CREATE DATABASE` statement is issued
+
+#### Scenario: Out-of-band Alembic runs still auto-provision
+- **GIVEN** a test module (e.g. `test_migration_0004_menu_tables.py`) that declares its own Alembic `Config` fixture and calls `command.upgrade` directly
+- **WHEN** the fixture is resolved
+- **THEN** it depends on `_ensure_test_database` so `aura_coffee_test` is created before the out-of-band upgrade runs, even on a fresh worktree where no prior fixture has touched the DB

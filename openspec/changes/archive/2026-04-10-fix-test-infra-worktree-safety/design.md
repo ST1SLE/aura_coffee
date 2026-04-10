@@ -102,6 +102,8 @@ After this change:
 
 **Encoded as config.yaml rule:** tests MUST use a separate database; `env.py` MUST honor caller-provided `sqlalchemy.url`.
 
+**Single-source the env var lookup.** `conftest.py` is not the only module that reads `TEST_DATABASE_URL`. `test_migration_0004_menu_tables.py` and `test_models_menu.py` both copy-pasted the `TEST_DATABASE_URL or DATABASE_URL` idiom at module level, so removing the fallback in `conftest.py` alone was insufficient — the test modules kept the trap alive. The fix is that any test module needing the URL SHALL `from tests.conftest import _TEST_DB_URL`. Additionally, `test_migration_0004_menu_tables.py` declared its own module-scoped `alembic_cfg` fixture and called `command.upgrade` against the test DB without depending on `_ensure_test_database` — so in a fresh worktree the DB did not exist yet when the migration test ran. Any out-of-band Alembic runs inside tests SHALL take `_ensure_test_database` as a fixture dependency.
+
 ### D5: Auto-provision the test database in the fixture
 
 Setting `TEST_DATABASE_URL` is not enough — the database must exist before Alembic can connect. Options considered:
@@ -136,7 +138,32 @@ Agents that enter the repo in a fresh worktree should find the testing workflow 
 - **`services/core-api/AGENTS.md`** — the Testing section is expanded with concrete commands (`docker compose exec core-api pytest`), the sqlite-vs-postgres fixture split, and the auto-provisioning behavior.
 - **`database/AGENTS.md`** — new "Testing" subsection documents the `env.py` placeholder contract, the seed separation rule, and how to run the initial admin seed.
 
-## Risks / Trade-offs
+### D8: Parameterized host ports + deterministic bootstrap script for multi-worktree coexistence
+
+The original scope accepted "one worktree with the stack up at a time" as a known limitation. Partway through the apply phase this proved untenable — the menu-foundation worktree and an `fix-test-infra` verification worktree both needed the stack up simultaneously, and the hardcoded `5433 / 6379 / 8000 / 5173 / 5174 / 80` bindings collided instantly. Two fixes, applied together:
+
+1. **Parameterize every host port in `docker-compose.yml` as `${VAR:-default}`.** Six bindings: `POSTGRES_PORT / REDIS_PORT / CORE_API_PORT / WEB_CUSTOMER_PORT / WEB_ADMIN_PORT / NGINX_PORT`. Defaults preserve single-worktree behavior. Declared in `.env.example` under a `# Host port bindings` section with the "pick an offset, apply to every port" convention documented inline.
+
+2. **`scripts/setup-worktree-env.sh` does the offset picking automatically.** Manually editing six ports + `CORS_ORIGINS` per worktree is the kind of friction this whole change exists to eliminate. The script:
+
+   - Hashes the worktree path (`sha1sum $(git rev-parse --show-toplevel)`) for a deterministic starting offset in `[0, 200)` stepped by 10. Same worktree path → same starting offset → reproducible across machines.
+   - Probes each candidate port set against `127.0.0.1` via bash `/dev/tcp`. If any port in the set is already bound, bumps offset by +10 and retries, up to 20 attempts.
+   - On success, copies `.env.example` → `.env` and `sed`-substitutes the 6 ports + rewrites `CORS_ORIGINS` to match the chosen web ports.
+   - Idempotent: re-run any time a collision appears and the script picks a fresh offset.
+
+**Production guard.** The script mutates `.env`, which in principle could clobber a production host's config. Three independent kill-switches, any one trips an `exit 1`: `.env.production` file at repo root, `AURA_PRODUCTION_HOST=1` env var, or `/etc/aura-coffee/production` marker file. Override requires explicit `FORCE=1`. Mitigation is belt-and-suspenders — production deployments shouldn't read the repo's `.env` in the first place — but the guard is cheap.
+
+**Alternatives considered:**
+
+| Option | Verdict |
+|---|---|
+| `direnv` per-worktree `.envrc` | Extra tool, extra install step, doesn't probe for collisions |
+| Static offset per worktree in a registry file | Requires manual registry upkeep; falls out of sync |
+| Random offset on every run | Loses determinism; makes `docker compose down` harder |
+| `COMPOSE_PROJECT_NAME` only (no port bump) | Doesn't solve the host port collision, just container names |
+| Require developers to bump ports manually | What we had. The friction is the problem being solved. |
+
+The hashed starting offset gives determinism; the collision probe gives self-healing; the production guard gives safety. Section 11 captures the tasks.
 
 - **Existing dev DBs with admin seeded via old migration** — unaffected. The DDL is unchanged; only the in-upgrade seed is removed. `alembic current` stays on `0004`.
 - **Downgrade–upgrade cycles on existing dev DBs** — `alembic downgrade 0002 && alembic upgrade head` will no longer re-seed the admin. Developers must run the seed script after. Documented in `database/AGENTS.md`.

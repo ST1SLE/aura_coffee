@@ -19,11 +19,14 @@ The goal is to make `docker compose exec core-api pytest` **just work** on a cle
 - **[core-api]** `tests/conftest.py` auto-creates `aura_coffee_test` via a maintenance connection at session start, then runs `alembic upgrade head` against it. The `_TEST_DB_URL` fallback to `DATABASE_URL` is removed to eliminate any path to the production DB.
 - **[openspec]** `config.yaml` gains four design rules enforcing editable installs, worker `dev` targets, schema-only migrations, and test DB isolation.
 - **[docs]** `AGENTS.md` (root), `database/AGENTS.md`, and `services/core-api/AGENTS.md` document the worktree testing workflow so future agents inherit the contract.
+- **[docker]** Every host port binding in `docker-compose.yml` is templated `${VAR:-default}` and declared in `.env.example` under `# Host port bindings`, so simultaneous worktrees can each pick their own offset.
+- **[root]** `scripts/setup-worktree-env.sh` bootstraps a per-worktree `.env` with a collision-free port offset: it hashes the worktree path for a deterministic starting offset, probes each candidate port via bash `/dev/tcp`, bumps by +10 on collision (max 20 attempts), and patches `CORS_ORIGINS` to match. A production guard (`.env.production`, `AURA_PRODUCTION_HOST=1`, or `/etc/aura-coffee/production`) refuses to run unless `FORCE=1`.
+- **[core-api]** `tests/test_migration_0004_menu_tables.py` and `tests/test_models_menu.py` import `_TEST_DB_URL` from `tests.conftest` rather than re-reading env vars, so the fallback-trap fix is single-sourced. `test_migration_0004_menu_tables.py::alembic_cfg` gains a dependency on `_ensure_test_database` so its out-of-band Alembic runs still auto-provision the test DB.
 
 ## Non-Goals
 
 - No new pytest plugins or test framework changes.
-- No per-worktree `COMPOSE_PROJECT_NAME` isolation (docker-compose already derives project name from the worktree directory; distinct directories already get distinct containers). Running two worktrees with the stack up simultaneously still collides on the `5433` host port — one-at-a-time remains a known limitation.
+- No per-worktree `COMPOSE_PROJECT_NAME` isolation — docker-compose already derives project name from the worktree directory, so distinct directories get distinct containers. (Simultaneous worktrees were blocked by host port collisions; that limitation is lifted by the port parameterization + `setup-worktree-env.sh` follow-up in this same change.)
 - No worker test suites added. This change unblocks them; it does not write them.
 - No second Postgres container for tests. `aura_coffee` and `aura_coffee_test` share the same instance on different databases.
 - No refactor of existing core-api tests that already work against sqlite.
@@ -64,6 +67,9 @@ The proposal below groups RED tasks before the GREEN/MIGRATE tasks they unblock,
   - `services/core-api/tests/conftest.py`
   - `services/core-api/tests/test_migration_bootstrap.py` (new)
   - `services/core-api/tests/test_seed_initial_admin.py` (new)
+  - `services/core-api/tests/test_migration_0004_menu_tables.py` (import from conftest, fixture depends on `_ensure_test_database`)
+  - `services/core-api/tests/test_models_menu.py` (import from conftest)
+  - `scripts/setup-worktree-env.sh` (new)
   - `openspec/config.yaml`
   - `AGENTS.md`
   - `database/AGENTS.md`

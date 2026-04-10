@@ -34,7 +34,7 @@
 ## 6. MIGRATE — split admin seed out of migration 0003
 
 - [x] 6.1 MIGRATE [database] Edit `database/migrations/versions/0003_staff_accounts.py` — remove the `import os`, `import uuid`, `import bcrypt`, `admin_login = os.environ.get(...)`, the `RuntimeError` guard, the `password_hash = bcrypt.hashpw(...)`, the `staff_table = sa.table(...)`, and the `op.bulk_insert(...)` call. Keep only the `CREATE TABLE`, `CREATE INDEX`, and the `downgrade()`. Satisfies 4.1, 4.2.
-- [ ] 6.2 VERIFY [database] Run `docker compose exec core-api sh -c "cd /app/database && alembic downgrade base && alembic upgrade head"` with `ADMIN_LOGIN` and `ADMIN_PASSWORD` unset. Both commands SHALL succeed without error.
+- [x] 6.2 VERIFY [database] Run `docker compose exec core-api sh -c "cd /app/database && alembic downgrade base && alembic upgrade head"` with `ADMIN_LOGIN` and `ADMIN_PASSWORD` unset. Both commands SHALL succeed without error.
 
 ## 7. GREEN — conftest auto-provisions the test database
 
@@ -43,9 +43,9 @@
 
 ## 8. VERIFY — end-to-end worktree flow
 
-- [ ] 8.1 VERIFY [core-api] On a fresh Postgres volume (`docker compose down -v && docker compose up -d postgres redis`) with a `.env` copied verbatim from `.env.example`, run `docker compose exec core-api pytest services/core-api/tests/ -v`. All tests SHALL pass with zero skips due to missing `TEST_DATABASE_URL`.
-- [ ] 8.2 VERIFY [payment-worker] Run `docker compose build payment-worker` (the `target: dev` is already declared in `docker-compose.yml`; there is no `--target` CLI flag on `docker compose build`) then `docker compose run --rm payment-worker python -c "import shared; print(shared.__file__)"`. The printed path SHALL point inside `/app/packages/shared/src`, confirming the editable install honors the volume mount.
-- [ ] 8.3 VERIFY [sms-worker] Same check for sms-worker: `docker compose build sms-worker && docker compose run --rm sms-worker python -c "import shared; print(shared.__file__)"`.
+- [x] 8.1 VERIFY [core-api] On a fresh Postgres volume (`docker compose down -v && docker compose up -d postgres redis`) with a `.env` copied verbatim from `.env.example`, run `docker compose exec core-api pytest services/core-api/tests/ -v`. All tests SHALL pass with zero skips due to missing `TEST_DATABASE_URL`.
+- [x] 8.2 VERIFY [payment-worker] Run `docker compose build payment-worker` (the `target: dev` is already declared in `docker-compose.yml`; there is no `--target` CLI flag on `docker compose build`) then `docker compose run --rm payment-worker python -c "import shared; print(shared.__file__)"`. The printed path SHALL point inside `/app/packages/shared/src`, confirming the editable install honors the volume mount.
+- [x] 8.3 VERIFY [sms-worker] Same check for sms-worker: `docker compose build sms-worker && docker compose run --rm sms-worker python -c "import shared; print(shared.__file__)"`.
 
 ## 9. Documentation — workflow visible to future agents
 
@@ -69,7 +69,7 @@
 ## 10. Final verification
 
 - [x] 10.1 VERIFY [openspec] Run `openspec validate fix-test-infra-worktree-safety --strict`. SHALL pass with no errors.
-- [ ] 10.2 VERIFY [root] Re-run the full flow from 8.1 in a **second** worktree created via `git worktree add`. In the second worktree's `.env`, bump every host port by `+10` per section 11 (e.g. `POSTGRES_PORT=5443`, `REDIS_PORT=6389`, `CORE_API_PORT=8010`, `WEB_CUSTOMER_PORT=5183`, `WEB_ADMIN_PORT=5184`, `NGINX_PORT=90`) and update `CORS_ORIGINS` to match. Then `docker compose up -d` SHALL succeed without port collisions against the first worktree's stack, and `docker compose exec core-api pytest services/core-api/tests/ -v` SHALL pass.
+- [x] 10.2 VERIFY [root] Re-run the full flow from 8.1 in a **second** worktree created via `git worktree add`. Use `./scripts/setup-worktree-env.sh` (added in 11.4) to bootstrap the second worktree's `.env` with a collision-free port offset. Then `docker compose up -d` SHALL succeed without port collisions against the first worktree's stack, and `docker compose exec core-api pytest services/core-api/tests/ -v` SHALL pass.
 
 ## 11. Follow-up: per-worktree host port overrides
 
@@ -77,3 +77,11 @@
 - [x] 11.2 PREREQ [docker] Add a `# Host port bindings` section to `.env.example` listing all six port env vars with their defaults and a comment explaining the "pick an offset per worktree, apply to every port" convention.
 - [x] 11.3 PREREQ [root] Document the multi-worktree port override pattern in `AGENTS.md` under the Worktree Testing Workflow subsection, including the `CORS_ORIGINS` gotcha (it hardcodes 5173/5174 and must be updated if web ports are bumped).
 - [x] 11.4 PREREQ [root] Create `scripts/setup-worktree-env.sh` — a bootstrap script that derives a deterministic starting offset from `sha1sum` of `$(git rev-parse --show-toplevel)`, then probes each candidate port set (POSTGRES/REDIS/CORE_API/WEB_CUSTOMER/WEB_ADMIN/NGINX with the offset applied) against `127.0.0.1` via bash `/dev/tcp`. If any port is bound, bump offset by +10 and retry up to 20 attempts. On success, write `.env` from `.env.example` with every port replaced and `CORS_ORIGINS` patched to match `WEB_CUSTOMER_PORT`/`WEB_ADMIN_PORT`. Idempotent: re-running picks a fresh offset if the current `.env` collides with something that came up later. Make executable. Update `AGENTS.md` Worktree Testing Workflow to recommend `./scripts/setup-worktree-env.sh` over `cp .env.example .env`.
+- [x] 11.5 PREREQ [root] Add a production guard to `scripts/setup-worktree-env.sh`: refuse to run (exit 1) if any of `.env.production` at repo root, `AURA_PRODUCTION_HOST=1` in env, or `/etc/aura-coffee/production` marker is present. Override via explicit `FORCE=1`. Rationale: the script mutates `.env`; accidentally running it on a production host would clobber real config with `.env.example` dev defaults.
+
+## 12. Follow-up: test-module fallout from the fallback-trap fix
+
+Discovered while executing task 10.2 in a second worktree. Removing the fallback in `conftest.py` alone was insufficient — two test modules had copy-pasted the same `TEST_DATABASE_URL or DATABASE_URL` idiom at module level, and one of them declared its own Alembic fixture that bypassed `_ensure_test_database`. A fresh-worktree run surfaced both.
+
+- [x] 12.1 PREREQ [core-api] Edit `services/core-api/tests/test_migration_0004_menu_tables.py` — replace the module-level `TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL", "")` with `from tests.conftest import _TEST_DB_URL as TEST_DB_URL`. Make the module's `alembic_cfg` fixture take `_ensure_test_database` as a dependency so out-of-band `command.upgrade` calls still trigger test DB creation on a fresh worktree.
+- [x] 12.2 PREREQ [core-api] Edit `services/core-api/tests/test_models_menu.py` — apply the same import change. Module only needs the URL for the `_IS_SQLITE` skip guard; the relationship tests already depend on `migrated_db_session` which transitively depends on `_ensure_test_database`.
