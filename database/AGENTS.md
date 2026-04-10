@@ -65,12 +65,9 @@ _(to be updated as code is added)_
 
 ### Running the initial admin seed
 
-```bash
-# After `alembic upgrade head` on a new deployment:
-docker compose exec core-api python -m database.seeds.initial_admin
-```
+The `db-seed` compose service runs `python -m database.seeds.initial_admin` automatically on every `docker compose up`, after `db-migrate` completes. No manual step is needed.
 
-The script reads `ADMIN_LOGIN` and `ADMIN_PASSWORD` from env, bcrypts the password, and inserts one row into `staff_accounts` with `ON CONFLICT (login) DO NOTHING` (idempotent).
+`ADMIN_LOGIN` and `ADMIN_PASSWORD` are read from `.env`; dev defaults (`admin` / `admin123`) are committed in `.env.example`. Override them in your `.env` for any non-dev environment. The script inserts one row into `staff_accounts` with `ON CONFLICT (login) DO NOTHING` (idempotent).
 
 ## This Module MUST NOT
 

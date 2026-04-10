@@ -25,6 +25,38 @@ services:
       timeout: 3s
       retries: 5
 
+  db-migrate:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+      target: dev
+    env_file: .env
+    volumes:
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./services/core-api/src:/app/services/core-api/src
+      - ./database:/app/database
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "cd /app/database && alembic upgrade head"]
+    restart: "no"
+
+  db-seed:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+      target: dev
+    env_file: .env
+    volumes:
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./services/core-api/src:/app/services/core-api/src
+      - ./database:/app/database
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "database.seeds.initial_admin"]
+    restart: "no"
+
   core-api:
     build:
       context: .
@@ -44,6 +76,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-seed:
+        condition: service_completed_successfully
 
   payment-worker:
     build:

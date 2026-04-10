@@ -44,7 +44,9 @@ env_get() {
 
 # Run compose. Forward any extra args so `./scripts/up.sh --build core-api`
 # does the obvious thing.
-docker compose up -d "$@"
+# Allow non-zero exit (e.g. when db-migrate fails and core-api doesn't start)
+# so the banner below can always print the migration status.
+docker compose up -d "$@" || true
 
 # Best-effort health wait. Poll `docker compose ps` for up to ~30s. If
 # services are still starting after the timeout, we still print the banner
@@ -52,9 +54,11 @@ docker compose up -d "$@"
 wait_for_healthy() {
   local deadline=$(( SECONDS + 30 ))
   while (( SECONDS < deadline )); do
-    # If any non-one-shot service is not running/healthy, keep waiting.
+    # Exclude one-shot services (db-migrate, db-seed) — they exit 0 on success
+    # and must not be treated as unhealthy.
     local bad
     bad="$(docker compose ps --format json 2>/dev/null \
+      | grep -v 'db-migrate\|db-seed' \
       | grep -E '"State":"(created|restarting|exited|dead)"' || true)"
     if [[ -z "$bad" ]]; then
       return 0
@@ -69,15 +73,31 @@ if ! wait_for_healthy; then
   HEALTH_NOTE=" (services may still be starting — retry in a moment if a URL fails)"
 fi
 
+# Determine migration outcome from db-migrate exit code.
+# Must use --all because exited containers don't appear in regular `ps`.
+# Match on "Service":"db-migrate" to avoid false-positives from db-seed's
+# labels, which reference the string "db-migrate" in their depends_on field.
+MIGRATE_EXIT="$(docker compose ps --all --format json 2>/dev/null \
+  | grep '"Service":"db-migrate"' \
+  | grep -o '"ExitCode":[0-9]*' | grep -o '[0-9]*$' || echo "1")"
+
+if [[ "${MIGRATE_EXIT}" == "0" ]]; then
+  MIGRATE_STATUS="applied ✓"
+else
+  MIGRATE_STATUS="FAILED — see: docker compose logs db-migrate"
+fi
+
 WEB_CUSTOMER_PORT="$(env_get WEB_CUSTOMER_PORT)"
 WEB_ADMIN_PORT="$(env_get WEB_ADMIN_PORT)"
 CORE_API_PORT="$(env_get CORE_API_PORT)"
 NGINX_PORT="$(env_get NGINX_PORT)"
 
-cat <<EOF
+if [[ "${MIGRATE_EXIT}" == "0" ]]; then
+  cat <<EOF
 
 ╔══════════════════════════════════════════════════════════════════╗
 ║  Aura Coffee — dev stack is up${HEALTH_NOTE}
+║  Migrations: ${MIGRATE_STATUS}
 ╠══════════════════════════════════════════════════════════════════╣
 ║  Canonical entry point (via nginx):
 ║    → http://localhost:${NGINX_PORT}/
@@ -95,3 +115,24 @@ cat <<EOF
 ╚══════════════════════════════════════════════════════════════════╝
 
 EOF
+else
+  cat <<EOF
+
+╔══════════════════════════════════════════════════════════════════╗
+║  Aura Coffee — dev stack is up${HEALTH_NOTE}
+║  Migrations: ${MIGRATE_STATUS}
+╠══════════════════════════════════════════════════════════════════╣
+║  ⚠ Stack incomplete — see above
+║  core-api may not have started. Run:
+║    docker compose logs db-migrate
+╠══════════════════════════════════════════════════════════════════╣
+║  ⚠  IGNORE the "Local: http://localhost:5173/" and
+║     "Local: http://localhost:5174/" lines printed by the
+║     web-customer / web-admin containers. Those are
+║     container-internal ports and will NOT work on the host
+║     when you have bumped host ports per worktree.
+╚══════════════════════════════════════════════════════════════════╝
+
+EOF
+  exit 1
+fi
