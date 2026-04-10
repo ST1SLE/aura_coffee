@@ -43,6 +43,18 @@ function handleAuthFailure(): void {
   }
 }
 
+/**
+ * Выполняет аутентифицированный запрос и десериализует JSON.
+ * Бросает Error с HTTP-статусом при ответах не 2xx.
+ */
+export async function apiRequest<T>(url: string, opts?: RequestInit): Promise<T> {
+  const res = await authenticatedFetch(url, opts);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${url}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function authenticatedFetch(
   input: RequestInfo | URL,
   init?: RequestInit,

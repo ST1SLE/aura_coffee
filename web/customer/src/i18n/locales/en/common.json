@@ -63,6 +63,33 @@
       }
     }
   },
+  "menu": {
+    "title": "Menu",
+    "empty": "The menu is empty",
+    "loading": "Loading menu...",
+    "error": "Failed to load menu",
+    "retry": "Try again",
+    "unavailable": "Unavailable",
+    "addToCart": "Add to Cart",
+    "added": "Added to cart",
+    "price": "Price",
+    "selectSize": "Select size",
+    "modifiers": "Add-ons"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "emptyCta": "Browse menu",
+    "loading": "Loading cart...",
+    "error": "Failed to load cart",
+    "retry": "Try again",
+    "subtotal": "Subtotal",
+    "remove": "Remove",
+    "expired": "Cart expired, data refreshed",
+    "decrement": "Decrease",
+    "increment": "Increase",
+    "modifierSeparator": ", "
+  },
   "language": {
     "ru": "РУ",
     "en": "EN"
