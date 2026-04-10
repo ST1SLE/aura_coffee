@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { MenuItemFormDialog } from './MenuItemFormDialog';
 import type { MenuItemResponse, CategoryResponse, Availability } from '@/api/menu';
 import { listItems, deleteItem, setItemAvailability, ApiError } from '@/api/menu';
-import { formatPrice } from './utils';
+import { formatPrice, pickLang } from './utils';
 
 interface Props {
   categoryId: number | null;
@@ -36,7 +36,7 @@ function AvailabilityBadge({ value }: { value: Availability }) {
 }
 
 export function MenuItemsTable({ categoryId, categories, currentRole, onError }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<MenuItemResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -129,8 +129,10 @@ export function MenuItemsTable({ categoryId, categories, currentRole, onError }:
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell>{formatPrice(item.price_kopecks)}</TableCell>
+                <TableCell className="font-medium">
+                  {pickLang(item.name_ru, item.name_en, i18n.language)}
+                </TableCell>
+                <TableCell>{formatPrice(item.base_price)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch

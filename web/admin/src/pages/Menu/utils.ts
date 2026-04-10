@@ -1,3 +1,9 @@
+// Выбирает нужный язык: en → name_en, иначе → name_ru; откат на ru если en пустой
+export function pickLang(ru: string, en: string, lang: string): string {
+  if (lang === 'en') return en || ru;
+  return ru;
+}
+
 // Конвертация копеек в рубли для отображения
 export function formatPrice(kopecks: number): string {
   return new Intl.NumberFormat('ru-RU', {
