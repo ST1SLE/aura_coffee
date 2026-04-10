@@ -50,4 +50,6 @@ PUBLIC_ROUTES: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/staff/auth/login"),
     ("POST", "/api/v1/staff/auth/refresh"),
+    # Публичное меню — доступно без авторизации
+    ("GET", "/api/v1/menu"),
 }

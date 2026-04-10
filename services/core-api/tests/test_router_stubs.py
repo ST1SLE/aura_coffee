@@ -2,6 +2,10 @@
 
 Тесты 7.1–7.3 ДОЛЖНЫ падать с ImportError до создания файлов.
 Тест 7.4 ДОЛЖЕН падать с AssertionError (файлов нет — нечего сканировать).
+
+Примечание (add-public-menu): stub-проверка «routes is empty» для menu_public
+заменена проверкой «GET /api/v1/menu зарегистрирован» — после реализации
+эндпоинта роутер больше не должен быть пустым.
 """
 
 import pathlib
@@ -34,7 +38,21 @@ def test_menu_public_router_exists() -> None:
     assert isinstance(router, APIRouter)
     assert router.prefix == "/api/v1/menu"
     assert router.tags == ["menu-public"]
-    assert list(router.routes) == [], "Роутер menu_public должен быть пустым (0 endpoints)"
+
+
+def test_menu_public_router_has_get_route() -> None:
+    """RED (add-public-menu): GET / зарегистрирован в роутере.
+
+    Падает до реализации (роутер пуст), проходит после GREEN.
+    """
+    from core_api.routers.menu_public import router
+
+    methods = {
+        method
+        for route in router.routes
+        for method in getattr(route, "methods", set())
+    }
+    assert "GET" in methods, "GET / не зарегистрирован в menu_public router"
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +75,9 @@ def test_cart_router_exists() -> None:
 def test_stubs_have_no_endpoint_decorators() -> None:
     # menu_admin больше не stub (см. menu-router-stubs delta spec)
     routers_dir = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "routers"
-    stub_files = ["menu_public.py", "cart.py"]
+    # menu_admin.py и menu_public.py больше не stubs (menu-admin-crud + add-public-menu) —
+    # остаётся только cart.py
+    stub_files = ["cart.py"]
 
     for filename in stub_files:
         path = routers_dir / filename
