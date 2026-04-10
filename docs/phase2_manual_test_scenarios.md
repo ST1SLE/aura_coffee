@@ -5,6 +5,13 @@ Pre-flight
 
 Banner must show Migrations: applied ✓. If it shows FAILED, stop — run docker compose logs      
 db-migrate.
+
+> Dev note — OTP codes: The dev stack sets SMS_BACKEND=log.
+> OTP codes are printed to `docker compose logs sms-worker` as:
+>   [SMS:log] to=<phone> msg=Код подтверждения: NNNNNN. Aura Coffee
+> If another worktree stack is running, host port NGINX_PORT=8240 may belong to a
+> sibling compose project. Fix: bump ports in .env (see .env.example:22-28),
+> or prefix docker compose calls with -p <project-name>.
                                                                                                 
 ---                                                                              
 Part A — Get admin JWT
@@ -25,20 +32,19 @@ Part B — Get customer JWT (OTP workaround)
                                                                                                 
 1. Open http://localhost:8240/ → navigate to login page.                         
 2. Enter phone +79991234567, submit.                                                            
-3. Pull the OTP from Redis:                                                                     
-docker compose exec redis redis-cli --scan --pattern 'otp:*'                                    
-# copy the key from output                                                                      
-docker compose exec redis redis-cli GET 'otp:<key_from_above>'                                  
-# JSON value contains "code"                                  
+3. Pull the OTP from `docker compose logs sms-worker` (look for the `[SMS:log]` line):
+docker compose logs --tail 20 sms-worker | grep '[SMS:log]'
+# OTP is in the msg=Код подтверждения: NNNNNN substring
 4. Enter the code on the verify page.                                                           
 5. You are logged in as customer. Keep this tab open.                                           
                                                                                                 
 For API testing get a token:                                                                    
-curl -s -X POST http://localhost:8240/api/v1/auth/request-otp \                  
+curl -s -X POST http://localhost:8240/api/v1/auth/send-code \                  
 -H 'Content-Type: application/json' \                                                         
--d '{"phone":"+79991234567"}'                                                  
-# then get code from redis as above                                                             
-curl -s -X POST http://localhost:8240/api/v1/auth/verify-otp \
+-d '{"phone":"+79991234567"}'
+# Expected: HTTP 200, {"message":"OTP sent","phone_hash":"<64-hex>"}
+# get code from: docker compose logs --tail 20 sms-worker | grep '[SMS:log]'
+curl -s -X POST http://localhost:8240/api/v1/auth/verify-code \
 -H 'Content-Type: application/json' \                                                         
 -d '{"phone":"+79991234567","code":"<code>"}' | jq -r .access_token            
 Save as $CUST_TOKEN.
