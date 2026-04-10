@@ -20,7 +20,8 @@ def test_menu_admin_router_exists() -> None:
     assert isinstance(router, APIRouter)
     assert router.prefix == "/api/v1/admin/menu"
     assert router.tags == ["menu-admin"]
-    assert list(router.routes) == [], "Роутер menu_admin должен быть пустым (0 endpoints)"
+    # menu_admin больше не stub: endpoints добавлены в menu-admin-crud
+    assert len(list(router.routes)) > 0, "Роутер menu_admin должен содержать endpoints"
 
 
 # ---------------------------------------------------------------------------
@@ -54,8 +55,9 @@ def test_cart_router_exists() -> None:
 # ---------------------------------------------------------------------------
 
 def test_stubs_have_no_endpoint_decorators() -> None:
+    # menu_admin больше не stub (см. menu-router-stubs delta spec)
     routers_dir = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "routers"
-    stub_files = ["menu_admin.py", "menu_public.py", "cart.py"]
+    stub_files = ["menu_public.py", "cart.py"]
 
     for filename in stub_files:
         path = routers_dir / filename

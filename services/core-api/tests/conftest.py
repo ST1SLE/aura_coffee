@@ -10,11 +10,14 @@ os.environ.setdefault("ENCRYPTION_KEY", "0" * 64)
 # не задан — уходим в in-memory sqlite и Postgres-фикстуры skip-аются.
 _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
 
+import uuid
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from urllib.parse import urlparse, urlunparse
 
 import fakeredis
+import jwt as pyjwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
@@ -23,6 +26,64 @@ from sqlalchemy.orm import Session
 from core_api.main import app
 from core_api.services.auth import AuthService
 from core_api.services.otp import OTPService
+
+# ─────────────────────────────────────────────
+# In-memory SQLite: единый движок со StaticPool
+# ─────────────────────────────────────────────
+# sqlite:// создаёт новую БД на каждое соединение. StaticPool гарантирует,
+# что все запросы идут через одно и то же соединение и видят одни таблицы.
+if _TEST_DB_URL.startswith("sqlite"):
+    from sqlalchemy.pool import StaticPool
+    import shared.models.menu  # noqa: F401 — регистрирует модели в Base.metadata
+    import core_api.deps.database as _db_module
+    from shared.models import Base
+
+    _sqlite_engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(_sqlite_engine)
+    # Перезаписываем движок и фабрику сессий в модуле deps.database
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+    _db_module.engine = _sqlite_engine
+    _db_module.SessionLocal = _sessionmaker(bind=_sqlite_engine)
+
+# ─────────────────────────────────────────────
+# JWT-хелперы для тестов
+# ─────────────────────────────────────────────
+_JWT_SECRET = "test-secret"  # совпадает с JWT_SECRET_KEY в окружении тестов
+
+
+def _make_jwt(role: str) -> str:
+    """Создание JWT-токена заданной роли без мокирования AuthService."""
+    payload = {
+        "sub": str(uuid.uuid4()),
+        "role": role,
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(seconds=900),
+    }
+    return pyjwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+
+
+@pytest.fixture
+def admin_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_make_jwt('admin')}"}
+
+
+@pytest.fixture
+def barista_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_make_jwt('barista')}"}
+
+
+@pytest.fixture
+def customer_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_make_jwt('customer')}"}
+
+
+@pytest.fixture
+def courier_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_make_jwt('courier')}"}
 
 
 @pytest.fixture
@@ -100,6 +161,24 @@ def migrated_db_session(_ensure_test_database):
         session.rollback()
 
     engine.dispose()
+
+
+@pytest.fixture
+def db_client(migrated_db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient с get_db, перенаправленным в тестовую БД.
+
+    Позволяет тестам засевать данные через migrated_db_session, а запросам
+    через TestClient использовать тот же сеанс и те же данные.
+    """
+    from core_api.deps.database import get_db
+
+    def _override() -> Generator[Session, None, None]:
+        yield migrated_db_session
+
+    app.dependency_overrides[get_db] = _override
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture

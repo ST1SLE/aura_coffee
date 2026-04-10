@@ -153,3 +153,13 @@ class MenuItemResponse(MenuItemBase):
         if not self.available:
             return MenuItemAvailability.STOP_LIST
         return MenuItemAvailability.AVAILABLE
+
+
+# ---------------------------------------------------------------------------
+# AvailabilityPatch  (stop-list toggle — единственное поле)
+# ---------------------------------------------------------------------------
+
+class AvailabilityPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    available: bool
