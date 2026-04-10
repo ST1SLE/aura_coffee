@@ -13,13 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { MenuItemFormDialog } from './MenuItemFormDialog';
-import type { MenuItemResponse, CategoryResponse, Availability } from '@/api/menu';
+import type { MenuItemResponse, CategoryResponse, Availability, ModifierResponse } from '@/api/menu';
 import { listItems, deleteItem, setItemAvailability, ApiError } from '@/api/menu';
 import { formatPrice, pickLang } from './utils';
 
 interface Props {
   categoryId: number | null;
   categories: CategoryResponse[];
+  modifiers: ModifierResponse[];
   currentRole: 'admin' | 'barista';
   onError: (msg: string) => void;
 }
@@ -35,7 +36,7 @@ function AvailabilityBadge({ value }: { value: Availability }) {
   return null;
 }
 
-export function MenuItemsTable({ categoryId, categories, currentRole, onError }: Props) {
+export function MenuItemsTable({ categoryId, categories, modifiers, currentRole, onError }: Props) {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState<MenuItemResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -170,6 +171,7 @@ export function MenuItemsTable({ categoryId, categories, currentRole, onError }:
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         categories={categories}
+        modifiers={modifiers}
         item={selectedItem}
         onSaved={handleSaved}
         onError={onError}

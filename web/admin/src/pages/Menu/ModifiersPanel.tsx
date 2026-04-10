@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { ModifierResponse } from '@/api/menu';
 import {
-  listModifiers,
   createModifier,
   updateModifier,
   deleteModifier,
@@ -17,6 +16,8 @@ import {
 import { kopecksToRublesStr, rublesToKopecks, pickLang } from './utils';
 
 interface Props {
+  modifiers: ModifierResponse[];
+  onModifiersChange: (next: ModifierResponse[]) => void;
   currentRole: 'admin' | 'barista';
   onError: (msg: string) => void;
 }
@@ -29,10 +30,8 @@ interface FormRow {
 
 const emptyForm = (): FormRow => ({ name_ru: '', name_en: '', price: '' });
 
-export function ModifiersPanel({ currentRole, onError }: Props) {
+export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onError }: Props) {
   const { t, i18n } = useTranslation();
-  const [modifiers, setModifiers] = useState<ModifierResponse[]>([]);
-  const [loading, setLoading] = useState(false);
   const [addForm, setAddForm] = useState<FormRow>(emptyForm());
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -40,17 +39,6 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const isAdmin = currentRole === 'admin';
-
-  useEffect(() => {
-    setLoading(true);
-    listModifiers()
-      .then(setModifiers)
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
-        else onError(t('common.error'));
-      })
-      .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAdd() {
     if (!addForm.name_ru.trim() || !addForm.name_en.trim()) return;
@@ -62,7 +50,7 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
         price: rublesToKopecks(addForm.price),
         sort_order: 0,
       });
-      setModifiers((prev) => [...prev, created]);
+      onModifiersChange([...modifiers, created]);
       setAddForm(emptyForm());
       setShowAdd(false);
     } catch (err) {
@@ -96,7 +84,7 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
         name_en: editForm.name_en.trim() || m.name_en,
         price: rublesToKopecks(editForm.price),
       });
-      setModifiers((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+      onModifiersChange(modifiers.map((x) => (x.id === m.id ? updated : x)));
       setEditId(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
@@ -113,7 +101,7 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
     if (!confirm(t('pages.menu.modifiers.deleteConfirm'))) return;
     try {
       await deleteModifier(m.id);
-      setModifiers((prev) => prev.filter((x) => x.id !== m.id));
+      onModifiersChange(modifiers.filter((x) => x.id !== m.id));
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
       else onError(t('common.error'));
@@ -124,7 +112,7 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
     setTogglingId(m.id);
     try {
       const updated = await setModifierAvailability(m.id, next);
-      setModifiers((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+      onModifiersChange(modifiers.map((x) => (x.id === m.id ? updated : x)));
     } catch {
       onError(t('pages.menu.modifiers.errorToggle'));
     } finally {
@@ -183,8 +171,7 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
         </div>
       )}
 
-      {loading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
-      {!loading && modifiers.length === 0 && (
+      {modifiers.length === 0 && (
         <p className="text-sm text-muted-foreground">{t('pages.menu.modifiers.empty')}</p>
       )}
 

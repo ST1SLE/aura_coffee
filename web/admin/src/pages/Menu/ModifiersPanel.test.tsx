@@ -31,7 +31,7 @@ describe('ModifiersPanel', () => {
   });
 
   test('ModifiersPanel create form has name_ru, name_en, price', async () => {
-    render(<ModifiersPanel currentRole="admin" onError={vi.fn()} />);
+    render(<ModifiersPanel modifiers={[]} onModifiersChange={vi.fn()} currentRole="admin" onError={vi.fn()} />);
 
     // Открываем форму добавления
     fireEvent.click(screen.getByRole('button', { name: /new modifier/i }));
@@ -42,7 +42,7 @@ describe('ModifiersPanel', () => {
   });
 
   test('ModifiersPanel submits bilingual payload with price', async () => {
-    render(<ModifiersPanel currentRole="admin" onError={vi.fn()} />);
+    render(<ModifiersPanel modifiers={[]} onModifiersChange={vi.fn()} currentRole="admin" onError={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /new modifier/i }));
 

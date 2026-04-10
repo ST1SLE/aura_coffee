@@ -38,7 +38,8 @@
         "deleteConfirmDesc": "This action cannot be undone.",
         "deleteHasItems": "This category still has items. Remove or move all items first.",
         "allCategories": "All categories",
-        "empty": "No categories"
+        "empty": "No categories",
+        "sortOrder": "Order"
       },
       "items": {
         "title": "Items",
@@ -94,6 +95,11 @@
         "disabledHint": "Save the item first.",
         "empty": "No sizes defined",
         "errorGeneric": "Could not save size."
+      },
+      "modifiersPicker": {
+        "title": "Modifiers",
+        "saveFirstHint": "Save the item first to pick modifiers",
+        "errorGeneric": "Failed to update modifiers"
       },
       "modifiers": {
         "title": "Modifiers",

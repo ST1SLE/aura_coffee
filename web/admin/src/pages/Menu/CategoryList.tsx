@@ -33,6 +33,7 @@ export function CategoryList({
   const [editNameRu, setEditNameRu] = useState('');
   const [editNameEn, setEditNameEn] = useState('');
   const [editType, setEditType] = useState<CategoryType>('drink');
+  const [editSortOrder, setEditSortOrder] = useState<string>('0');
   const isAdmin = currentRole === 'admin';
 
   useEffect(() => {
@@ -84,17 +85,23 @@ export function CategoryList({
     setEditNameRu(cat.name_ru);
     setEditNameEn(cat.name_en);
     setEditType(cat.type);
+    setEditSortOrder(String(cat.sort_order));
   }
 
   async function handleSaveEdit(cat: CategoryResponse) {
     if (!editNameRu.trim() || !editNameEn.trim()) return;
+    const parsed = parseInt(editSortOrder, 10);
+    const sort_order = Number.isNaN(parsed) ? cat.sort_order : parsed;
     try {
       const updated = await updateCategory(cat.id, {
         name_ru: editNameRu.trim(),
         name_en: editNameEn.trim(),
         type: editType,
+        sort_order,
       });
-      const next = categories.map((c) => (c.id === cat.id ? updated : c));
+      const next = categories
+        .map((c) => (c.id === cat.id ? updated : c))
+        .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
       setCategories(next);
       onCategoriesLoaded(next);
       setEditId(null);
@@ -183,6 +190,15 @@ export function CategoryList({
                     </option>
                   ))}
                 </select>
+                <Input
+                  type="number"
+                  min="0"
+                  value={editSortOrder}
+                  onChange={(e) => setEditSortOrder(e.target.value)}
+                  className="h-7 w-14 text-sm"
+                  placeholder="#"
+                  title={t('pages.menu.categories.sortOrder')}
+                />
                 <Button size="sm" className="h-7 px-2" onClick={() => handleSaveEdit(cat)}>
                   ✓
                 </Button>

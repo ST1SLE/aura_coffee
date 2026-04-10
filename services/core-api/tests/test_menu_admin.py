@@ -897,3 +897,118 @@ def test_admin_items_list_filters_by_category(
     resp_barista = client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=barista_headers)
     assert resp_barista.status_code == 200, resp_barista.text
     assert {item["id"] for item in resp_barista.json()} == a_ids
+
+
+# ─────────────────────────────────────────────────────────────────
+# Section 10 — PUT /admin/menu/items/{item_id}/modifiers (set-replacement)
+# ─────────────────────────────────────────────────────────────────
+
+
+def test_admin_set_item_modifiers(
+    client: TestClient, admin_headers: dict, barista_headers: dict
+) -> None:
+    """PUT /admin/menu/items/{id}/modifiers должен заменять набор модификаторов."""
+    # (a) сидим одну категорию и один товар через admin API
+    cat_resp = client.post(
+        "/api/v1/admin/menu/categories",
+        json={
+            "type": "drink",
+            "name_ru": "Напитки ModSet",
+            "name_en": "Drinks ModSet",
+            "sort_order": 0,
+            "is_visible": True,
+        },
+        headers=admin_headers,
+    )
+    assert cat_resp.status_code == 201, cat_resp.text
+    cat_id = cat_resp.json()["id"]
+
+    item_resp = client.post(
+        "/api/v1/admin/menu/items",
+        json={
+            "category_id": cat_id,
+            "name_ru": "Латте ModSet",
+            "name_en": "Latte ModSet",
+            "base_price": 25000,
+        },
+        headers=admin_headers,
+    )
+    assert item_resp.status_code == 201, item_resp.text
+    item_id = item_resp.json()["id"]
+
+    # (b) сидим три модификатора
+    def _create_mod(name_ru: str, name_en: str, price: int) -> int:
+        resp = client.post(
+            "/api/v1/admin/menu/modifiers",
+            json={"name_ru": name_ru, "name_en": name_en, "price": price, "sort_order": 0},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["id"]
+
+    mod_a = _create_mod("Сироп А", "Syrup A", 3000)
+    mod_b = _create_mod("Сироп Б", "Syrup B", 3500)
+    mod_c = _create_mod("Сироп В", "Syrup C", 4000)
+
+    url = f"/api/v1/admin/menu/items/{item_id}/modifiers"
+
+    # (c) прикрепляем три модификатора → 200, полный набор
+    resp_c = client.put(url, json={"modifier_ids": [mod_a, mod_b, mod_c]}, headers=admin_headers)
+    assert resp_c.status_code == 200, resp_c.text
+    body_c = resp_c.json()
+    assert {m["id"] for m in body_c["modifiers"]} == {mod_a, mod_b, mod_c}
+
+    # (d) заменяем на один mod_b → replacement, не union
+    resp_d = client.put(url, json={"modifier_ids": [mod_b]}, headers=admin_headers)
+    assert resp_d.status_code == 200, resp_d.text
+    body_d = resp_d.json()
+    assert len(body_d["modifiers"]) == 1
+    assert body_d["modifiers"][0]["id"] == mod_b
+
+    # (e) пустой список → отцепить все
+    resp_e = client.put(url, json={"modifier_ids": []}, headers=admin_headers)
+    assert resp_e.status_code == 200, resp_e.text
+    assert resp_e.json()["modifiers"] == []
+
+    # Перед (f) восстановим набор [mod_a], чтобы проверить, что 422 не меняет состояние
+    resp_prep = client.put(url, json={"modifier_ids": [mod_a]}, headers=admin_headers)
+    assert resp_prep.status_code == 200, resp_prep.text
+    before_f = client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
+    assert before_f.status_code == 200, before_f.text
+    before_mods = {m["id"] for m in before_f.json()["modifiers"]}
+    assert before_mods == {mod_a}
+
+    # (f) неизвестный id → 422, detail упоминает 999999, состояние не меняется
+    resp_f = client.put(url, json={"modifier_ids": [mod_a, 999999]}, headers=admin_headers)
+    assert resp_f.status_code == 422, resp_f.text
+    assert "999999" in str(resp_f.json().get("detail", "")), resp_f.text
+    after_f = client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
+    assert after_f.status_code == 200, after_f.text
+    assert {m["id"] for m in after_f.json()["modifiers"]} == before_mods
+
+    # (g) неизвестный item_id → 404
+    resp_g = client.put(
+        "/api/v1/admin/menu/items/999999/modifiers",
+        json={"modifier_ids": [mod_a]},
+        headers=admin_headers,
+    )
+    assert resp_g.status_code == 404, resp_g.text
+
+    # (h) дубликаты → дедуп, 200
+    resp_h = client.put(
+        url,
+        json={"modifier_ids": [mod_a, mod_a, mod_b]},
+        headers=admin_headers,
+    )
+    assert resp_h.status_code == 200, resp_h.text
+    assert {m["id"] for m in resp_h.json()["modifiers"]} == {mod_a, mod_b}
+
+    # (i) бариста → 403 вне зависимости от тела
+    resp_i_empty = client.put(url, json={"modifier_ids": []}, headers=barista_headers)
+    assert resp_i_empty.status_code == 403, resp_i_empty.text
+    resp_i_full = client.put(url, json={"modifier_ids": [mod_a]}, headers=barista_headers)
+    assert resp_i_full.status_code == 403, resp_i_full.text
+
+    # (j) без Authorization → 401
+    resp_j = client.put(url, json={"modifier_ids": [mod_a]})
+    assert resp_j.status_code == 401, resp_j.text

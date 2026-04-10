@@ -137,6 +137,29 @@ class MenuAdminService:
         # Перезагружаем вместе со связями для вычисляемого поля availability
         return self.get_item(item_id)
 
+    def set_item_modifiers(self, item_id: int, modifier_ids: list[int]) -> MenuItem:
+        # Проверка существования позиции и eager-загрузка связи modifiers
+        item = self.get_item(item_id)
+        # Дедупликация с сохранением порядка
+        unique_ids = list(dict.fromkeys(modifier_ids))
+        if unique_ids:
+            mods = self.db.query(Modifier).filter(Modifier.id.in_(unique_ids)).all()
+            if len(mods) != len(unique_ids):
+                missing = sorted(set(unique_ids) - {m.id for m in mods})
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"unknown modifier ids: {missing}",
+                )
+        else:
+            mods = []
+        item.modifiers = mods
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            _handle_integrity(exc, "integrity error")
+        return self.get_item(item_id)
+
     # ─────────────────────────────────────────────
     # Modifiers
     # ─────────────────────────────────────────────

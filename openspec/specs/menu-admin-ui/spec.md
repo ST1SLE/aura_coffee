@@ -28,6 +28,25 @@ The system SHALL provide a menu admin page module at `web/admin/src/pages/Menu/`
 
 URL paths and CRUD function names SHALL remain unchanged (`createCategory`, `updateItem`, `deleteModifier`, etc.).
 
+In addition to every function and type previously required (which remain unchanged in name, path, and shape), the admin API client SHALL export a new function:
+
+```ts
+export const setItemModifiers = (
+  id: number,
+  modifier_ids: number[],
+): Promise<MenuItemResponse>;
+```
+
+This function SHALL issue `PUT /api/v1/admin/menu/items/{id}/modifiers` via `authenticatedFetch` with `Content-Type: application/json` and a body of exactly `{ "modifier_ids": [...] }`, and SHALL resolve to the parsed `MenuItemResponse`. On non-2xx responses it SHALL throw `ApiError` following the existing pattern. The function name, path shape, and body shape SHALL match this requirement verbatim.
+
+#### Scenario: setItemModifiers hits the correct URL with the correct body
+- **WHEN** UI code calls `setItemModifiers(42, [1, 2, 3])`
+- **THEN** the request SHALL be `PUT /api/v1/admin/menu/items/42/modifiers` with `Content-Type: application/json` and body exactly `{"modifier_ids":[1,2,3]}`, and the resolved value SHALL be a `MenuItemResponse`
+
+#### Scenario: setItemModifiers with an empty array detaches everything
+- **WHEN** UI code calls `setItemModifiers(42, [])`
+- **THEN** the outbound body SHALL be exactly `{"modifier_ids":[]}` (not omitted, not `null`)
+
 #### Scenario: Monolingual category payload is a compile error
 - **WHEN** a developer writes `createCategory({ name: 'Coffee' })` in admin SPA source
 - **THEN** the TypeScript compiler SHALL report an error on the literal, because `name` is not a field of `CategoryCreate` and `name_ru`, `name_en`, `type`, `sort_order`, `is_visible` are required
@@ -126,13 +145,33 @@ The menu admin page SHALL render a table of menu items for the currently selecte
 
 ### Requirement: Admin menu forms collect bilingual fields
 
-**Previously:** `CategoryList`, `MenuItemFormDialog`, `ModifiersPanel`, and `SizeOptionsEditor` collected a single `name` string (and a single `description` for items) and submitted monolingual payloads.
+The admin menu forms SHALL present bilingual name and description inputs as previously required, AND the category edit row SHALL additionally present a numeric `sort_order` input so admins can reorder existing categories.
+
+**Previously:** `CategoryList`, `MenuItemFormDialog`, `ModifiersPanel`, and `SizeOptionsEditor` collected a single `name` string (and a single `description` for items) and submitted monolingual payloads. The `CategoryList` edit row collected `name_ru`, `name_en`, and `type` only — NOT `sort_order` — so admins could not reorder existing categories through the UI.
 
 **Now:** Every admin menu form that creates or updates a Category, MenuItem, or Modifier SHALL present two labelled inputs for name — one for Russian (`name_ru`) and one for English (`name_en`) — and SHALL treat both as required with their own validation errors. Menu item forms SHALL additionally present two optional inputs for `description_ru` and `description_en`, a numeric `sort_order`, and an optional `image_url`. The SizeOptionsEditor SHALL present a `<select>` restricted to `S`, `M`, `L` instead of a free-text `label` input.
+
+In addition, the category edit row in `CategoryList.tsx` SHALL present a numeric `sort_order` input pre-filled from the edited category's current `sort_order`. On save, the UI SHALL include the parsed integer in the `updateCategory` request body. On a `NaN` parse result, the UI SHALL fall back to the category's existing `sort_order` value and not reject the save. The create form MAY continue to hardcode `sort_order: categories.length` for newly created categories; reorder is only required to be available on the edit row.
+
+After a successful edit that changes `sort_order`, the client SHALL re-sort its local `categories` array by `sort_order` ascending with ties broken by `id` so that the on-screen order matches the server's canonical ordering (which is already `ORDER BY sort_order, id`).
+
+Modifier creation continues to live in `ModifiersPanel`, not in the item form dialog — the item form dialog gains the `ModifiersPicker` (see the "Modifier picker inside the item form dialog" requirement) but does NOT gain modifier create/edit/delete controls.
 
 #### Scenario: Category creation form fields
 - **WHEN** the admin opens the category creation form
 - **THEN** the form SHALL expose labelled inputs for `name_ru`, `name_en`, and a `type` select, and submit SHALL POST a full bilingual `CategoryCreate` payload
+
+#### Scenario: Category edit row exposes sort_order
+- **WHEN** an `admin` clicks the edit action on an existing category
+- **THEN** the edit row SHALL include a numeric `sort_order` input pre-filled from the category's current `sort_order` value
+
+#### Scenario: Admin reorders an existing category
+- **WHEN** an `admin` edits a category, changes its `sort_order` from `3` to `0`, and clicks save
+- **THEN** the UI SHALL call `updateCategory(id, { name_ru, name_en, type, sort_order: 0 })`, and upon 2xx the category list SHALL re-render with the edited category appearing at the position dictated by sorting the full list by `(sort_order, id)`
+
+#### Scenario: Non-numeric sort_order input falls back to current value
+- **WHEN** an `admin` clears the `sort_order` input (leaving it empty) and clicks save
+- **THEN** the UI SHALL parse the input, detect `NaN`, substitute the category's previous `sort_order`, and proceed with the save rather than blocking it
 
 #### Scenario: Menu item form validation surfaces each bilingual field
 - **WHEN** the admin submits the menu item form with both name fields empty
@@ -207,6 +246,48 @@ The item form dialog SHALL host a size options editor that lists every `SizeOpti
 #### Scenario: Size editor is disabled before the item exists
 - **WHEN** the dialog is open in create mode and the item has not yet been saved
 - **THEN** the size editor SHALL render in a disabled state with a hint that the item must be saved first, and "Add size" SHALL NOT issue any network request
+
+### Requirement: Modifier picker inside the item form dialog
+
+The item form dialog SHALL host a modifier picker that lists every `ModifierResponse` in the system and lets an `admin` attach and detach modifiers on the currently edited item by toggling checkboxes. The picker SHALL live in a new component `web/admin/src/pages/Menu/ModifiersPicker.tsx`, rendered inside `MenuItemFormDialog` below the `SizeOptionsEditor`. The picker SHALL only be interactive when the dialog is editing an already-persisted item (i.e., after the first save in create mode) — the same gating rule used by the size options editor.
+
+Each toggle SHALL issue a single `setItemModifiers(itemId, nextIds)` call that replaces the full set of attached modifiers for the item. On a non-2xx response the picker SHALL surface an error via `onError` and SHALL NOT update its local state (no optimistic divergence). On a 2xx response the picker SHALL reconcile its local `selectedIds` from `response.modifiers.map(m => m.id)` and propagate the new set to `MenuItemFormDialog` so the parent table and the dialog's `item` snapshot reflect the change.
+
+The list of available modifiers rendered by the picker SHALL be passed in from `MenuPage` via a new `modifiers: ModifierResponse[]` prop on `MenuItemFormDialog`. `MenuItemFormDialog` SHALL NOT fetch modifiers itself. When the list changes (for example because an admin created a new modifier in `ModifiersPanel` while the dialog is open), the picker SHALL re-render to include the new row without losing the user's current selection.
+
+Only role `admin` SHALL see the picker as interactive. For `barista` the picker SHALL either not be rendered at all or SHALL be rendered read-only (showing which modifiers are attached but disallowing toggles). The item form dialog is already hidden from `barista` for create/edit use cases, so this is defense-in-depth and does not need to be pixel-perfect.
+
+#### Scenario: Admin attaches a modifier via the picker
+- **WHEN** an `admin` is editing an existing item, the dialog is open, and the admin checks a previously unchecked modifier row
+- **THEN** the UI SHALL call `setItemModifiers(item.id, [...currentIds, newId])`, and upon 2xx the checkbox SHALL remain checked, the item row behind the dialog SHALL reflect the new modifier set, and no full page reload SHALL occur
+
+#### Scenario: Admin detaches a modifier via the picker
+- **WHEN** an `admin` unchecks a previously checked modifier row
+- **THEN** the UI SHALL call `setItemModifiers(item.id, currentIds.filter(id => id !== removedId))`, and upon 2xx the checkbox SHALL remain unchecked
+
+#### Scenario: Picker is disabled before the item exists
+- **WHEN** the dialog is open in create mode and the item has not yet been saved
+- **THEN** the modifier picker SHALL render in a disabled state with a hint that the item must be saved first, and clicking a checkbox SHALL NOT issue any network request
+
+#### Scenario: Picker becomes active after first save in create mode
+- **WHEN** an `admin` fills the item form in create mode, clicks "Save", and the server returns 201
+- **THEN** the dialog SHALL transition to edit mode, and the modifier picker SHALL become interactive for the newly created item
+
+#### Scenario: Failed toggle rolls back the UI state
+- **WHEN** `setItemModifiers` rejects with a non-2xx response after the admin toggled a checkbox
+- **THEN** the checkbox SHALL return to its prior state, an error message SHALL be surfaced via `onError`, and no propagation to the parent table SHALL occur
+
+#### Scenario: New modifier added in the panel appears in the open dialog
+- **WHEN** the item form dialog is open in edit mode, and an `admin` navigates to `ModifiersPanel` (or the panel is visible behind the dialog) and creates a new modifier, then returns to the picker
+- **THEN** the picker SHALL list the newly created modifier as an unchecked row, and the user's existing selection SHALL be preserved
+
+#### Scenario: Dialog initial render reflects pre-existing modifier links
+- **WHEN** an `admin` opens the dialog on an item that already has modifiers `[1, 3]` linked
+- **THEN** the picker SHALL render with checkboxes for modifiers `1` and `3` pre-checked and all others unchecked, without issuing a network request on open
+
+#### Scenario: Modifier list is passed from MenuPage, not fetched by the dialog
+- **WHEN** inspecting `MenuItemFormDialog.tsx`
+- **THEN** the component SHALL accept `modifiers: ModifierResponse[]` as a prop, SHALL NOT call `listModifiers()` directly, and SHALL pass the prop down to `ModifiersPicker`
 
 ### Requirement: Modifiers management panel
 

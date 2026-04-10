@@ -30,6 +30,7 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("PUT",    "/api/v1/admin/menu/items/{item_id}"):                {ADMIN},
     ("DELETE", "/api/v1/admin/menu/items/{item_id}"):                {ADMIN},
     ("PATCH",  "/api/v1/admin/menu/items/{item_id}/availability"):   {ADMIN, BARISTA},
+    ("PUT",    "/api/v1/admin/menu/items/{item_id}/modifiers"):      {ADMIN},
     # ── Admin menu: modifiers ─────────────────────────────────────────────
     ("POST",   "/api/v1/admin/menu/modifiers"):                            {ADMIN},
     ("GET",    "/api/v1/admin/menu/modifiers"):                            {ADMIN, BARISTA},

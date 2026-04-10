@@ -10,6 +10,7 @@ from core_api.schemas.menu import (
     CategoryResponse,
     CategoryUpdate,
     MenuItemCreate,
+    MenuItemModifierSet,
     MenuItemResponse,
     MenuItemUpdate,
     ModifierCreate,
@@ -133,6 +134,15 @@ def delete_item(item_id: int, svc: _Svc) -> None:
 )
 def set_item_availability(item_id: int, body: AvailabilityPatch, svc: _Svc) -> MenuItemResponse:
     return MenuItemResponse.model_validate(svc.set_item_availability(item_id, body.available))
+
+
+@router.put(
+    "/items/{item_id}/modifiers",
+    response_model=MenuItemResponse,
+    summary="Заменить набор модификаторов у позиции меню",
+)
+def set_item_modifiers(item_id: int, body: MenuItemModifierSet, svc: _Svc) -> MenuItemResponse:
+    return MenuItemResponse.model_validate(svc.set_item_modifiers(item_id, body.modifier_ids))
 
 
 # ─────────────────────────────────────────────

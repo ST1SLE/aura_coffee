@@ -165,6 +165,12 @@ class AvailabilityPatch(BaseModel):
     available: bool
 
 
+class MenuItemModifierSet(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    modifier_ids: list[int]
+
+
 # ---------------------------------------------------------------------------
 # Публичный API меню (клиентская сторона)
 # ---------------------------------------------------------------------------

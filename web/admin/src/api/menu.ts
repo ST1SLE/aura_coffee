@@ -226,6 +226,12 @@ export const setItemAvailability = (
 ): Promise<MenuItemResponse> =>
   patch(`/api/v1/admin/menu/items/${id}/availability`, { available });
 
+export const setItemModifiers = (
+  id: number,
+  modifier_ids: number[],
+): Promise<MenuItemResponse> =>
+  put(`/api/v1/admin/menu/items/${id}/modifiers`, { modifier_ids });
+
 // ── Modifiers ─────────────────────────────────────────────────────────────────
 
 export const listModifiers = (): Promise<ModifierResponse[]> =>

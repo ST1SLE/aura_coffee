@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CategoryList } from './CategoryList';
 import { MenuItemsTable } from './MenuItemsTable';
 import { ModifiersPanel } from './ModifiersPanel';
 import { NotificationList, useNotifier } from '@/components/ui/notifier';
-import type { CategoryResponse } from '@/api/menu';
+import type { CategoryResponse, ModifierResponse } from '@/api/menu';
+import { listModifiers, ApiError } from '@/api/menu';
 
 // TODO: wire via staff-auth — заменить на реальное получение роли из auth-стора
 function useCurrentRole(): 'admin' | 'barista' {
@@ -18,10 +19,20 @@ export function MenuPage() {
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [modifiers, setModifiers] = useState<ModifierResponse[]>([]);
 
   function handleError(msg: string) {
     notify(msg, 'error');
   }
+
+  useEffect(() => {
+    listModifiers()
+      .then(setModifiers)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) handleError(t('common.sessionExpired'));
+        else handleError(t('common.error'));
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">
@@ -45,6 +56,7 @@ export function MenuPage() {
           <MenuItemsTable
             categoryId={selectedCategoryId}
             categories={categories}
+            modifiers={modifiers}
             currentRole={currentRole}
             onError={handleError}
           />
@@ -53,7 +65,12 @@ export function MenuPage() {
 
       {/* Нижняя секция — модификаторы */}
       <div className="border-t pt-6">
-        <ModifiersPanel currentRole={currentRole} onError={handleError} />
+        <ModifiersPanel
+          modifiers={modifiers}
+          onModifiersChange={setModifiers}
+          currentRole={currentRole}
+          onError={handleError}
+        />
       </div>
 
       <NotificationList notifications={notifications} onDismiss={dismiss} />

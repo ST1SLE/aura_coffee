@@ -44,6 +44,7 @@ describe('MenuItemsTable', () => {
       <MenuItemsTable
         categoryId={null}
         categories={[]}
+        modifiers={[]}
         currentRole="admin"
         onError={vi.fn()}
       />,

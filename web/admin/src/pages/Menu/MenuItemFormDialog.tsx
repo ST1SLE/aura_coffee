@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SizeOptionsEditor } from './SizeOptionsEditor';
-import type { MenuItemResponse, CategoryResponse } from '@/api/menu';
+import { ModifiersPicker } from './ModifiersPicker';
+import type { MenuItemResponse, CategoryResponse, ModifierResponse } from '@/api/menu';
 import { createItem, updateItem, ApiError } from '@/api/menu';
 import { rublesToKopecks, kopecksToRublesStr, pickLang } from './utils';
 
@@ -18,6 +19,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   categories: CategoryResponse[];
+  modifiers: ModifierResponse[];
   item?: MenuItemResponse | null; // null = создание
   onSaved: (item: MenuItemResponse) => void;
   onError: (msg: string) => void;
@@ -49,7 +51,7 @@ function makeForm(item?: MenuItemResponse | null): FormState {
   };
 }
 
-export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, onError }: Props) {
+export function MenuItemFormDialog({ open, onClose, categories, modifiers, item, onSaved, onError }: Props) {
   const { t, i18n } = useTranslation();
 
   // После успешного create переходим в режим edit текущего item
@@ -58,12 +60,16 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [saving, setSaving] = useState(false);
   const [sizes, setSizes] = useState(item?.size_options ?? []);
+  const [selectedModifierIds, setSelectedModifierIds] = useState<number[]>(
+    item?.modifiers.map((m) => m.id) ?? [],
+  );
 
   useEffect(() => {
     if (open) {
       setEditItem(item ?? null);
       setForm(makeForm(item));
       setSizes(item?.size_options ?? []);
+      setSelectedModifierIds(item?.modifiers.map((m) => m.id) ?? []);
       setErrors({});
     }
   }, [open, item]);
@@ -267,6 +273,26 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
             menuItemId={editItem?.id ?? 0}
             sizes={sizes}
             onChange={setSizes}
+            disabled={!isEdit}
+            onError={onError}
+          />
+        </div>
+
+        {/* Модификаторы — только когда item уже сохранён */}
+        <div className="border-t pt-4">
+          <ModifiersPicker
+            menuItemId={editItem?.id ?? 0}
+            allModifiers={modifiers}
+            selectedIds={selectedModifierIds}
+            onChange={(next) => {
+              setSelectedModifierIds(next);
+              if (editItem) {
+                onSaved({
+                  ...editItem,
+                  modifiers: modifiers.filter((m) => next.includes(m.id)),
+                });
+              }
+            }}
             disabled={!isEdit}
             onError={onError}
           />
