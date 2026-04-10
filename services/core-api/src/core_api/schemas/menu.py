@@ -153,3 +153,62 @@ class MenuItemResponse(MenuItemBase):
         if not self.available:
             return MenuItemAvailability.STOP_LIST
         return MenuItemAvailability.AVAILABLE
+
+
+# ---------------------------------------------------------------------------
+# Публичный API меню (клиентская сторона)
+# ---------------------------------------------------------------------------
+
+class PublicMenuSizeOption(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    label: SizeLabel
+    price: PriceKopecks
+    available: bool
+
+
+class PublicMenuModifier(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    name_ru: str
+    name_en: str
+    price: PriceKopecks
+    available: bool
+
+
+class PublicMenuItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    category_id: int
+    name: str
+    name_ru: str
+    name_en: str
+    description: str | None = None
+    description_ru: str | None = None
+    description_en: str | None = None
+    base_price: PriceKopecks
+    image_url: str | None = None
+    available: bool
+    sort_order: int
+    size_options: list[PublicMenuSizeOption] = []
+    modifiers: list[PublicMenuModifier] = []
+
+
+class PublicCategory(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    type: CategoryType
+    name: str
+    name_ru: str
+    name_en: str
+    sort_order: int
+    items: list[PublicMenuItem] = []
+
+
+class PublicMenuResponse(BaseModel):
+    categories: list[PublicCategory] = []
