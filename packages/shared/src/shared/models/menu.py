@@ -1,6 +1,6 @@
 """ORM-модели меню: Category, MenuItem, SizeOption, Modifier, menu_item_modifiers."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,7 +31,7 @@ menu_item_modifiers = sa.Table(
 class Category(Base):
     __tablename__ = "categories"
 
-    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     type: Mapped[CategoryType] = mapped_column(
         sa.Enum(CategoryType, name="category_type", values_callable=lambda e: [i.value for i in e]),
         nullable=False,
@@ -41,10 +41,12 @@ class Category(Base):
     sort_order: Mapped[int] = mapped_column(sa.Integer(), nullable=False, default=0)
     is_visible: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        sa.DateTime(timezone=True), nullable=False,
+        server_default=sa.text("now()"), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        sa.DateTime(timezone=True), nullable=False,
+        server_default=sa.text("now()"), default=lambda: datetime.now(UTC)
     )
 
     menu_items: Mapped[list["MenuItem"]] = relationship(
@@ -60,7 +62,7 @@ class Category(Base):
 class Modifier(Base):
     __tablename__ = "modifiers"
 
-    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     name_ru: Mapped[str] = mapped_column(sa.String(120), nullable=False)
     name_en: Mapped[str] = mapped_column(sa.String(120), nullable=False)
     price: Mapped[int] = mapped_column(
@@ -84,7 +86,7 @@ class Modifier(Base):
 class SizeOption(Base):
     __tablename__ = "size_options"
 
-    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     menu_item_id: Mapped[int] = mapped_column(
         sa.BigInteger(),
         sa.ForeignKey("menu_items.id", ondelete="CASCADE"),
@@ -111,7 +113,7 @@ class SizeOption(Base):
 class MenuItem(Base):
     __tablename__ = "menu_items"
 
-    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     category_id: Mapped[int] = mapped_column(
         sa.BigInteger(),
         sa.ForeignKey("categories.id", ondelete="RESTRICT"),
@@ -132,10 +134,12 @@ class MenuItem(Base):
     archived: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(sa.Integer(), nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        sa.DateTime(timezone=True), nullable=False,
+        server_default=sa.text("now()"), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        sa.DateTime(timezone=True), nullable=False,
+        server_default=sa.text("now()"), default=lambda: datetime.now(UTC)
     )
 
     category: Mapped["Category"] = relationship(back_populates="menu_items")

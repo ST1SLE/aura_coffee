@@ -820,3 +820,80 @@ def test_openapi_menu_admin_tag_is_consistent(client: TestClient) -> None:
             if "menu-admin" not in tags:
                 wrong.append(f"{method.upper()} {path}")
     assert not wrong, f"Операции без тега menu-admin: {wrong}"
+
+
+# ─────────────────────────────────────────────────────────────────
+# Section 9 — category_id filter on GET /admin/menu/items
+# ─────────────────────────────────────────────────────────────────
+
+
+def test_admin_items_list_filters_by_category(
+    client: TestClient, admin_headers: dict, barista_headers: dict
+) -> None:
+    """GET /admin/menu/items?category_id=<id> должен фильтровать по категории."""
+    # (a) создаём две категории через API
+    cat_a_resp = client.post(
+        "/api/v1/admin/menu/categories",
+        json={"type": "drink", "name_ru": "Категория А", "name_en": "Category A", "sort_order": 0, "is_visible": True},
+        headers=admin_headers,
+    )
+    assert cat_a_resp.status_code == 201, cat_a_resp.text
+    cat_a_id = cat_a_resp.json()["id"]
+
+    cat_b_resp = client.post(
+        "/api/v1/admin/menu/categories",
+        json={"type": "food", "name_ru": "Категория Б", "name_en": "Category B", "sort_order": 1, "is_visible": True},
+        headers=admin_headers,
+    )
+    assert cat_b_resp.status_code == 201, cat_b_resp.text
+    cat_b_id = cat_b_resp.json()["id"]
+
+    # (b) создаём по два товара в каждой категории
+    def _create_item(category_id: int, name_ru: str, name_en: str) -> int:
+        resp = client.post(
+            "/api/v1/admin/menu/items",
+            json={"category_id": category_id, "name_ru": name_ru, "name_en": name_en, "base_price": 25000},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["id"]
+
+    item_a1 = _create_item(cat_a_id, "Латте А1", "Latte A1")
+    item_a2 = _create_item(cat_a_id, "Капучино А2", "Cappuccino A2")
+    item_b1 = _create_item(cat_b_id, "Сэндвич Б1", "Sandwich B1")
+    item_b2 = _create_item(cat_b_id, "Круассан Б2", "Croissant B2")
+
+    a_ids = {item_a1, item_a2}
+    b_ids = {item_b1, item_b2}
+    all_ids = a_ids | b_ids
+
+    # (c) без фильтра — возвращаются все четыре товара
+    resp_all = client.get("/api/v1/admin/menu/items", headers=admin_headers)
+    assert resp_all.status_code == 200, resp_all.text
+    returned_ids = {item["id"] for item in resp_all.json()}
+    assert all_ids.issubset(returned_ids), f"Ожидались все 4 товара, получили ids={returned_ids}"
+
+    # (d) фильтр по категории А — только товары А, без товаров Б
+    resp_a = client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=admin_headers)
+    assert resp_a.status_code == 200, resp_a.text
+    filtered_ids = {item["id"] for item in resp_a.json()}
+    assert filtered_ids == a_ids, f"Ожидались только {a_ids}, получили {filtered_ids}"
+    assert not filtered_ids & b_ids, "Товары категории Б не должны попадать в ответ"
+
+    # (e) несуществующая категория → 404
+    resp_404 = client.get("/api/v1/admin/menu/items?category_id=999999", headers=admin_headers)
+    assert resp_404.status_code == 404, resp_404.text
+    assert resp_404.json()["detail"] == "category not found"
+
+    # (f) category_id=0 → 422
+    resp_zero = client.get("/api/v1/admin/menu/items?category_id=0", headers=admin_headers)
+    assert resp_zero.status_code == 422, resp_zero.text
+
+    # (g) category_id=abc → 422
+    resp_str = client.get("/api/v1/admin/menu/items?category_id=abc", headers=admin_headers)
+    assert resp_str.status_code == 422, resp_str.text
+
+    # (h) бариста тоже может фильтровать по категории
+    resp_barista = client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=barista_headers)
+    assert resp_barista.status_code == 200, resp_barista.text
+    assert {item["id"] for item in resp_barista.json()} == a_ids

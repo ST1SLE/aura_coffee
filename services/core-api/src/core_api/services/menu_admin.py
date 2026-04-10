@@ -105,13 +105,17 @@ class MenuAdminService:
             self.db.rollback()
             _handle_integrity(exc, "integrity error")
 
-    def list_items(self) -> list[MenuItem]:
-        return (
+    def list_items(self, category_id: int | None = None) -> list[MenuItem]:
+        if category_id is not None:
+            if self.db.get(Category, category_id) is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="category not found")
+        query = (
             self.db.query(MenuItem)
             .options(selectinload(MenuItem.size_options), selectinload(MenuItem.modifiers))
-            .order_by(MenuItem.sort_order, MenuItem.id)
-            .all()
         )
+        if category_id is not None:
+            query = query.filter(MenuItem.category_id == category_id)
+        return query.order_by(MenuItem.sort_order, MenuItem.id).all()
 
     def get_item(self, item_id: int) -> MenuItem:
         item = (

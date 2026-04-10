@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from core_api.deps.database import get_db
@@ -91,8 +91,11 @@ def create_item(body: MenuItemCreate, svc: _Svc) -> MenuItemResponse:
     response_model=list[MenuItemResponse],
     summary="Список позиций меню",
 )
-def list_items(svc: _Svc) -> list[MenuItemResponse]:
-    return [MenuItemResponse.model_validate(i) for i in svc.list_items()]
+def list_items(
+    svc: _Svc,
+    category_id: Annotated[int | None, Query(gt=0)] = None,
+) -> list[MenuItemResponse]:
+    return [MenuItemResponse.model_validate(i) for i in svc.list_items(category_id=category_id)]
 
 
 @router.get(
