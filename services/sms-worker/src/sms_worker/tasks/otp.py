@@ -3,9 +3,12 @@ import logging
 
 import redis
 
-from sms_worker.clients.smsru import send_sms
+from sms_worker.clients.log import send_via_log
+from sms_worker.clients.smsru import send_via_smsru
 from sms_worker.main import celery_app
 from sms_worker.settings import settings
+
+_TRANSPORT = send_via_log if settings.sms_backend == "log" else send_via_smsru
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,7 @@ def send_otp_sms(
     phone = _decrypt_phone(encrypted_phone_hex)
     message = f"Код подтверждения: {code}. Aura Coffee"
 
-    success = send_sms(phone, message)
+    success = _TRANSPORT(phone, message)
 
     r = redis.Redis.from_url(settings.redis_url)
     try:

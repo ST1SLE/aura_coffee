@@ -30,6 +30,21 @@ This module is responsible for:
 - **OTP codes:** This worker does NOT store or generate OTP codes. It only delivers them via SMS. Codes are stored in Redis by core-api.
 - **Sender name:** Configurable via `SMSRU_SENDER_NAME` env var (requires SMS.ru verification).
 
+## SMS_BACKEND
+
+The transport is selected by the `SMS_BACKEND` environment variable:
+
+| Value | Behaviour | When to use |
+|-------|-----------|-------------|
+| `log` (default) | Writes OTP codes to worker stdout at INFO level (`[SMS:log] to=… msg=…`). No HTTP calls. | Local dev, CI |
+| `smsru` | POSTs to `https://sms.ru/sms/send` with the configured `SMSRU_API_KEY`. | Staging, production |
+
+**Dev setup:** `.env.example` ships `SMS_BACKEND=log` with an empty `SMSRU_API_KEY`. `docker compose up` produces a working OTP login flow out of the box — read the code from `docker compose logs sms-worker`.
+
+**Production:** set `SMS_BACKEND=smsru` and provide a real api_id in `SMSRU_API_KEY` (INV-015). The worker **fails fast on startup** if `SMS_BACKEND=smsru` and `SMSRU_API_KEY` is empty or equals the placeholder — check the worker logs if it exits immediately.
+
+**Security note:** `SMS_BACKEND=log` writes 6-digit OTP codes to stdout. Never enable it in production.
+
 ## Key Files
 
 _(to be updated as code is added)_

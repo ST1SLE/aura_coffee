@@ -22,14 +22,14 @@ def _encrypt_phone(phone: str, key: bytes) -> str:
 
 class TestSendOtpSms:
     @patch("sms_worker.tasks.otp.settings")
-    @patch("sms_worker.tasks.otp.send_sms")
+    @patch("sms_worker.tasks.otp._TRANSPORT")
     @patch("sms_worker.tasks.otp.redis")
-    def test_success(self, mock_redis_mod, mock_send_sms, mock_settings) -> None:
+    def test_success(self, mock_redis_mod, mock_transport, mock_settings) -> None:
         key = os.urandom(32)
         mock_settings.encryption_key = key.hex()
         mock_settings.redis_url = "redis://localhost:6379/15"
 
-        mock_send_sms.return_value = True
+        mock_transport.return_value = True
 
         mock_redis_client = MagicMock()
         mock_redis_client.get.return_value = json.dumps({
@@ -45,22 +45,22 @@ class TestSendOtpSms:
         # apply() запускает задачу синхронно (eager mode)
         send_otp_sms.apply(args=["testhash", encrypted, "123456"])
 
-        mock_send_sms.assert_called_once()
-        call_args = mock_send_sms.call_args
+        mock_transport.assert_called_once()
+        call_args = mock_transport.call_args
         assert "+79161234567" in call_args[0]
         assert "123456" in call_args[0][1]
 
     @patch("sms_worker.tasks.otp.settings")
-    @patch("sms_worker.tasks.otp.send_sms")
+    @patch("sms_worker.tasks.otp._TRANSPORT")
     @patch("sms_worker.tasks.otp.redis")
     def test_failure_after_retries(
-        self, mock_redis_mod, mock_send_sms, mock_settings
+        self, mock_redis_mod, mock_transport, mock_settings
     ) -> None:
         key = os.urandom(32)
         mock_settings.encryption_key = key.hex()
         mock_settings.redis_url = "redis://localhost:6379/15"
 
-        mock_send_sms.return_value = False
+        mock_transport.return_value = False
 
         mock_redis_client = MagicMock()
         mock_redis_client.get.return_value = json.dumps({
