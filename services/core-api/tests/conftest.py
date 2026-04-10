@@ -475,3 +475,52 @@ def seed_public_menu(_pg_db_override) -> Generator[PublicMenuSeed, None, None]:
                 session.delete(obj)
 
         session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Корзина — фикстуры для тестов корзины
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def cart_redis() -> Generator[fakeredis.FakeRedis, None, None]:
+    """FakeRedis для тестов корзины.
+
+    Патчит core_api.deps.redis.get_redis, чтобы FastAPI-зависимость и прямые
+    вызовы CartService получали один и тот же изолированный экземпляр.
+    Данные очищаются после каждого теста.
+    """
+    fake = fakeredis.FakeRedis()
+
+    def _override():
+        yield fake
+
+    with patch("core_api.deps.redis.get_redis", side_effect=_override):
+        yield fake
+    fake.flushall()
+
+
+@pytest.fixture
+def db_session() -> Generator[None, None, None]:
+    """Функциональная сессия к реальному PostgreSQL с применёнными миграциями.
+
+    Пропускается, если TEST_DATABASE_URL не указывает на Postgres.
+    Откатывает транзакцию после теста (данные не сохраняются).
+    """
+    if _TEST_DB_URL.startswith("sqlite"):
+        pytest.skip("Требует PostgreSQL (TEST_DATABASE_URL)")
+    from alembic import command
+    from alembic.config import Config
+    import pathlib
+
+    alembic_ini = str(
+        pathlib.Path(__file__).parents[3] / "database" / "alembic.ini"
+    )
+    cfg = Config(alembic_ini)
+    cfg.set_main_option("sqlalchemy.url", _TEST_DB_URL)
+    command.upgrade(cfg, "head")
+
+    engine = create_engine(_TEST_DB_URL)
+    with Session(engine) as session:
+        yield session
+        session.rollback()
+    engine.dispose()

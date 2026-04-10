@@ -68,3 +68,42 @@ class TestIsPublic:
     def test_method_matters(self) -> None:
         assert not _is_public("GET", "/api/v1/auth/send-code")
         assert _is_public("POST", "/api/v1/auth/send-code")
+
+
+# ===========================================================================
+# 9.x — Корзина: матрица RBAC (cart-redis-pricing-red)
+# ===========================================================================
+
+_CART_ROUTES = [
+    ("GET",    "/api/v1/cart"),
+    ("DELETE", "/api/v1/cart"),
+    ("POST",   "/api/v1/cart/items"),
+    ("PATCH",  "/api/v1/cart/items/{line_id}"),
+    ("DELETE", "/api/v1/cart/items/{line_id}"),
+]
+
+
+class TestCartRbac:
+    """9.1 Каждый маршрут корзины должен быть в ROUTE_MATRIX с ролью CUSTOMER."""
+
+    def test_cart_routes_are_in_route_matrix(self) -> None:
+        from core_api.rbac_matrix import ROUTE_MATRIX, CUSTOMER
+
+        for method, pattern in _CART_ROUTES:
+            assert (method, pattern) in ROUTE_MATRIX, (
+                f"Маршрут ({method}, {pattern!r}) отсутствует в ROUTE_MATRIX"
+            )
+            roles = ROUTE_MATRIX[(method, pattern)]
+            assert roles == {CUSTOMER}, (
+                f"Маршрут ({method}, {pattern!r}) должен разрешать только CUSTOMER, "
+                f"получено: {roles}"
+            )
+
+    def test_cart_routes_absent_from_public_routes(self) -> None:
+        """9.2 Маршруты корзины не должны быть публичными."""
+        from core_api.rbac_matrix import PUBLIC_ROUTES
+
+        for method, pattern in _CART_ROUTES:
+            assert (method, pattern) not in PUBLIC_ROUTES, (
+                f"Маршрут ({method}, {pattern!r}) не должен быть в PUBLIC_ROUTES"
+            )

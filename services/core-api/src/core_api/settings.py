@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     refresh_token_ttl: int = 604800
     encryption_key: str = ""
     smsru_api_key: str = ""
+    cart_ttl_seconds: int = 86400  # PDD §5.3: TTL корзины в Redis — 24 ч
 
     @property
     def cors_origin_list(self) -> list[str]:

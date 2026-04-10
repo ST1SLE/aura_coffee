@@ -16,3 +16,7 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+# Алиас — тесты патчат core_api.deps.database.get_session
+get_session = get_db

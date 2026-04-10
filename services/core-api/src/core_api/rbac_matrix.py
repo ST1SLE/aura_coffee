@@ -40,6 +40,12 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("POST",   "/api/v1/admin/menu/sizes"):            {ADMIN},
     ("PUT",    "/api/v1/admin/menu/sizes/{size_id}"):  {ADMIN},
     ("DELETE", "/api/v1/admin/menu/sizes/{size_id}"):  {ADMIN},
+    # Корзина — только CUSTOMER (INV-002, design D6)
+    ("GET",    "/api/v1/cart"):                 {CUSTOMER},
+    ("DELETE", "/api/v1/cart"):                 {CUSTOMER},
+    ("POST",   "/api/v1/cart/items"):            {CUSTOMER},
+    ("PATCH",  "/api/v1/cart/items/{line_id}"): {CUSTOMER},
+    ("DELETE", "/api/v1/cart/items/{line_id}"): {CUSTOMER},
 }
 
 # Маршруты без аутентификации

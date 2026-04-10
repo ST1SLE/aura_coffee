@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -66,6 +67,22 @@ class CartItemCreate(BaseModel):
 class CartItemResponse(BaseModel):
     """Позиция корзины с серверно-вычисленной ценой и снапшотами."""
 
+    @classmethod
+    def compute_line_id(
+        cls,
+        menu_item_id: int,
+        size_option_id: int | None,
+        modifier_ids: list[int],
+    ) -> str:
+        """Детерминированный хеш строки корзины (design D2).
+
+        Идентифицирует уникальную комбинацию товар+размер+модификаторы.
+        Порядок modifier_ids не важен — список сортируется перед хешированием.
+        """
+        key = f"{menu_item_id}|{size_option_id or 0}|{','.join(str(i) for i in sorted(modifier_ids))}"
+        return hashlib.sha1(key.encode()).hexdigest()[:16]
+
+    line_id: str
     menu_item_id: int
     size_option_id: int | None
     modifier_ids: list[int]
