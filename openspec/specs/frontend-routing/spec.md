@@ -38,18 +38,21 @@ The admin SPA SHALL be served under the URL prefix `/admin/`. Specifically:
 - Direct access to the Vite dev server at `http://localhost:<WEB_ADMIN_PORT>/admin/` SHALL also work, for debugging and for development without nginx.
 - Direct access at `http://localhost:<WEB_ADMIN_PORT>/` (without the `/admin/` prefix) is NOT required to work — this is an accepted regression from the previous broken-but-superficially-working dev flow.
 
-The admin SPA SHALL use React Router with the following routes, each rendering a placeholder page component:
-- `/` — Dashboard
-- `/orders` — Order management
-- `/menu` — Menu management
-- `/users` — User management
-- `/promos` — Promocode management
-- `/settings` — Shop settings
+The admin SPA SHALL use React Router with the following routes:
+- `/login` — Staff login (public, renders outside `Layout`)
+- `/` — Dashboard (protected)
+- `/orders` — Order management (protected)
+- `/menu` — Menu management (protected)
+- `/users` — User management (protected)
+- `/promos` — Promocode management (protected)
+- `/settings` — Shop settings (protected)
+
+Routes marked "protected" SHALL be wrapped, as a group, by a single `ProtectedRoute` wrapper around the shared `Layout` element. `ProtectedRoute` SHALL redirect unauthenticated users to `/login?returnUrl=<current path>` (see spec `admin-auth-ui` §Admin ProtectedRoute guard). The `/login` route SHALL NOT be wrapped — it must be reachable without a token. Refs: spec `admin-auth-ui`; spec `staff-auth`.
 
 The admin SPA's API client SHALL continue to call backend paths at `/api/v1/...` (absolute, NOT `/admin/api/v1/...`). Only the static asset URLs and the React Router paths are prefixed by `/admin/`.
 
-- **Previously:** `deploy/nginx/nginx.conf` had a single `location /admin { proxy_pass http://admin; }` prefix-match block. A request for `http://localhost:<NGINX_PORT>/admin` (no trailing slash) was proxied to the Vite dev server, which only serves the SPA shell at `/admin/` because `vite.config.ts` has `base: '/admin/'`, and therefore returned HTTP 404. The bare path was documented nowhere as broken, so developers following test scenarios that said "open `http://localhost:8240/admin`" hit the 404 and stalled.
-- **Now:** A second, exact-match `location = /admin` block SHALL precede the prefix-match block and issue a 301 redirect to `/admin/`. The bare path becomes a cheap redirect to the canonical trailing-slash form that already works. The existing prefix-match block is otherwise unchanged — no `proxy_pass` semantics, no header changes, no upstream changes.
+- **Previously:** The admin SPA had six routes, all rendered unconditionally inside `Layout`. There was no `/login` route. `web/admin/src/api/client.ts` shipped a `getAccessToken()` stub reading `localStorage.getItem('accessToken')`, but nothing wrote to that key — developers injected tokens by hand via DevTools.
+- **Now:** A seventh route `/login` renders outside `Layout`. The remaining six routes are grouped under a `ProtectedRoute` wrapper that redirects unauthenticated users to `/login?returnUrl=<path>`. The token is written to `localStorage.accessToken` by the login page and cleared by a client-wide 401 handler in `authenticatedFetch`.
 
 #### Scenario: Admin dashboard is reachable through nginx
 - **WHEN** a developer opens `http://localhost:<NGINX_PORT>/admin/` in a browser
@@ -87,6 +90,22 @@ The admin SPA's API client SHALL continue to call backend paths at `/api/v1/...`
 #### Scenario: Unknown admin route shows 404
 - **WHEN** staff navigates to a non-existent route
 - **THEN** a "Page not found" placeholder is displayed
+
+#### Scenario: Unauthenticated access to any protected admin route redirects to login
+- **WHEN** an unauthenticated user (no `accessToken` in `localStorage`) navigates to `/admin/menu`
+- **THEN** the router SHALL immediately redirect to `/admin/login?returnUrl=%2Fmenu` with `replace: true`, and the Menu page SHALL NOT render
+
+#### Scenario: Login route accessible without auth
+- **WHEN** an unauthenticated user navigates to `/admin/login`
+- **THEN** the `LoginPage` component is rendered WITHOUT the `Layout` sidebar or header, and no redirect occurs
+
+#### Scenario: Login route accessible WITH auth
+- **WHEN** an authenticated user (valid `accessToken` in `localStorage`) navigates to `/admin/login`
+- **THEN** the `LoginPage` component is rendered (the login route is NOT wrapped in `ProtectedRoute`), allowing the user to re-authenticate and overwrite the previous token
+
+#### Scenario: Login with returnUrl round-trip
+- **WHEN** an unauthenticated user navigates to `/admin/settings`, is redirected to `/admin/login?returnUrl=%2Fsettings`, and submits valid credentials
+- **THEN** after successful login the router SHALL navigate to `/settings` with `replace: true`, landing the user at their originally requested page
 
 ### Requirement: App shell layout
 Each SPA SHALL have a root layout component wrapping all routes. The layout SHALL include a header (with app name and language switcher) and a main content area. The customer layout SHALL include bottom navigation (mobile) or sidebar (desktop). The admin layout SHALL include a sidebar navigation.
