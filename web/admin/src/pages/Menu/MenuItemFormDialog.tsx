@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { SizeOptionsEditor } from './SizeOptionsEditor';
 import type { MenuItemResponse, CategoryResponse } from '@/api/menu';
 import { createItem, updateItem, ApiError } from '@/api/menu';
-import { rublesToKopecks, kopecksToRublesStr } from './utils';
+import { rublesToKopecks, kopecksToRublesStr, pickLang } from './utils';
 
 interface Props {
   open: boolean;
@@ -24,25 +24,33 @@ interface Props {
 }
 
 interface FormState {
-  name: string;
-  description: string;
+  name_ru: string;
+  name_en: string;
+  description_ru: string;
+  description_en: string;
   category_id: string;
   price: string;
+  sort_order: string;
+  image_url: string;
   archived: boolean;
 }
 
 function makeForm(item?: MenuItemResponse | null): FormState {
   return {
-    name: item?.name ?? '',
-    description: item?.description ?? '',
+    name_ru: item?.name_ru ?? '',
+    name_en: item?.name_en ?? '',
+    description_ru: item?.description_ru ?? '',
+    description_en: item?.description_en ?? '',
     category_id: item ? String(item.category_id) : '',
-    price: item ? kopecksToRublesStr(item.price_kopecks) : '',
+    price: item ? kopecksToRublesStr(item.base_price) : '',
+    sort_order: item ? String(item.sort_order) : '0',
+    image_url: item?.image_url ?? '',
     archived: item?.archived ?? false,
   };
 }
 
 export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, onError }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // После успешного create переходим в режим edit текущего item
   const [editItem, setEditItem] = useState<MenuItemResponse | null>(item ?? null);
@@ -62,9 +70,10 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
 
   function validate(): boolean {
     const e: typeof errors = {};
-    if (!form.name.trim()) e.name = t('pages.menu.itemForm.validationName');
+    if (!form.name_ru.trim()) e.name_ru = t('pages.menu.itemForm.validationNameRu');
+    if (!form.name_en.trim()) e.name_en = t('pages.menu.itemForm.validationNameEn');
     if (form.price === '' || parseFloat(form.price) < 0)
-      e.price = t('pages.menu.itemForm.validationPrice');
+      e.price = t('pages.menu.itemForm.validationBasePrice');
     if (!form.category_id) e.category_id = t('pages.menu.itemForm.validationCategory');
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -76,10 +85,14 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
     setSaving(true);
     try {
       const body = {
-        name: form.name.trim(),
-        description: form.description.trim() || null,
+        name_ru: form.name_ru.trim(),
+        name_en: form.name_en.trim(),
+        description_ru: form.description_ru.trim() || null,
+        description_en: form.description_en.trim() || null,
         category_id: parseInt(form.category_id),
-        price_kopecks: rublesToKopecks(form.price),
+        base_price: rublesToKopecks(form.price),
+        sort_order: parseInt(form.sort_order) || 0,
+        image_url: form.image_url.trim() || null,
       };
 
       let saved: MenuItemResponse;
@@ -120,28 +133,48 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Название */}
-          <div className="space-y-1">
-            <Label htmlFor="item-name">{t('pages.menu.itemForm.name')}</Label>
-            <Input
-              id="item-name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t('pages.menu.itemForm.namePlaceholder')}
-              required
-            />
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          {/* Название — два языка */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="item-name-ru">{t('pages.menu.itemForm.nameRu')}</Label>
+              <Input
+                id="item-name-ru"
+                value={form.name_ru}
+                onChange={(e) => setForm({ ...form, name_ru: e.target.value })}
+                required
+              />
+              {errors.name_ru && <p className="text-xs text-destructive">{errors.name_ru}</p>}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="item-name-en">{t('pages.menu.itemForm.nameEn')}</Label>
+              <Input
+                id="item-name-en"
+                value={form.name_en}
+                onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+                required
+              />
+              {errors.name_en && <p className="text-xs text-destructive">{errors.name_en}</p>}
+            </div>
           </div>
 
-          {/* Описание */}
-          <div className="space-y-1">
-            <Label htmlFor="item-desc">{t('pages.menu.itemForm.description')}</Label>
-            <Input
-              id="item-desc"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder={t('pages.menu.itemForm.descriptionPlaceholder')}
-            />
+          {/* Описание — два языка */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="item-desc-ru">{t('pages.menu.itemForm.descriptionRu')}</Label>
+              <Input
+                id="item-desc-ru"
+                value={form.description_ru}
+                onChange={(e) => setForm({ ...form, description_ru: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="item-desc-en">{t('pages.menu.itemForm.descriptionEn')}</Label>
+              <Input
+                id="item-desc-en"
+                value={form.description_en}
+                onChange={(e) => setForm({ ...form, description_en: e.target.value })}
+              />
+            </div>
           </div>
 
           {/* Категория */}
@@ -157,7 +190,7 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
               <option value="">{t('pages.menu.itemForm.categoryPlaceholder')}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {pickLang(c.name_ru, c.name_en, i18n.language)}
                 </option>
               ))}
             </select>
@@ -180,6 +213,28 @@ export function MenuItemFormDialog({ open, onClose, categories, item, onSaved, o
               required
             />
             {errors.price && <p className="text-xs text-destructive">{errors.price}</p>}
+          </div>
+
+          {/* Порядок сортировки */}
+          <div className="space-y-1">
+            <Label htmlFor="item-sort">{t('pages.menu.itemForm.sortOrder')}</Label>
+            <Input
+              id="item-sort"
+              type="number"
+              min="0"
+              value={form.sort_order}
+              onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+            />
+          </div>
+
+          {/* URL изображения */}
+          <div className="space-y-1">
+            <Label htmlFor="item-image">{t('pages.menu.itemForm.imageUrl')}</Label>
+            <Input
+              id="item-image"
+              value={form.image_url}
+              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            />
           </div>
 
           {/* Архив — только для edit */}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { SizeOptionResponse } from '@/api/menu';
+import type { SizeOptionResponse, SizeLabel } from '@/api/menu';
 import {
   createSize,
   updateSize,
@@ -21,12 +21,13 @@ interface Props {
 }
 
 interface AddRow {
-  label: string;
-  volume: string;
+  label: SizeLabel;
   price: string;
 }
 
-const emptyRow = (): AddRow => ({ label: '', volume: '', price: '' });
+const SIZE_LABELS: SizeLabel[] = ['S', 'M', 'L'];
+
+const emptyRow = (): AddRow => ({ label: 'S', price: '' });
 
 export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onError }: Props) {
   const { t } = useTranslation();
@@ -36,14 +37,12 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
   const [editRow, setEditRow] = useState<AddRow>(emptyRow());
 
   async function handleAdd() {
-    if (!addRow.label.trim()) return;
     setAdding(true);
     try {
       const created = await createSize({
         menu_item_id: menuItemId,
-        label: addRow.label.trim(),
-        volume_ml: addRow.volume ? parseInt(addRow.volume) : null,
-        price_kopecks: rublesToKopecks(addRow.price),
+        label: addRow.label,
+        price: rublesToKopecks(addRow.price),
       });
       onChange([...sizes, created]);
       setAddRow(emptyRow());
@@ -62,17 +61,15 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
     setEditingId(s.id);
     setEditRow({
       label: s.label,
-      volume: s.volume_ml != null ? String(s.volume_ml) : '',
-      price: kopecksToRublesStr(s.price_kopecks),
+      price: kopecksToRublesStr(s.price),
     });
   }
 
   async function handleSaveEdit(s: SizeOptionResponse) {
     try {
       const updated = await updateSize(s.id, {
-        label: editRow.label.trim() || s.label,
-        volume_ml: editRow.volume ? parseInt(editRow.volume) : null,
-        price_kopecks: rublesToKopecks(editRow.price),
+        label: editRow.label,
+        price: rublesToKopecks(editRow.price),
       });
       onChange(sizes.map((x) => (x.id === s.id ? updated : x)));
       setEditingId(null);
@@ -111,19 +108,15 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
         {sizes.map((s) =>
           editingId === s.id ? (
             <div key={s.id} className="flex gap-2 items-center">
-              <Input
+              <select
                 value={editRow.label}
-                onChange={(e) => setEditRow({ ...editRow, label: e.target.value })}
-                placeholder={t('pages.menu.sizes.labelPlaceholder')}
-                className="w-24"
-              />
-              <Input
-                type="number"
-                value={editRow.volume}
-                onChange={(e) => setEditRow({ ...editRow, volume: e.target.value })}
-                placeholder={t('pages.menu.sizes.volume')}
-                className="w-20"
-              />
+                onChange={(e) => setEditRow({ ...editRow, label: e.target.value as SizeLabel })}
+                className="flex h-9 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {SIZE_LABELS.map((lbl) => (
+                  <option key={lbl} value={lbl}>{lbl}</option>
+                ))}
+              </select>
               <Input
                 type="number"
                 step="0.01"
@@ -142,10 +135,7 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
           ) : (
             <div key={s.id} className="flex gap-2 items-center text-sm">
               <span className="w-24 font-medium">{s.label}</span>
-              <span className="w-20 text-muted-foreground">
-                {s.volume_ml != null ? `${s.volume_ml} ${t('pages.menu.sizes.mlUnit')}` : '—'}
-              </span>
-              <span className="w-20">{kopecksToRublesStr(s.price_kopecks)} ₽</span>
+              <span className="w-20">{kopecksToRublesStr(s.price)} ₽</span>
               <Button size="sm" variant="ghost" onClick={() => startEdit(s)}>
                 {t('common.edit')}
               </Button>
@@ -164,25 +154,21 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
 
       {/* строка добавления */}
       <div className="flex gap-2 items-center">
-        <Input
+        <select
           value={addRow.label}
-          onChange={(e) => setAddRow({ ...addRow, label: e.target.value })}
-          placeholder={t('pages.menu.sizes.labelPlaceholder')}
-          className="w-24"
-        />
-        <Input
-          type="number"
-          value={addRow.volume}
-          onChange={(e) => setAddRow({ ...addRow, volume: e.target.value })}
-          placeholder={t('pages.menu.sizes.volume')}
-          className="w-20"
-        />
+          onChange={(e) => setAddRow({ ...addRow, label: e.target.value as SizeLabel })}
+          className="flex h-9 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {SIZE_LABELS.map((lbl) => (
+            <option key={lbl} value={lbl}>{lbl}</option>
+          ))}
+        </select>
         <Input
           type="number"
           step="0.01"
           value={addRow.price}
           onChange={(e) => setAddRow({ ...addRow, price: e.target.value })}
-          placeholder={t('pages.menu.sizes.price')}
+          placeholder="0.00"
           className="w-20"
         />
         <Button size="sm" variant="outline" onClick={handleAdd} disabled={adding}>

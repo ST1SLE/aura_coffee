@@ -23,7 +23,15 @@
       "categories": {
         "title": "Categories",
         "newCategory": "New category",
-        "namePlaceholder": "Category name",
+        "nameRu": "Name (RU)",
+        "nameEn": "Name (EN)",
+        "type": "Type",
+        "typeOptions": {
+          "drink": "Drinks",
+          "food": "Food",
+          "merch": "Merch",
+          "modifier": "Modifiers"
+        },
         "editCategory": "Rename",
         "deleteCategory": "Delete",
         "deleteConfirm": "Delete category?",
@@ -53,10 +61,12 @@
       "itemForm": {
         "titleCreate": "New item",
         "titleEdit": "Edit item",
-        "name": "Name",
-        "namePlaceholder": "E.g. Latte",
-        "description": "Description",
-        "descriptionPlaceholder": "Short description",
+        "nameRu": "Name (RU)",
+        "nameEn": "Name (EN)",
+        "descriptionRu": "Description (RU)",
+        "descriptionEn": "Description (EN)",
+        "sortOrder": "Sort Order",
+        "imageUrl": "Image URL",
         "category": "Category",
         "categoryPlaceholder": "Select a category",
         "price": "Price (₽)",
@@ -65,8 +75,9 @@
         "save": "Save",
         "saving": "Saving...",
         "cancel": "Cancel",
-        "validationName": "Please enter a name",
-        "validationPrice": "Price must be ≥ 0",
+        "validationNameRu": "Please enter a name (RU)",
+        "validationNameEn": "Please enter a name (EN)",
+        "validationBasePrice": "Price must be ≥ 0",
         "validationCategory": "Please select a category",
         "error422": "Validation error: {{fields}}",
         "errorGeneric": "Could not save. Please try again."
@@ -74,8 +85,6 @@
       "sizes": {
         "title": "Sizes / Volumes",
         "label": "Label",
-        "labelPlaceholder": "S / M / L / 200ml",
-        "volume": "Volume (ml)",
         "price": "Price (₽)",
         "add": "Add size",
         "adding": "Adding...",
@@ -84,14 +93,13 @@
         "duplicateLabel": "A size with this label already exists for this item.",
         "disabledHint": "Save the item first.",
         "empty": "No sizes defined",
-        "errorGeneric": "Could not save size.",
-        "mlUnit": "ml"
+        "errorGeneric": "Could not save size."
       },
       "modifiers": {
         "title": "Modifiers",
         "newModifier": "New modifier",
-        "name": "Name",
-        "namePlaceholder": "E.g. Vanilla syrup",
+        "nameRu": "Name (RU)",
+        "nameEn": "Name (EN)",
         "price": "Price (₽)",
         "availability": "Availability",
         "edit": "Edit",

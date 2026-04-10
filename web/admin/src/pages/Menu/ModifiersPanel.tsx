@@ -14,7 +14,7 @@ import {
   setModifierAvailability,
   ApiError,
 } from '@/api/menu';
-import { kopecksToRublesStr, rublesToKopecks } from './utils';
+import { kopecksToRublesStr, rublesToKopecks, pickLang } from './utils';
 
 interface Props {
   currentRole: 'admin' | 'barista';
@@ -22,14 +22,15 @@ interface Props {
 }
 
 interface FormRow {
-  name: string;
+  name_ru: string;
+  name_en: string;
   price: string;
 }
 
-const emptyForm = (): FormRow => ({ name: '', price: '' });
+const emptyForm = (): FormRow => ({ name_ru: '', name_en: '', price: '' });
 
 export function ModifiersPanel({ currentRole, onError }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [modifiers, setModifiers] = useState<ModifierResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [addForm, setAddForm] = useState<FormRow>(emptyForm());
@@ -52,19 +53,28 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAdd() {
-    if (!addForm.name.trim()) return;
+    if (!addForm.name_ru.trim() || !addForm.name_en.trim()) return;
     setAdding(true);
     try {
       const created = await createModifier({
-        name: addForm.name.trim(),
-        price_kopecks: rublesToKopecks(addForm.price),
+        name_ru: addForm.name_ru.trim(),
+        name_en: addForm.name_en.trim(),
+        price: rublesToKopecks(addForm.price),
+        sort_order: 0,
       });
       setModifiers((prev) => [...prev, created]);
       setAddForm(emptyForm());
       setShowAdd(false);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
-      else onError(t('pages.menu.modifiers.errorGeneric'));
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
+        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        onError(t('pages.menu.itemForm.error422', { fields }));
+      } else if (err instanceof ApiError && err.status === 401) {
+        onError(t('common.sessionExpired'));
+      } else {
+        onError(t('pages.menu.modifiers.errorGeneric'));
+      }
     } finally {
       setAdding(false);
     }
@@ -72,19 +82,30 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
 
   function startEdit(m: ModifierResponse) {
     setEditId(m.id);
-    setEditForm({ name: m.name, price: kopecksToRublesStr(m.price_kopecks) });
+    setEditForm({
+      name_ru: m.name_ru,
+      name_en: m.name_en,
+      price: kopecksToRublesStr(m.price),
+    });
   }
 
   async function handleSaveEdit(m: ModifierResponse) {
     try {
       const updated = await updateModifier(m.id, {
-        name: editForm.name.trim() || m.name,
-        price_kopecks: rublesToKopecks(editForm.price),
+        name_ru: editForm.name_ru.trim() || m.name_ru,
+        name_en: editForm.name_en.trim() || m.name_en,
+        price: rublesToKopecks(editForm.price),
       });
       setModifiers((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
       setEditId(null);
-    } catch {
-      onError(t('pages.menu.modifiers.errorGeneric'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
+        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        onError(t('pages.menu.itemForm.error422', { fields }));
+      } else {
+        onError(t('pages.menu.modifiers.errorGeneric'));
+      }
     }
   }
 
@@ -127,16 +148,25 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
       {isAdmin && showAdd && (
         <div className="flex gap-2 items-end border rounded-md p-3">
           <div className="space-y-1 flex-1">
-            <Label>{t('pages.menu.modifiers.name')}</Label>
+            <Label htmlFor="mod-name-ru">{t('pages.menu.modifiers.nameRu')}</Label>
             <Input
-              value={addForm.name}
-              onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-              placeholder={t('pages.menu.modifiers.namePlaceholder')}
+              id="mod-name-ru"
+              value={addForm.name_ru}
+              onChange={(e) => setAddForm({ ...addForm, name_ru: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1 flex-1">
+            <Label htmlFor="mod-name-en">{t('pages.menu.modifiers.nameEn')}</Label>
+            <Input
+              id="mod-name-en"
+              value={addForm.name_en}
+              onChange={(e) => setAddForm({ ...addForm, name_en: e.target.value })}
             />
           </div>
           <div className="space-y-1 w-28">
-            <Label>{t('pages.menu.modifiers.price')}</Label>
+            <Label htmlFor="mod-price">{t('pages.menu.modifiers.price')}</Label>
             <Input
+              id="mod-price"
               type="number"
               step="0.01"
               value={addForm.price}
@@ -163,9 +193,16 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
           editId === m.id ? (
             <li key={m.id} className="flex gap-2 items-center border rounded-md p-2">
               <Input
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                value={editForm.name_ru}
+                onChange={(e) => setEditForm({ ...editForm, name_ru: e.target.value })}
                 className="flex-1"
+                placeholder="RU"
+              />
+              <Input
+                value={editForm.name_en}
+                onChange={(e) => setEditForm({ ...editForm, name_en: e.target.value })}
+                className="flex-1"
+                placeholder="EN"
               />
               <Input
                 type="number"
@@ -188,9 +225,11 @@ export function ModifiersPanel({ currentRole, onError }: Props) {
                 disabled={togglingId === m.id}
                 onCheckedChange={(checked) => handleToggle(m, checked)}
               />
-              <span className="flex-1 text-sm font-medium">{m.name}</span>
+              <span className="flex-1 text-sm font-medium">
+                {pickLang(m.name_ru, m.name_en, i18n.language)}
+              </span>
               <span className="text-sm text-muted-foreground">
-                {kopecksToRublesStr(m.price_kopecks)} ₽
+                {kopecksToRublesStr(m.price)} ₽
               </span>
               {isAdmin && (
                 <div className="flex gap-1">

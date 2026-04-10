@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { CategoryResponse } from '@/api/menu';
+import { Label } from '@/components/ui/label';
+import type { CategoryResponse, CategoryType } from '@/api/menu';
 import { listCategories, createCategory, updateCategory, deleteCategory, ApiError } from '@/api/menu';
+import { pickLang } from './utils';
 
 interface Props {
   selectedId: number | null;
@@ -21,12 +23,16 @@ export function CategoryList({
   currentRole,
   onError,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [newName, setNewName] = useState('');
+  const [newNameRu, setNewNameRu] = useState('');
+  const [newNameEn, setNewNameEn] = useState('');
+  const [newType, setNewType] = useState<CategoryType>('drink');
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
+  const [editNameRu, setEditNameRu] = useState('');
+  const [editNameEn, setEditNameEn] = useState('');
+  const [editType, setEditType] = useState<CategoryType>('drink');
   const isAdmin = currentRole === 'admin';
 
   useEffect(() => {
@@ -42,17 +48,32 @@ export function CategoryList({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAdd() {
-    if (!newName.trim()) return;
+    if (!newNameRu.trim() || !newNameEn.trim()) return;
     setAdding(true);
     try {
-      const created = await createCategory({ name: newName.trim() });
+      const created = await createCategory({
+        type: newType,
+        name_ru: newNameRu.trim(),
+        name_en: newNameEn.trim(),
+        sort_order: categories.length,
+        is_visible: true,
+      });
       const updated = [...categories, created];
       setCategories(updated);
       onCategoriesLoaded(updated);
-      setNewName('');
+      setNewNameRu('');
+      setNewNameEn('');
+      setNewType('drink');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
-      else onError(t('common.error'));
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
+        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        onError(t('pages.menu.itemForm.error422', { fields }));
+      } else if (err instanceof ApiError && err.status === 401) {
+        onError(t('common.sessionExpired'));
+      } else {
+        onError(t('common.error'));
+      }
     } finally {
       setAdding(false);
     }
@@ -60,20 +81,33 @@ export function CategoryList({
 
   function startEdit(cat: CategoryResponse) {
     setEditId(cat.id);
-    setEditName(cat.name);
+    setEditNameRu(cat.name_ru);
+    setEditNameEn(cat.name_en);
+    setEditType(cat.type);
   }
 
   async function handleSaveEdit(cat: CategoryResponse) {
-    if (!editName.trim()) return;
+    if (!editNameRu.trim() || !editNameEn.trim()) return;
     try {
-      const updated = await updateCategory(cat.id, { name: editName.trim() });
+      const updated = await updateCategory(cat.id, {
+        name_ru: editNameRu.trim(),
+        name_en: editNameEn.trim(),
+        type: editType,
+      });
       const next = categories.map((c) => (c.id === cat.id ? updated : c));
       setCategories(next);
       onCategoriesLoaded(next);
       setEditId(null);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
-      else onError(t('common.error'));
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
+        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        onError(t('pages.menu.itemForm.error422', { fields }));
+      } else if (err instanceof ApiError && err.status === 401) {
+        onError(t('common.sessionExpired'));
+      } else {
+        onError(t('common.error'));
+      }
     }
   }
 
@@ -95,6 +129,8 @@ export function CategoryList({
       }
     }
   }
+
+  const typeOptions: CategoryType[] = ['drink', 'food', 'merch', 'modifier'];
 
   return (
     <div className="w-56 shrink-0 space-y-2">
@@ -119,25 +155,46 @@ export function CategoryList({
       <ul className="space-y-1">
         {categories.map((cat) =>
           editId === cat.id ? (
-            <li key={cat.id} className="flex gap-1">
-              <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="h-7 text-sm"
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(cat)}
-              />
-              <Button size="sm" className="h-7 px-2" onClick={() => handleSaveEdit(cat)}>
-                ✓
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2"
-                onClick={() => setEditId(null)}
-              >
-                ✕
-              </Button>
+            <li key={cat.id} className="space-y-1 p-1 border rounded-md">
+              <div className="flex gap-1">
+                <Input
+                  value={editNameRu}
+                  onChange={(e) => setEditNameRu(e.target.value)}
+                  className="h-7 text-sm"
+                  placeholder="RU"
+                  autoFocus
+                />
+                <Input
+                  value={editNameEn}
+                  onChange={(e) => setEditNameEn(e.target.value)}
+                  className="h-7 text-sm"
+                  placeholder="EN"
+                />
+              </div>
+              <div className="flex gap-1">
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value as CategoryType)}
+                  className="flex h-7 flex-1 rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {typeOptions.map((tp) => (
+                    <option key={tp} value={tp}>
+                      {t(`pages.menu.categories.typeOptions.${tp}`)}
+                    </option>
+                  ))}
+                </select>
+                <Button size="sm" className="h-7 px-2" onClick={() => handleSaveEdit(cat)}>
+                  ✓
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2"
+                  onClick={() => setEditId(null)}
+                >
+                  ✕
+                </Button>
+              </div>
             </li>
           ) : (
             <li
@@ -149,7 +206,9 @@ export function CategoryList({
               }`}
               onClick={() => onSelect(cat.id)}
             >
-              <span className="flex-1 text-sm truncate">{cat.name}</span>
+              <span className="flex-1 text-sm truncate">
+                {pickLang(cat.name_ru, cat.name_en, i18n.language)}
+              </span>
               {isAdmin && (
                 <span
                   className="hidden group-hover:flex gap-0.5"
@@ -177,22 +236,57 @@ export function CategoryList({
       </ul>
 
       {isAdmin && (
-        <div className="flex gap-1">
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder={t('pages.menu.categories.namePlaceholder')}
-            className="h-7 text-sm"
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          />
+        <div className="space-y-2 border rounded-md p-2">
+          <div className="space-y-1">
+            <Label htmlFor="cat-name-ru" className="text-xs">
+              {t('pages.menu.categories.nameRu')}
+            </Label>
+            <Input
+              id="cat-name-ru"
+              value={newNameRu}
+              onChange={(e) => setNewNameRu(e.target.value)}
+              className="h-7 text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="cat-name-en" className="text-xs">
+              {t('pages.menu.categories.nameEn')}
+            </Label>
+            <Input
+              id="cat-name-en"
+              value={newNameEn}
+              onChange={(e) => setNewNameEn(e.target.value)}
+              className="h-7 text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="cat-type" className="text-xs">
+              {t('pages.menu.categories.type')}
+            </Label>
+            <select
+              id="cat-type"
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as CategoryType)}
+              className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {typeOptions.map((tp) => (
+                <option key={tp} value={tp}>
+                  {t(`pages.menu.categories.typeOptions.${tp}`)}
+                </option>
+              ))}
+            </select>
+          </div>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 px-2"
+            className="h-7 w-full"
             disabled={adding}
             onClick={handleAdd}
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-3 w-3 mr-1" />
+            {t('pages.menu.categories.newCategory')}
           </Button>
         </div>
       )}

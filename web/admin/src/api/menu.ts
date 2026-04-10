@@ -9,19 +9,37 @@ export { ApiError };
 
 export type Availability = 'AVAILABLE' | 'STOP_LIST' | 'ARCHIVED';
 
+export type CategoryType = 'drink' | 'food' | 'merch' | 'modifier';
+
+export type SizeLabel = 'S' | 'M' | 'L';
+
 // ── Category ─────────────────────────────────────────────────────────────────
 
 export interface CategoryResponse {
   id: number;
-  name: string;
+  type: CategoryType;
+  name_ru: string;
+  name_en: string;
+  sort_order: number;
+  is_visible: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface CategoryCreate {
-  name: string;
+  type: CategoryType;
+  name_ru: string;
+  name_en: string;
+  sort_order: number;
+  is_visible: boolean;
 }
 
 export interface CategoryUpdate {
-  name?: string;
+  type?: CategoryType;
+  name_ru?: string;
+  name_en?: string;
+  sort_order?: number;
+  is_visible?: boolean;
 }
 
 // ── SizeOption ────────────────────────────────────────────────────────────────
@@ -29,41 +47,49 @@ export interface CategoryUpdate {
 export interface SizeOptionResponse {
   id: number;
   menu_item_id: number;
-  label: string;
-  volume_ml: number | null;
-  price_kopecks: number;
+  label: SizeLabel;
+  price: number;
+  available: boolean;
 }
 
 export interface SizeOptionCreate {
   menu_item_id: number;
-  label: string;
-  volume_ml?: number | null;
-  price_kopecks: number;
+  label: SizeLabel;
+  price: number;
+  available?: boolean;
 }
 
 export interface SizeOptionUpdate {
-  label?: string;
-  volume_ml?: number | null;
-  price_kopecks?: number;
+  label?: SizeLabel;
+  price?: number;
+  available?: boolean;
 }
 
 // ── Modifier ──────────────────────────────────────────────────────────────────
 
 export interface ModifierResponse {
   id: number;
-  name: string;
-  price_kopecks: number;
+  name_ru: string;
+  name_en: string;
+  price: number;
   available: boolean;
+  sort_order: number;
 }
 
 export interface ModifierCreate {
-  name: string;
-  price_kopecks: number;
+  name_ru: string;
+  name_en: string;
+  price: number;
+  available?: boolean;
+  sort_order?: number;
 }
 
 export interface ModifierUpdate {
-  name?: string;
-  price_kopecks?: number;
+  name_ru?: string;
+  name_en?: string;
+  price?: number;
+  available?: boolean;
+  sort_order?: number;
 }
 
 // ── MenuItem ──────────────────────────────────────────────────────────────────
@@ -71,28 +97,46 @@ export interface ModifierUpdate {
 export interface MenuItemResponse {
   id: number;
   category_id: number;
-  name: string;
-  description: string | null;
-  price_kopecks: number;
+  name_ru: string;
+  name_en: string;
+  description_ru: string | null;
+  description_en: string | null;
+  base_price: number;
+  image_url: string | null;
   available: boolean;
   archived: boolean;
   availability: Availability;
+  sort_order: number;
   size_options: SizeOptionResponse[];
+  modifiers: ModifierResponse[];
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface MenuItemCreate {
   category_id: number;
-  name: string;
-  description?: string | null;
-  price_kopecks: number;
+  name_ru: string;
+  name_en: string;
+  description_ru?: string | null;
+  description_en?: string | null;
+  base_price: number;
+  image_url?: string | null;
+  available?: boolean;
+  archived?: boolean;
+  sort_order?: number;
 }
 
 export interface MenuItemUpdate {
   category_id?: number;
-  name?: string;
-  description?: string | null;
-  price_kopecks?: number;
+  name_ru?: string;
+  name_en?: string;
+  description_ru?: string | null;
+  description_en?: string | null;
+  base_price?: number;
+  image_url?: string | null;
+  available?: boolean;
   archived?: boolean;
+  sort_order?: number;
 }
 
 // ── Availability PATCH ────────────────────────────────────────────────────────
