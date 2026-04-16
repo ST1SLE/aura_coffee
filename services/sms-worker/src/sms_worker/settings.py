@@ -8,6 +8,7 @@ _PLACEHOLDER = "your-smsru-api-key"
 
 class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
+    database_url: str = "postgresql://aura:aura_secret@postgres:5432/aura_coffee"
     smsru_api_key: str = ""
     encryption_key: str = ""
     sms_backend: Literal["log", "smsru"] = "log"
