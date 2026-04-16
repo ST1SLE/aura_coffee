@@ -9,6 +9,7 @@ from core_api.routers.staff_auth import router as staff_auth_router
 from core_api.routers.menu_admin import router as menu_admin_router
 from core_api.routers.menu_public import router as menu_public_router
 from core_api.routers.cart import router as cart_router
+from core_api.routers.orders import orders_router
 from core_api.settings import settings
 
 app = FastAPI(
@@ -17,6 +18,7 @@ app = FastAPI(
         {"name": "menu-admin"},
         {"name": "menu-public"},
         {"name": "cart"},
+        {"name": "orders"},
     ],
 )
 
@@ -38,6 +40,7 @@ app.include_router(staff_auth_router)
 app.include_router(menu_admin_router)
 app.include_router(menu_public_router)
 app.include_router(cart_router)
+app.include_router(orders_router)
 
 
 @app.get("/health")
