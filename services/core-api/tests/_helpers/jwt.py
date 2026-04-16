@@ -6,12 +6,16 @@
 """
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt as pyjwt
 
-_JWT_SECRET = "test-secret"  # совпадает с JWT_SECRET_KEY тестового окружения
+
+def _jwt_secret() -> str:
+    """Тот же секрет, что использует сервер (settings.jwt_secret_key из env)."""
+    return os.environ.get("JWT_SECRET_KEY", "test-secret")
 
 
 def make_jwt_for_user(user_id: uuid.UUID, role: str = "customer") -> str:
@@ -23,7 +27,7 @@ def make_jwt_for_user(user_id: uuid.UUID, role: str = "customer") -> str:
         "iat": now,
         "exp": now + timedelta(seconds=900),
     }
-    return pyjwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+    return pyjwt.encode(payload, _jwt_secret(), algorithm="HS256")
 
 
 def auth_headers_for_user(user_id: uuid.UUID, role: str = "customer") -> dict[str, str]:
