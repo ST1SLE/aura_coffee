@@ -62,7 +62,9 @@ if _TEST_DB_URL.startswith("sqlite"):
 # ─────────────────────────────────────────────
 # JWT-хелперы для тестов
 # ─────────────────────────────────────────────
-_JWT_SECRET = "test-secret"  # совпадает с JWT_SECRET_KEY в окружении тестов
+def _current_jwt_secret() -> str:
+    """Секрет JWT, согласованный с settings.jwt_secret_key (читается из env)."""
+    return os.environ.get("JWT_SECRET_KEY", "test-secret")
 
 
 def _make_jwt(role: str) -> str:
@@ -73,7 +75,7 @@ def _make_jwt(role: str) -> str:
         "iat": datetime.now(UTC),
         "exp": datetime.now(UTC) + timedelta(seconds=900),
     }
-    return pyjwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+    return pyjwt.encode(payload, _current_jwt_secret(), algorithm="HS256")
 
 
 @pytest.fixture

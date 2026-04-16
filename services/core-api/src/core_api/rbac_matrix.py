@@ -53,6 +53,9 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # ── Staff-действия над заказом (PDD §6.1, §7.6) ─────────────────────────
     ("PATCH", "/api/v1/orders/{order_id}/status"): {BARISTA, COURIER, ADMIN},
     ("POST",  "/api/v1/orders/{order_id}/cancel"): {CUSTOMER, ADMIN},
+    # История заказов и repeat (PDD §7.7) — только CUSTOMER
+    ("GET",  "/api/v1/orders"):                       {CUSTOMER},
+    ("POST", "/api/v1/orders/{order_id}/repeat"):     {CUSTOMER},
 }
 
 # Маршруты без аутентификации
