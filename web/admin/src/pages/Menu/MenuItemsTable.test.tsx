@@ -16,7 +16,7 @@ const mockItem = {
   image_url: null,
   available: true,
   archived: false,
-  availability: 'AVAILABLE' as const,
+  availability: 'available' as const,
   sort_order: 0,
   size_options: [],
   modifiers: [],

@@ -27,10 +27,10 @@ interface Props {
 
 function AvailabilityBadge({ value }: { value: Availability }) {
   const { t } = useTranslation();
-  if (value === 'STOP_LIST') {
+  if (value === 'stop_list') {
     return <Badge variant="warning">{t('pages.menu.items.badge.stopList')}</Badge>;
   }
-  if (value === 'ARCHIVED') {
+  if (value === 'archived') {
     return <Badge variant="muted">{t('pages.menu.items.badge.archived')}</Badge>;
   }
   return null;
@@ -137,8 +137,8 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={item.availability === 'AVAILABLE'}
-                      disabled={item.availability === 'ARCHIVED' || togglingId === item.id}
+                      checked={item.availability === 'available'}
+                      disabled={item.availability === 'archived' || togglingId === item.id}
                       onCheckedChange={(checked) => handleToggleAvailability(item, checked)}
                     />
                     <AvailabilityBadge value={item.availability} />

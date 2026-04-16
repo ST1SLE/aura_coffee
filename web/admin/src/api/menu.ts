@@ -7,7 +7,7 @@ export { ApiError };
 
 // ── Enums ────────────────────────────────────────────────────────────────────
 
-export type Availability = 'AVAILABLE' | 'STOP_LIST' | 'ARCHIVED';
+export type Availability = 'available' | 'stop_list' | 'archived';
 
 export type CategoryType = 'drink' | 'food' | 'merch' | 'modifier';
 
