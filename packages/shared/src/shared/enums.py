@@ -41,3 +41,65 @@ class SizeLabel(str, enum.Enum):
     S = "S"
     M = "M"
     L = "L"
+
+
+# Phase 3: Order & Payment
+
+class OrderStatus(str, enum.Enum):
+    CREATED = "created"
+    PAID = "paid"
+    PREPARING = "preparing"
+    READY = "ready"
+    IN_DELIVERY = "in_delivery"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class OrderType(str, enum.Enum):
+    PICKUP = "pickup"
+    DELIVERY = "delivery"
+
+
+class PaymentStatus(str, enum.Enum):
+    PENDING = "pending"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
+    SUCCEEDED = "succeeded"
+    PAYMENT_FAILED = "payment_failed"
+    REFUND_PENDING = "refund_pending"
+    REFUNDED = "refunded"
+    REFUND_FAILED = "refund_failed"
+
+
+class RefundStatus(str, enum.Enum):
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class NotificationChannel(str, enum.Enum):
+    IN_APP = "in_app"
+    SMS = "sms"
+
+
+class NotificationType(str, enum.Enum):
+    ORDER_STATUS_CHANGE = "order_status_change"
+    OTP = "otp"
+
+
+class NotificationStatus(str, enum.Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class LoyaltyTransactionType(str, enum.Enum):
+    ACCRUAL = "accrual"
+    REDEMPTION = "redemption"
+    REVERSAL = "reversal"
+    RESERVATION = "reservation"
+    ADMIN_ADJUSTMENT = "admin_adjustment"
+
+
+class PromocodeDiscountType(str, enum.Enum):
+    PERCENT = "percent"
+    FIXED_AMOUNT = "fixed_amount"
