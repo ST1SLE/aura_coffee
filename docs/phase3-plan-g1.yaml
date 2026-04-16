@@ -1,0 +1,158 @@
+# Phase 3, Group 1: Schema & Models
+#
+# Foundation: tables, models, enums, schemas, seed data.
+# MUST be merged before running phase3-plan-g2.yaml.
+#
+# Workflow:
+#   1. ./scripts/orchestrate.sh docs/phase3-plan-g1.yaml
+#   2. Wait for phase3-schema DONE
+#   3. ./scripts/merge.sh docs/phase3-plan-g1.yaml
+#   4. Then: ./scripts/orchestrate.sh docs/phase3-plan-g2.yaml
+
+phase: 3
+base_branch: order_payment
+description: "Phase 3 Group 1 — schema, models, enums, migrations, seed"
+
+features:
+
+  - name: phase3-schema
+    type: backend
+    parallel_group: 1
+    merge_order: 1
+    file_zones:
+      - packages/shared/src/shared/models/
+      - packages/shared/src/shared/enums.py
+      - database/migrations/versions/
+      - database/seeds/
+      - services/core-api/src/core_api/schemas/order.py
+      - services/core-api/src/core_api/schemas/shop_settings.py
+      - services/core-api/tests/test_models_order*.py
+      - services/core-api/tests/test_schemas_order*.py
+      - services/core-api/tests/test_migration_0005*.py
+    prompt: |
+      Create all database tables, SQLAlchemy models, Pydantic schemas, and enums
+      for Phase 3: Order & Payment.
+
+      ═══ New Enums (add to packages/shared/src/shared/enums.py) ═══
+
+      - OrderStatus: CREATED, PAID, PREPARING, READY, IN_DELIVERY, COMPLETED, CANCELLED
+      - OrderType: PICKUP, DELIVERY
+      - PaymentStatus: PENDING, AWAITING_CONFIRMATION, SUCCEEDED, PAYMENT_FAILED, REFUND_PENDING, REFUNDED, REFUND_FAILED
+      - RefundStatus: PENDING, SUCCEEDED, FAILED
+      - NotificationChannel: IN_APP, SMS
+      - NotificationType: ORDER_STATUS_CHANGE, OTP
+      - NotificationStatus: PENDING, SENT, FAILED
+      - LoyaltyTransactionType: ACCRUAL, REDEMPTION, REVERSAL, RESERVATION, ADMIN_ADJUSTMENT
+      - PromocodeDiscountType: PERCENT, FIXED_AMOUNT
+
+      ═══ New Tables — SQLAlchemy models (packages/shared/src/shared/models/) ═══
+
+      All specs from PDD §5.2. All prices in kopecks (int). All UUIDs as PK.
+
+      1. shop_settings — singleton (CHECK id=1), see PDD §5.2 "Группа: Настройки"
+         Columns: id(int,always 1), shop_lat(Numeric), shop_lon(Numeric),
+         delivery_radius_km(Numeric), min_delivery_amount(int), free_delivery_threshold(int),
+         delivery_fee(int), loyalty_percent(int), default_prep_time_minutes(int),
+         estimated_delivery_time_minutes(int, default 30),
+         working_hours(JSONB), updated_at(TIMESTAMPTZ)
+
+      2. orders — see PDD §5.2 "Группа: Заказы"
+         Columns: id(UUID), user_id(FK→users), status(OrderStatus), type(OrderType),
+         requested_time(TIMESTAMPTZ nullable, NULL=ASAP),
+         estimated_ready_at(TIMESTAMPTZ nullable),
+         delivery_address_snapshot(JSONB nullable),
+         subtotal(int), discount_amount(int default 0), points_used(int default 0),
+         delivery_fee(int default 0), total(int),
+         estimated_accrual(int default 0),
+         promocode_id(FK→promocodes nullable),
+         cancelled_by(VARCHAR nullable: "customer"/"admin"),
+         cancelled_at(TIMESTAMPTZ nullable),
+         auto_completed(bool default false),
+         auto_completed_at(TIMESTAMPTZ nullable),
+         created_at(TIMESTAMPTZ), updated_at(TIMESTAMPTZ)
+
+      3. order_items — see PDD §5.2 "Группа: Заказы" + §7.7
+         IMMUTABLE (INV-014). Columns: id(UUID), order_id(FK→orders CASCADE),
+         menu_item_id(UUID nullable — reference for repeat orders, NOT a FK),
+         menu_item_name_ru(str), menu_item_name_en(str),
+         size_option_id(UUID nullable — reference for repeat orders, NOT a FK),
+         size_label(str nullable), unit_price(int),
+         modifiers_snapshot(JSONB: [{modifier_id, name_ru, name_en, price}]),
+         quantity(int), line_total(int)
+         NOTE: menu_item_id/size_option_id are stored as non-FK references so
+         Repeat Order Chain (§7.7) can look up current availability.
+
+      4. payments — see PDD §5.2 "Группа: Платежи"
+         Columns: id(UUID), order_id(FK→orders UNIQUE — 1:1), yukassa_payment_id(str nullable),
+         amount(int), status(PaymentStatus), confirmation_url(str nullable),
+         idempotency_key(UUID), created_at, updated_at
+
+      5. refunds — see PDD §5.2 "Группа: Платежи"
+         Columns: id(UUID), payment_id(FK→payments), yukassa_refund_id(str nullable),
+         amount(int), status(RefundStatus), reason(str nullable), created_at
+
+      6. loyalty_transactions — see PDD §5.2 "Группа: Лояльность"
+         Columns: id(UUID), user_id(FK→users), order_id(FK→orders nullable),
+         type(LoyaltyTransactionType), amount(int — positive for accrual, negative for redemption),
+         balance_after(int), description(str nullable), created_at
+
+      7. promocodes — see PDD §5.2 "Группа: Промокоды"
+         Columns: id(UUID), code(str UNIQUE upper-case), discount_type(PromocodeDiscountType),
+         discount_value(int), min_order_amount(int nullable),
+         valid_from(TIMESTAMPTZ), valid_until(TIMESTAMPTZ),
+         max_uses(int nullable), max_uses_per_user(int nullable),
+         current_uses(int default 0), is_active(bool default true), created_at
+
+      8. promocode_usages — see PDD §5.2 "Группа: Промокоды"
+         Columns: id(UUID), promocode_id(FK→promocodes), user_id(FK→users),
+         order_id(FK→orders), created_at
+
+      9. notifications — see PDD §5.2 "Группа: Уведомления"
+         Columns: id(UUID), user_id(FK→users), order_id(FK→orders nullable),
+         channel(NotificationChannel), type(NotificationType),
+         message_ru(str), message_en(str),
+         status(NotificationStatus default PENDING), sent_at(TIMESTAMPTZ nullable), created_at
+
+      ═══ Indexes (PDD §5.4) ═══
+
+      - orders(user_id, created_at DESC)
+      - orders(status) WHERE status NOT IN ('COMPLETED','CANCELLED')
+      - orders(type, status)
+      - promocodes(code) UNIQUE
+      - promocode_usages(promocode_id, user_id)
+      - loyalty_transactions(user_id, created_at DESC)
+      - notifications(user_id, created_at DESC)
+
+      ═══ Pydantic Schemas ═══
+
+      services/core-api/src/core_api/schemas/order.py:
+      - CreateOrderRequest: type(OrderType), delivery_address(optional object with text,lat,lon,apartment,entrance,floor,comment), requested_time(optional datetime), promocode_code(optional str), points_to_use(optional int, default 0)
+      - OrderItemResponse: menu_item_name_ru, menu_item_name_en, size_label, unit_price, modifiers_snapshot, quantity, line_total
+      - OrderResponse: id, status, type, items(list), subtotal, discount_amount, points_used, delivery_fee, total, estimated_accrual, confirmation_url(optional), requested_time, estimated_ready_at, cancelled_by, cancelled_at, created_at
+      - OrderListResponse: items(list of OrderResponse), total_count, page, per_page
+      - OrderStatusUpdate: new_status(OrderStatus)
+      - CancelOrderRequest: reason(optional str)
+      - RepeatOrderResult: added_to_cart(int), skipped(list of {name, reason})
+
+      services/core-api/src/core_api/schemas/shop_settings.py:
+      - ShopSettingsResponse: all fields from model
+
+      ═══ Seed Data ═══
+
+      Create a seed migration (or Alembic data migration) for shop_settings with defaults:
+      - working_hours: {"mon":{"open":"08:00","close":"22:00"},...} (Mon-Sun same)
+      - shop_lat: 55.7558, shop_lon: 37.6173 (Moscow center placeholder)
+      - delivery_radius_km: 5
+      - min_delivery_amount: 50000 (500₽)
+      - free_delivery_threshold: 150000 (1500₽)
+      - delivery_fee: 20000 (200₽)
+      - loyalty_percent: 5
+      - default_prep_time_minutes: 15
+      - estimated_delivery_time_minutes: 30
+
+      ═══ Registration ═══
+
+      Register ALL new models in packages/shared/src/shared/models/__init__.py
+      so Alembic autogenerate picks them up.
+
+      Specs: PDD §5.2, §5.4, §6.1, §6.2.

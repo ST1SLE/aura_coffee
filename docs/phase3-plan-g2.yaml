@@ -1,0 +1,544 @@
+# Phase 3, Group 2: Order & Payment features (6 parallel agents)
+#
+# PREREQUISITE: phase3-plan-g1.yaml must be merged first (schema/models).
+#
+# Workflow:
+#   1. ./scripts/orchestrate.sh docs/phase3-plan-g2.yaml    # 6 parallel tabs
+#   2. Wait for all DONE
+#   3. ./scripts/merge.sh docs/phase3-plan-g2.yaml           # merge in order 2→7
+
+phase: 3
+base_branch: order_payment
+description: "Phase 3 Group 2 — pricing, payment, notifications, checkout, lifecycle, history"
+
+features:
+
+  # ── Pricing Chain + Validators ──────────────────────────────
+
+  - name: order-pricing-validation
+    type: backend
+    parallel_group: 1
+    merge_order: 2
+    file_zones:
+      - services/core-api/src/core_api/services/pricing.py
+      - services/core-api/src/core_api/services/validators/
+      - services/core-api/tests/test_pricing*.py
+      - services/core-api/tests/test_validators*.py
+    prompt: |
+      Extend the pricing module and create order validators.
+
+      ═══ 1. Extend Pricing Chain (PDD §7.2) ═══
+
+      File: services/core-api/src/core_api/services/pricing.py
+      (existing file — has compute_line_total, compute_subtotal)
+
+      Add these pure functions (no framework deps, all integers in kopecks):
+
+      - apply_promocode(subtotal: int, promocode: Promocode | None)
+        → (discount_amount: int, after_promo: int)
+        Step 2 of §7.2. If None → (0, subtotal).
+        PERCENT: discount = floor(subtotal × value / 100)
+        FIXED_AMOUNT: discount = min(value, subtotal)
+
+      - apply_loyalty_points(after_promo: int, requested_points: int, user_balance: int)
+        → (points_used: int, after_points: int)
+        Step 3 of §7.2.
+        max_redeemable = min(user_balance, after_promo)
+        points_used = min(requested_points, max_redeemable)
+        If requested > balance → use entire balance, no error.
+
+      - compute_delivery_fee(subtotal: int, shop_settings: ShopSettings)
+        → int
+        Step 4 / PDD §7.4.
+        subtotal < min_delivery_amount → raise (not enough for delivery)
+        subtotal >= free_delivery_threshold → 0
+        else → shop_settings.delivery_fee
+
+      - compute_order_total(after_points: int, delivery_fee: int) → int
+        Step 5.
+
+      - compute_estimated_accrual(after_points: int, loyalty_percent: int) → int
+        Step 6 / INV-003.
+        floor(after_points × loyalty_percent / 100)
+        after_points is money-paid part (excludes delivery_fee).
+
+      ═══ 2. Create Validators ═══
+
+      Directory: services/core-api/src/core_api/services/validators/
+
+      validators/__init__.py — re-export all validators.
+
+      validators/stop_list.py:
+      - validate_stop_list(cart_items, db_session) → raises if any item/modifier/size unavailable.
+        Loads current MenuItem, SizeOption, Modifier states from DB.
+        Returns validated items with fresh prices (INV-006).
+
+      validators/working_hours.py:
+      - validate_time_slot(requested_time: datetime | None, order_type: OrderType, shop_settings)
+        → estimated_ready_at: datetime
+        Full Time Slot Validation Chain (PDD §7.5):
+        - ASAP: now + prep_time (+ delivery_time if DELIVERY).
+          If outside working hours → find next opening ≤24h or reject.
+        - Specific time: must be future, ≥ prep_time away, within working hours.
+
+      validators/delivery.py:
+      - validate_delivery_address(lat, lon, shop_settings) → raises if outside radius.
+        Haversine formula: distance between (shop_lat, shop_lon) and (lat, lon).
+        PDD §7.3 step 3. Earth radius = 6371 km.
+      - validate_min_delivery_amount(subtotal: int, shop_settings) → raises if below minimum.
+        PDD §7.4 step 1.
+
+      validators/promocode.py:
+      - validate_promocode(code: str, user_id: UUID, subtotal: int, db_session)
+        → Promocode | raises
+        Checks: is_active, valid_from ≤ now ≤ valid_until, current_uses < max_uses,
+        user usage count < max_uses_per_user, subtotal ≥ min_order_amount.
+        PDD §5.2 "Примечания" under Промокоды.
+
+      All validators raise domain-specific exceptions with error codes/messages
+      (not HTTP exceptions — the router layer converts them).
+
+      Specs: PDD §7.2, §7.3, §7.4, §7.5, INV-003, INV-006, INV-009, INV-011.
+
+  # ── Payment Worker — ЮKassa integration ─────────────────────
+
+  - name: payment-yukassa
+    type: backend
+    parallel_group: 1
+    merge_order: 3
+    file_zones:
+      - services/payment-worker/src/payment_worker/
+      - services/payment-worker/tests/
+      - services/payment-worker/pyproject.toml
+    prompt: |
+      Implement Payment Worker: ЮKassa payment creation, webhook processing, refunds.
+
+      Architecture (PDD §4.2): Payment Worker runs TWO processes:
+      1. Celery worker — async tasks (create_payment, initiate_refund)
+      2. FastAPI HTTP server — webhook endpoint for ЮKassa callbacks
+
+      ═══ 1. ЮKassa Client ═══
+
+      File: services/payment-worker/src/payment_worker/yukassa_client.py
+      - YukassaClient class wrapping httpx for ЮKassa REST API.
+      - Auth: HTTP Basic (YUKASSA_SHOP_ID : YUKASSA_SECRET_KEY).
+      - create_payment(amount_kopecks, idempotency_key, return_url, description)
+        → POST /v3/payments. Amount as "123.45" (str, 2 decimal places, RUB). PDD §8.1.
+        Returns: payment_id, confirmation_url, status.
+      - get_payment(payment_id) → GET /v3/payments/{id}. For timeout polling.
+      - create_refund(payment_id, amount_kopecks, idempotency_key)
+        → POST /v3/refunds. Full refund only (INV-005).
+      - Base URL from env (test vs production).
+      - Idempotency-Key header on all create requests (PDD §8.1).
+      - Timeout: 10s connect, 30s read.
+
+      ═══ 2. Celery Tasks ═══
+
+      File: services/payment-worker/src/payment_worker/tasks.py (replace health_check)
+
+      create_payment(order_id: str, amount_kopecks: int, idempotency_key: str):
+        1. Call yukassa_client.create_payment()
+        2. Success → update DB: Payment.yukassa_payment_id, Payment.confirmation_url,
+           Payment.status = AWAITING_CONFIRMATION
+        3. YuKassa API error after 3 retries →
+           Payment.status = PAYMENT_FAILED,
+           Order.status = CANCELLED,
+           Unreserve loyalty (REVERSAL transaction) + unreserve promo (decrement current_uses)
+        Retry: max_retries=3, autoretry_for=(httpx errors), retry_backoff=True.
+
+      initiate_refund(payment_id: str, amount_kopecks: int):
+        1. Call yukassa_client.create_refund()
+        2. Success → Payment.status = REFUND_PENDING
+        3. Failure → log error, keep Payment status unchanged (admin handles manually)
+
+      ═══ 3. Webhook HTTP Server ═══
+
+      File: services/payment-worker/src/payment_worker/webhook.py
+      FastAPI app with single endpoint:
+
+      POST /webhooks/yukassa — PDD §7.9:
+        Step 1: IP whitelist verification (YUKASSA_WEBHOOK_IPS env var, PDD §8.1).
+                Reject with 403 + log if IP not in list.
+        Step 2: Idempotency — check event_id against processed_webhook_events
+                (new table or Redis set). Already processed → return 200.
+        Step 3: Process event type:
+          - payment.succeeded:
+            Payment → SUCCEEDED, Order → PAID
+            Confirm loyalty reservation (RESERVATION → REDEMPTION)
+            Confirm promocode usage
+            Delete cart from Redis (cart:{user_id})
+            Enqueue notification (SMS + in-app: "Заказ оплачен")
+          - payment.canceled:
+            Payment → PAYMENT_FAILED, Order → CANCELLED
+            Unreserve loyalty (REVERSAL), unreserve promo
+            Enqueue notification (in-app: "Платёж не прошёл")
+          - refund.succeeded:
+            Payment → REFUNDED
+          - refund.canceled:
+            Payment → REFUND_FAILED, log error, notify admin
+          - Unknown type → log, return 200
+        Step 4: Always return 200 after successful processing.
+                If processing crashes → let it 500 so ЮKassa retries.
+
+      ═══ 4. Settings ═══
+
+      File: services/payment-worker/src/payment_worker/settings.py
+      Add: YUKASSA_SHOP_ID, YUKASSA_SECRET_KEY, YUKASSA_WEBHOOK_IPS,
+           DATABASE_URL, REDIS_URL, YUKASSA_BASE_URL (default: test endpoint)
+
+      ═══ 5. Startup ═══
+
+      The webhook HTTP server should be startable independently:
+        uvicorn payment_worker.webhook:app --host 0.0.0.0 --port 8001
+      Docker-compose will need a separate service or dual-process entrypoint.
+      For now, just create the app — docker-compose changes can be done in integration.
+
+      Specs: PDD §4.2, §6.2, §7.9, §8.1, INV-001, INV-004.
+
+  # ── Notification Service + SMS Worker extension ─────────────
+
+  - name: order-notifications
+    type: backend
+    parallel_group: 1
+    merge_order: 4
+    file_zones:
+      - services/core-api/src/core_api/services/notification.py
+      - services/sms-worker/src/sms_worker/tasks/notification.py
+      - services/sms-worker/tests/test_notification*.py
+      - services/core-api/tests/test_notification*.py
+    prompt: |
+      Implement order status notification system: in-app + SMS.
+
+      ═══ 1. Notification Service ═══
+
+      File: services/core-api/src/core_api/services/notification.py
+
+      send_order_notification(order_id, user_id, new_status, db_session,
+                              cancelled_by=None):
+        1. Determine message text by new_status (PDD §6.1 transitions table,
+           column "Уведомления"):
+           - PAID: "Заказ №{short_id} оплачен" — SMS + in-app
+           - PREPARING: "Заказ №{short_id} готовится" — SMS + in-app
+           - READY (pickup): "Заказ №{short_id} готов, заберите" — SMS + in-app
+           - READY (delivery): "Заказ №{short_id} готов" — SMS + in-app
+           - IN_DELIVERY: "Курьер забрал заказ №{short_id}" — in-app only
+           - COMPLETED (delivery): "Заказ №{short_id} доставлен" — SMS + in-app
+           - COMPLETED (pickup): "Заказ №{short_id} завершён" — in-app only
+           - CANCELLED (customer): "Заказ №{short_id} отменён, средства возвращены" — SMS + in-app
+           - CANCELLED (admin): "Заказ №{short_id} отменён кофейней" — SMS + in-app
+        2. Get user preferred_language from DB → choose message_ru or message_en.
+        3. Create Notification record in DB (channel=IN_APP, status=SENT).
+        4. If SMS required for this status:
+           Create Notification record (channel=SMS, status=PENDING).
+           Load encrypted phone from user_profiles.
+           Enqueue Celery task: sms_worker send_order_notification_sms.
+        5. SMS text ≤ 70 chars (PDD §8.2, 1 кириллица-сегмент).
+           Format: "{status_text}. Заказ №{short_id}. Aura Coffee"
+
+      short_id = first 8 chars of order UUID (for human readability).
+
+      ═══ 2. SMS Worker Task ═══
+
+      File: services/sms-worker/src/sms_worker/tasks/notification.py
+
+      send_order_notification_sms(notification_id, encrypted_phone_hex, message):
+        - Reuse _decrypt_phone() pattern from tasks/otp.py.
+        - Reuse transport (_TRANSPORT) from otp.py — refactor to shared module if needed.
+        - Retry: 3 attempts, backoff 2s/8s/32s (PDD §7.8).
+        - On success: update Notification.status = SENT, Notification.sent_at = now.
+        - On final failure: update Notification.status = FAILED, log error.
+        - Do NOT block order flow — notification failure is non-critical.
+
+      Specs: PDD §6.1, §7.8, §8.2.
+
+  # ── Order Checkout + GET detail ─────────────────────────────
+
+  - name: order-checkout
+    type: backend
+    parallel_group: 1
+    merge_order: 5
+    file_zones:
+      - services/core-api/src/core_api/services/checkout.py
+      - services/core-api/src/core_api/routers/orders.py
+      - services/core-api/tests/test_checkout*.py
+      - services/core-api/tests/test_route_orders*.py
+    prompt: |
+      Implement Cart → Order checkout flow and order detail endpoint.
+
+      ═══ 1. Checkout Service ═══
+
+      File: services/core-api/src/core_api/services/checkout.py
+
+      create_order(user_id, request: CreateOrderRequest, redis, db_session)
+        → OrderResponse
+
+      Full flow (PDD §7.1 Phase 3, items 1-2):
+
+        1. READ CART from Redis (using existing CartService.get()).
+           If cart empty → 400 "Корзина пуста".
+
+        2. VALIDATE (call validators from services/validators/):
+           a. Stop-list: validate_stop_list() — all items available (INV-006)
+           b. Working hours: validate_time_slot() — PDD §7.5
+           c. If DELIVERY:
+              - validate_delivery_address() — Haversine radius check
+              - validate_min_delivery_amount() — PDD §7.4
+           d. If promocode_code provided:
+              - validate_promocode() — PDD §7.2 step 2
+
+        3. PRICING CHAIN (PDD §7.2, call functions from services/pricing.py):
+           subtotal = compute_subtotal(validated_items_with_fresh_prices)
+           (discount_amount, after_promo) = apply_promocode(subtotal, promocode)
+           (points_used, after_points) = apply_loyalty_points(after_promo, request.points_to_use, user_balance)
+           delivery_fee = compute_delivery_fee(subtotal, shop_settings) if DELIVERY else 0
+           total = compute_order_total(after_points, delivery_fee)
+           estimated_accrual = compute_estimated_accrual(after_points, loyalty_percent)
+
+        4. DB TRANSACTION (INV-004 — all or nothing):
+           a. Create Order (status=CREATED)
+           b. Create OrderItems — immutable snapshots of names, prices, modifiers
+              Include menu_item_id and size_option_id as references for repeat orders.
+           c. Create Payment (status=PENDING, amount=total, idempotency_key=new UUID)
+           d. If points_used > 0:
+              Create loyalty_transaction(type=RESERVATION, amount=-points_used)
+              Debit loyalty_account.balance
+           e. If promocode:
+              Increment promocode.current_uses
+              Create promocode_usages record
+
+        5. PAYMENT:
+           If total = 0 (full loyalty payment):
+             Order → PAID immediately (same transaction)
+             Confirm reservation → REDEMPTION
+             Delete cart from Redis
+           If total > 0:
+             Enqueue Celery task: create_payment(order_id, total, idempotency_key)
+
+        6. Return OrderResponse (status=CREATED or PAID, no confirmation_url yet).
+
+      ═══ 2. Router ═══
+
+      File: services/core-api/src/core_api/routers/orders.py
+
+      POST /api/v1/orders — create order (CUSTOMER role only)
+        Body: CreateOrderRequest
+        Response: 201 OrderResponse
+        Calls checkout.create_order()
+
+      GET /api/v1/orders/{order_id} — order detail (CUSTOMER: own orders only)
+        Response: OrderResponse (includes confirmation_url when available — for polling)
+        Used by client to poll for confirmation_url after checkout.
+        Polling interval: client polls every 1-2s while status=CREATED.
+
+      Register router in services/core-api/src/core_api/main.py.
+
+      ═══ Notes ═══
+
+      - Cart is NOT deleted at checkout. Deletion happens after PAID
+        (in payment webhook handler or in total=0 flow).
+      - Validators and pricing functions are in separate modules
+        (order-pricing-validation feature). Import them.
+        In tests, mock these dependencies.
+      - Payment task is in payment-worker (payment-yukassa feature).
+        Just call celery_app.send_task("payment_worker.tasks.create_payment", ...).
+        In tests, mock the Celery send_task call.
+
+      Specs: PDD §7.1 Phase 3 items 0-3, §7.2, INV-001, INV-004, INV-006.
+
+  # ── Order Lifecycle + Cancellation ──────────────────────────
+
+  - name: order-lifecycle-cancel
+    type: backend
+    parallel_group: 1
+    merge_order: 6
+    file_zones:
+      - services/core-api/src/core_api/services/order_lifecycle.py
+      - services/core-api/src/core_api/services/order_cancel.py
+      - services/core-api/src/core_api/routers/order_actions.py
+      - services/core-api/tests/test_order_lifecycle*.py
+      - services/core-api/tests/test_order_cancel*.py
+      - services/core-api/tests/test_route_order_actions*.py
+    prompt: |
+      Implement Order Lifecycle state machine and Order Cancellation Chain.
+
+      ═══ 1. State Machine ═══
+
+      File: services/core-api/src/core_api/services/order_lifecycle.py
+
+      transition_order(order_id, new_status, actor_role, db_session)
+        → updated Order
+
+      Allowed transitions from PDD §6.1 (INV-016 — ONLY these):
+
+        CREATED → PAID         (payment webhook — not called from this router)
+        CREATED → CANCELLED    (payment failed — not called from this router)
+        PAID → PREPARING       (barista action)
+        PAID → CANCELLED       (customer cancel OR admin cancel)
+        PREPARING → READY      (barista action)
+        PREPARING → CANCELLED  (admin only)
+        READY → IN_DELIVERY    (courier, requires order.type=DELIVERY)
+        READY → COMPLETED      (barista, requires order.type=PICKUP)
+        READY → CANCELLED      (admin only)
+        IN_DELIVERY → COMPLETED (courier)
+
+      Forbidden: COMPLETED→any, CANCELLED→any, any backward transition.
+      Raise clear errors for forbidden transitions.
+
+      Role-based access:
+        - BARISTA: PAID→PREPARING, PREPARING→READY, READY→COMPLETED(pickup)
+        - COURIER: READY→IN_DELIVERY, IN_DELIVERY→COMPLETED
+        - ADMIN: any non-forbidden transition
+        - CUSTOMER: cannot transition (uses cancel endpoint instead)
+
+      Side effects on transition:
+        - Any transition → call notification service: send_order_notification()
+        - → COMPLETED: accrue loyalty points.
+          accrual = floor(after_points × loyalty_percent / 100)
+          where after_points = order.total - order.delivery_fee
+          (money paid for goods, excluding delivery — INV-003, PDD §7.2 step 6).
+          Create loyalty_transaction(type=ACCRUAL, amount=+accrual).
+          Increment loyalty_account.balance.
+
+      ═══ 2. Cancellation Chain ═══
+
+      File: services/core-api/src/core_api/services/order_cancel.py
+
+      cancel_order(order_id, cancelled_by: "customer"|"admin", reason: str|None,
+                   db_session) → updated Order
+
+      PDD §7.6 — ALL steps in ONE DB transaction (INV-004):
+
+        Step 1: Check cancellation rights.
+          Customer: only if order.status = PAID (INV-005).
+          Admin: PAID, PREPARING, READY. NOT IN_DELIVERY/COMPLETED/CANCELLED.
+          → Reject with clear reason if not allowed.
+
+        Step 2: Return promocode (if applied).
+          Decrement promocode.current_uses.
+          Delete promocode_usages record for this order.
+
+        Step 3: Return loyalty points (if points_used > 0).
+          Create loyalty_transaction(type=REVERSAL, amount=+points_used).
+          Increment loyalty_account.balance.
+
+        Step 4: Initiate refund (if payment.amount > 0).
+          Enqueue Celery task: initiate_refund(payment_id, amount).
+          (If total was 0 — no payment, no refund needed.)
+
+        Step 5: Update order.
+          status = CANCELLED, cancelled_by, cancelled_at = now.
+
+        Step 6: Send notification via notification service.
+
+      ═══ 3. Router ═══
+
+      File: services/core-api/src/core_api/routers/order_actions.py
+
+      PATCH /api/v1/orders/{order_id}/status
+        Body: OrderStatusUpdate (new_status)
+        Auth: BARISTA, COURIER, ADMIN (INV-010)
+        Calls: order_lifecycle.transition_order()
+
+      POST /api/v1/orders/{order_id}/cancel
+        Body: CancelOrderRequest (optional reason)
+        Auth: CUSTOMER (own order) or ADMIN
+        Calls: order_cancel.cancel_order()
+
+      Register router in services/core-api/src/core_api/main.py.
+
+      ═══ Notes ═══
+
+      - Notification service is in a separate module (order-notifications feature).
+        Import and call it. In tests, mock it.
+      - Payment refund task is in payment-worker. Use celery_app.send_task().
+        In tests, mock it.
+      - CREATED→PAID and CREATED→CANCELLED transitions are triggered by payment
+        webhook, NOT by this router. Those are handled in payment-yukassa.
+        This router handles staff-initiated transitions only.
+
+      Specs: PDD §6.1, §7.6, INV-003, INV-004, INV-005, INV-010, INV-016.
+
+  # ── Order History + Repeat Order ────────────────────────────
+
+  - name: order-history-repeat
+    type: backend
+    parallel_group: 1
+    merge_order: 7
+    file_zones:
+      - services/core-api/src/core_api/services/order_history.py
+      - services/core-api/src/core_api/services/order_repeat.py
+      - services/core-api/src/core_api/routers/order_history.py
+      - services/core-api/tests/test_order_history*.py
+      - services/core-api/tests/test_order_repeat*.py
+      - services/core-api/tests/test_route_order_history*.py
+    prompt: |
+      Implement order history listing and repeat order functionality.
+
+      ═══ 1. Order History Service ═══
+
+      File: services/core-api/src/core_api/services/order_history.py
+
+      list_orders(user_id, page=1, per_page=20, db_session) → OrderListResponse
+        - Query orders WHERE user_id = user_id, ORDER BY created_at DESC.
+        - Paginate with offset/limit.
+        - Include order_items in each order (joined load).
+        - Return total_count for pagination.
+
+      ═══ 2. Repeat Order Service ═══
+
+      File: services/core-api/src/core_api/services/order_repeat.py
+
+      repeat_order(order_id, user_id, redis, db_session) → RepeatOrderResult
+        PDD §7.7 Repeat Order Chain:
+
+        Step 1: Load order from DB. Verify it belongs to user_id.
+
+        Step 2: For each order_item, look up current menu item by
+                order_item.menu_item_id (stored as reference):
+          - menu_item found, available=true, archived=false:
+            Check size: if order_item.size_option_id set →
+              find SizeOption, if available → use it.
+              If not available → skip ENTIRE item. Notify: "Размер {label} для {name} недоступен".
+            Check modifiers: for each modifier_id in modifiers_snapshot →
+              find Modifier, if available → include. If not → skip modifier, notify.
+            Add to cart via CartService.add_item() with CURRENT prices.
+          - menu_item available=false (stop-list):
+            Skip. Notify: "{name} сейчас недоступен".
+          - menu_item archived=true:
+            Skip. Notify: "{name} больше не в меню".
+          - menu_item not found (deleted):
+            Skip. Notify: "Позиция больше не в меню".
+
+        Step 3:
+          ≥1 item added → return RepeatOrderResult(added_to_cart=N, skipped=[...])
+          0 items added → raise error: "Ни одна позиция из этого заказа сейчас недоступна"
+
+        Do NOT auto-checkout. Client reviews cart and decides (PDD §7.7).
+
+      ═══ 3. Router ═══
+
+      File: services/core-api/src/core_api/routers/order_history.py
+
+      GET /api/v1/orders — paginated order history
+        Query params: page(int, default 1), per_page(int, default 20, max 50)
+        Auth: CUSTOMER (own orders only)
+        Response: OrderListResponse
+
+      POST /api/v1/orders/{order_id}/repeat — repeat order from history
+        Auth: CUSTOMER (own orders only)
+        Response: RepeatOrderResult
+        Populates cart with available items from the historical order.
+
+      Register router in services/core-api/src/core_api/main.py.
+
+      ═══ Notes ═══
+
+      - GET /api/v1/orders/{order_id} (single order detail) is implemented
+        in the order-checkout feature (routers/orders.py). Do not duplicate.
+      - CartService from services/cart.py is already implemented.
+        Import and use add_item() for repeat orders.
+      - order_items.menu_item_id and size_option_id are non-FK references
+        (created in phase3-schema). Use them for lookups but handle
+        missing menu items gracefully (they may have been deleted).
+
+      Specs: PDD §7.7.
