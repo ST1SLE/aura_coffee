@@ -132,9 +132,9 @@ Save id as $CAPPUCCINO_ID.
                                                                                                 
 Add 3 sizes                                                                      
 for payload in \                                                                                
-'{"item_id":'$CAPPUCCINO_ID',"label":"S","price":200}' \
-'{"item_id":'$CAPPUCCINO_ID',"label":"M","price":250}' \                                      
-'{"item_id":'$CAPPUCCINO_ID',"label":"L","price":300}'; do                                    
+'{"menu_item_id":'$CAPPUCCINO_ID',"label":"S","price":200}' \
+'{"menu_item_id":'$CAPPUCCINO_ID',"label":"M","price":250}' \                                      
+'{"menu_item_id":'$CAPPUCCINO_ID',"label":"L","price":300}'; do                                    
 curl -s -X POST http://localhost:8240/api/v1/admin/menu/sizes \                               
     -H "Authorization: Bearer $ADMIN_TOKEN" \                                                   
     -H 'Content-Type: application/json' \                                                       
@@ -271,16 +271,16 @@ has total_price: 315 (backend-computed, not frontend-only)
 - Tap − on Эспрессо line                                                                    
 - Expect: qty back to 1; totals update                                                          
                                                                                 
-3.6 Decrement to 0                                                                              
-- Tap − until qty reaches 0                                                      
-- Expect: line removed (or confirm modal — note behavior)                                       
+3.6 Decrement to remove                                                                         
+- When qty is 1, tap −                                                            
+- Expect: line is removed from cart (triggers DELETE, not PATCH with qty=0)                                       
                                                                                 
 3.7 Delete line                                                                                 
 - Tap trash icon on a remaining line                                                            
 - Expect: DELETE /api/v1/cart/items/{line_id} fires; line disappears
                                                                                                 
 3.8 Clear cart                                                                                  
-- Tap "Clear cart" (if button exists)
+- Tap "Clear cart"
 - Expect: DELETE /api/v1/cart fires; cart is empty                                              
 - Tap again                                                                      
 - Expect: no error (idempotent)                                                                 
