@@ -6,6 +6,7 @@ vi.mock('@/api/cart', () => ({
   addItem: vi.fn(),
   updateItem: vi.fn(),
   removeItem: vi.fn(),
+  clearCart: vi.fn(),
 }));
 
 import * as cartApi from '@/api/cart';
@@ -31,6 +32,7 @@ describe('cart store', () => {
       addItem: vi.fn(),
       updateItem: vi.fn(),
       removeItem: vi.fn(),
+      clearCart: vi.fn(),
     }));
     const mod = await import('./cart');
     getState = () => mod.useCartStore.getState();
@@ -54,7 +56,7 @@ describe('cart store', () => {
   });
 
   it('addItem: заменяет cart ответом сервера', async () => {
-    const cart = makeCart({ items: [{ menu_item_id: 1, size_option_id: null, modifier_ids: [], quantity: 1, unit_price: 100, line_total: 100, menu_item_snapshot: { name_ru: 'Кофе', name_en: 'Coffee', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] }] });
+    const cart = makeCart({ items: [{ line_id: 'line-1', menu_item_id: 1, size_option_id: null, modifier_ids: [], quantity: 1, unit_price: 100, line_total: 100, menu_item_snapshot: { name_ru: 'Кофе', name_en: 'Coffee', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] }] });
     (cartApi.addItem as Mock).mockResolvedValue(cart);
 
     await getState().addItem({ menu_item_id: 1, size_option_id: null, modifier_ids: [], quantity: 1 });
@@ -94,8 +96,8 @@ describe('cart store', () => {
   it('itemCount: суммирует quantity всех позиций', async () => {
     const cart = makeCart({
       items: [
-        { menu_item_id: 1, size_option_id: null, modifier_ids: [], quantity: 2, unit_price: 100, line_total: 200, menu_item_snapshot: { name_ru: '', name_en: '', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] },
-        { menu_item_id: 2, size_option_id: null, modifier_ids: [], quantity: 3, unit_price: 100, line_total: 300, menu_item_snapshot: { name_ru: '', name_en: '', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] },
+        { line_id: 'line-1', menu_item_id: 1, size_option_id: null, modifier_ids: [], quantity: 2, unit_price: 100, line_total: 200, menu_item_snapshot: { name_ru: '', name_en: '', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] },
+        { line_id: 'line-2', menu_item_id: 2, size_option_id: null, modifier_ids: [], quantity: 3, unit_price: 100, line_total: 300, menu_item_snapshot: { name_ru: '', name_en: '', availability: 'available' }, size_snapshot: null, modifiers_snapshot: [] },
       ],
       subtotal: 500,
     });

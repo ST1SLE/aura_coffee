@@ -26,3 +26,7 @@ export function removeItem(itemId: string): Promise<CartResponse> {
     method: 'DELETE',
   });
 }
+
+export function clearCart(): Promise<CartResponse> {
+  return apiRequest<CartResponse>('/api/v1/cart', { method: 'DELETE' });
+}

@@ -6,7 +6,7 @@ vi.mock('./client', () => ({
 }));
 
 import { apiRequest } from './client';
-import { getCart, addItem, updateItem, removeItem } from './cart';
+import { getCart, addItem, updateItem, removeItem, clearCart } from './cart';
 import type { CartItemCreate } from './cartTypes';
 
 const cartResponse = {
@@ -73,6 +73,18 @@ describe('removeItem', () => {
 
     const [url, opts] = (apiRequest as Mock).mock.calls[0];
     expect(url).toBe('/api/v1/cart/items/abc-123');
+    expect(opts.method).toBe('DELETE');
+  });
+});
+
+describe('clearCart', () => {
+  it('sends DELETE to /api/v1/cart', async () => {
+    (apiRequest as Mock).mockResolvedValue(cartResponse);
+
+    await clearCart();
+
+    const [url, opts] = (apiRequest as Mock).mock.calls[0];
+    expect(url).toBe('/api/v1/cart');
     expect(opts.method).toBe('DELETE');
   });
 });

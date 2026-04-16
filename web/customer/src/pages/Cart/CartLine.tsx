@@ -47,8 +47,11 @@ export function CartLine({ item, lang, onUpdateQuantity, onRemove, itemId }: Pro
             variant="outline"
             size="icon"
             aria-label={t('cart.decrement')}
-            disabled={item.quantity <= 1}
-            onClick={() => onUpdateQuantity(itemId, item.quantity - 1)}
+            onClick={() =>
+              item.quantity <= 1
+                ? onRemove(itemId)
+                : onUpdateQuantity(itemId, item.quantity - 1)
+            }
           >
             −
           </Button>

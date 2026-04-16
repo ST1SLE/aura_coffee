@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '@/store/cart';
+import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/formatPrice';
 import { CartLine } from './CartLine';
@@ -11,10 +12,10 @@ export function CartPage() {
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
   const locale = lang === 'ru' ? 'ru' : 'en';
 
-  const { status, items, subtotal, currency, refresh, updateQuantity, removeItem } =
+  const { status, items, subtotal, currency, refresh, updateQuantity, removeItem, clearCart } =
     useCartStore();
 
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [, setBusyId] = useState<string | null>(null);
 
   useEffect(() => { refresh(); }, []);
 
@@ -23,8 +24,7 @@ export function CartPage() {
     try {
       await updateQuantity(itemId, qty);
     } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
-      if (status === 410) {
+      if (err instanceof ApiError && err.status === 410) {
         showExpiredToast();
         await refresh();
       }
@@ -38,8 +38,7 @@ export function CartPage() {
     try {
       await removeItem(itemId);
     } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
-      if (status === 410) {
+      if (err instanceof ApiError && err.status === 410) {
         showExpiredToast();
         await refresh();
       }
@@ -92,19 +91,22 @@ export function CartPage() {
         </p>
       )}
 
-      {items.map((item, idx) => {
-        const id = `${item.menu_item_id}-${idx}`;
-        return (
-          <CartLine
-            key={id}
-            itemId={id}
-            item={{ ...item, quantity: busyId === id ? item.quantity : item.quantity }}
-            lang={lang}
-            onUpdateQuantity={handleUpdate}
-            onRemove={handleRemove}
-          />
-        );
-      })}
+      <div className="flex justify-end mb-3">
+        <Button variant="outline" size="sm" onClick={clearCart}>
+          {t('cart.clearCart')}
+        </Button>
+      </div>
+
+      {items.map((item) => (
+        <CartLine
+          key={item.line_id}
+          itemId={item.line_id}
+          item={item}
+          lang={lang}
+          onUpdateQuantity={handleUpdate}
+          onRemove={handleRemove}
+        />
+      ))}
 
       {/* Закреплённая строка итого */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t px-4 py-3 flex justify-between items-center">

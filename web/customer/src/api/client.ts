@@ -43,14 +43,21 @@ function handleAuthFailure(): void {
   }
 }
 
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 /**
  * Выполняет аутентифицированный запрос и десериализует JSON.
- * Бросает Error с HTTP-статусом при ответах не 2xx.
+ * Бросает ApiError с HTTP-статусом при ответах не 2xx.
  */
 export async function apiRequest<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await authenticatedFetch(url, opts);
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${url}`);
+    throw new ApiError(res.status, `HTTP ${res.status}: ${url}`);
   }
   return res.json() as Promise<T>;
 }

@@ -29,6 +29,7 @@ export interface ModifierSnapshot {
 }
 
 export interface CartItemResponse {
+  line_id: string;
   menu_item_id: number;
   size_option_id: number | null;
   modifier_ids: number[];
