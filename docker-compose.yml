@@ -31,6 +31,10 @@ services:
       dockerfile: services/core-api/Dockerfile
       target: dev
     env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/core-api/src:/app/services/core-api/src
@@ -47,6 +51,10 @@ services:
       dockerfile: services/core-api/Dockerfile
       target: dev
     env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/core-api/src:/app/services/core-api/src
@@ -65,6 +73,10 @@ services:
     ports:
       - "${CORE_API_PORT:-8000}:8000"
     env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/core-api/src:/app/services/core-api/src
@@ -85,6 +97,10 @@ services:
       dockerfile: services/payment-worker/Dockerfile
       target: dev
     env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/payment-worker/src:/app/services/payment-worker/src
@@ -99,6 +115,10 @@ services:
       dockerfile: services/sms-worker/Dockerfile
       target: dev
     env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
     volumes:
       - ./packages/shared/src:/app/packages/shared/src
       - ./services/sms-worker/src:/app/services/sms-worker/src
