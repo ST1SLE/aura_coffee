@@ -1,4 +1,11 @@
 import os
+import pathlib as _pathlib
+import sys as _sys
+
+# Корень репо в sys.path — чтобы тесты могли импортировать `database.seeds.*`
+_REPO_ROOT = _pathlib.Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
 
 # Подставляем минимальные env-переменные до импорта приложения
 os.environ.setdefault("DATABASE_URL", "sqlite://")
