@@ -29,6 +29,26 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 
+@pytest.fixture(autouse=True)
+def _reset_yukassa_env(monkeypatch):
+    """Гарантирует, что YUKASSA_* переменные не протекают между тестами.
+
+    Каждый тест, которому нужна конкретная конфигурация, должен выставить её
+    через monkeypatch.setenv сам. Этот fixture чистит «грязные» значения из
+    окружения CI/разработчика, чтобы тесты settings-слоя были детерминированны.
+    """
+    for key in (
+        "YUKASSA_BACKEND",
+        "YUKASSA_FAKE_OUTCOME",
+        "YUKASSA_SHOP_ID",
+        "YUKASSA_SECRET_KEY",
+        "YUKASSA_WEBHOOK_IPS",
+        "YUKASSA_BASE_URL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    yield
+
+
 @pytest.fixture(scope="session")
 def sqlite_engine():
     """Единый SQLite-движок для всех Phase-3 моделей (in-memory, StaticPool).
