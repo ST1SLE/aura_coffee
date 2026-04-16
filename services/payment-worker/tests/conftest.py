@@ -194,3 +194,36 @@ def yukassa_env(monkeypatch) -> dict[str, str]:
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     return env
+
+
+@pytest.fixture(autouse=True)
+def _webhook_deps_patch(request, sqlite_engine, fake_redis):
+    """Webhook-тесты ожидают, что get_engine/get_redis в payment_worker.webhook
+    возвращают sqlite_engine и fake_redis в течение всего теста. ``_make_client``
+    применяет патчи через ``with`` и выходит из контекста до запроса, поэтому
+    инфраструктурно держим патчи активными весь тест через autouse.
+    """
+    if "test_webhook" not in request.node.nodeid:
+        yield
+        return
+    from unittest.mock import patch
+
+    patches = [
+        patch(
+            "payment_worker.webhook.get_engine",
+            return_value=sqlite_engine,
+            create=True,
+        ),
+        patch(
+            "payment_worker.webhook.get_redis",
+            return_value=fake_redis,
+            create=True,
+        ),
+    ]
+    for p in patches:
+        p.start()
+    try:
+        yield
+    finally:
+        for p in patches:
+            p.stop()
