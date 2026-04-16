@@ -34,6 +34,6 @@ def test_main_include_router_call_count() -> None:
     main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
     content = main_path.read_text()
     count = content.count("include_router(")
-    assert count == 6, (
-        f"Ожидается 6 вызовов include_router (3 Phase 1 + 3 Phase 2), найдено: {count}"
+    assert count == 7, (
+        f"Ожидается 7 вызовов include_router (3 Phase 1 + 3 Phase 2 + 1 Phase 3), найдено: {count}"
     )

@@ -47,6 +47,9 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("POST",   "/api/v1/cart/items"):            {CUSTOMER},
     ("PATCH",  "/api/v1/cart/items/{line_id}"): {CUSTOMER},
     ("DELETE", "/api/v1/cart/items/{line_id}"): {CUSTOMER},
+    # ── Staff-действия над заказом (PDD §6.1, §7.6) ─────────────────────────
+    ("PATCH", "/api/v1/orders/{order_id}/status"): {BARISTA, COURIER, ADMIN},
+    ("POST",  "/api/v1/orders/{order_id}/cancel"): {CUSTOMER, ADMIN},
 }
 
 # Маршруты без аутентификации
