@@ -10,18 +10,22 @@ db-migrate.
 > - OTP / notification SMS: dev stack sets SMS_BACKEND=log. All SMS (OTP and order
 >   notifications) are printed to `docker compose logs sms-worker` as:
 >     [SMS:log] to=<phone> msg=<text>
-> - ЮKassa: dev stack uses ЮKassa TEST shop creds (YUKASSA_BASE_URL points to the
->   sandbox, YUKASSA_SHOP_ID/SECRET_KEY are test values). Test card numbers are
->   documented at https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing
->   Use 5555 5555 5555 4477 (any future expiry, any CVC) for a successful payment
->   and 5555 5555 5555 4444 for a declined one.
-> - Webhook delivery in dev: ЮKassa sandbox cannot reach localhost directly. Two
->   options below:
->     (a) expose payment-worker via a tunnel (ngrok/cloudflared) and register the
->         public URL in the ЮKassa merchant dashboard;
->     (b) simulate webhook calls locally with curl (see Block 4.3/4.4). Port bypass:
->         the webhook is exposed on port 8241 by default (see .env.example), and the
->         IP whitelist is disabled when YUKASSA_WEBHOOK_IPS=* (dev default).
+> - ЮKassa: dev stack uses the FAKE backend (`YUKASSA_BACKEND=fake`). No network
+>   calls to api.yookassa.ru; `FakeYukassaClient` returns a deterministic
+>   `payment_id` + local `confirmation_url`, then self-drives the webhook via
+>   a Celery callback (`countdown=1s`). Block 4.2 reaches `status=PAID`
+>   autonomously in ~1–2 seconds — no tunnel, no sandbox creds, no test cards
+>   required. Flip outcome with `YUKASSA_FAKE_OUTCOME={success,canceled,http_error}`.
+> - Opt-in sandbox/live path: set `YUKASSA_BACKEND=live` with real production
+>   creds. The safety rail refuses to boot if secrets are empty or the base URL
+>   contains `sandbox|test|localhost|127.0.0.1`. For real sandbox testing
+>   upstream at https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing
+>   the tunnel option (ngrok/cloudflared) remains the documented path.
+> - Webhook delivery: `payment-webhook` service runs `uvicorn` on port 8241
+>   (host-exposed via `docker-compose.override.yml`); fake callbacks POST to
+>   `http://payment-webhook:8241/webhooks/yukassa` through the docker network.
+>   IP whitelist resolves hostnames, so the dev default
+>   `YUKASSA_WEBHOOK_IPS=127.0.0.1,payment-worker,payment-webhook` is sufficient.
 > - Loyalty balance: each customer starts with 0 баллов. To test point redemption
 >   you must either pay for one prior order that reaches COMPLETED (accrual), or
 >   insert an ACCRUAL transaction directly (see Part D).

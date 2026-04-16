@@ -6,15 +6,21 @@
 
 from __future__ import annotations
 
-import redis
+import os
 
-from payment_worker.settings import settings
+import redis
 
 _redis: redis.Redis | None = None
 
 
 def get_redis() -> redis.Redis:
+    """Ленивая инициализация: REDIS_URL читаем из env при первом вызове.
+
+    Не импортируем Settings на module-level: её safety-rail может фалить в
+    тестах, где creds ещё не выставлены.
+    """
     global _redis
     if _redis is None:
-        _redis = redis.Redis.from_url(settings.redis_url, decode_responses=False)
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        _redis = redis.Redis.from_url(redis_url, decode_responses=False)
     return _redis

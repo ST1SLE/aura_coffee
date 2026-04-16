@@ -59,3 +59,43 @@ def test_webhook_ips_parses_comma_list(monkeypatch) -> None:
 
     s = settings_module.Settings()  # type: ignore[call-arg]
     assert s.yukassa_webhook_ips == ["185.71.76.1", "185.71.76.2"]
+
+
+def test_yukassa_backend_defaults_to_live(monkeypatch) -> None:
+    # Нужны валидные creds и прод base_url, чтобы safety-rail не помешал.
+    monkeypatch.setenv("YUKASSA_SHOP_ID", "real")
+    monkeypatch.setenv("YUKASSA_SECRET_KEY", "real")
+    monkeypatch.setenv("YUKASSA_BASE_URL", "https://api.yookassa.ru/v3")
+
+    import importlib
+    import payment_worker.settings as settings_module
+
+    importlib.reload(settings_module)
+    s = settings_module.Settings()  # type: ignore[call-arg]
+    assert s.yukassa_backend == "live"
+
+
+def test_yukassa_backend_accepts_fake(monkeypatch) -> None:
+    monkeypatch.setenv("YUKASSA_BACKEND", "fake")
+
+    import importlib
+    import payment_worker.settings as settings_module
+
+    importlib.reload(settings_module)
+    s = settings_module.Settings()  # type: ignore[call-arg]
+    assert s.yukassa_backend == "fake"
+
+
+def test_yukassa_backend_rejects_unknown(monkeypatch) -> None:
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("YUKASSA_BACKEND", "mock")
+
+    import importlib
+    import payment_worker.settings as settings_module
+
+    importlib.reload(settings_module)
+    import pytest as _pytest
+
+    with _pytest.raises(ValidationError):
+        settings_module.Settings()  # type: ignore[call-arg]

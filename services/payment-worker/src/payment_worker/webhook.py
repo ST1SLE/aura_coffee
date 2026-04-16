@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import logging
+import socket
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
@@ -34,6 +35,15 @@ app = FastAPI()
 _EVENT_TTL_SECONDS = 86_400
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    # Читаем Settings каждый раз — env может меняться между тестами/релоадами.
+    return {
+        "status": "ok",
+        "yukassa_backend": Settings().yukassa_backend,  # type: ignore[call-arg]
+    }
+
+
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -42,6 +52,20 @@ def _client_ip(request: Request) -> str:
     if request.client is not None:
         return request.client.host
     return ""
+
+
+_HOSTNAME_CACHE: dict[str, str | None] = {}
+
+
+def _resolve_hostname(entry: str) -> str | None:
+    if entry in _HOSTNAME_CACHE:
+        return _HOSTNAME_CACHE[entry]
+    try:
+        resolved = socket.gethostbyname(entry)
+    except OSError:
+        resolved = None
+    _HOSTNAME_CACHE[entry] = resolved
+    return resolved
 
 
 def _is_whitelisted(ip: str, whitelist: list[str]) -> bool:
@@ -53,7 +77,8 @@ def _is_whitelisted(ip: str, whitelist: list[str]) -> bool:
         return False
     for entry in whitelist:
         entry = entry.strip()
-        if not entry:
+        if not entry or entry == "*":
+            # Wildcard намеренно не поддерживается: explicit > permissive.
             continue
         if "/" in entry:
             try:
@@ -61,7 +86,19 @@ def _is_whitelisted(ip: str, whitelist: list[str]) -> bool:
                     return True
             except ValueError:
                 continue
-        elif entry == ip:
+            continue
+        # Literal IP match
+        if entry == ip:
+            return True
+        # Hostname — резолвим (с кэшем) и сравниваем.
+        try:
+            ipaddress.ip_address(entry)
+            # Это был IP, но не совпавший — дальше.
+            continue
+        except ValueError:
+            pass
+        resolved = _resolve_hostname(entry)
+        if resolved is not None and resolved == ip:
             return True
     return False
 
