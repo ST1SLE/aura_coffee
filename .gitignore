@@ -21,3 +21,6 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+
+# Worktrees (orchestrate.sh)
+.worktrees/

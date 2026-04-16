@@ -1,0 +1,71 @@
+# Phase Plan — формат для orchestrate.sh и merge.sh
+#
+# Создаётся в результате explore-сессии. Описывает фичи текущей фазы,
+# их зависимости, порядок мержа и промпты для Claude-агентов.
+#
+# Использование:
+#   ./scripts/orchestrate.sh phase-plan.yaml   # создать worktrees + запустить сессии
+#   ./scripts/merge.sh phase-plan.yaml         # смержить в порядке merge_order
+
+# Номер фазы из PDD §7.1
+phase: 3
+
+# Ветка, от которой создаются worktrees
+base_branch: menu_cart
+
+# Краткое описание фазы (для логов)
+description: "Cart backend + customer menu UI"
+
+features:
+  # --- Пример: backend-фича (TDD, два цикла red/green) ---
+  - name: cart-redis-pricing
+    # backend = два OpenSpec-цикла (red → green)
+    # frontend = один OpenSpec-цикл
+    type: backend
+    # Промпт для Claude-агента. Должен быть самодостаточным:
+    # что делать, какие спеки читать, какие ограничения соблюдать.
+    prompt: |
+      Implement Redis-backed cart storage with pricing calculation.
+      Cart stores items with menu_item_id, size_option_id, modifier_ids, quantity.
+      Price calculation: (size_price OR base_price) + sum(modifier_prices) × qty.
+      All prices in kopecks. TTL from CART_TTL env var.
+      Specs: PDD §3 Cart/Cart Item definitions, INV-006 stop-list validation.
+    # Директории/файлы, которые затрагивает фича.
+    # Используется для анализа конфликтов при параллельной работе.
+    file_zones:
+      - services/core-api/src/cart/
+      - services/core-api/tests/test_cart*.py
+      - packages/shared/src/enums.py
+    # Фичи с одинаковым parallel_group запускаются одновременно.
+    # Группы запускаются последовательно (1 → 2 → ...).
+    parallel_group: 1
+    # Порядок мержа внутри всего плана. Меньше = мержится раньше.
+    merge_order: 1
+
+  # --- Пример: frontend-фича (один цикл) ---
+  - name: customer-menu-ui
+    type: frontend
+    prompt: |
+      Implement customer menu browsing page.
+      Category tabs, item cards with photos, size/modifier selection.
+      Uses GET /api/v1/menu/categories and GET /api/v1/menu/items.
+      Mobile-first, bilingual (react-i18next).
+      Specs: PDD §3 Menu Item/Category/Modifier/Size Option definitions.
+    file_zones:
+      - web/customer/src/pages/Menu/
+      - web/customer/src/components/menu/
+      - web/customer/src/api/menu.ts
+    parallel_group: 1
+    merge_order: 2
+
+  # --- Пример: фича из второй группы (запускается после группы 1) ---
+  # - name: cart-checkout-flow
+  #   type: backend
+  #   prompt: |
+  #     Implement checkout flow: cart → order creation → payment initiation.
+  #     Depends on cart-redis-pricing being merged.
+  #   file_zones:
+  #     - services/core-api/src/orders/
+  #     - services/core-api/src/cart/
+  #   parallel_group: 2
+  #   merge_order: 3
