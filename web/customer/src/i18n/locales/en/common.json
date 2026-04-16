@@ -88,7 +88,8 @@
     "expired": "Cart expired, data refreshed",
     "decrement": "Decrease",
     "increment": "Increase",
-    "modifierSeparator": ", "
+    "modifierSeparator": ", ",
+    "clearCart": "Clear cart"
   },
   "language": {
     "ru": "РУ",

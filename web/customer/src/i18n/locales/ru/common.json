@@ -88,7 +88,8 @@
     "expired": "Срок корзины истёк, данные обновлены",
     "decrement": "Уменьшить",
     "increment": "Увеличить",
-    "modifierSeparator": ", "
+    "modifierSeparator": ", ",
+    "clearCart": "Очистить корзину"
   },
   "language": {
     "ru": "РУ",
