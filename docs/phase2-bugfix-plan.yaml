@@ -1,0 +1,212 @@
+phase: "2-bugfix"
+description: >
+  Fix 6 bugs discovered during Phase 2 (Menu & Cart) manual testing.
+  Bugs split into 3 independent worktrees by file zone.
+base_branch: menu_cart
+
+features:
+  # ────────────────────────────────────────────────────────────
+  # Worktree 1 — Admin: availability enum case mismatch
+  # ────────────────────────────────────────────────────────────
+  - name: fix-admin-availability
+    type: frontend
+    parallel_group: 1
+    file_zones:
+      - web/admin/src/api/menu.ts
+      - web/admin/src/pages/Menu/MenuItemsTable.tsx
+    prompt: |
+      BUG #1 — Availability enum CASE MISMATCH in admin frontend.
+
+      Problem: Backend returns lowercase enum values ("available", "stop_list", "archived")
+      from shared/enums.py MenuItemAvailability. But the admin frontend declares
+      UPPERCASE types and compares against them — so nothing matches.
+
+      Files to fix:
+        1. web/admin/src/api/menu.ts:10
+           Change:  export type Availability = 'AVAILABLE' | 'STOP_LIST' | 'ARCHIVED';
+           To:      export type Availability = 'available' | 'stop_list' | 'archived';
+
+        2. web/admin/src/pages/Menu/MenuItemsTable.tsx
+           Line 30: value === 'STOP_LIST'  →  value === 'stop_list'
+           Line 33: value === 'ARCHIVED'   →  value === 'archived'
+           Line 141: item.availability === 'AVAILABLE'  →  item.availability === 'available'
+           Line 142: item.availability === 'ARCHIVED'   →  item.availability === 'archived'
+
+      After fix:
+        - Switch toggle reflects real availability state
+        - STOP_LIST / ARCHIVED badges render correctly
+        - Toggling availability actually flips the switch
+
+      Verify: run `npx vitest run` in web/admin/ — existing tests must pass.
+      Verify: run `npx tsc --noEmit` in web/admin/ — no type errors.
+
+  # ────────────────────────────────────────────────────────────
+  # Worktree 2 — Customer: cart operations (5 bugs)
+  # ────────────────────────────────────────────────────────────
+  - name: fix-cart-operations
+    type: frontend
+    parallel_group: 1
+    file_zones:
+      - web/customer/src/api/cartTypes.ts
+      - web/customer/src/api/cart.ts
+      - web/customer/src/api/client.ts
+      - web/customer/src/store/cart.ts
+      - web/customer/src/pages/Cart/CartPage.tsx
+      - web/customer/src/pages/Cart/CartLine.tsx
+      - services/core-api/src/core_api/routers/cart.py
+      - services/core-api/src/core_api/schemas/cart.py
+    prompt: |
+      Fix 5 cart bugs found during manual testing. All are interconnected.
+
+      ═══ BUG #2 — line_id missing from frontend CartItemResponse type ═══
+
+      Backend cart.py:85 returns `line_id: str` (SHA1 hash like "a1b2c3d4e5f67890")
+      in every CartItemResponse. But the frontend type in cartTypes.ts is missing
+      this field entirely.
+
+      CartPage.tsx:96 fabricates IDs as `${item.menu_item_id}-${idx}` (e.g. "5-0")
+      which the backend will never recognize → all PATCH/DELETE calls get 404.
+
+      Fix:
+        1. web/customer/src/api/cartTypes.ts — add `line_id: string` field to
+           CartItemResponse interface (between the opening and menu_item_id)
+        2. web/customer/src/pages/Cart/CartPage.tsx — use `item.line_id` as the
+           key and itemId instead of the fabricated `${item.menu_item_id}-${idx}`
+
+      ═══ BUG #3 — Cart PATCH sends wrong body shape ═══
+
+      Backend PATCH /api/v1/cart/items/{line_id} expects full CartItemCreate body
+      (menu_item_id, size_option_id, modifier_ids, quantity).
+      Frontend sends only { quantity: N } → 422 Unprocessable Entity.
+
+      The proper fix: add a dedicated PATCH endpoint or a QuantityUpdate schema
+      on the backend, since the frontend only needs to change quantity.
+
+      Fix:
+        1. services/core-api/src/core_api/schemas/cart.py — add a small schema:
+             class CartItemQuantityUpdate(BaseModel):
+                 quantity: Annotated[int, Field(ge=1, le=99)]
+
+        2. services/core-api/src/core_api/routers/cart.py — change the
+           update_cart_item endpoint to accept CartItemQuantityUpdate instead of
+           CartItemCreate. The handler should read existing line data from Redis,
+           update only the quantity, re-validate availability, and save back.
+
+        3. services/core-api/src/core_api/services/cart.py — add or modify
+           update_item() to accept just line_id + new_quantity (not full
+           CartItemCreate). It should:
+             - Load cart from Redis
+             - Find the line by line_id
+             - Update quantity
+             - Re-validate the item is still available (stop-list check)
+             - Save and return hydrated cart
+
+        4. web/customer/src/api/cart.ts — the updateItem function already sends
+           { quantity } which now matches the new backend schema. Ensure it stays
+           as-is.
+
+      ═══ BUG #4 — apiRequest throws plain Error, not ApiError ═══
+
+      web/customer/src/api/client.ts:53-55 throws `new Error(...)` on non-ok
+      responses. This Error has no `.status` property. But CartPage.tsx:26-29
+      checks `(err as {status?}).status === 410` which is always undefined.
+
+      Fix:
+        Create an ApiError class in client.ts (or reuse a pattern) that includes
+        the status code:
+          class ApiError extends Error {
+            constructor(public status: number, message: string) {
+              super(message);
+              this.name = 'ApiError';
+            }
+          }
+        Update apiRequest to throw ApiError instead of plain Error.
+        Export ApiError so CartPage can import and check `err instanceof ApiError`.
+
+      ═══ BUG #5 — No "Clear cart" button ═══
+
+      Backend has DELETE /api/v1/cart (idempotent). The cart store and UI have no
+      way to call it.
+
+      Fix:
+        1. web/customer/src/api/cart.ts — add `clearCart()` function:
+             export function clearCart(): Promise<CartResponse> {
+               return apiRequest('/api/v1/cart', { method: 'DELETE' });
+             }
+        2. web/customer/src/store/cart.ts — add `clearCart` action using
+           `mutate(set, get, () => cartApi.clearCart())`
+        3. web/customer/src/pages/Cart/CartPage.tsx — add a "Clear cart" button
+           (e.g. above the items list, only when items.length > 0). Wire it to
+           store's clearCart(). Use translation key 'cart.clearCart'.
+
+      ═══ BUG #6 — Decrement-to-0 should remove line ═══
+
+      CartLine.tsx:51 disables − button at qty=1. Test scenario 3.6 expects
+      decrement to 0 to remove the line.
+
+      Fix:
+        1. web/customer/src/pages/Cart/CartLine.tsx — remove or change the
+           `disabled={item.quantity <= 1}` constraint on the − button.
+           When qty is 1 and user taps −, call `onRemove(itemId)` instead
+           of `onUpdateQuantity(itemId, 0)`.
+        2. The handler in CartPage should already handle remove via the
+           existing handleRemove function.
+
+      ═══ Verification ═══
+
+      After all fixes:
+        - Run `npx vitest run` in web/customer/ — update/fix any broken tests
+        - Run `npx tsc --noEmit` in web/customer/ — no type errors
+        - Run `pytest` in services/core-api/ — update/fix cart tests for the
+          new QuantityUpdate schema
+        - Ensure the test scenarios from docs/phase2_manual_test_scenarios.md
+          blocks 3.1–3.8 can be walked through successfully
+
+  # ────────────────────────────────────────────────────────────
+  # Worktree 3 — Fix test scenario documentation
+  # ────────────────────────────────────────────────────────────
+  - name: fix-test-docs
+    type: frontend
+    parallel_group: 1
+    file_zones:
+      - docs/phase2_manual_test_scenarios.md
+    prompt: |
+      Fix inaccuracies in the Phase 2 manual test scenarios document.
+
+      File: docs/phase2_manual_test_scenarios.md
+
+      ═══ Fix 1 — Block 1.3: wrong field name in curl payloads ═══
+
+      Lines 135-137: the size creation payloads use `"item_id"` but the backend
+      SizeOptionCreate schema expects `"menu_item_id"`.
+
+      Change all occurrences of `"item_id":` to `"menu_item_id":` in the size
+      creation curl examples (there are multiple in the for-loop).
+
+      Actually — re-read lines 134-142 carefully. The payloads use:
+        '{"item_id":'$CAPPUCCINO_ID',"label":"S","price":200}'
+
+      This should be:
+        '{"menu_item_id":'$CAPPUCCINO_ID',"label":"S","price":200}'
+
+      Fix all 3 size payloads in the for-loop.
+
+      ═══ Fix 2 — Block 3.6: clarify decrement-to-0 behavior ═══
+
+      The test says "Tap − until qty reaches 0 → Expect: line removed".
+      After our code fix, tapping − at qty=1 calls remove instead of
+      sending qty=0. Update the test expectation to match:
+
+      Change Block 3.6 to:
+        3.6 Decrement to remove
+        - When qty is 1, tap −
+        - Expect: line is removed from cart (triggers DELETE, not PATCH with qty=0)
+
+      ═══ Fix 3 — Block 3.8: note about Clear cart button ═══
+
+      The test says 'Tap "Clear cart" (if button exists)'.
+      After our code fix the button will exist. Remove the "(if button exists)"
+      hedge — make it definitive.
+
+      ═══ Verification ═══
+      Just proofread the file for consistency after changes.

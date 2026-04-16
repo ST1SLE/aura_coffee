@@ -117,57 +117,6 @@ frontend_workflow() {
 INST
 }
 
-# --- Список инструментов для --allowedTools ---
-
-ALLOWED_TOOLS=(
-    "Bash(openspec *)"
-    "Bash(git add:*)"
-    "Bash(git commit *)"
-    "Bash(git status*)"
-    "Bash(git diff*)"
-    "Bash(git log*)"
-    "Bash(git show*)"
-    "Bash(docker compose *)"
-    "Bash(pytest *)"
-    "Bash(python3 *)"
-    "Bash(python3.12 *)"
-    "Bash(python *)"
-    "Bash(npm run *)"
-    "Bash(npm test *)"
-    "Bash(npx vitest *)"
-    "Bash(npx tsc *)"
-    "Bash(npx eslint *)"
-    "Bash(npx openspec *)"
-    "Bash(ruff *)"
-    "Bash(pip install *)"
-    "Bash(pip3 install *)"
-    "Bash(uv pip *)"
-    "Bash(uv run *)"
-    "Bash(curl *)"
-    "Bash(./scripts/setup-worktree-env.sh)"
-    "Bash(./scripts/up.sh*)"
-    "Bash(chmod *)"
-    "Bash(ls *)"
-    "Bash(mkdir *)"
-    "Bash(wc *)"
-    "Bash(grep *)"
-    "Read"
-    "Edit"
-    "Write"
-    "Glob"
-    "Grep"
-    "Skill"
-    "Agent"
-)
-
-build_allowed_tools_args() {
-    local args=""
-    for tool in "${ALLOWED_TOOLS[@]}"; do
-        args="$args \"$tool\""
-    done
-    echo "$args"
-}
-
 # --- Основной цикл по группам ---
 
 WORKTREE_DIR="$REPO_ROOT/.worktrees"
@@ -181,9 +130,9 @@ for group in "${GROUPS_ARR[@]}"; do
 
     echo "--- Group $group ($GROUP_SIZE features) ---"
 
-    # Собираем аргументы для gnome-terminal
-    TERMINAL_ARGS=()
-    FIRST_TAB=true
+    # Собираем launcher-пути для запуска табов
+    LAUNCHERS=()
+    TAB_NAMES=()
 
     for i in $(seq 0 $((GROUP_SIZE - 1))); do
         NAME=$(jq -r ".[$i].name" "$GROUP_FILE")
@@ -248,40 +197,74 @@ $WORKFLOW_INSTRUCTIONS
 - If you hit ambiguity or a design question — ASK, do not guess
 - When fully done with all cycles, say DONE"
 
-        # Записываем промпт в файл, чтобы избежать проблем с экранированием
+        # --- Генерация launcher-скрипта (обходит проблемы с вложенным экранированием) ---
+
         PROMPT_FILE="$WORKTREE_DIR/.prompt-$NAME.txt"
+        LAUNCHER="$WORKTREE_DIR/.launch-$NAME.sh"
+
         if ! $DRY_RUN; then
             printf '%s\n' "$AGENT_PROMPT" > "$PROMPT_FILE"
+
+            # --allowedTools принимает variadic аргументы, поэтому используем
+            # запятую как разделитель — иначе $PROMPT съедается как имя инструмента
+            cat > "$LAUNCHER" <<LAUNCHER_EOF
+#!/usr/bin/env bash
+cd '$WORKTREE_PATH'
+PROMPT=\$(cat '$PROMPT_FILE')
+claude \\
+    --name '$NAME' \\
+    --allowedTools 'Bash(openspec *),Bash(git add:*),Bash(git commit *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*),Bash(docker compose *),Bash(pytest *),Bash(python3 *),Bash(python3.12 *),Bash(python *),Bash(npm run *),Bash(npm test *),Bash(npx vitest *),Bash(npx tsc *),Bash(npx eslint *),Bash(npx openspec *),Bash(ruff *),Bash(pip install *),Bash(pip3 install *),Bash(uv pip *),Bash(uv run *),Bash(curl *),Bash(./scripts/setup-worktree-env.sh),Bash(./scripts/up.sh*),Bash(chmod *),Bash(ls *),Bash(mkdir *),Bash(wc *),Bash(grep *),Read,Edit,Write,Glob,Grep,Skill,Agent' \\
+    -- "\$PROMPT"
+echo ''
+echo '--- Session ended. Press Enter to close ---'
+read
+LAUNCHER_EOF
+            chmod +x "$LAUNCHER"
         fi
-
-        # --- Команда для таба ---
-
-        ALLOWED_TOOLS_STR=$(build_allowed_tools_args)
-
-        TAB_CMD="cd '$WORKTREE_PATH' && claude --name '$NAME' --allowedTools $ALLOWED_TOOLS_STR \"\$(cat '$PROMPT_FILE')\"; echo '--- Session ended. Press Enter to close ---'; read"
 
         if $DRY_RUN; then
             echo "  [dry-run] gnome-terminal tab: $NAME"
-            echo "  [dry-run] claude --name '$NAME' --allowedTools ... <prompt>"
+            echo "  [dry-run] launcher: $LAUNCHER"
             echo ""
         else
-            if $FIRST_TAB; then
-                TERMINAL_ARGS+=(--window --title "Phase $PHASE — Group $group")
-                FIRST_TAB=false
-            fi
-            TERMINAL_ARGS+=(--tab --title "$NAME" -- bash -c "$TAB_CMD")
+            LAUNCHERS+=("$LAUNCHER")
+            TAB_NAMES+=("$NAME")
         fi
     done
 
     rm -f "$GROUP_FILE"
 
-    # --- Запуск gnome-terminal для группы ---
+    # --- Запуск gnome-terminal: один вызов на таб ---
+    # gnome-terminal трактует "--" как конец ВСЕХ опций (POSIX),
+    # поэтому несколько --tab ... -- cmd в одном вызове не работают.
+    # Решение: первый вызов создаёт окно, остальные добавляют табы.
 
-    if ! $DRY_RUN && [[ ${#TERMINAL_ARGS[@]} -gt 0 ]]; then
+    if ! $DRY_RUN && [[ ${#LAUNCHERS[@]} -gt 0 ]]; then
         echo ""
-        echo "  Launching gnome-terminal with $GROUP_SIZE tabs..."
-        gnome-terminal "${TERMINAL_ARGS[@]}" &
-        disown
+        echo "  Launching gnome-terminal with ${#LAUNCHERS[@]} tabs..."
+
+        # Функция для запуска gnome-terminal без snap-переменных
+        launch_terminal() {
+            (
+                unset GTK_PATH GTK_EXE_PREFIX GTK_IM_MODULE_FILE
+                unset GIO_MODULE_DIR GDK_BACKEND GDK_PIXBUF_MODULE_FILE
+                unset LOCPATH GSETTINGS_SCHEMA_DIR XDG_DATA_HOME
+                export XDG_DATA_DIRS="${XDG_DATA_DIRS_VSCODE_SNAP_ORIG:-/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop}"
+                export XDG_CONFIG_DIRS="${XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG:-/etc/xdg/xdg-ubuntu:/etc/xdg}"
+                gnome-terminal "$@" &
+                disown
+            )
+        }
+
+        # Первый таб — создаёт новое окно (без --tab, иначе появится лишний пустой таб)
+        launch_terminal --window --title "${TAB_NAMES[0]}" -- bash "${LAUNCHERS[0]}"
+
+        # Остальные табы — добавляются в последнее активное окно
+        for idx in $(seq 1 $((${#LAUNCHERS[@]} - 1))); do
+            sleep 0.3
+            launch_terminal --tab --title "${TAB_NAMES[$idx]}" -- bash "${LAUNCHERS[$idx]}"
+        done
+
         echo "  Launched. Sessions will ask you if they need decisions."
     fi
 
