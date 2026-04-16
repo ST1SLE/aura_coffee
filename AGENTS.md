@@ -131,6 +131,32 @@ Frontend modules (`[web-customer]`, `[web-admin]`) use lighter TDD:
 - **Pure presentation**: tests optional
 - Frontend changes are NOT split into two changes.
 
+## Environment Workarounds
+
+### Broken SSL in `/usr/local/bin/python3`
+
+`/usr/local/bin/python3` (3.12.2) was compiled without SSL support — the `_ssl` C extension is missing entirely. Any code that imports `ssl` (pytest via anyio, redis, httpx, pip/uv network requests) will crash with `ModuleNotFoundError: No module named '_ssl'`.
+
+**Working Python:** `/usr/bin/python3` (3.12.3) has full SSL support.
+
+When creating venvs on the host (outside Docker), always specify the working interpreter explicitly:
+
+```bash
+uv venv --python /usr/bin/python3
+# or
+python3 -m venv .venv   # only if /usr/bin/python3 is first in PATH
+```
+
+If a venv already exists and tests fail with `_ssl` errors, delete and recreate it with the correct Python:
+
+```bash
+rm -rf .venv
+uv venv --python /usr/bin/python3
+uv pip install -e ".[dev]"
+```
+
+**Note:** This does NOT affect Docker containers — they use their own Python. This only matters for host-side test runs and scripts.
+
 ## General Rules
 
 - Prices are stored as integers in kopecks (1₽ = 100). Display conversion is frontend responsibility.
