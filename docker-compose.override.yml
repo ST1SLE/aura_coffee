@@ -1,0 +1,4 @@
+services:
+  payment-webhook:
+    ports:
+      - "${PAYMENT_WEBHOOK_PORT:-8241}:8241"

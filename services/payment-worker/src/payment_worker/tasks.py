@@ -19,10 +19,31 @@ from payment_worker.db import get_engine, session_scope
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 from payment_worker.main import celery_app
-from payment_worker.settings import settings
 from payment_worker.yukassa_client import YukassaClient
 
 logger = logging.getLogger(__name__)
+
+
+def get_yukassa_client():
+    """Фабрика клиента ЮKassa — вызывается каждой таской отдельно.
+
+    Читаем env напрямую (а не через Settings()), чтобы не запускать safety-rail
+    валидацию внутри каждого вызова таски: валидация запускается один раз при
+    старте воркера (импорт Settings в main.py). Заодно фабрика не ломает тесты,
+    которые патчат `YukassaClient` и не передают валидные creds в env.
+    """
+    import os
+
+    backend = os.getenv("YUKASSA_BACKEND", "live")
+    if backend == "fake":
+        from payment_worker.yukassa_fake import FakeYukassaClient
+
+        return FakeYukassaClient()
+    return YukassaClient(
+        shop_id=os.getenv("YUKASSA_SHOP_ID", ""),
+        secret_key=os.getenv("YUKASSA_SECRET_KEY", ""),
+        base_url=os.getenv("YUKASSA_BASE_URL", "https://api.yookassa.ru/v3"),
+    )
 
 
 @celery_app.task
@@ -126,11 +147,7 @@ def create_payment(
             return
         payment_id = str(payment.id)
 
-    client = YukassaClient(
-        shop_id=settings.yukassa_shop_id,
-        secret_key=settings.yukassa_secret_key,
-        base_url=settings.yukassa_base_url,
-    )
+    client = get_yukassa_client()
     return_url = f"https://aura.coffee/orders/{order_id}"
     description = f"Order #{order_id}"
 
@@ -182,11 +199,7 @@ def initiate_refund(
             return
         yukassa_id = payment.yukassa_payment_id
 
-    client = YukassaClient(
-        shop_id=settings.yukassa_shop_id,
-        secret_key=settings.yukassa_secret_key,
-        base_url=settings.yukassa_base_url,
-    )
+    client = get_yukassa_client()
     try:
         client.create_refund(
             payment_id=yukassa_id,

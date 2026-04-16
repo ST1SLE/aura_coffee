@@ -109,6 +109,27 @@ services:
       redis:
         condition: service_healthy
 
+  payment-webhook:
+    build:
+      context: .
+      dockerfile: services/payment-worker/Dockerfile
+      target: dev
+    env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
+    volumes:
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./services/payment-worker/src:/app/services/payment-worker/src
+      - ./services/payment-worker/tests:/app/services/payment-worker/tests
+    command: ["uvicorn", "payment_worker.webhook:app", "--host", "0.0.0.0", "--port", "8241"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   sms-worker:
     build:
       context: .

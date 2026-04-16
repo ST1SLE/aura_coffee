@@ -49,4 +49,11 @@ app.include_router(order_history_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    # yukassa_backend читаем напрямую из env: core-api не импортирует
+    # payment_worker — сохраняем независимость модулей.
+    import os
+
+    return {
+        "status": "ok",
+        "yukassa_backend": os.getenv("YUKASSA_BACKEND", "live"),
+    }

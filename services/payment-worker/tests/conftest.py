@@ -218,28 +218,58 @@ def yukassa_env(monkeypatch) -> dict[str, str]:
 
 @pytest.fixture(autouse=True)
 def _webhook_deps_patch(request, sqlite_engine, fake_redis):
-    """Webhook-тесты ожидают, что get_engine/get_redis в payment_worker.webhook
-    возвращают sqlite_engine и fake_redis в течение всего теста. ``_make_client``
-    применяет патчи через ``with`` и выходит из контекста до запроса, поэтому
-    инфраструктурно держим патчи активными весь тест через autouse.
+    """Webhook/e2e/factory тесты ожидают, что get_engine/get_redis в
+    payment_worker.webhook и payment_worker.tasks возвращают sqlite_engine и
+    fake_redis весь тест. ``_make_client`` применяет патчи через ``with`` и
+    выходит из контекста до запроса, поэтому держим патчи активными всё время.
+
+    Также подкладываем sqlite_engine под tasks.get_engine, чтобы .apply() в
+    eager-режиме не лез в postgres.
     """
-    if "test_webhook" not in request.node.nodeid:
+    node_id = request.node.nodeid
+    needs_webhook = "test_webhook" in node_id or "test_fake_e2e" in node_id
+    needs_tasks_engine = (
+        "test_fake_e2e" in node_id
+        or "test_client_factory" in node_id
+    )
+    if not (needs_webhook or needs_tasks_engine):
         yield
         return
     from unittest.mock import patch
 
-    patches = [
-        patch(
-            "payment_worker.webhook.get_engine",
-            return_value=sqlite_engine,
-            create=True,
-        ),
-        patch(
-            "payment_worker.webhook.get_redis",
-            return_value=fake_redis,
-            create=True,
-        ),
-    ]
+    patches = []
+    if needs_webhook:
+        patches.extend(
+            [
+                patch(
+                    "payment_worker.webhook.get_engine",
+                    return_value=sqlite_engine,
+                    create=True,
+                ),
+                patch(
+                    "payment_worker.webhook.get_redis",
+                    return_value=fake_redis,
+                    create=True,
+                ),
+            ]
+        )
+    if needs_tasks_engine:
+        # Патчим и tasks, и db, чтобы importlib.reload(tasks) внутри теста
+        # переимпортировал уже пропатченный db.get_engine.
+        patches.extend(
+            [
+                patch(
+                    "payment_worker.tasks.get_engine",
+                    return_value=sqlite_engine,
+                    create=True,
+                ),
+                patch(
+                    "payment_worker.db.get_engine",
+                    return_value=sqlite_engine,
+                    create=True,
+                ),
+            ]
+        )
     for p in patches:
         p.start()
     try:
