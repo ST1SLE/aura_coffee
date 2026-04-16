@@ -81,7 +81,7 @@ describe('api/menu', () => {
   });
 
   it('setItemAvailability — PATCH с телом { available: false }', async () => {
-    const updated = { id: 5, availability: 'STOP_LIST' };
+    const updated = { id: 5, availability: 'stop_list' };
     mockJson(updated);
 
     await setItemAvailability(5, false);

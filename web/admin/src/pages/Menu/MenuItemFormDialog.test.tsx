@@ -16,7 +16,7 @@ vi.mock('@/api/menu', () => ({
     image_url: null,
     available: true,
     archived: false,
-    availability: 'AVAILABLE',
+    availability: 'available',
     sort_order: 0,
     size_options: [],
     modifiers: [],
