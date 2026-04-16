@@ -13,6 +13,7 @@ import type { CartItemResponse } from '@/api/cartTypes';
 
 function makeItem(overrides: Partial<CartItemResponse> = {}): CartItemResponse {
   return {
+    line_id: 'line-1',
     menu_item_id: 1,
     size_option_id: null,
     modifier_ids: [],
@@ -76,19 +77,25 @@ describe('CartLine', () => {
     expect(screen.getByText(/Сироп.*Молоко|Молоко.*Сироп/)).toBeDefined();
   });
 
-  it('decrement button is disabled at quantity 1', () => {
+  it('decrement at quantity 1 calls onRemove instead of onUpdateQuantity', () => {
+    const onRemove = vi.fn();
+    const onUpdate = vi.fn();
     render(
       <CartLine
         item={makeItem({ quantity: 1, line_total: 20000 })}
         lang="ru"
         itemId="item-1"
-        onUpdateQuantity={vi.fn()}
-        onRemove={vi.fn()}
+        onUpdateQuantity={onUpdate}
+        onRemove={onRemove}
       />,
     );
 
     const dec = screen.getByRole('button', { name: 'cart.decrement' }) as HTMLButtonElement;
-    expect(dec.disabled).toBe(true);
+    expect(dec.disabled).toBe(false);
+    fireEvent.click(dec);
+    expect(onRemove).toHaveBeenCalledOnce();
+    expect(onRemove).toHaveBeenCalledWith('item-1');
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   it('increment button is disabled at quantity 99', () => {

@@ -60,6 +60,12 @@ class CartItemCreate(BaseModel):
     quantity: Annotated[int, Field(ge=1, le=99)]
 
 
+class CartItemQuantityUpdate(BaseModel):
+    """Обновление количества позиции в корзине."""
+
+    quantity: Annotated[int, Field(ge=1, le=99)]
+
+
 # ---------------------------------------------------------------------------
 # Ответы сервера
 # ---------------------------------------------------------------------------

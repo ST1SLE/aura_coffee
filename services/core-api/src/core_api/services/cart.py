@@ -294,7 +294,7 @@ class CartService:
 
     def update_item(self, line_id: str, item: CartItemCreate) -> CartResponse:
         """Заменяет строку корзины по line_id новыми данными."""
-        resolved = self._validate_and_resolve(item)
+        self._validate_and_resolve(item)
 
         _MAX_RETRIES = 3
 
@@ -335,6 +335,61 @@ class CartService:
                     raise CartValidationError("not_found")
 
                 payload["items"] = new_items
+                payload["updated_at"] = datetime.now(tz=timezone.utc).isoformat()
+
+                pipe.multi()
+                pipe.set(self._key(), json.dumps(payload), ex=self._ttl)
+                pipe.execute()
+                break
+
+            except redis.WatchError:
+                if attempt == _MAX_RETRIES:
+                    raise CartValidationError("concurrent_modification")
+                continue
+
+        return self.get()
+
+    def update_item_quantity(self, line_id: str, new_quantity: int) -> CartResponse:
+        """Обновляет только количество строки корзины по line_id."""
+        _MAX_RETRIES = 3
+
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                pipe = self._redis.pipeline(transaction=True)
+                pipe.watch(self._key())
+
+                raw_data = pipe.get(self._key())
+                if raw_data is None:
+                    pipe.reset()
+                    raise CartValidationError("not_found")
+
+                payload = json.loads(raw_data)
+                items = payload.get("items", [])
+
+                found = False
+                for existing in items:
+                    existing_line_id = CartItemResponse.compute_line_id(
+                        menu_item_id=existing["menu_item_id"],
+                        size_option_id=existing.get("size_option_id"),
+                        modifier_ids=existing.get("modifier_ids", []),
+                    )
+                    if existing_line_id == line_id:
+                        found = True
+                        # Проверяем доступность товара
+                        item_create = CartItemCreate(
+                            menu_item_id=existing["menu_item_id"],
+                            size_option_id=existing.get("size_option_id"),
+                            modifier_ids=existing.get("modifier_ids", []),
+                            quantity=new_quantity,
+                        )
+                        self._validate_and_resolve(item_create)
+                        existing["quantity"] = new_quantity
+                        break
+
+                if not found:
+                    pipe.reset()
+                    raise CartValidationError("not_found")
+
                 payload["updated_at"] = datetime.now(tz=timezone.utc).isoformat()
 
                 pipe.multi()

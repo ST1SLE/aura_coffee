@@ -25,7 +25,7 @@ def test_cart_service_importable_with_expected_methods() -> None:
     """CartService должен существовать с нужными методами."""
     from core_api.services.cart import CartService
 
-    for method_name in ("get", "add_item", "update_item", "delete_item", "clear"):
+    for method_name in ("get", "add_item", "update_item", "update_item_quantity", "delete_item", "clear"):
         assert callable(getattr(CartService, method_name, None)), (
             f"CartService не имеет callable-метода {method_name!r}"
         )
@@ -607,6 +607,59 @@ def test_update_item_refreshes_ttl(cart_redis, db_session) -> None:
 
     ttl = cart_redis.ttl("cart:1")
     assert ttl >= 298, f"TTL должен быть ≈300, получено {ttl}"
+
+
+def test_update_item_quantity_changes_only_quantity(cart_redis, db_session) -> None:
+    """update_item_quantity() обновляет только quantity, не трогая остальные поля."""
+    from core_api.schemas.cart import CartItemCreate
+    from core_api.services.cart import CartService
+    from tests._factories.menu import make_menu_item
+
+    item = make_menu_item(db_session, base_price=15000)
+    db_session.flush()
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+    result = svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=2))
+    line_id = result.items[0].line_id
+
+    updated = svc.update_item_quantity(line_id, 5)
+
+    assert len(updated.items) == 1
+    assert updated.items[0].quantity == 5
+    assert updated.items[0].line_id == line_id
+
+
+def test_update_item_quantity_rejects_unknown_line_id(cart_redis, db_session) -> None:
+    """update_item_quantity() с несуществующим line_id → CartValidationError."""
+    from core_api.services.cart import CartService, CartValidationError
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+
+    with pytest.raises(CartValidationError):
+        svc.update_item_quantity("deadbeefdeadbeef", 3)
+
+
+def test_update_item_quantity_rejects_stop_listed(cart_redis, db_session) -> None:
+    """update_item_quantity() отклоняет обновление, если товар в стоп-листе."""
+    from core_api.schemas.cart import CartItemCreate
+    from core_api.services.cart import CartService, CartValidationError
+    from tests._factories.menu import make_menu_item
+
+    item = make_menu_item(db_session, base_price=15000, available=True)
+    db_session.flush()
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+    result = svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=2))
+    line_id = result.items[0].line_id
+
+    item.available = False
+    db_session.flush()
+
+    with pytest.raises(CartValidationError):
+        svc.update_item_quantity(line_id, 5)
+
+    stored = json.loads(cart_redis.get("cart:1"))
+    assert stored["items"][0]["quantity"] == 2
 
 
 def test_delete_item_removes_one_line(cart_redis, db_session) -> None:

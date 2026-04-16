@@ -19,6 +19,7 @@ interface CartState {
   addItem: (payload: CartItemCreate) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
 }
 
 /** Вычисляет производные поля из cart */
@@ -72,4 +73,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   removeItem: (itemId) =>
     mutate(set, get, () => cartApi.removeItem(itemId)),
+
+  clearCart: () =>
+    mutate(set, get, () => cartApi.clearCart()),
 }));

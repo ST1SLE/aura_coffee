@@ -11,13 +11,19 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/store/cart', () => ({
   useCartStore: vi.fn(),
 }));
+vi.mock('@/api/client', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@/api/client')>();
+  return { ...orig };
+});
 
 import { useCartStore } from '@/store/cart';
+import { ApiError } from '@/api/client';
 import { CartPage } from './CartPage';
 import type { CartItemResponse } from '@/api/cartTypes';
 
 function makeItem(id: number, qty: number = 1): CartItemResponse {
   return {
+    line_id: `line-${id}`,
     menu_item_id: id,
     size_option_id: null,
     modifier_ids: [],
@@ -43,6 +49,7 @@ function makeStore(overrides: Record<string, unknown> = {}) {
     addItem: vi.fn(),
     updateQuantity: vi.fn().mockResolvedValue(undefined),
     removeItem: vi.fn().mockResolvedValue(undefined),
+    clearCart: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -133,7 +140,7 @@ describe('CartPage — items and subtotal (task 7.6)', () => {
 
 describe('CartPage — cart expired (task 7.8)', () => {
   it('shows expired toast and calls refresh on 410 error', async () => {
-    const err = Object.assign(new Error('expired'), { status: 410 });
+    const err = new ApiError(410, 'expired');
     const removeItem = vi.fn().mockRejectedValue(err);
     const refresh = vi.fn().mockResolvedValue(undefined);
     const items = [makeItem(1, 1)];
