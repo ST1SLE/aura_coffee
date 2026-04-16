@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+RBAC-контракт: роли, границы доступа к эндпоинтам, помощники для dependency-level проверок. Первичное принуждение выполняет RBAC-middleware (`rbac-middleware`), эта спецификация описывает роли и опциональный secondary-guard.
+## Requirements
 ### Requirement: require_role dependency
 The system SHALL provide a `require_role(*allowed_roles)` function that returns a FastAPI dependency. This dependency is an optional secondary guard — primary enforcement is handled by RBAC middleware (see `rbac-middleware` spec). Existing `Depends(require_role(...))` calls in routers are removed. The function remains available in `deps/rbac.py` for edge cases where endpoint logic needs the authenticated user dict with role validation. Ref: INV-002, INV-010.
 
@@ -54,3 +55,15 @@ Customer JWTs (role `"customer"`) MUST NOT be accepted by any staff endpoint. St
 #### Scenario: Customer denied access to staff endpoint
 - **WHEN** request with JWT `role: "customer"` hits an endpoint protected by `require_role("admin")`
 - **THEN** response is HTTP 403
+
+### Requirement: Order-actions RBAC matrix entries
+The route matrix in `core_api.rbac_matrix.ROUTE_MATRIX` SHALL include entries for the two new order-actions endpoints so that the RBAC middleware enforces role boundaries before the handler runs. Ref: INV-002, INV-010.
+
+#### Scenario: Status endpoint is matrix-protected
+- **WHEN** any caller hits `PATCH /api/v1/orders/{order_id}/status`
+- **THEN** the matrix allows only roles `{barista, courier, admin}` and the middleware returns 403 for every other role
+
+#### Scenario: Cancel endpoint is matrix-protected
+- **WHEN** any caller hits `POST /api/v1/orders/{order_id}/cancel`
+- **THEN** the matrix allows only roles `{customer, admin}` and the middleware returns 403 for `barista` or `courier`
+
