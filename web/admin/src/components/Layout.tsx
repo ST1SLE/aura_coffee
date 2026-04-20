@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useCurrentRole, type StaffRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -12,9 +13,22 @@ const navItems = [
   { path: '/settings', key: 'settings' },
 ] as const;
 
+// Exhaustive по StaffRole: добавление новой роли в union без обновления
+// этого объекта даст compile-time ошибку.
+const NAV_BY_ROLE: Record<StaffRole, readonly string[]> = {
+  admin: ['dashboard', 'orders', 'menu', 'users', 'promos', 'settings'],
+  barista: ['orders', 'menu'],
+  // У courier'а собственный CourierShell; defensive default на случай
+  // edge-case попадания в Layout-tree.
+  courier: [],
+};
+
 export function Layout() {
   const { t } = useTranslation();
   const location = useLocation();
+  const role = useCurrentRole();
+  const allowedKeys = role ? NAV_BY_ROLE[role] : [];
+  const visibleItems = navItems.filter((i) => allowedKeys.includes(i.key));
 
   return (
     <div className="min-h-screen flex">
@@ -23,10 +37,11 @@ export function Layout() {
           {t('appTitle')}
         </div>
         <nav className="space-y-1">
-          {navItems.map((item) => (
+          {visibleItems.map((item) => (
             <Link
               key={item.key}
               to={item.path}
+              data-testid={`nav-${item.key}`}
               className={cn(
                 'block rounded-md px-3 py-2 text-sm transition-colors',
                 location.pathname === item.path
