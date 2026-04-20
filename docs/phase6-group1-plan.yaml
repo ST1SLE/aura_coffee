@@ -1,0 +1,474 @@
+# Phase 6 — Group 1 ТОЛЬКО (backend APIs)
+#
+# Этот файл — усечённая копия docs/phase6-plan.yaml, содержащая только
+# merge_order 1→3 (группа 1). Используется для того, чтобы merge.sh
+# остановился после мерджа группы 1 и не пытался мерджить ещё не
+# готовые (или запущенные по ошибке) фичи группы 2.
+#
+# Полный план phase 6 — в docs/phase6-plan.yaml.
+#
+# Фичи в этом файле:
+#   ├─ dashboard-api            — GET /api/v1/admin/stats            (merge_order 1)
+#   ├─ admin-users-api          — GET/POST /api/v1/admin/users/*     (merge_order 2)
+#   └─ shop-settings-admin-api  — GET/PUT /api/v1/admin/settings     (merge_order 3)
+#                                  + migration 0008 (auto_close_minutes)
+#
+# Использование:
+#   1. Дождаться DONE от всех трёх агентов группы 1 (dashboard-api,
+#      admin-users-api, shop-settings-admin-api) и того, что их
+#      финальный GREEN-коммит сделан.
+#   2. ./scripts/merge.sh docs/phase6-group1-plan.yaml
+#      → мерджит merge_order 1→3 и останавливается.
+#   3. После merge: вернуться к docs/phase6-plan.yaml для группы 2
+#      (pickup-autoclose + 4 UI-фичи).
+
+phase: "6"
+base_branch: admin_ui_phase
+description: "Phase 6 group 1 only — admin backend APIs (dashboard + users + shop settings)"
+
+features:
+  # ===========================================================================
+  # Group 1 — backend параллельно
+  # ===========================================================================
+
+  - name: dashboard-api
+    type: backend
+    prompt: |
+      Admin dashboard statistics endpoint (PDD §7.1 Phase 6 item 1,
+      §4.5, INV-010).
+
+      Эндпоинт:
+        GET /api/v1/admin/stats?range=today|week|month
+
+      RBAC: только ADMIN (не BARISTA, не COURIER, не CUSTOMER).
+      Прописать в rbac_matrix.ROUTE_MATRIX.
+
+      Query:
+        - range: Literal['today','week','month'], default 'month'.
+          today  → [start_of_today_local, now]
+          week   → [now - 7 days, now]
+          month  → [now - 30 days, now]
+          Использовать now() = datetime.now(timezone.utc). Границу
+          "start_of_today" считать в Europe/Moscow (TZ магазина), затем
+          переводить в UTC для БД-запроса. TZ можно захардкодить
+          константой TIMEZONE="Europe/Moscow" — shop_settings не хранит
+          TZ, один магазин.
+
+      Response (AdminStatsResponse):
+        {
+          "range": "month",
+          "range_start": "<iso8601 UTC>",
+          "range_end":   "<iso8601 UTC>",
+          "revenue_kopecks": 1234500,
+          "orders_count": 42,
+          "popular_items": [
+             {"name_ru": "Латте", "name_en": "Latte", "quantity": 28},
+             ...  // top 10, отсортировано по quantity DESC
+          ]
+        }
+
+      Логика агрегаций:
+
+        revenue_kopecks:
+          SELECT COALESCE(SUM(total), 0) FROM orders
+          WHERE status = 'completed' AND created_at >= :start
+                                     AND created_at <  :end
+          Примечание: в БД `total` уже в копейках. Включает delivery_fee.
+          ОБОСНОВАНИЕ включения delivery_fee: это реальный money_paid,
+          который прошёл через ЮKassa. Да, §7.2 шаг 6 при расчёте
+          loyalty-accrual исключает delivery_fee — но там другая цель
+          (не инфлировать баллы). Для дашборда-выручки берём gross
+          receipts. Если пользователь захочет "выручка без доставки" —
+          отдельный тикет.
+
+        orders_count:
+          SELECT COUNT(*) FROM orders
+          WHERE status = 'completed' AND created_at в диапазоне.
+
+        popular_items:
+          SELECT oi.name_ru, oi.name_en, SUM(oi.quantity) AS qty
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status = 'completed' AND o.created_at в диапазоне
+          GROUP BY oi.name_ru, oi.name_en
+          ORDER BY qty DESC
+          LIMIT 10;
+          Группировка по snapshot-именам из order_items (INV-014 —
+          они иммутабельны). Если позиция переименована в меню
+          middle-of-range, два snapshot'а = две строки в топе — это
+          корректно исторически.
+
+      Файлы:
+        - services/core-api/src/core_api/routers/admin_stats.py (new)
+        - services/core-api/src/core_api/services/admin_stats.py (new)
+          * функции: compute_range(range_param) -> (start, end);
+                     get_revenue_and_count(db, start, end) -> tuple;
+                     get_popular_items(db, start, end, limit=10) -> list.
+          * Без ORM-lazy-load, только явные select() через SA Core/2.0.
+        - services/core-api/src/core_api/schemas/admin_stats.py (new)
+          * AdminStatsResponse, PopularItem.
+        - services/core-api/src/core_api/main.py (register router).
+        - services/core-api/src/core_api/rbac_matrix.py:
+            ("GET", "/api/v1/admin/stats"): {ADMIN}
+
+      Тесты (services/core-api/tests/):
+        - test_admin_stats_range.py:
+            * compute_range('today')/('week')/('month') — правильные
+              timedelta границы.
+            * Europe/Moscow: 'today' start ≠ UTC midnight (сдвиг +3h).
+            * Неизвестный range → 422.
+        - test_admin_stats_revenue.py (фикстуры через migrated_db_session):
+            * Нет COMPLETED заказов → revenue=0, count=0.
+            * Три COMPLETED + один CANCELLED + один PAID: revenue =
+              sum(total) COMPLETED only; count=3. CANCELLED не
+              учитывается, PAID (в полёте) тоже.
+            * Заказ с created_at вне диапазона → не учитывается.
+        - test_admin_stats_popular.py:
+            * Два COMPLETED заказа с одинаковым name_ru/name_en —
+              агрегируются в один row (sum quantity).
+            * Разные name_ru (одна и та же позиция переименована) —
+              две строки, snapshot-fidelity (INV-014).
+            * Limit 10: одиннадцатая позиция отсекается.
+        - test_admin_stats_rbac.py:
+            * barista → 403; courier → 403; customer → 403; no token → 401.
+
+      Ограничения:
+      - НЕ кэшировать в Redis (admin-traffic, преждевременная оптимизация).
+      - НЕ заводить pre-aggregated таблицу (daily_stats и т.п.) — для
+        одного магазина on-demand достаточно.
+      - НЕ включать PAID/PREPARING/READY/IN_DELIVERY в revenue — только
+        COMPLETED (realised, совпадает с loyalty accrual trigger).
+      - НЕ трогать shop_settings / Celery / фронтенд — это другие фичи.
+
+      Specs: PDD §4.5 Admin Panel (аналитика), §5.2 orders/order_items,
+      §6.1 Order Lifecycle (COMPLETED terminal), §7.1 Phase 6 item 1,
+      INV-010, INV-014.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_stats.py
+      - services/core-api/src/core_api/services/admin_stats.py
+      - services/core-api/src/core_api/schemas/admin_stats.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_stats_range.py
+      - services/core-api/tests/test_admin_stats_revenue.py
+      - services/core-api/tests/test_admin_stats_popular.py
+      - services/core-api/tests/test_admin_stats_rbac.py
+    parallel_group: 1
+    merge_order: 1
+
+  - name: admin-users-api
+    type: backend
+    prompt: |
+      Admin user management API (PDD §7.1 Phase 6 item 2, §6.5 User
+      Lifecycle, INV-010).
+
+      Эндпоинты (префикс /api/v1/admin/users, только ADMIN):
+
+        GET  /api/v1/admin/users                       — paginated list
+        GET  /api/v1/admin/users/{user_id}             — детали + loyalty
+        POST /api/v1/admin/users/{user_id}/block       — ACTIVE → BLOCKED
+                                                         + каскадная отмена
+                                                         активных заказов
+        POST /api/v1/admin/users/{user_id}/unblock     — BLOCKED → ACTIVE
+        POST /api/v1/admin/users/{user_id}/loyalty/adjust  — ADMIN_ADJUSTMENT
+
+      Barista/courier/customer → 403 (INV-010). Без токена → 401.
+
+      1. GET /api/v1/admin/users — список.
+         Query:
+           - status: 'active'|'blocked'|'pending_verification'|'deleted'|'all'
+             (default 'all').
+           - search: str (опционально) — prefix match по
+             user_profiles.display_name (case-insensitive). Телефон НЕ
+             искать (INV-013: phone_hash не обратим).
+           - page/per_page: как везде (default 1/20, max 100).
+         Response: UserListResponse, items = UserSummary:
+           { id, status, display_name, loyalty_balance, created_at }
+         Сортировка: created_at DESC.
+
+      2. GET /api/v1/admin/users/{user_id} — детали.
+         Response: UserDetailResponse:
+           {
+             id, status, display_name, language, created_at,
+             loyalty_balance: int,
+             loyalty_transactions: [ // последние 20 транзакций
+               { id, type, amount, balance_after, description, created_at }
+             ],
+             active_orders_count: int  // не в COMPLETED/CANCELLED
+           }
+         404 если user.deleted_at IS NOT NULL (INV-013: tombstone).
+
+      3. POST /api/v1/admin/users/{user_id}/block — ACTIVE → BLOCKED
+         + каскад (PDD §6.5 ACTIVE→BLOCKED row).
+
+         Logic (в ОДНОЙ DB-транзакции, INV-004):
+           a) SELECT user FOR UPDATE → если status ∈ {PENDING, DELETED}
+              → 409 с кодом "invalid_user_state". Если уже BLOCKED →
+              200 no-op (idempotent).
+           b) UPDATE users.status = BLOCKED.
+           c) SELECT orders WHERE user_id=? AND status NOT IN
+              ('completed','cancelled').
+           d) Для каждого активного заказа вызвать существующий
+              services.order_cancel.cancel_order(
+                  order_id, actor='admin', reason='user_blocked'
+              ).
+              Сервис уже реализует §7.6: рефанд + loyalty REVERSAL +
+              promocode decrement. НЕ дублировать логику.
+           e) COMMIT.
+
+         Response: BlockUserResponse:
+           { user_id, status: "blocked", cancelled_orders_count: int }
+
+         Важно:
+         - Блокировка уже-BLOCKED пользователя → 200 с
+           cancelled_orders_count=0 (idempotent, повторный клик
+           админа ничего не ломает).
+         - Если у пользователя 10+ активных заказов — в транзакции
+           будет 10+ refund-enqueue. Это приемлемо для MVP; flag'нуть
+           в логе если count > 10.
+         - order_cancel сам enqueue'ит SMS/refund в Celery; не дублировать.
+
+      4. POST /api/v1/admin/users/{user_id}/unblock — BLOCKED → ACTIVE.
+         Precondition: status = BLOCKED, иначе 409. Если уже ACTIVE →
+         200 no-op.
+         Никакого каскада (отменённые заказы не "воскрешают").
+
+      5. POST /api/v1/admin/users/{user_id}/loyalty/adjust.
+         Body (LoyaltyAdjustRequest):
+           { delta: int (signed, != 0), reason: str (len 1..500) }
+         Logic (INV-004, одна транзакция):
+           a) SELECT loyalty_account FOR UPDATE.
+           b) new_balance = current_balance + delta.
+             Если new_balance < 0 → 422 "insufficient_balance".
+           c) UPDATE loyalty_account.balance = new_balance.
+           d) INSERT loyalty_transaction:
+                type=ADMIN_ADJUSTMENT, amount=delta,
+                balance_after=new_balance, description=reason,
+                order_id=NULL.
+             Модель уже допускает order_id=NULL (shared/models/
+             loyalty_transaction.py комментарий "Админские корректировки
+             могут быть без order_id").
+           e) COMMIT.
+         Precondition: user.status ∈ {ACTIVE, BLOCKED} (заблокированному
+         тоже можно корректировать — например, вернуть баллы перед
+         unblock'ом). status=PENDING/DELETED → 409.
+         Response: LoyaltyAdjustResponse:
+           { transaction_id, new_balance, delta }
+
+      Файлы:
+        - services/core-api/src/core_api/routers/admin_users.py (new)
+        - services/core-api/src/core_api/services/admin_users.py (new)
+            * list_users(db, status, search, page, per_page)
+            * get_user_detail(db, user_id)
+            * block_user(db, user_id) -> BlockUserResponse
+            * unblock_user(db, user_id)
+            * adjust_loyalty(db, user_id, delta, reason)
+        - services/core-api/src/core_api/schemas/admin_users.py (new):
+            UserSummary, UserListResponse, UserDetailResponse,
+            LoyaltyTransactionItem, BlockUserResponse,
+            LoyaltyAdjustRequest, LoyaltyAdjustResponse.
+        - services/core-api/src/core_api/main.py (register router).
+        - services/core-api/src/core_api/rbac_matrix.py — добавить 5 routes, все {ADMIN}.
+
+      Тесты:
+        - test_admin_users_list.py — status filter matrix + search +
+          pagination + сортировка.
+        - test_admin_users_detail.py — loyalty_balance + последние 20
+          транзакций в порядке DESC; 404 на tombstone user.
+        - test_admin_users_block.py:
+            * Happy path: user с 3 активными заказами (CREATED, PAID,
+              PREPARING) → status=BLOCKED, 3 cancelled, рефанды
+              enqueue'нуты (mock celery), loyalty REVERSAL создан, где
+              были списания.
+            * COMPLETED/CANCELLED orders НЕ отменяются повторно.
+            * Idempotent: повторный block → 200, count=0.
+            * Block PENDING → 409.
+        - test_admin_users_unblock.py:
+            * BLOCKED → ACTIVE, happy.
+            * Unblock ACTIVE → 200 no-op.
+            * Unblock PENDING → 409.
+        - test_admin_users_loyalty_adjust.py:
+            * +500 → balance растёт, transaction.type=ADMIN_ADJUSTMENT.
+            * -200 при balance=100 → 422 "insufficient_balance".
+            * delta=0 → 422 validation.
+            * Длинный reason (501) → 422.
+            * User DELETED → 409.
+        - test_admin_users_rbac.py: barista/courier/customer → 403; нет
+          токена → 401; все 5 эндпоинтов.
+
+      Ограничения:
+      - НЕ реализовывать DELETE пользователя (self-delete через §6.5
+        ACTIVE→DELETED — customer-path, не phase 6 scope).
+      - НЕ дублировать логику §7.6: cancel_order — единственный путь.
+      - НЕ включать телефон в response (phone_hash не отображать —
+        INV-013, это hash).
+      - НЕ позволять BLOCKED→PENDING/ACTIVE→PENDING и прочим forbidden
+        transitions (§6.5 forbidden section).
+      - НЕ трогать services/order_cancel.py или models/* — это
+        потребительская зона.
+
+      Specs: PDD §6.5 User Account Lifecycle, §7.6 Order Cancellation
+      Chain, §7.1 Phase 6 item 2, INV-004, INV-010, INV-013.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_users.py
+      - services/core-api/src/core_api/services/admin_users.py
+      - services/core-api/src/core_api/schemas/admin_users.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_users_list.py
+      - services/core-api/tests/test_admin_users_detail.py
+      - services/core-api/tests/test_admin_users_block.py
+      - services/core-api/tests/test_admin_users_unblock.py
+      - services/core-api/tests/test_admin_users_loyalty_adjust.py
+      - services/core-api/tests/test_admin_users_rbac.py
+    parallel_group: 1
+    merge_order: 2
+
+  - name: shop-settings-admin-api
+    type: backend
+    prompt: |
+      Admin Shop Settings API + миграция 0008 добавляет колонку
+      auto_close_minutes (PDD §7.1 Phase 6 item 3, §5.2 настройки,
+      §6.1 "N минут с момента перехода в READY", INV-010).
+
+      Эндпоинты (префикс /api/v1/admin/settings, только ADMIN):
+        GET  /api/v1/admin/settings   — читать текущие настройки
+        PUT  /api/v1/admin/settings   — обновить (полный snapshot)
+
+      Barista/courier/customer → 403. Без токена → 401.
+
+      1. Миграция 0008_shop_settings_auto_close.py.
+         - ALTER TABLE shop_settings ADD COLUMN auto_close_minutes
+             INTEGER NOT NULL DEFAULT 60.
+         - down(): DROP COLUMN auto_close_minutes.
+         - Обязательно идемпотентная; проверить UPSERT-compat на seed
+           (если seed-скрипт перезаписывает row — должен включать новое
+           поле).
+
+      2. shared/models/shop_settings.py — добавить поле:
+           auto_close_minutes: Mapped[int] = mapped_column(
+               sa.Integer(), nullable=False, default=60
+           )
+
+      3. database/seeds/*.py (если есть initial seed для shop_settings) —
+         добавить auto_close_minutes=60. Если seed-скрипт — Python,
+         обновить; если SQL — обновить INSERT.
+
+      4. schemas/shop_settings.py — расширить существующий
+         ShopSettingsResponse + новые схемы:
+
+         ShopSettingsResponse (уже есть) + поле:
+           auto_close_minutes: int
+
+         ShopSettingsUpdate (новая, тело для PUT):
+           {
+             shop_lat: Decimal,
+             shop_lon: Decimal,
+             delivery_radius_km: Decimal,
+             min_delivery_amount: int,         // копейки, ≥ 0
+             free_delivery_threshold: int,     // копейки, ≥ 0
+             delivery_fee: int,                // копейки, ≥ 0
+             loyalty_percent: int,             // 0..100
+             default_prep_time_minutes: int,   // ≥ 1
+             estimated_delivery_time_minutes: int,  // ≥ 1
+             auto_close_minutes: int,          // ≥ 1, ≤ 1440 (24h)
+             working_hours: dict,              // validated ниже
+           }
+
+         Полный snapshot: PUT требует ВСЕ поля. PATCH НЕ делаем
+         (избегаем тонкого merge-semantics на JSONB working_hours).
+
+         Pydantic-валидаторы:
+           - shop_lat ∈ [-90, 90], shop_lon ∈ [-180, 180].
+           - delivery_radius_km ∈ [0.1, 50].
+           - loyalty_percent ∈ [0, 100].
+           - free_delivery_threshold ≥ min_delivery_amount (иначе
+             "свободная доставка" ниже минимума бессмысленна) → 422.
+           - auto_close_minutes ∈ [1, 1440].
+           - working_hours — строгая валидация:
+               ключи ровно {'mon','tue','wed','thu','fri','sat','sun'}
+               (7 штук, без опечаток).
+               значение = null (выходной) ИЛИ {"open":"HH:MM","close":"HH:MM"}
+               HH ∈ 00..23, MM ∈ 00..59.
+               open < close (строго).
+               НЕ поддерживать overnight (close < open) в этом spec —
+               если кофейне понадобится 20:00→02:00, отдельный тикет.
+             Любая несоответствие → 422 с полем 'working_hours.<day>'.
+
+      5. services/admin_shop_settings.py — get/update.
+         - get_settings(db) — читает singleton (id=1). Если row
+           отсутствует → 500 "shop_settings not seeded" (миграция +
+           seed обязаны гарантировать существование).
+         - update_settings(db, payload) — UPDATE одной row, НЕ INSERT
+           (CHECK ck_shop_settings_singleton).
+
+      6. routers/admin_shop_settings.py — FastAPI маршруты, тонкие
+         обёртки над сервисом. Внутри — явный dependency на session.
+
+      7. main.py — зарегистрировать router.
+
+      8. rbac_matrix.py — добавить:
+           ("GET", "/api/v1/admin/settings"): {ADMIN}
+           ("PUT", "/api/v1/admin/settings"): {ADMIN}
+
+      Тесты:
+        - test_migration_0008_auto_close.py (использует
+          migrated_db_session):
+            * После upgrade head: колонка auto_close_minutes существует,
+              default=60, NOT NULL.
+            * После downgrade -1: колонка отсутствует.
+            * Seed row (id=1) имеет auto_close_minutes=60.
+        - test_admin_shop_settings_get.py:
+            * Happy: все поля, включая auto_close_minutes=60 по умолчанию.
+        - test_admin_shop_settings_put.py:
+            * Happy: все поля обновляются, updated_at мигрирует.
+            * Singleton check: нельзя создать второй row (ORM попытка
+              id=2 → DB CHECK fail, обернуть в понятную 500/отсутствие
+              эндпоинта для create).
+        - test_admin_shop_settings_validation.py — таблица:
+            * lat=91 → 422.
+            * lon=181 → 422.
+            * loyalty_percent=101 → 422.
+            * free_delivery_threshold < min_delivery_amount → 422.
+            * auto_close_minutes=0 → 422.
+            * auto_close_minutes=1441 → 422.
+            * working_hours без 'sun' ключа → 422.
+            * working_hours.mon.open='25:00' → 422.
+            * working_hours.mon = {open:'10:00', close:'10:00'} → 422
+              (не строго меньше).
+            * working_hours.tue = null (выходной) → 200.
+        - test_admin_shop_settings_rbac.py: barista/courier/customer →
+          403; нет токена → 401.
+
+      Ограничения:
+      - НЕ вводить PATCH (только PUT full-snapshot — избегаем JSONB merge).
+      - НЕ заводить audit-таблицу shop_settings_audit (премэчурно;
+        отдельный тикет если понадобится).
+      - НЕ менять существующий ShopSettingsResponse для customer-API
+        (если где-то используется без admin-поля — auto_close_minutes
+        можно просто добавить, admin-only использование подразумевается,
+        но не ломать клиентов). Проверить: grep ShopSettingsResponse
+        по routers/*.
+      - НЕ трогать услуги валидации рабочих часов / радиуса доставки /
+        чекаут — они остаются read-only потребителями ShopSettings.
+      - Rename: НЕ переименовывать существующие поля (delivery_fee,
+        loyalty_percent, …) — миграция 0008 строго additive.
+
+      Specs: PDD §5.2 ShopSettings, §6.1 auto-close transition,
+      §7.1 Phase 6 item 3, INV-010.
+    file_zones:
+      - database/migrations/versions/0008_shop_settings_auto_close.py
+      - database/seeds/
+      - packages/shared/src/shared/models/shop_settings.py
+      - services/core-api/src/core_api/routers/admin_shop_settings.py
+      - services/core-api/src/core_api/services/admin_shop_settings.py
+      - services/core-api/src/core_api/schemas/shop_settings.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_migration_0008_auto_close.py
+      - services/core-api/tests/test_admin_shop_settings_get.py
+      - services/core-api/tests/test_admin_shop_settings_put.py
+      - services/core-api/tests/test_admin_shop_settings_validation.py
+      - services/core-api/tests/test_admin_shop_settings_rbac.py
+    parallel_group: 1
+    merge_order: 3
