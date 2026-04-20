@@ -47,7 +47,31 @@
       "nameTooLong": "Имя слишком длинное (макс. 100 символов)",
       "loadError": "Не удалось загрузить профиль",
       "saveError": "Не удалось сохранить изменения",
-      "logout": "Выйти из аккаунта"
+      "logout": "Выйти из аккаунта",
+      "loyaltyCard": {
+        "title": "Мои баллы",
+        "balance_suffix": "баллов",
+        "view_history": "История"
+      }
+    },
+    "loyalty": {
+      "title": "Мои баллы",
+      "balance_label": "баллов",
+      "lifetime_label": "Всего начислено: {{value}}",
+      "history_title": "История",
+      "empty": "История пока пуста. Баллы начисляются после получения заказа.",
+      "load_more": "Показать ещё",
+      "txType": {
+        "accrual": "Начисление",
+        "redemption": "Списание",
+        "reversal": "Возврат",
+        "reservation": "Резервирование",
+        "admin_adjustment": "Корректировка"
+      },
+      "txRow": {
+        "balance_after": "после: {{value}}",
+        "order_link": "Заказ #{{id}}"
+      }
     },
     "addresses": {
       "title": "Адреса доставки",
