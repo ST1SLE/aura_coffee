@@ -11,7 +11,27 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Statistics and analytics"
+      "description": "Statistics and analytics",
+      "range": {
+        "today": "Today",
+        "week": "Week",
+        "month": "Month"
+      },
+      "cards": {
+        "revenue": "Revenue",
+        "orders": "Orders"
+      },
+      "popular": {
+        "title": "Popular Items",
+        "column": {
+          "name": "Item",
+          "quantity": "Quantity"
+        },
+        "empty": "No data for this period"
+      },
+      "errors": {
+        "loadFailed": "Failed to load statistics"
+      }
     },
     "orders": {
       "title": "Orders",
