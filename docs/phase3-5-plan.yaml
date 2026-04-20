@@ -1,0 +1,437 @@
+# Phase 3.5 — Operator & Order-Status UI
+#
+# Закрывает UI-пробел фазы 3, не охваченный docs/phase3-plan.yaml:
+#   - Customer: order history + order detail с polling (PDD §4.4)
+#   - Admin/barista: orders feed + status transitions + admin cancel
+#     (PDD §4.5, §6.1, §7.6)
+#   - Подчистка: role wiring в admin, schema-drift фиксы customer
+#     addresses (docs/phase4_manual_test_scenarios.md §6)
+#
+# 5 фич, 2 группы. Group 2 стартует после merge группы 1.
+#
+# Использование (по аналогии с phase4-plan.yaml):
+#   1. ./scripts/orchestrate.sh docs/phase3-5-plan.yaml   # group 1
+#   2. Дождаться DONE от admin-orders-api, customer-addresses-api-fix,
+#      admin-role-wiring
+#   3. ./scripts/merge.sh docs/phase3-5-plan.yaml         # merge_order 1→3
+#   4. ./scripts/orchestrate.sh docs/phase3-5-plan.yaml   # group 2
+#   5. Дождаться DONE от customer-orders-ui, admin-orders-feed-ui
+#   6. ./scripts/merge.sh docs/phase3-5-plan.yaml         # merge_order 4→5
+
+phase: "3.5"
+base_branch: delivery
+description: "Customer order history/detail + admin orders feed + role wiring + addresses fixes"
+
+features:
+  # ===========================================================================
+  # Group 1 — backend + изолированные frontend фиксы, параллельно
+  # ===========================================================================
+
+  - name: admin-orders-api
+    type: backend
+    prompt: |
+      Admin-scoped order endpoints для barista/admin feed (PDD §4.5, INV-010).
+
+      Существующий /api/v1/orders/* — customer-scoped (ownership check
+      на user_id). Добавить отдельный префикс /api/v1/admin/orders/*
+      для персонала, без дублирования бизнес-логики.
+
+      1. GET /api/v1/admin/orders — paginated list с фильтрами.
+         Query:
+           - status: OrderStatus | "active" (default "active").
+             "active" == status NOT IN (COMPLETED, CANCELLED) — использовать
+             существующий partial index из PDD §5.4.
+           - type: OrderType, optional.
+           - page: int, default 1.
+           - per_page: int, default 20, max 100.
+         Auth: admin + barista (INV-010). Customer → 403.
+         Response: OrderListResponse (существующая схема).
+         Сортировка: created_at DESC для "active", updated_at DESC для
+         finalized.
+
+      2. GET /api/v1/admin/orders/{id} — order detail для персонала.
+         Auth: admin + barista. БЕЗ ownership-check (персонал видит
+         любой заказ).
+         Response: OrderResponse.
+
+      3. Расширить services/order_history.py:
+         - list_orders_for_staff(status_filter, type_filter, page, per_page, db)
+           — отдельная функция от существующей list_orders (которая
+           фильтрует по user_id для customer-scope). Не переиспользовать
+           с кастомным filter — user_id-index делает customer-запрос
+           быстрым, staff-запрос должен идти по (status)- или
+           (type, status)-индексам.
+         - get_order_for_staff(order_id, db) → OrderResponse без ownership.
+
+      4. Регистрация: добавить router в
+         services/core-api/src/core_api/main.py.
+         Обновить rbac_matrix.py: пометить /api/v1/admin/orders/* как
+         allowed для admin+barista.
+
+      5. Тесты:
+         - test_admin_orders_list: status="active" фильтр, type фильтр,
+           пагинация, ORDER BY.
+         - test_admin_orders_detail: admin видит заказ любого клиента.
+         - test_admin_orders_rbac: courier → 403, customer → 403,
+           без токена → 401.
+
+      Ограничения:
+      - НЕ менять существующие /api/v1/orders/* — они customer-scoped и
+        используются страницами customer-orders-ui (группа 2).
+      - Барбариста получает тот же payload, что и админ (сервер не
+        прячет поля). Разница только в том, что он не сможет вызвать
+        cancel (это уже обработано в существующих order_actions).
+
+      Specs: PDD §4.5, §5.4, §6.1, INV-010.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_orders.py
+      - services/core-api/src/core_api/services/order_history.py
+      - services/core-api/src/core_api/schemas/order.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_orders_list.py
+      - services/core-api/tests/test_admin_orders_detail.py
+      - services/core-api/tests/test_admin_orders_rbac.py
+    parallel_group: 1
+    merge_order: 1
+
+  - name: customer-addresses-api-fix
+    type: frontend
+    prompt: |
+      Фиксы трёх подтверждённых schema-drift багов в
+      web/customer/src/api/addresses.ts, задокументированных в
+      docs/phase4_manual_test_scenarios.md §6 "Customer SPA ↔ core-api
+      schema drift". Эти баги ломают happy-path в ручном UI-тестинге
+      Section 1.3 и 1.6 phase4 сценариев.
+
+      1. Create payload: клиент шлёт `{text, lat, lon, apartment, ...}`,
+         сервер ожидает `{label, address_text, lat, lon, apartment, ...}`.
+         - Переименовать field: `text` → `address_text` в request.
+         - `label` обязателен (min_length=1 на сервере) — взять из
+           AddressForm.tsx (уже редактируемое поле) и включить в POST.
+         Результат до фикса: HTTP 422 "Field required" при сабмите формы.
+
+      2. List response parsing: сервер возвращает bare JSON array,
+         клиент парсит `{items: [...]}` и получает пустой список.
+         - Заменить на `z.array(AddressSchema).parse(res)` (или
+           эквивалент pattern'а из web/customer/src/api/menu.ts).
+         Результат до фикса: AddressesPage показывает empty state даже
+         когда адреса есть в БД.
+
+      3. Make-primary: клиент POSTит `/addresses/{id}/set-primary`,
+         такого маршрута нет → 404/405.
+         - Заменить на PATCH `/api/v1/profile/addresses/{id}` с телом
+           `{"is_default": true}` (см. phase4 доку §5.2).
+         Результат до фикса: кнопка "Сделать основным" всегда падает.
+
+      4. is_primary → is_default: клиент использует поле `is_primary`
+         в AddressResponse, сервер — `is_default`. Синхронизировать
+         клиент на `is_default` (backend source of truth). Обновить
+         CheckoutPage.tsx:62,188 где читается `.is_primary`.
+
+      5. Обновить тесты:
+         - web/customer/src/api/addresses.test.ts — новые shapes request/
+           response, новый PATCH path для primary.
+         - web/customer/src/pages/Profile/Addresses/AddressForm.test.tsx
+           — label обязателен, address_text в payload.
+
+      Ограничения:
+      - НЕ менять backend схему — фиксим только клиент.
+      - CheckoutPage.tsx уже использует is_primary — аккуратно
+        переименовать во всех местах, чтобы не сломать delivery flow.
+      - Ничего не ломать в AddressesPage UX — поведение то же, просто
+        запросы корректные.
+
+      Specs: docs/phase4_manual_test_scenarios.md §6 и §5.2, PDD §5.2.
+    file_zones:
+      - web/customer/src/api/addresses.ts
+      - web/customer/src/api/addresses.test.ts
+      - web/customer/src/pages/Profile/Addresses/AddressForm.tsx
+      - web/customer/src/pages/Profile/Addresses/AddressForm.test.tsx
+      - web/customer/src/pages/Profile/Addresses/AddressesPage.tsx
+      - web/customer/src/pages/CheckoutPage.tsx
+      - web/customer/src/pages/CheckoutPage.test.tsx
+    parallel_group: 1
+    merge_order: 2
+
+  - name: admin-role-wiring
+    type: frontend
+    prompt: |
+      Заменить hardcoded useCurrentRole() в admin SPA на реальную роль
+      из auth-стора и добавить role-aware рендер в Layout (PDD §4.5,
+      INV-010).
+
+      1. web/admin/src/lib/auth.ts:
+         - Добавить (или переэкспортировать) useCurrentRole() хук.
+           Источник истины — existing admin auth store (JWT decoded
+           payload или staff-auth response, см. current impl).
+         - Вернуть 'admin' | 'barista' | 'courier' | null (null = не
+           авторизован, защита для edge-case рендера вне ProtectedRoute).
+
+      2. web/admin/src/pages/Menu/index.tsx — удалить локальный
+         `function useCurrentRole() { return 'admin' }` (строки 11-13 с
+         TODO), импортировать из @/lib/auth. Поведение CRUD-гейтинга
+         уже корректное, меняется только источник role.
+
+      3. web/admin/src/components/Layout.tsx — добавить role-aware
+         фильтрацию пунктов sidebar (INV-010):
+           - admin:   [Dashboard, Orders, Menu, Users, Promos, Settings]
+           - barista: [Orders, Menu]
+             (Menu присутствует ради стоп-листа — CRUD-кнопки уже
+              скрыты внутри страницы через useCurrentRole())
+           - courier: Layout не используется (у courier'а CourierShell)
+         Выбор активного элемента — по NavLink (уже есть).
+
+      4. НЕ трогать App.tsx. Добавление barista к route /orders —
+         ответственность admin-orders-feed-ui (группа 2).
+
+      5. Тесты:
+         - web/admin/src/lib/auth.test.ts — useCurrentRole() читает
+           role из стора (unit-тест через vi.spyOn на стор).
+         - web/admin/src/components/Layout.test.tsx (создать если нет)
+           — render с role='admin' показывает 6 пунктов, role='barista'
+           показывает 2.
+
+      Specs: PDD §4.5, INV-010.
+    file_zones:
+      - web/admin/src/lib/auth.ts
+      - web/admin/src/lib/auth.test.ts
+      - web/admin/src/pages/Menu/index.tsx
+      - web/admin/src/components/Layout.tsx
+      - web/admin/src/components/Layout.test.tsx
+    parallel_group: 1
+    merge_order: 3
+
+  # ===========================================================================
+  # Group 2 — UI страницы (+ свои API-клиенты), параллельно, после group 1
+  # ===========================================================================
+
+  - name: customer-orders-ui
+    type: frontend
+    prompt: |
+      Customer order history + order detail pages (PDD §4.4, §6.1, §7.7).
+
+      Первая customer-facing realtime-страница: задаём паттерн polling
+      через React-Query (PDD §4.4: обновление статуса заказа ≤ 10 с).
+      Разблокирует happy-path "Checkout → Submit → наблюдаю статус →
+      отменяю/оплачиваю" — сейчас /orders/:id 404'ится и CheckoutPage
+      после submit ведёт на NotFoundPage (см. phase4 доку §6).
+
+      1. Расширить web/customer/src/api/orders.ts (существующий файл,
+         createOrder уже там):
+           - listOrders(page, per_page) → GET /api/v1/orders →
+             OrderListResponse
+           - getOrder(id) → GET /api/v1/orders/{id} → OrderResponse
+           - cancelOrder(id, reason?) → POST /api/v1/orders/{id}/cancel
+             → OrderResponse
+           - repeatOrder(id) → POST /api/v1/orders/{id}/repeat →
+             RepeatOrderResult
+         Все — через существующий client.ts (с JWT). Типы — zod-схемы,
+         совпадающие с бэкендом (смотреть schemas/order.py для shape).
+
+      2. web/customer/src/pages/Orders/ (новый каталог):
+         - OrderHistoryPage.tsx — заменяет текущий OrdersPage.tsx stub
+           (старый файл удалить). Route: /orders.
+           * Пагинация: либо useInfiniteQuery, либо простой page/per_page
+             со Prev/Next — выбрать проще (useInfiniteQuery).
+           * Карточка в списке: `#{short_id}` (первые 8 символов id),
+             localized status chip, total (копейки → "1 234 ₽"),
+             created_at (локальный TZ), type icon (pickup/delivery).
+           * Клик по карточке → navigate(`/orders/${id}`).
+           * Кнопка "Повторить" (icon-кнопка в правом углу карточки):
+             POST /repeat → на успех показать toast с
+             RepeatOrderResult.skipped (если массив не пуст — перечислить
+             имена) → navigate('/cart'). При added_to_cart=0 (backend
+             raise'ит 400) — только toast, навигации нет.
+           * Empty state: "Заказов пока нет" + CTA "В меню".
+
+         - OrderDetailPage.tsx — новый. Route: /orders/:id.
+           * useQuery({
+               queryKey: ['order', id],
+               queryFn: () => getOrder(id),
+               refetchInterval: (data) =>
+                 TERMINAL_STATUSES.has(data?.status) ? false : 10_000
+             })
+             TERMINAL_STATUSES = { 'completed', 'cancelled' }.
+             Polling останавливается автоматически после терминала
+             (иначе бесконечный трафик).
+           * Рендер:
+             - Status timeline: CREATED → PAID → PREPARING → READY →
+               (IN_DELIVERY для delivery) → COMPLETED. Альтернативная
+               ветка: CANCELLED (показывается вместо terminal).
+               Подсвечивать текущий шаг, прошедшие — чекмарки, будущие —
+               серые.
+             - Items list: name (локализованный по i18n.language),
+               size_label, modifiers, quantity × unit_price, line_total.
+             - Total breakdown: subtotal, discount_amount (если >0),
+               points_used (если >0), delivery_fee (если >0), total.
+             - Meta: requested_time / estimated_ready_at, type,
+               delivery_address_snapshot.text (если DELIVERY).
+           * Action buttons:
+             - status='created' И confirmation_url не null → "Оплатить"
+               → window.location.href = confirmation_url. PDD §6.1
+               Примечания: клиент получает confirmation_url через
+               polling; редирект на ЮKassa. Поллинг отрабатывает
+               ожидание confirmation_url — до первого непустого
+               значения он может быть null.
+             - status='paid' → "Отменить заказ" (INV-005: только до
+               PREPARING). Клик → confirmation dialog → cancelOrder() →
+               invalidate query → рефетч.
+             - status='cancelled' → показать cancelled_by
+               (customer/admin) + reason если есть.
+
+      3. web/customer/src/App.tsx:
+         - Удалить `import { OrdersPage } from '@/pages/OrdersPage';`
+         - Добавить
+           `import { OrderHistoryPage, OrderDetailPage } from '@/pages/Orders';`
+         - Существующий Route '/orders' → element={<OrderHistoryPage />}
+         - Добавить Route '/orders/:id' → element={<OrderDetailPage />}
+         - Оба под ProtectedRoute (уже настроено).
+         - index.ts в @/pages/Orders экспортирует обе страницы.
+
+      4. i18n: добавить в web/customer/src/i18n/locales/{ru,en}.json
+         ветки:
+           pages.orders.history.{title, empty, empty_cta, repeat, ...}
+           pages.orders.detail.{title, pay_cta, cancel_cta, cancel_confirm,
+             cancelled_by.customer, cancelled_by.admin, ...}
+           pages.orders.status.{created, paid, preparing, ready,
+             in_delivery, completed, cancelled}
+
+      Ограничения:
+      - НЕ делать WebSocket — PDD §4.4 явно разрешает polling ≤10s.
+      - Cart после repeat не очищается — просто навигация в /cart.
+        Текущие позиции + добавленные (PDD §7.7: "Клиент просматривает
+        корзину, может изменить").
+      - Polling обязательно останавливается на терминальных статусах.
+      - getCart/cart APIs не трогаем — только orders.ts.
+
+      Specs: PDD §4.4, §6.1, §7.7, INV-005.
+    file_zones:
+      - web/customer/src/pages/Orders/
+      - web/customer/src/pages/OrdersPage.tsx
+      - web/customer/src/api/orders.ts
+      - web/customer/src/api/orders.test.ts
+      - web/customer/src/App.tsx
+      - web/customer/src/i18n/
+    parallel_group: 2
+    merge_order: 4
+
+  - name: admin-orders-feed-ui
+    type: frontend
+    prompt: |
+      Admin/barista orders feed + status transitions + admin cancel UI
+      (PDD §4.5, §6.1, §7.6, INV-010). Первый barista-facing realtime
+      feed (за Courier-panel'ем из фазы 4).
+
+      Паттерн копировать с web/admin/src/pages/Courier/ (tabs,
+      Card-компонент, refetchInterval 5000).
+
+      1. web/admin/src/api/orders.ts (новый файл):
+         - listOrders({status?, type?, page?, per_page?}) →
+           GET /api/v1/admin/orders → OrderListResponse
+         - getOrder(id) → GET /api/v1/admin/orders/{id} → OrderResponse
+         - transitionStatus(id, new_status) →
+           PATCH /api/v1/orders/{id}/status → OrderResponse
+         - cancelOrder(id, reason?) → POST /api/v1/orders/{id}/cancel
+           → OrderResponse
+         Типы/паттерн — как в существующих web/admin/src/api/menu.ts и
+         courier.ts. JWT из client.ts.
+
+      2. web/admin/src/pages/Orders/ (заменяет плоский stub
+         OrdersPage.tsx — старый файл удалить):
+         - OrdersPage.tsx — shell с табами (см. Courier/CourierPage):
+             * "Активные" — listOrders({status: 'active'}) с
+               refetchInterval: 5000 (§4.5 ≤5s).
+             * "Завершённые" — status='completed' ИЛИ 'cancelled',
+               фильтр "сегодня" опционально (по created_at). По
+               умолчанию можно не рендерить polling, только по клику
+               на tab.
+         - OrderCard.tsx — одна строка feed'а, mobile-first (PDD §4.4:
+           320px). Header: `#{short_id}`, type-icon (pickup/delivery),
+           total, requested_time (или "ASAP"), localized status chip.
+           Body (свёрнутый по умолчанию, expand-click):
+             - Items preview: первые 2 позиции + "ещё N" если >2.
+             - Address (для DELIVERY): address_text + apartment.
+             - Breakdown totals (если expand).
+           Footer — кнопки по (status × role), см. §6.1 transitions:
+             PAID:
+               barista/admin → "Взять в работу" → PATCH preparing
+               admin         → "Отмена" → cancel dialog
+             PREPARING:
+               barista/admin → "Готов" → PATCH ready
+               admin         → "Отмена"
+             READY, type=PICKUP:
+               barista/admin → "Выдан" → PATCH completed
+               admin         → "Отмена"
+             READY, type=DELIVERY:
+               display-only: "Ждёт курьера" (курьер работает
+                             в /admin/courier)
+               admin         → "Отмена"
+             IN_DELIVERY:
+               display-only: "В пути"
+               admin-cancel СКРЫТ: PDD §6.1 IN_DELIVERY→CANCELLED
+                             forbidden ("решается оффлайн")
+             COMPLETED/CANCELLED: терминальные, без кнопок.
+           Все клики:
+             - disabled на время запроса.
+             - При 409 (race / invalid transition) → toast
+               "Неверный переход" + invalidateQueries.
+             - При 403 → toast "Нет прав" (не должно случаться, но
+               INV-010 серверный, клиент мог рассинхронизироваться).
+             - При 200 → invalidate списка + (для cancel) навигация
+               остаётся, карточка уйдёт после refetch.
+
+      3. web/admin/src/App.tsx:
+         - ProtectedRoute вокруг /orders: allowedRoles =
+           ['admin', 'barista'] (сейчас уже ['admin', 'barista']?
+           проверить — если да, ничего не менять).
+         - Оставить импорт OrdersPage из нового пути
+           @/pages/Orders/OrdersPage или обновить.
+
+      4. web/admin/src/pages/Login/LoginPage.tsx — логика редиректа
+         после login:
+           - admin   → '/' (Dashboard stub, оставить как есть)
+           - barista → '/orders' (основная рабочая страница бариста,
+             Dashboard stub ему бесполезен)
+           - courier → '/courier' (уже работает)
+         Если role парсится из response — прочитать и передать в
+         navigate(). returnUrl переопределяет default только если он
+         в allowedRoles этой роли (иначе дефолтный).
+
+      5. i18n: добавить в web/admin/src/i18n/locales/{ru,en}.json
+         ветки:
+           pages.orders.tabs.{active, done}
+           pages.orders.actions.{start_preparing, mark_ready,
+             mark_completed, cancel, cancel_confirm, cancel_reason}
+           pages.orders.statuses.{...} — как в customer-orders-ui,
+             можно продублировать
+           pages.orders.waiting_courier, in_delivery, race_toast, ...
+
+      6. Тесты (vitest):
+         - OrderCard.test.tsx — (status, type, role) матрица: какие
+           кнопки видны. Минимум 6 ключевых кейсов из таблицы выше.
+         - OrdersPage.test.tsx — refetchInterval настроен, таб
+           переключается, список перерисовывается.
+         - Не тестировать чистые презентационные дочерние компоненты.
+
+      Ограничения:
+      - ЧЁТКО следовать §6.1 forbidden transitions. Клиент не должен
+        позволять даже попытку IN_DELIVERY→CANCELLED (кнопка скрыта).
+      - Отдельного refund UI нет. Рефанд инициируется автоматически в
+        cancel_order (§7.6, шаг 4).
+      - Role check — клиентская фильтрация кнопок UX-ради. Сервер
+        защищён INV-010 / rbac_matrix. Рассинхрон → toast + refetch,
+        не паника.
+      - НЕ трогать Courier-panel — это уже merged в phase 4 и работает.
+
+      Specs: PDD §4.5, §6.1, §7.6, INV-010, INV-016.
+    file_zones:
+      - web/admin/src/pages/Orders/
+      - web/admin/src/pages/OrdersPage.tsx
+      - web/admin/src/api/orders.ts
+      - web/admin/src/api/orders.test.ts
+      - web/admin/src/App.tsx
+      - web/admin/src/pages/Login/LoginPage.tsx
+      - web/admin/src/i18n/
+    parallel_group: 2
+    merge_order: 5
