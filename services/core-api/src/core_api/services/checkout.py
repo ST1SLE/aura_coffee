@@ -23,12 +23,16 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import select
 
+from core_api import celery_app as _celery_mod
 from core_api.schemas.order import (
     CreateOrderRequest,
     OrderItemResponse,
     OrderResponse,
 )
 from core_api.services.delivery_addresses import DeliveryAddressNotFound
+
+# Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
+celery_app = _celery_mod.celery_app
 from shared.enums import (
     LoyaltyTransactionType,
     OrderStatus,
@@ -211,8 +215,19 @@ def compute_estimated_accrual(total: int, account: Any) -> int:
 def enqueue_payment_task(
     order_id: uuid.UUID, amount: int, idempotency_key: str
 ) -> None:
-    """Стаб: реальная публикация Celery-задачи лежит в `payment-yukassa`."""
-    return None
+    """Ставит задачу payment_worker.tasks.create_payment в очередь Celery.
+
+    Fake-backend (`YUKASSA_BACKEND=fake`) сам дошлёт webhook → Order → PAID.
+    """
+    celery_app.send_task(
+        "payment_worker.tasks.create_payment",
+        kwargs={
+            "order_id": str(order_id),
+            "amount_kopecks": int(amount),
+            "idempotency_key": idempotency_key,
+        },
+        queue="payments",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -390,6 +405,7 @@ def create_order(
         promocode.current_uses = (promocode.current_uses or 0) + 1
 
     db_session.flush()
+    db_session.commit()
 
     # 5. Post-commit побочные эффекты
     if total > 0:
