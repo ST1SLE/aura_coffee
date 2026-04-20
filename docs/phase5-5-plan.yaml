@@ -1,0 +1,165 @@
+# Phase 5.5 — Admin Layout RBAC Wiring (finish phase 3.5 gap)
+#
+# Phase 5 code review (2026-04-20) обнаружил: barista/courier видят в
+# sidebar web-admin ссылки на admin-only страницы (/promos, /users,
+# /menu, /settings, /) — несмотря на route-level ProtectedRoute с
+# allowedRoles=['admin']. Клик → permission-reject screen. UX-regression,
+# нарушение INV-010 на уровне UI.
+#
+# Корневая причина: phase 3.5 (docs/phase3-5-plan.yaml §3 admin-role-
+# wiring) предусматривал role-aware фильтрацию sidebar в Layout.tsx и
+# замену local-stub useCurrentRole() в Menu/ на хук из @/lib/auth.
+# Коммит cf656ce("feat(web-admin): wire real useCurrentRole hook into
+# Menu and Layout (INV-010)") по message заявляет оба файла, но по
+# содержимому — ни Layout.tsx, ни Menu/index.tsx useCurrentRole-стаб
+# не тронуты (git log на Layout.tsx показывает только init-commit;
+# Menu/index.tsx:11-13 сохраняет TODO-стаб).
+#
+# Phase 5.5 закрывает именно эту дыру. Один feature → один worktree →
+# один merge. Параллелизма нет (нечего распараллеливать), но оставляем
+# в orchestrate.sh/merge.sh pipeline ради единообразия workflow.
+#
+# Использование:
+#   1. ./scripts/orchestrate.sh docs/phase5-5-plan.yaml   # group 1
+#   2. Дождаться DONE от admin-layout-rbac-wiring
+#   3. ./scripts/merge.sh docs/phase5-5-plan.yaml         # merge_order 1
+
+phase: "5.5"
+base_branch: delivery
+description: "Finish phase-3.5 admin-role-wiring: Layout sidebar filter + real useCurrentRole hook"
+
+features:
+  - name: admin-layout-rbac-wiring
+    type: frontend
+    prompt: |
+      Завершить phase-3.5 admin-role-wiring, который был заявлен коммитом
+      cf656ce, но фактически не дошёл до Layout.tsx и не заменил
+      local-stub useCurrentRole() в Menu/index.tsx.
+
+      Текущее состояние:
+        - web/admin/src/lib/auth.ts: getRole() / setRole() / clearRole()
+          (StaffRole = 'admin' | 'barista' | 'courier'). НЕТ hook-обёртки.
+        - web/admin/src/pages/Menu/index.tsx:10-13:
+            // TODO: wire via staff-auth
+            function useCurrentRole(): 'admin' | 'barista' {
+              return 'admin';
+            }
+          — локальная заглушка, hardcoded 'admin'.
+        - web/admin/src/components/Layout.tsx: navItems рендерятся
+          безусловно, все 6 пунктов видны любому залогиненному сотруднику.
+        - ProtectedRoute.tsx уже использует getRole() правильно — это
+          route-gating работает, sidebar-gating отсутствует.
+
+      Scope:
+
+      1. web/admin/src/lib/auth.ts — добавить hook:
+           ```ts
+           import { useMemo } from 'react';
+           export function useCurrentRole(): StaffRole | null {
+             // Роль не меняется в пределах сессии (login → logout),
+             // подписка на storage events не требуется. useMemo — чтобы
+             // getRole() не звался на каждый ре-рендер.
+             return useMemo(() => getRole(), []);
+           }
+           ```
+         НЕ вводить реактивность через useState/storage-event-listener —
+         роль устанавливается один раз при логине, logout делает
+         полный navigate. Если в будущем появится hot-swap role,
+         подписку добавить отдельно.
+
+      2. web/admin/src/pages/Menu/index.tsx — удалить локальный stub
+         (строки 10-13 с TODO), импортировать useCurrentRole из
+         @/lib/auth:
+           ```ts
+           import { useCurrentRole } from '@/lib/auth';
+           ```
+         Сужение типа в странице: `currentRole` теперь может быть
+         `StaffRole | null`. В Menu-странице реальный null невозможен
+         (страница обёрнута в ProtectedRoute), но TypeScript этого не
+         знает — узкое сужение через early return:
+           ```ts
+           const currentRole = useCurrentRole();
+           if (currentRole === null) return null;  // unreachable в
+                                                   // production, но
+                                                   // satisfies TS
+           ```
+         Либо — non-null assertion `useCurrentRole()!` с JSDoc-комментом
+         про ProtectedRoute-инвариант. Выбрать первый вариант (явнее).
+         CRUD-гейтинг внутри страницы УЖЕ корректен (сравнение с
+         'admin'), менять его не надо.
+
+      3. web/admin/src/components/Layout.tsx — role-aware sidebar:
+           ```ts
+           import { useCurrentRole, type StaffRole } from '@/lib/auth';
+
+           const NAV_BY_ROLE: Record<StaffRole, readonly string[]> = {
+             admin:   ['dashboard','orders','menu','users','promos','settings'],
+             barista: ['orders','menu'],
+             courier: [],  // Layout не используется courier'ом, но map
+                           // должен быть exhaustive по StaffRole
+           };
+           ```
+         В рендере:
+           ```ts
+           const role = useCurrentRole();
+           const allowedKeys = role ? NAV_BY_ROLE[role] : [];
+           const visibleItems = navItems.filter(i => allowedKeys.includes(i.key));
+           ```
+         Menu-пункт для barista нужен ради страницы стоп-листа (PDD
+         §4.5: barista управляет наличием позиций). CRUD-кнопки
+         внутри Menu уже гейтятся по currentRole === 'admin'.
+
+      4. Тесты:
+
+         - web/admin/src/lib/auth.test.ts — расширить существующий
+           describe:
+             * `useCurrentRole` возвращает null когда роль не
+               установлена (renderHook + localStorage.clear()).
+             * `useCurrentRole` возвращает persisted role после setRole
+               (renderHook + setRole('barista')).
+           Использовать @testing-library/react renderHook. Не
+           подменять getRole mock'ом — hook должен честно читать
+           localStorage через getRole.
+
+         - web/admin/src/components/Layout.test.tsx (новый файл) —
+           render-матрица:
+             * role='admin' → 6 ссылок: Dashboard, Orders, Menu, Users,
+               Promos, Settings.
+             * role='barista' → 2 ссылки: Orders, Menu. Dashboard,
+               Users, Promos, Settings отсутствуют в DOM.
+             * role='courier' → 0 nav-ссылок (aside рендерится пустым
+               или схлопнут — проверить, что admin-only linkи не
+               рендерятся).
+             * role=null (не залогинен, edge-case) → 0 nav-ссылок.
+           Setup: setRole('...') или clearRole() перед каждым тестом;
+           wrapper = MemoryRouter. Утверждать по translated label'ам
+           (t('nav.orders') → "Заказы" / "Orders") либо по data-testid
+           (предпочтительно testid для устойчивости к i18n).
+           Добавить `data-testid={\`nav-${item.key}\`}` в Layout на
+           <Link> — минимальное изменение для тестируемости.
+
+      Ограничения:
+      - НЕ трогать ProtectedRoute.tsx — там getRole() работает корректно,
+        route-gating остаётся источником истины (INV-010 server-side
+        защищён rbac_matrix, sidebar-фильтр — чистый UX).
+      - НЕ добавлять реактивный subscription на localStorage storage
+        event. Role set один раз при логине, logout перекидывает через
+        navigate('/login'). Если hot-swap понадобится — отдельный тикет.
+      - НЕ менять App.tsx allowedRoles — уже корректные.
+      - НЕ добавлять courier пункты в NAV_BY_ROLE.courier = [] —
+        у courier'а отдельный CourierShell, Layout.tsx для него не
+        рендерится. Пустой массив — defensive default на случай edge-
+        case попадания courier в Layout-tree.
+      - НЕ вводить новые i18n-ключи — существующие nav.* уже покрывают
+        все 6 пунктов.
+
+      Specs: PDD §4.5 Admin (role-filtered sidebar), INV-010 RBAC,
+      docs/phase3-5-plan.yaml §3 admin-role-wiring (original scope).
+    file_zones:
+      - web/admin/src/lib/auth.ts
+      - web/admin/src/lib/auth.test.ts
+      - web/admin/src/pages/Menu/index.tsx
+      - web/admin/src/components/Layout.tsx
+      - web/admin/src/components/Layout.test.tsx
+    parallel_group: 1
+    merge_order: 1
