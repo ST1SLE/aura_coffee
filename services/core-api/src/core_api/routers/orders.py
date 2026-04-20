@@ -22,6 +22,7 @@ from core_api.schemas.order import (
     OrderResponse,
 )
 from core_api.services.checkout import EmptyCartError, create_order
+from core_api.services.delivery_addresses import DeliveryAddressNotFound
 from shared.models import Order, OrderItem, Payment
 
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
@@ -34,6 +35,15 @@ def _get_redis():
 
 
 def _get_session():
+    # Поддерживаем оба паттерна тестов:
+    # (1) app.dependency_overrides[get_db]   — новый пакет тестов (saved-addresses);
+    # (2) patch("core_api.deps.database.get_session", ...) — существующий паттерн.
+    from core_api.main import app
+
+    override = app.dependency_overrides.get(_db_dep.get_session)
+    if override is not None:
+        yield from override()
+        return
     yield from _db_dep.get_session()
 
 
@@ -58,6 +68,11 @@ def post_order(
         )
     except EmptyCartError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except DeliveryAddressNotFound as exc:
+        # INV-013: чужой/неизвестный delivery_address_id → 404 (НЕ 403, иначе утечка ID).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
+        )
     except HTTPException:
         raise
     except Exception as exc:

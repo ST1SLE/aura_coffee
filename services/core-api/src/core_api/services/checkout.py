@@ -21,11 +21,14 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from sqlalchemy import select
+
 from core_api.schemas.order import (
     CreateOrderRequest,
     OrderItemResponse,
     OrderResponse,
 )
+from core_api.services.delivery_addresses import DeliveryAddressNotFound
 from shared.enums import (
     LoyaltyTransactionType,
     OrderStatus,
@@ -34,12 +37,14 @@ from shared.enums import (
     PromocodeDiscountType,
 )
 from shared.models import (
+    DeliveryAddress,
     LoyaltyAccount,
     LoyaltyTransaction,
     Order,
     OrderItem,
     Payment,
     PromocodeUsage,
+    ShopSettings,
 )
 from shared.models.menu import MenuItem, Modifier, SizeOption
 
@@ -63,9 +68,17 @@ def validate_time_slot(requested_time: datetime | None, shop_settings: Any = Non
     return None
 
 
-def validate_delivery_address(address: Any, db_session: Session) -> None:
-    """Стаб: проверка адреса доставки — owned by `order-pricing-validation`."""
-    return None
+def validate_delivery_address(lat: float, lon: float, shop_settings: Any) -> None:
+    """Серверная Haversine-проверка (INV-008).
+
+    Реальная реализация — в `core_api.services.validators.delivery`. Тесты
+    патчат этот модульный символ — потому импорт делегируем внутри.
+    """
+    from core_api.services.validators.delivery import (
+        validate_delivery_address as _validate,
+    )
+
+    _validate(lat, lon, shop_settings)
 
 
 def validate_min_delivery_amount(subtotal: int, address: Any) -> None:
@@ -76,6 +89,50 @@ def validate_min_delivery_amount(subtotal: int, address: Any) -> None:
 def validate_promocode(code: str, user_id: uuid.UUID, db_session: Session) -> Any:
     """Стаб: проверка промокода — owned by `order-pricing-validation`."""
     return None
+
+
+# ---------------------------------------------------------------------------
+# Saved-address helpers (PDD §3, §5.2)
+# ---------------------------------------------------------------------------
+
+
+def geocode_address(address_text: str) -> tuple[float, float]:
+    """Стаб: геокодинг (owned by `yandex-maps-proxy`).
+
+    Для saved-address пути не вызывается — у строки уже есть lat/lon.
+    """
+    raise NotImplementedError("geocode_address is owned by yandex-maps-proxy")
+
+
+def load_saved_address(
+    address_id: uuid.UUID, user_id: uuid.UUID, db_session: Session
+) -> DeliveryAddress:
+    """Достаёт DeliveryAddress по id с ownership-фильтром (INV-013).
+
+    Чужой/неизвестный → DeliveryAddressNotFound (HTTP 404, не 403).
+    """
+    stmt = select(DeliveryAddress).where(
+        DeliveryAddress.id == address_id,
+        DeliveryAddress.user_id == user_id,
+    )
+    row = db_session.execute(stmt).scalar_one_or_none()
+    if row is None:
+        raise DeliveryAddressNotFound(str(address_id))
+    return row
+
+
+def _build_snapshot_from_saved(addr: DeliveryAddress) -> dict:
+    """JSONB-снимок сохранённого адреса (INV-014, форма ≡ inline-пути)."""
+    snap: dict[str, Any] = {
+        "text": addr.address_text,
+        "lat": addr.lat,
+        "lon": addr.lon,
+    }
+    for key in ("apartment", "entrance", "floor", "comment"):
+        value = getattr(addr, key)
+        if value is not None:
+            snap[key] = value
+    return snap
 
 
 # ---------------------------------------------------------------------------
@@ -188,9 +245,25 @@ def create_order(
 
     # 2. Валидаторы (ДО любых записей в БД, INV-004)
     validate_stop_list(cart_items, db_session)
+    saved_address: DeliveryAddress | None = None
+    delivery_snapshot: dict[str, Any] | None = None
     if request.type == OrderType.DELIVERY:
-        validate_delivery_address(request.delivery_address, db_session)
-        validate_min_delivery_amount(0, request.delivery_address)
+        shop_settings = db_session.get(ShopSettings, 1)
+        if request.delivery_address_id is not None:
+            # Saved-flow: ownership check + Haversine ВСЕГДА; geocoder НЕ вызывается.
+            saved_address = load_saved_address(
+                request.delivery_address_id, user_id, db_session
+            )
+            validate_delivery_address(
+                saved_address.lat, saved_address.lon, shop_settings
+            )
+            validate_min_delivery_amount(0, saved_address)
+            delivery_snapshot = _build_snapshot_from_saved(saved_address)
+        else:
+            inline = request.delivery_address
+            validate_delivery_address(inline.lat, inline.lon, shop_settings)
+            validate_min_delivery_amount(0, inline)
+            delivery_snapshot = inline.model_dump(exclude_none=True)
     validate_time_slot(request.requested_time, None)
     promocode = None
     if request.promocode_code:
@@ -210,10 +283,6 @@ def create_order(
     # 4. Атомарные записи (single logical transaction, INV-004)
     idempotency_key = str(uuid.uuid4())
     order_status = OrderStatus.PAID if total == 0 else OrderStatus.CREATED
-
-    delivery_snapshot = None
-    if request.delivery_address is not None:
-        delivery_snapshot = request.delivery_address.model_dump()
 
     order = Order(
         user_id=user_id,

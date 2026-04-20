@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core_api.middleware.rbac import RBACMiddleware
 from core_api.routers.auth import router as auth_router
+from core_api.routers.delivery_addresses import router as delivery_addresses_router
 from core_api.routers.profile import router as profile_router
 from core_api.routers.staff_auth import router as staff_auth_router
 
@@ -38,6 +39,9 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(
+    delivery_addresses_router, prefix="/api/v1/profile/addresses"
+)
 app.include_router(staff_auth_router)
 app.include_router(menu_admin_router)
 app.include_router(menu_public_router)
