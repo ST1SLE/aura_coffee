@@ -107,3 +107,29 @@ class TestCartRbac:
             assert (method, pattern) not in PUBLIC_ROUTES, (
                 f"Маршрут ({method}, {pattern!r}) не должен быть в PUBLIC_ROUTES"
             )
+
+
+# ===========================================================================
+# Yandex Maps proxy (PDD §7.3, §8.3) — только CUSTOMER, не публичный
+# ===========================================================================
+
+_YANDEX_MAPS_ROUTES = [
+    ("GET", "/api/v1/maps/suggest"),
+    ("GET", "/api/v1/maps/geocode"),
+]
+
+
+class TestYandexMapsRbac:
+    def test_yandex_maps_routes_registered_for_customer_only(self) -> None:
+        from core_api.rbac_matrix import CUSTOMER, PUBLIC_ROUTES, ROUTE_MATRIX
+
+        for method, pattern in _YANDEX_MAPS_ROUTES:
+            assert (method, pattern) in ROUTE_MATRIX, (
+                f"Маршрут ({method}, {pattern!r}) отсутствует в ROUTE_MATRIX"
+            )
+            assert ROUTE_MATRIX[(method, pattern)] == {CUSTOMER}, (
+                f"Маршрут ({method}, {pattern!r}) должен разрешать только CUSTOMER"
+            )
+            assert (method, pattern) not in PUBLIC_ROUTES, (
+                f"Маршрут ({method}, {pattern!r}) не должен быть в PUBLIC_ROUTES"
+            )
