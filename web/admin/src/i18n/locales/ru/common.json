@@ -126,7 +126,66 @@
     },
     "promos": {
       "title": "Промокоды",
-      "description": "Управление промокодами"
+      "description": "Управление промокодами",
+      "create": "Создать",
+      "search_placeholder": "Поиск по коду",
+      "empty": "Промокоды не найдены",
+      "locked_hint": "Поле нельзя изменить после первого использования",
+      "state": {
+        "all": "Все",
+        "active": "Активные",
+        "inactive": "Неактивные",
+        "expired": "Истекшие",
+        "exhausted": "Исчерпанные"
+      },
+      "state_chip": {
+        "active": "Активен",
+        "inactive": "Неактивен",
+        "expired": "Истёк",
+        "exhausted": "Исчерпан"
+      },
+      "columns": {
+        "code": "Код",
+        "state": "Статус",
+        "discount": "Скидка",
+        "valid_until": "Действует до",
+        "uses": "Использований",
+        "actions": "Действия"
+      },
+      "form": {
+        "code": "Код",
+        "discount_type": "Тип скидки",
+        "percent": "Процент",
+        "fixed": "Фикс. сумма",
+        "discount_value": "Значение скидки",
+        "discount_value_percent_suffix": "%",
+        "discount_value_rub_suffix": "₽",
+        "min_order": "Мин. сумма заказа (₽)",
+        "valid_from": "Действует с",
+        "valid_until": "Действует до",
+        "max_uses": "Макс. использований",
+        "max_uses_per_user": "Макс. на пользователя",
+        "create_title": "Новый промокод",
+        "edit_title": "Редактировать промокод"
+      },
+      "actions": {
+        "create": "Создать",
+        "save": "Сохранить",
+        "cancel": "Отмена",
+        "activate": "Активировать",
+        "deactivate": "Деактивировать",
+        "edit": "Редактировать"
+      },
+      "errors": {
+        "duplicate_code": "Промокод с таким кодом уже существует",
+        "dates_inverted": "Дата начала должна быть раньше даты окончания",
+        "percent_out_of_range": "Процент должен быть от 1 до 100",
+        "field_locked_after_use": "Поле нельзя изменить после первого использования",
+        "activate_requires_valid_until": "Для активации укажите дату окончания",
+        "activate_expired": "Нельзя активировать истёкший промокод",
+        "activate_exhausted": "Нельзя активировать исчерпанный промокод",
+        "generic": "Не удалось сохранить. Попробуйте ещё раз."
+      }
     },
     "settings": {
       "title": "Настройки",
