@@ -67,6 +67,13 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # ── Admin orders feed (PDD §4.5, INV-010) — admin + barista ───────────
     ("GET", "/api/v1/admin/orders"):              {ADMIN, BARISTA},
     ("GET", "/api/v1/admin/orders/{order_id}"):   {ADMIN, BARISTA},
+    # ── Admin promocodes (PDD §6.6, INV-010, INV-011) — только ADMIN ──────
+    ("POST",  "/api/v1/admin/promocodes"):                            {ADMIN},
+    ("GET",   "/api/v1/admin/promocodes"):                            {ADMIN},
+    ("GET",   "/api/v1/admin/promocodes/{promocode_id}"):             {ADMIN},
+    ("PATCH", "/api/v1/admin/promocodes/{promocode_id}"):             {ADMIN},
+    ("POST",  "/api/v1/admin/promocodes/{promocode_id}/activate"):    {ADMIN},
+    ("POST",  "/api/v1/admin/promocodes/{promocode_id}/deactivate"):  {ADMIN},
     # ── Курьерская панель (PDD §6.3, INV-010) — только COURIER ─────────────
     ("GET",  "/api/v1/courier/assignments/available"):                {COURIER},
     ("GET",  "/api/v1/courier/assignments/mine"):                     {COURIER},
