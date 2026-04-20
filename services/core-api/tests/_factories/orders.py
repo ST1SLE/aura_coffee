@@ -162,6 +162,73 @@ def seed_history_order(
     )
 
 
+@dataclass
+class MixedStatusSeed:
+    """Результат seed_orders_across_statuses — bucket id-шников по (status, type)."""
+
+    order_ids_by_bucket: dict[tuple[OrderStatus, OrderType], list[uuid.UUID]]
+
+
+def seed_orders_across_statuses(
+    session: Session,
+    *,
+    user: User,
+    counts: dict[tuple[OrderStatus, OrderType], int],
+    base_time: datetime | None = None,
+    step: timedelta = timedelta(minutes=1),
+) -> MixedStatusSeed:
+    """Сеет заказы под одного user с контролируемым (status, type, created_at, updated_at).
+
+    Порядок вставки детерминирован — итерируем counts.items() и вставляем
+    each row с монотонно растущими created_at/updated_at. Это даёт тестам
+    предсказуемые DESC-цепочки как по created_at, так и по updated_at.
+    """
+    if base_time is None:
+        total = sum(counts.values())
+        base_time = datetime.now(tz=UTC) - step * max(total, 1)
+
+    cat = make_category(session, name_ru=f"cat-{secrets.token_hex(4)}")
+    mi = make_menu_item(
+        session, cat, base_price=10000, name_ru=f"mi-{secrets.token_hex(4)}"
+    )
+
+    buckets: dict[tuple[OrderStatus, OrderType], list[uuid.UUID]] = {}
+    cursor = 0
+    for (status, order_type), n in counts.items():
+        bucket_ids: list[uuid.UUID] = []
+        for _ in range(n):
+            t = base_time + step * cursor
+            order = Order(
+                user_id=user.id,
+                status=status,
+                type=order_type,
+                subtotal=10000,
+                total=10000,
+                created_at=t,
+                updated_at=t,
+            )
+            session.add(order)
+            session.flush()
+            oi = OrderItem(
+                order_id=order.id,
+                menu_item_id=mi.id,
+                menu_item_name_ru=mi.name_ru,
+                menu_item_name_en=mi.name_en,
+                unit_price=10000,
+                modifiers_snapshot=[],
+                quantity=1,
+                line_total=10000,
+            )
+            session.add(oi)
+            session.flush()
+            bucket_ids.append(order.id)
+            cursor += 1
+        buckets[(status, order_type)] = bucket_ids
+
+    session.commit()
+    return MixedStatusSeed(order_ids_by_bucket=buckets)
+
+
 def seed_n_orders_for_user(
     session: Session,
     user: User,
