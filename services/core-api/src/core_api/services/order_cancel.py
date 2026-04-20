@@ -21,6 +21,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from shared.enums import LoyaltyTransactionType, OrderStatus
@@ -56,9 +57,17 @@ _ADMIN_FORBIDDEN = {OrderStatus.IN_DELIVERY, OrderStatus.COMPLETED, OrderStatus.
 def _return_promocode(order: Order, db: Session) -> None:
     if order.promocode_id is None:
         return
-    promo = db.get(Promocode, order.promocode_id)
-    if promo is not None and promo.current_uses > 0:
-        promo.current_uses -= 1
+    # Атомарный conditional UPDATE c zero-floor (PDD §6.6, §7.6 шаг 2).
+    # Двойная отмена (race в admin-path) не уведёт current_uses в минус —
+    # второй UPDATE матчит ноль строк и становится no-op на счётчике.
+    db.execute(
+        update(Promocode)
+        .where(
+            Promocode.id == order.promocode_id,
+            Promocode.current_uses > 0,
+        )
+        .values(current_uses=Promocode.current_uses - 1)
+    )
     db.query(PromocodeUsage).filter_by(order_id=order.id).delete(
         synchronize_session=False
     )

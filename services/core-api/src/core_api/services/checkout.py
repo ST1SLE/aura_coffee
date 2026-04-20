@@ -21,7 +21,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 
 from core_api import celery_app as _celery_mod
 from core_api.schemas.order import (
@@ -47,6 +47,7 @@ from shared.models import (
     Order,
     OrderItem,
     Payment,
+    Promocode,
     PromocodeUsage,
     ShopSettings,
 )
@@ -393,8 +394,29 @@ def create_order(
             )
         )
 
-    # PromocodeUsage
+    # PromocodeUsage: атомарный conditional UPDATE (PDD §6.6, INV-011).
+    # Предикат квоты живёт внутри WHERE — БД, а не Python-снапшот, решает
+    # может ли счётчик быть увеличен. На rowcount==0 (проиграли гонку)
+    # поднимаем ту же PromocodeValidationError, что и pre-check валидатор —
+    # клиент видит одинаковый 422.
     if promocode is not None:
+        from core_api.services.validators.exceptions import (
+            PromocodeValidationError,
+        )
+
+        result = db_session.execute(
+            update(Promocode)
+            .where(
+                Promocode.id == promocode.id,
+                or_(
+                    Promocode.max_uses.is_(None),
+                    Promocode.current_uses < Promocode.max_uses,
+                ),
+            )
+            .values(current_uses=Promocode.current_uses + 1)
+        )
+        if result.rowcount == 0:
+            raise PromocodeValidationError("Global quota exhausted")
         db_session.add(
             PromocodeUsage(
                 promocode_id=promocode.id,
@@ -402,7 +424,6 @@ def create_order(
                 order_id=order.id,
             )
         )
-        promocode.current_uses = (promocode.current_uses or 0) + 1
 
     db_session.flush()
     db_session.commit()
