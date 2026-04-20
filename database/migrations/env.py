@@ -9,7 +9,9 @@ from shared.models import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: не отключать уже созданные логгеры
+    # приложения (иначе после миграции в тестах теряются WARNING).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Если URL уже задан явно (например, в тестах), не перезаписываем его.
 _placeholder = "driver://user:pass@localhost/dbname"

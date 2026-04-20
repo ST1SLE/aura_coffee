@@ -56,6 +56,9 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # История заказов и repeat (PDD §7.7) — только CUSTOMER
     ("GET",  "/api/v1/orders"):                       {CUSTOMER},
     ("POST", "/api/v1/orders/{order_id}/repeat"):     {CUSTOMER},
+    # Yandex.Maps-прокси (PDD §7.3, §8.3) — только CUSTOMER
+    ("GET", "/api/v1/maps/suggest"):                  {CUSTOMER},
+    ("GET", "/api/v1/maps/geocode"):                  {CUSTOMER},
 }
 
 # Маршруты без аутентификации

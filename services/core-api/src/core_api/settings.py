@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     encryption_key: str = ""
     smsru_api_key: str = ""
     cart_ttl_seconds: int = 86400  # PDD §5.3: TTL корзины в Redis — 24 ч
+    # PDD §8.3, §8.4, INV-015: API-ключ Яндекс.Карт. Используется Core API
+    # при проксировании Suggest/Geocoder; в клиентский бандл не попадает.
+    yandex_maps_api_key: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
