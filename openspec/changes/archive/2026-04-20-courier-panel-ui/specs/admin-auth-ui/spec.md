@@ -1,72 +1,25 @@
-## Purpose
+## ADDED Requirements
 
-Authentication UI flows for the admin SPA: access-token storage, login page, 401 redirect handler, and protected-route guards.
-## Requirements
-### Requirement: Admin access-token storage helpers
-The admin SPA SHALL expose token helpers from `web/admin/src/api/client.ts`: `getAccessToken(): string | null`, `setAccessToken(token: string): void`, `clearAccessToken(): void`, and `logout(): void`. All helpers SHALL read and write a single `localStorage` key (`accessToken`). `logout()` SHALL call `clearAccessToken()` AND `clearRole()` (imported from `@/lib/auth`), and then perform a hard navigation to `/admin/login` via `window.location.assign`.
+### Requirement: Admin role storage helpers
+The admin SPA SHALL expose role helpers from `web/admin/src/lib/auth.ts`: `getRole(): StaffRole | null`, `setRole(role: StaffRole): void`, and `clearRole(): void`. `StaffRole` SHALL be the union type `'admin' | 'barista' | 'courier'`. All three helpers SHALL read and write a single `localStorage` key (`staffRole`). `setRole` SHALL reject any value outside the `StaffRole` union (narrowed at the TypeScript type level; at runtime, `setRole` MAY skip the check since the caller is always `staffLogin` output). Refs: PDD §4.5 (role-filtered admin panel), INV-010 (client role is a UX hint — server remains the source of truth).
 
-**Previously:** `logout()` called `clearAccessToken()` and then `window.location.assign('/admin/login')`. The role key did not exist.
+#### Scenario: setRole persists role across a page reload
+- **WHEN** `setRole('courier')` is called and the page is reloaded
+- **THEN** `getRole()` returns `'courier'`
 
-**Now:** `logout()` additionally clears the `staffRole` localStorage key so a subsequent login starts from a clean role state.
+#### Scenario: clearRole removes the persisted role
+- **WHEN** `setRole('courier')` is called, then `clearRole()` is called
+- **THEN** `getRole()` returns `null`
 
-Refs: PDD §7.1 Phase 1 step 4; INV-002; spec `staff-auth`.
+#### Scenario: getRole with no persisted value returns null
+- **WHEN** `localStorage` contains no `staffRole` key
+- **THEN** `getRole()` returns `null` (NOT `undefined`, NOT the string `"null"`)
 
-#### Scenario: setAccessToken persists token for subsequent requests
-- **WHEN** `setAccessToken('abc')` is called
-- **THEN** `localStorage.getItem('accessToken')` returns `'abc'`, and the next `authenticatedFetch` call includes `Authorization: Bearer abc` in its request headers
+#### Scenario: getRole narrows to StaffRole at compile time
+- **WHEN** TypeScript consumers write `const r = getRole(); if (r === 'courier') { ... }`
+- **THEN** the compiler does NOT error on the comparison (i.e. `StaffRole | null` is the inferred return type, not `string | null`)
 
-#### Scenario: clearAccessToken removes token
-- **WHEN** `setAccessToken('abc')` is called, then `clearAccessToken()` is called
-- **THEN** `localStorage.getItem('accessToken')` returns `null`, and the next `authenticatedFetch` call is sent WITHOUT an `Authorization` header
-
-#### Scenario: logout clears token, role, and redirects
-- **WHEN** `setAccessToken('abc')` and `setRole('courier')` are called, then `logout()` is called
-- **THEN** `localStorage.getItem('accessToken')` returns `null`, `localStorage.getItem('staffRole')` returns `null`, `window.location.assign` is called with `'/admin/login'`, and the function returns `undefined`
-
-#### Scenario: logout has no React context dependency
-- **WHEN** `logout()` is imported from `@/api/client` and called from a non-component module (e.g., a utility, an event handler outside a component tree, or a test)
-- **THEN** it completes without throwing and does NOT require a `useNavigate` / router context to be present
-
-### Requirement: Staff login API wrapper
-The admin SPA SHALL expose `staffLogin(login: string, password: string): Promise<{ access_token: string; role: string }>` from `web/admin/src/api/client.ts`. It SHALL `POST` to `/api/v1/staff/auth/login` with JSON body `{login, password}` and `Content-Type: application/json`. On a 2xx response it SHALL return the parsed body narrowed to `{access_token, role}`. On non-2xx it SHALL throw `ApiError(status, body, message)`. It MUST NOT attach an `Authorization` header, and it MUST NOT go through `authenticatedFetch`. Refs: spec `staff-auth` §Staff login endpoint.
-
-#### Scenario: Successful login returns access token
-- **WHEN** `staffLogin('admin', 'correct-password')` is called and the backend responds 200 with `{access_token: 'jwt', refresh_token: 'rt', token_type: 'bearer', role: 'admin'}`
-- **THEN** the call resolves to `{access_token: 'jwt', role: 'admin'}` and the `refresh_token` field is ignored (not returned, not stored, not logged)
-
-#### Scenario: Invalid credentials throw ApiError(401)
-- **WHEN** `staffLogin('admin', 'wrong-password')` is called and the backend responds 401 with `{detail: 'Invalid credentials'}`
-- **THEN** the call rejects with an `ApiError` whose `status` is 401 and whose `body` contains `{detail: 'Invalid credentials'}`
-
-#### Scenario: Login request carries no auth header
-- **WHEN** `staffLogin(...)` is called
-- **THEN** the outgoing `POST /api/v1/staff/auth/login` request has `Content-Type: application/json` and no `Authorization` header, even if `localStorage.accessToken` is set to a stale value
-
-### Requirement: Client-wide 401 redirect handler
-`authenticatedFetch` in `web/admin/src/api/client.ts` SHALL, on receiving an HTTP 401 response for any path EXCEPT one ending with `/staff/auth/login`, call `clearAccessToken()`, then call `window.location.assign('/admin/login?returnUrl=<router-relative current path>')` where `<router-relative current path>` is `window.location.pathname + window.location.search` with a leading `/admin` segment stripped. After the redirect side effect, `authenticatedFetch` SHALL still throw `ApiError(401, body, message)` so in-flight callers' `catch` and `finally` blocks execute cleanly. Refs: PDD §7.1 Phase 1 step 4.
-
-#### Scenario: 401 on a protected endpoint redirects to login with returnUrl
-- **GIVEN** the browser is at `http://localhost:8240/admin/menu`
-- **WHEN** `authenticatedFetch('/api/v1/admin/menu/categories')` receives HTTP 401
-- **THEN** `localStorage.accessToken` is cleared, AND `window.location.assign` is called with `'/admin/login?returnUrl=%2Fmenu'`, AND the promise rejects with `ApiError(401, ...)`
-
-#### Scenario: 401 on login endpoint does NOT redirect
-- **GIVEN** the browser is at `http://localhost:8240/admin/login`
-- **WHEN** the login request to `/api/v1/staff/auth/login` receives HTTP 401 (wrong credentials)
-- **THEN** `window.location.assign` is NOT called, `localStorage.accessToken` is NOT modified, and the caller receives the `ApiError(401)` to display an inline form error
-
-#### Scenario: Non-401 errors do not trigger redirect
-- **WHEN** `authenticatedFetch(...)` receives HTTP 500, 422, 409, or any non-401 error
-- **THEN** `window.location.assign` is NOT called, `localStorage.accessToken` is NOT modified, and the `ApiError` is thrown as before
-
-#### Scenario: Successful response does not trigger redirect
-- **WHEN** `authenticatedFetch(...)` receives HTTP 200
-- **THEN** `window.location.assign` is NOT called and the response is returned unchanged
-
-#### Scenario: Current sessionExpired call sites keep working
-- **GIVEN** Menu pages (`CategoryList.tsx`, `MenuItemsTable.tsx`, `ModifiersPanel.tsx`, `MenuItemFormDialog.tsx`) currently branch on `err instanceof ApiError && err.status === 401` to show `common.sessionExpired`
-- **WHEN** an authenticated request from those pages receives 401
-- **THEN** the 401 handler redirects the browser before React re-renders, so the `sessionExpired` toast is never actually displayed — AND the existing `catch` / `finally` blocks still run because `authenticatedFetch` still throws after the redirect
+## MODIFIED Requirements
 
 ### Requirement: Admin login page
 The admin SPA SHALL provide a login page at `/login` (under `basename="/admin"`, so `/admin/login` in the browser). The page SHALL render outside the admin `Layout` (no sidebar, no header chrome) and SHALL include: a `login` text input, a `password` input, a submit button, an inline error region (`role="alert"`), and bilingual labels via `react-i18next` under the `auth.login.*` namespace.
@@ -114,6 +67,31 @@ Refs: spec `staff-auth` §Staff login endpoint; PDD §7.1 Phase 1 step 4; PDD §
 - **WHEN** the language switcher toggles between RU and EN on the login page
 - **THEN** every visible label, placeholder, button text, and error message updates to the selected language via the `auth.login.*` i18n keys
 
+### Requirement: Admin access-token storage helpers
+The admin SPA SHALL expose token helpers from `web/admin/src/api/client.ts`: `getAccessToken(): string | null`, `setAccessToken(token: string): void`, `clearAccessToken(): void`, and `logout(): void`. All helpers SHALL read and write a single `localStorage` key (`accessToken`). `logout()` SHALL call `clearAccessToken()` AND `clearRole()` (imported from `@/lib/auth`), and then perform a hard navigation to `/admin/login` via `window.location.assign`.
+
+**Previously:** `logout()` called `clearAccessToken()` and then `window.location.assign('/admin/login')`. The role key did not exist.
+
+**Now:** `logout()` additionally clears the `staffRole` localStorage key so a subsequent login starts from a clean role state.
+
+Refs: PDD §7.1 Phase 1 step 4; INV-002; spec `staff-auth`.
+
+#### Scenario: setAccessToken persists token for subsequent requests
+- **WHEN** `setAccessToken('abc')` is called
+- **THEN** `localStorage.getItem('accessToken')` returns `'abc'`, and the next `authenticatedFetch` call includes `Authorization: Bearer abc` in its request headers
+
+#### Scenario: clearAccessToken removes token
+- **WHEN** `setAccessToken('abc')` is called, then `clearAccessToken()` is called
+- **THEN** `localStorage.getItem('accessToken')` returns `null`, and the next `authenticatedFetch` call is sent WITHOUT an `Authorization` header
+
+#### Scenario: logout clears token, role, and redirects
+- **WHEN** `setAccessToken('abc')` and `setRole('courier')` are called, then `logout()` is called
+- **THEN** `localStorage.getItem('accessToken')` returns `null`, `localStorage.getItem('staffRole')` returns `null`, `window.location.assign` is called with `'/admin/login'`, and the function returns `undefined`
+
+#### Scenario: logout has no React context dependency
+- **WHEN** `logout()` is imported from `@/api/client` and called from a non-component module (e.g., a utility, an event handler outside a component tree, or a test)
+- **THEN** it completes without throwing and does NOT require a `useNavigate` / router context to be present
+
 ### Requirement: Admin ProtectedRoute guard
 The admin SPA SHALL provide a `ProtectedRoute` component at `web/admin/src/components/ProtectedRoute.tsx`. It SHALL accept an optional prop `allowedRoles?: StaffRole[]`. It SHALL synchronously read `getAccessToken()` and (when `allowedRoles` is set) `getRole()` on every render and:
 
@@ -159,23 +137,3 @@ It MUST NOT use React state, effects, or subscriptions. It MUST NOT decode the J
 #### Scenario: No token decoding
 - **WHEN** `ProtectedRoute` renders with a token present
 - **THEN** it does NOT parse the JWT, does NOT check `exp`, and does NOT read `role` from the token — role is read exclusively via `getRole()` from `localStorage`
-
-### Requirement: Admin role storage helpers
-The admin SPA SHALL expose role helpers from `web/admin/src/lib/auth.ts`: `getRole(): StaffRole | null`, `setRole(role: StaffRole): void`, and `clearRole(): void`. `StaffRole` SHALL be the union type `'admin' | 'barista' | 'courier'`. All three helpers SHALL read and write a single `localStorage` key (`staffRole`). `setRole` SHALL reject any value outside the `StaffRole` union (narrowed at the TypeScript type level; at runtime, `setRole` MAY skip the check since the caller is always `staffLogin` output). Refs: PDD §4.5 (role-filtered admin panel), INV-010 (client role is a UX hint — server remains the source of truth).
-
-#### Scenario: setRole persists role across a page reload
-- **WHEN** `setRole('courier')` is called and the page is reloaded
-- **THEN** `getRole()` returns `'courier'`
-
-#### Scenario: clearRole removes the persisted role
-- **WHEN** `setRole('courier')` is called, then `clearRole()` is called
-- **THEN** `getRole()` returns `null`
-
-#### Scenario: getRole with no persisted value returns null
-- **WHEN** `localStorage` contains no `staffRole` key
-- **THEN** `getRole()` returns `null` (NOT `undefined`, NOT the string `"null"`)
-
-#### Scenario: getRole narrows to StaffRole at compile time
-- **WHEN** TypeScript consumers write `const r = getRole(); if (r === 'courier') { ... }`
-- **THEN** the compiler does NOT error on the comparison (i.e. `StaffRole | null` is the inferred return type, not `string | null`)
-

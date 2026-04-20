@@ -164,5 +164,34 @@
   "language": {
     "ru": "РУ",
     "en": "EN"
+  },
+  "courier": {
+    "tabs": {
+      "available": "Доступные",
+      "mine": "Мои"
+    },
+    "actions": {
+      "take": "Взять",
+      "pickup": "Забрал",
+      "deliver": "Доставлен"
+    },
+    "empty": {
+      "available": "Сейчас нет доступных заказов",
+      "mine": "У вас нет назначенных заказов"
+    },
+    "errors": {
+      "alreadyTaken": "Заказ уже взят другим курьером"
+    },
+    "fields": {
+      "requestedAsap": "Как можно скорее",
+      "total": "Сумма",
+      "address": "Адрес"
+    },
+    "status": {
+      "COURIER_ASSIGNED": "Назначен",
+      "PICKED_UP": "Забран",
+      "DELIVERED": "Доставлен",
+      "CANCELLED": "Отменён"
+    }
   }
 }

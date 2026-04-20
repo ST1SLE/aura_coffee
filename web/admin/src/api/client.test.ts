@@ -192,6 +192,17 @@ describe('logout', () => {
     expect(getAccessToken()).toBeNull();
     expect(assignMock).toHaveBeenCalledWith('/admin/login');
   });
+
+  it('очищает и accessToken, и staffRole', () => {
+    setAccessToken('tok');
+    localStorage.setItem('staffRole', 'courier');
+    vi.stubGlobal('location', { pathname: '/', search: '', assign: vi.fn() });
+
+    logout();
+
+    expect(localStorage.getItem('accessToken')).toBeNull();
+    expect(localStorage.getItem('staffRole')).toBeNull();
+  });
 });
 
 // --- Тесты для staffLogin ---

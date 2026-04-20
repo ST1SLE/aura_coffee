@@ -9,28 +9,45 @@ import { UsersPage } from '@/pages/UsersPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { CourierShell } from '@/pages/Courier/CourierShell';
+import { CourierPage } from '@/pages/Courier/CourierPage';
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'barista']}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="menu" element={<MenuPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="promos" element={<PromosPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'courier']}>
+            <CourierShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="courier" element={<CourierPage />} />
+      </Route>
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
 
 export function App() {
   return (
     <BrowserRouter basename="/admin">
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="menu" element={<MenuPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="promos" element={<PromosPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <AppRoutes />
     </BrowserRouter>
   );
 }

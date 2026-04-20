@@ -5,6 +5,7 @@ import '@/i18n/config';
 import i18n from '@/i18n/config';
 import { LoginPage } from './LoginPage';
 import * as client from '@/api/client';
+import * as auth from '@/lib/auth';
 
 // Мок модуля client — staffLogin и setAccessToken
 vi.mock('@/api/client', async (importOriginal) => {
@@ -16,6 +17,15 @@ vi.mock('@/api/client', async (importOriginal) => {
   };
 });
 
+// Мок @/lib/auth — нужно следить за setRole
+vi.mock('@/lib/auth', async (importOriginal) => {
+  const original = await importOriginal<typeof auth>();
+  return {
+    ...original,
+    setRole: vi.fn(),
+  };
+});
+
 function renderLoginPage(initialPath = '/login') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -23,6 +33,7 @@ function renderLoginPage(initialPath = '/login') {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<div>dashboard</div>} />
         <Route path="/menu" element={<div>menu-page</div>} />
+        <Route path="/courier" element={<div>courier-page</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -112,6 +123,58 @@ describe('LoginPage', () => {
     });
     expect(screen.getByRole('alert').textContent).toMatch(/неверный логин/i);
     expect(vi.mocked(client.setAccessToken)).not.toHaveBeenCalled();
+  });
+
+  // g) Успешный логин курьера: редирект на /courier
+  it('при роли courier переходит на /courier', async () => {
+    vi.mocked(client.staffLogin).mockResolvedValueOnce({
+      access_token: 'tok-c',
+      role: 'courier',
+    });
+
+    renderLoginPage('/login');
+    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'crr' } });
+    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.click(screen.getByRole('button', { name: /войти/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('courier-page')).toBeDefined();
+    });
+  });
+
+  // h) Курьер игнорирует returnUrl и всё равно попадает на /courier
+  it('courier-роль игнорирует returnUrl и идёт на /courier', async () => {
+    vi.mocked(client.staffLogin).mockResolvedValueOnce({
+      access_token: 'tok-c',
+      role: 'courier',
+    });
+
+    renderLoginPage('/login?returnUrl=%2Fmenu');
+    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'crr' } });
+    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.click(screen.getByRole('button', { name: /войти/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('courier-page')).toBeDefined();
+    });
+    expect(screen.queryByText('menu-page')).toBeNull();
+  });
+
+  // i) setRole вызывается с ролью из ответа
+  it('вызывает setRole(result.role) после успешного логина', async () => {
+    vi.mocked(client.staffLogin).mockResolvedValueOnce({
+      access_token: 'tok',
+      role: 'barista',
+    });
+
+    renderLoginPage('/login');
+    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'b' } });
+    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'p' } });
+    fireEvent.click(screen.getByRole('button', { name: /войти/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(auth.setRole)).toHaveBeenCalledWith('barista');
+    });
   });
 
   // f) Кнопка отключена во время запроса
