@@ -31,6 +31,7 @@ DEFAULTS = {
     "loyalty_percent": 5,
     "default_prep_time_minutes": 15,
     "estimated_delivery_time_minutes": 30,
+    "auto_close_minutes": 60,
     "working_hours": json.dumps(DEFAULT_WORKING_HOURS),
 }
 
@@ -50,12 +51,14 @@ def run(database_url: str | None = None) -> None:
                         id, shop_lat, shop_lon, delivery_radius_km,
                         min_delivery_amount, free_delivery_threshold, delivery_fee,
                         loyalty_percent, default_prep_time_minutes,
-                        estimated_delivery_time_minutes, working_hours, updated_at
+                        estimated_delivery_time_minutes, auto_close_minutes,
+                        working_hours, updated_at
                     ) VALUES (
                         :id, :shop_lat, :shop_lon, :delivery_radius_km,
                         :min_delivery_amount, :free_delivery_threshold, :delivery_fee,
                         :loyalty_percent, :default_prep_time_minutes,
-                        :estimated_delivery_time_minutes, CAST(:working_hours AS jsonb), now()
+                        :estimated_delivery_time_minutes, :auto_close_minutes,
+                        CAST(:working_hours AS jsonb), now()
                     )
                     ON CONFLICT (id) DO UPDATE SET
                         shop_lat = EXCLUDED.shop_lat,
@@ -67,6 +70,7 @@ def run(database_url: str | None = None) -> None:
                         loyalty_percent = EXCLUDED.loyalty_percent,
                         default_prep_time_minutes = EXCLUDED.default_prep_time_minutes,
                         estimated_delivery_time_minutes = EXCLUDED.estimated_delivery_time_minutes,
+                        auto_close_minutes = EXCLUDED.auto_close_minutes,
                         working_hours = EXCLUDED.working_hours,
                         updated_at = now()
                     """
