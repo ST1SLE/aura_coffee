@@ -1,0 +1,301 @@
+# Phase 4 — Delivery (PDD §7.1, Phase 4)
+#
+# Создано на основе explore-сессии. 4 пункта Phase 4 из PDD разложены
+# на 5 фич: 3 backend (параллельно) + 2 frontend (параллельно после merge
+# первых трёх).
+
+phase: 4
+base_branch: delivery
+description: "Yandex.Maps integration, saved addresses, delivery assignment SM, courier UI"
+
+features:
+  # ===========================================================================
+  # Group 1 — backend, параллельно
+  # ===========================================================================
+
+  - name: yandex-maps-proxy
+    type: backend
+    prompt: |
+      Implement Yandex Maps proxy in core-api (PDD §7.3 steps 1-2, §8.3).
+
+      Два эндпоинта, проксирующих Яндекс.Карты через Core API (INV-015:
+      API-ключ не должен попадать на клиент):
+
+      1. GET /api/v1/maps/suggest?text=<q>&lang=<ru_RU|en_US>
+         → Yandex Suggest API. НЕ кэшируется (§8.3: контекстно-зависимо).
+         → Debounce — на клиенте, сервер отдаёт всё как есть.
+         → Возврат: list[{text, lat, lon, precision}].
+
+      2. GET /api/v1/maps/geocode?text=<address>
+         → Yandex Geocoder API. КЭШИРУЕТСЯ в Redis, key = sha256(normalized(text)),
+           TTL 7 дней (§8.3).
+         → precision < 'street' → HTTP 422 {"reason": "low_precision"}.
+         → Возврат: {lat, lon, precision, canonical_text}.
+
+      Ограничения:
+      - Env var YANDEX_MAPS_API_KEY (добавить в §8.4 таблицу, .env.example).
+      - Таймаут внешнего вызова 3000ms. При 5xx/timeout/connection-error →
+        HTTP 503 {"reason": "maps_unavailable"}. Это важно для §8.3 fallback:
+        клиент при Suggest-503 показывает обычный input; при Geocoder-503
+        на checkout'е — ОТКЛОНЯЕТ delivery-заказ с понятной ошибкой.
+      - Rate-limit трекинг: логировать при >80% дневного лимита (§8.3).
+      - Тесты: httpx-mock на Yandex API; проверить idempotent cache hits,
+        timeout → 503, low precision → 422.
+
+      Specs: PDD §7.3, §8.3, INV-015. Read also AGENTS.md + services/core-api/AGENTS.md.
+    file_zones:
+      - services/core-api/src/core_api/routers/yandex_maps.py
+      - services/core-api/src/core_api/services/yandex_maps.py
+      - services/core-api/src/core_api/schemas/yandex_maps.py
+      - services/core-api/src/core_api/settings.py
+      - services/core-api/tests/test_yandex_maps_suggest.py
+      - services/core-api/tests/test_yandex_maps_geocode.py
+      - .env.example
+    parallel_group: 1
+    merge_order: 1
+
+  - name: delivery-addresses
+    type: backend
+    prompt: |
+      Implement saved delivery addresses (PDD §3 Delivery Address, §5.2).
+
+      1. Модель shared.models.delivery_address.DeliveryAddress:
+         id UUID PK, user_id FK→users (CASCADE delete — INV-013 PII),
+         label str, address_text str, lat float, lon float,
+         apartment, entrance, floor, comment (nullable),
+         is_default bool, created_at, updated_at.
+         Unique (user_id, is_default=true) — partial index для default-адреса.
+
+      2. Alembic migration 0006_delivery_addresses.py (ONLY this table;
+         НЕ трогать order_id сноски — они остаются в JSONB snapshot).
+         Создать индекс (user_id) для быстрого списка.
+
+      3. CRUD роутер /api/v1/profile/addresses, auth=customer:
+         - GET    /           → list addresses текущего пользователя
+         - POST   /           → create (валидировать radius через Haversine
+           на сервере ИМЕННО здесь; если shop-settings меняются позже —
+           при checkout проверка повторится)
+         - PATCH  /{id}       → update (смена is_default атомарно снимает флаг
+           с предыдущего default)
+         - DELETE /{id}       → delete
+         Все endpoints — ownership check (user_id == current_user.user_id)
+         иначе 404 (не 403 — не раскрываем чужие id).
+
+      4. Расширить core_api.schemas.order.CreateOrderRequest:
+         добавить delivery_address_id: UUID | None. XOR с delivery_address:
+         ровно одно из двух не None для type=DELIVERY, иначе HTTP 422.
+
+      5. Расширить services/checkout.py:
+         если delivery_address_id задан — загрузить из БД (ownership check!),
+         сделать snapshot в delivery_address_snapshot JSONB (INV-014).
+         Haversine re-check ВСЕГДА (shop_settings могут измениться). Geocoder
+         НЕ вызывается для сохранённых (у них уже есть lat/lon).
+
+      Ограничения: INV-013 (PII isolation — cascade на user удаляет адреса),
+      INV-014 (snapshot остаётся иммутабельным в Order).
+
+      Specs: PDD §3, §5.2, §7.3 step 4, INV-008, INV-013.
+    file_zones:
+      - packages/shared/src/shared/models/delivery_address.py
+      - packages/shared/src/shared/models/__init__.py
+      - database/migrations/versions/0006_delivery_addresses.py
+      - services/core-api/src/core_api/routers/delivery_addresses.py
+      - services/core-api/src/core_api/services/delivery_addresses.py
+      - services/core-api/src/core_api/schemas/delivery_address.py
+      - services/core-api/src/core_api/schemas/order.py
+      - services/core-api/src/core_api/services/checkout.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/tests/test_delivery_addresses_api.py
+      - services/core-api/tests/test_checkout_delivery_address_id.py
+    parallel_group: 1
+    merge_order: 2
+
+  - name: delivery-assignment
+    type: backend
+    prompt: |
+      Implement Delivery Assignment Lifecycle (PDD §6.3, INV-010, INV-016).
+
+      1. Enum shared.enums.DeliveryAssignmentStatus:
+         AWAITING_COURIER, COURIER_ASSIGNED, PICKED_UP, DELIVERED, CANCELLED.
+
+      2. Модель shared.models.delivery_assignment.DeliveryAssignment:
+         id UUID PK, order_id FK→orders UNIQUE (1:1),
+         courier_id FK→staff_accounts (nullable, только когда >= COURIER_ASSIGNED),
+         status enum, created_at, assigned_at, picked_up_at, delivered_at,
+         cancelled_at (все nullable кроме created_at).
+
+      3. Alembic migration 0007_delivery_assignments.py.
+         Partial index: (status) WHERE status='AWAITING_COURIER' — для
+         быстрого feed'а курьера.
+
+      4. Хук в services/order_lifecycle.transition_order:
+         при (PAID→PREPARING) и order.type == DELIVERY — в ТОЙ ЖЕ txn
+         INSERT delivery_assignment (status=AWAITING_COURIER). Идемпотентно:
+         UNIQUE на order_id защитит от дублей.
+
+         ВАЖНО: сейчас transition_order делает db_session.commit() внутри.
+         Это приемлемо для хука (INSERT в той же txn перед commit). НО для
+         bridge-вызова из pickup_assignment (см. ниже) — нужен вариант
+         transition_order_noncommit(...), который делает flush без commit.
+         Рефакторинг: выделить общее ядро _apply_transition, внешняя
+         transition_order оставляет commit, новая transition_order_bridge —
+         без commit. Тесты существующих lifecycle-переходов должны продолжать
+         проходить.
+
+      5. Сервис services/delivery_assignment.py:
+         - list_available_for_courier(db) → список AWAITING_COURIER
+           (JOIN с orders для address/total/requested_time).
+         - take_assignment(assignment_id, courier_id, db):
+             UPDATE ... SET status='COURIER_ASSIGNED', courier_id=:cid,
+               assigned_at=now() WHERE id=:aid AND status='AWAITING_COURIER'
+               RETURNING id;
+             0 строк → AssignmentAlreadyTakenError (HTTP 409).
+         - pickup_assignment(assignment_id, courier_id, db):
+             ownership check (courier_id совпадает),
+             precondition: order.status == READY,
+             одной txn: assignment COURIER_ASSIGNED→PICKED_UP (+picked_up_at),
+               order READY→IN_DELIVERY (через transition_order_bridge).
+         - deliver_assignment(assignment_id, courier_id, db):
+             аналогично: assignment PICKED_UP→DELIVERED (+delivered_at),
+               order IN_DELIVERY→COMPLETED (→ _accrue_loyalty внутри).
+         - cancel_assignment_for_order(order_id, db): вызывается из
+           order_cancel при admin cancel; переводит assignment в CANCELLED
+           если он ещё не PICKED_UP (PICKED_UP→CANCELLED ЗАПРЕЩЁН, §6.3).
+
+      6. Роутер /api/v1/courier, auth=courier (RBAC через rbac_matrix):
+         - GET  /assignments/available   → список AWAITING_COURIER
+         - GET  /assignments/mine        → свои COURIER_ASSIGNED/PICKED_UP
+         - POST /assignments/{id}/take   → optimistic lock
+         - POST /assignments/{id}/pickup → bridge to order IN_DELIVERY
+         - POST /assignments/{id}/deliver → bridge to order COMPLETED
+
+      7. Тесты:
+         - state machine: все разрешённые переходы (§6.3), все запрещённые
+           должны поднимать AssignmentTransitionError (§6.3, INV-016).
+         - optimistic lock: два курьера одновременно take → второй получает
+           AssignmentAlreadyTakenError (имитация через db_session.flush() +
+           параллельная session fixture).
+         - bridge: pickup → order.status == IN_DELIVERY (атомарно);
+           deliver → order.status == COMPLETED + _accrue_loyalty вызван.
+         - role isolation (INV-010): попытка вызвать courier endpoint из-под
+           barista → 403.
+
+      Specs: PDD §6.3, §6.1 (READY→IN_DELIVERY, IN_DELIVERY→COMPLETED),
+      INV-010, INV-016.
+    file_zones:
+      - packages/shared/src/shared/enums.py
+      - packages/shared/src/shared/models/delivery_assignment.py
+      - packages/shared/src/shared/models/__init__.py
+      - database/migrations/versions/0007_delivery_assignments.py
+      - services/core-api/src/core_api/services/delivery_assignment.py
+      - services/core-api/src/core_api/services/order_lifecycle.py
+      - services/core-api/src/core_api/services/order_cancel.py
+      - services/core-api/src/core_api/routers/courier.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/src/core_api/schemas/delivery_assignment.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/tests/test_delivery_assignment_state_machine.py
+      - services/core-api/tests/test_delivery_assignment_bridge.py
+      - services/core-api/tests/test_courier_endpoints.py
+      - services/core-api/tests/test_delivery_assignment_optimistic_lock.py
+    parallel_group: 1
+    merge_order: 3
+
+  # ===========================================================================
+  # Group 2 — frontend, параллельно, после merge group 1
+  # ===========================================================================
+
+  - name: customer-delivery-ui
+    type: frontend
+    prompt: |
+      Customer-facing delivery UI (PDD §4.4, §7.3).
+
+      1. AddressAutocomplete компонент (web/customer/src/components/):
+         - input + dropdown с подсказками из GET /api/v1/maps/suggest
+         - debounce 300ms
+         - на выбор варианта — сохраняет {text, lat, lon} в form state
+         - fallback: при HTTP 503 от /maps/suggest (§8.3) — превращается в
+           обычный input; lat/lon заполнятся через /maps/geocode при submit
+         - bilingual (RU/EN) через react-i18next, lang параметр в запросе
+
+      2. Страница /profile/addresses (web/customer/src/pages/Profile/):
+         - список сохранённых адресов (GET /api/v1/profile/addresses)
+         - форма добавления с AddressAutocomplete + поля квартира/подъезд/
+           этаж/комментарий/label
+         - кнопки edit/delete, "Сделать основным"
+         - на submit → POST /addresses; ошибка radius → показать "Адрес вне
+           зоны доставки (макс. {radius} км)"
+
+      3. Checkout — расширение существующей формы (если страница ещё не
+         существует — создать минимальную: выбор type + address + submit):
+         - при type=DELIVERY показать выбор "Сохранённый / Новый адрес"
+         - сохранённый → radio-список, отправлять delivery_address_id
+         - новый → AddressAutocomplete + доп. поля, отправлять inline
+           delivery_address; предложить "Сохранить для следующего заказа"
+
+      4. API-клиенты:
+         - web/customer/src/api/yandex_maps.ts: suggest, geocode
+         - web/customer/src/api/addresses.ts: CRUD
+
+      Ограничения:
+      - НИКОГДА не хранить YANDEX_MAPS_API_KEY на клиенте (INV-015) — все
+        вызовы идут через наши /api/v1/maps/*.
+      - Тесты UI через Vitest на логику (autocomplete state, XOR саформы).
+        Чистая презентация — без тестов.
+
+      Specs: PDD §4.4, §7.3, INV-015.
+    file_zones:
+      - web/customer/src/components/AddressAutocomplete/
+      - web/customer/src/pages/Profile/Addresses/
+      - web/customer/src/pages/Checkout/
+      - web/customer/src/api/yandex_maps.ts
+      - web/customer/src/api/addresses.ts
+      - web/customer/src/api/orders.ts
+      - web/customer/src/i18n/
+      - web/customer/src/App.tsx
+    parallel_group: 2
+    merge_order: 4
+
+  - name: courier-panel-ui
+    type: frontend
+    prompt: |
+      Courier view in admin panel (PDD §4.5, §6.3, INV-010).
+
+      Первый realtime-feed в web/admin — задаём паттерн для будущего
+      barista-feed'а: React-Query с refetchInterval: 5000 (§4.5: ≤5s latency).
+
+      1. Роутинг:
+         - /courier — доступен только если role=='courier' или 'admin'
+         - при role=='courier' после login редирект сразу на /courier
+           (курьер НЕ должен видеть меню/заказы/настройки — INV-010)
+
+      2. Страница /courier:
+         - Tab "Доступные": GET /api/v1/courier/assignments/available,
+           refetchInterval 5s. Карточка заказа: адрес, сумма, requested_time,
+           кнопка "Взять". Клик → POST /take. При 409 (уже взят) — toast
+           "Заказ уже взят другим курьером", рефетч списка.
+         - Tab "Мои": GET /api/v1/courier/assignments/mine. Статус
+           COURIER_ASSIGNED → кнопка "Забрал" (POST /pickup); PICKED_UP →
+           кнопка "Доставлен" (POST /deliver). refetchInterval 5s.
+
+      3. API-клиент web/admin/src/api/courier.ts — generated from OpenAPI
+         или ручной fetch с типами из shared-zod-схемы; следовать паттерну
+         существующих клиентов (web/admin/src/api/menu.ts).
+
+      4. Локализация RU/EN через react-i18next (как в остальном админе).
+
+      Ограничения:
+      - Роль проверяется НА СЕРВЕРЕ (уже сделано в delivery-assignment).
+        Клиентская проверка — UX-подсказка, не защита.
+      - Mobile-first: курьер работает с телефона. Крупные кнопки,
+        минимальная информация на экране.
+
+      Specs: PDD §4.5, §6.3, INV-010.
+    file_zones:
+      - web/admin/src/pages/Courier/
+      - web/admin/src/api/courier.ts
+      - web/admin/src/App.tsx
+      - web/admin/src/lib/auth.ts
+      - web/admin/src/i18n/
+    parallel_group: 2
+    merge_order: 5
