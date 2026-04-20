@@ -122,7 +122,80 @@
     },
     "users": {
       "title": "Пользователи",
-      "description": "Управление клиентами"
+      "description": "Управление клиентами",
+      "empty": "Пользователи не найдены",
+      "balance_unit_short": "балл.",
+      "filters": {
+        "status": {
+          "all": "Все",
+          "active": "Активные",
+          "blocked": "Заблокированные",
+          "pending": "Ожидают"
+        }
+      },
+      "search": {
+        "placeholder": "Поиск по имени"
+      },
+      "columns": {
+        "name": "Имя",
+        "status": "Статус",
+        "balance": "Баллы",
+        "created_at": "Создан",
+        "actions": "Действия"
+      },
+      "status": {
+        "active": "Активен",
+        "blocked": "Заблокирован",
+        "pending_verification": "Ожидает подтверждения",
+        "deleted": "Удалён"
+      },
+      "detail": {
+        "title": "Пользователь",
+        "balance": "Баланс баллов",
+        "transactions": "Последние транзакции",
+        "block_button": "Заблокировать",
+        "unblock_button": "Разблокировать",
+        "adjust_button": "Скорректировать баллы",
+        "details": "Детали",
+        "empty_transactions": "Нет транзакций",
+        "tx_columns": {
+          "type": "Тип",
+          "amount": "Изменение",
+          "balance_after": "Баланс после",
+          "description": "Описание",
+          "created_at": "Дата"
+        },
+        "tx_type": {
+          "accrual": "Начисление",
+          "redemption": "Списание",
+          "reversal": "Возврат",
+          "admin_adjustment": "Корректировка"
+        }
+      },
+      "block_confirm": {
+        "title": "Заблокировать пользователя",
+        "warning": "Будут отменены {{count}} активных заказов с полным рефандом.",
+        "checkbox": "Я понимаю, что все активные заказы будут отменены",
+        "confirm": "Заблокировать",
+        "cancel": "Отмена",
+        "close": "Закрыть",
+        "result": "Заблокирован. Отменено {{count}} заказов."
+      },
+      "adjust": {
+        "title": "Корректировка баллов",
+        "delta_label": "Изменение баланса",
+        "delta_hint": "+100 начислить, -50 списать",
+        "reason_label": "Причина",
+        "reason_placeholder": "Опишите причину корректировки",
+        "submit": "Применить",
+        "cancel": "Отмена",
+        "success": "Баланс изменён",
+        "error_insufficient": "Недостаточно баллов для списания",
+        "error_delta_zero": "Изменение не может быть равно нулю",
+        "error_delta_invalid": "Введите целое число",
+        "error_reason_empty": "Укажите причину",
+        "error_reason_too_long": "Причина не длиннее 500 символов"
+      }
     },
     "promos": {
       "title": "Промокоды",
