@@ -13,6 +13,11 @@ celery_app.conf.task_default_queue = "payments"
 
 celery_app.autodiscover_tasks(["payment_worker"])
 
+# Принудительная регистрация fake-callback: autodiscover ищет только
+# `payment_worker.tasks`, но `yukassa_fake_callback` живёт в `yukassa_fake.py`.
+# Без этого импорта fake-backend ломается с KeyError в консьюмере.
+from payment_worker import yukassa_fake  # noqa: E402, F401
+
 
 # Boot-time safety-rail: при старте воркера валидируем Settings, чтобы
 # мисконфиг (live + пустые creds / sandbox URL) ронял процесс сразу. Не
