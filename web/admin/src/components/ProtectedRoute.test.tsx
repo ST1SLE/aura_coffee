@@ -140,4 +140,55 @@ describe('ProtectedRoute', () => {
     });
     expect(screen.getByText('courier-gated-content')).toBeDefined();
   });
+
+  // INV-010: barista видит все admin+barista маршруты, но /settings закрыт
+  // inner ProtectedRoute allowedRoles={['admin']} → редирект на /.
+  it('barista на /settings с inner admin-guard: редирект на /', () => {
+    localStorage.setItem('accessToken', 'tok');
+    localStorage.setItem('staffRole', 'barista');
+
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Routes>
+          <Route path="/" element={<div>dashboard</div>} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'barista']}>
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <div>settings-page</div>
+                </ProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('dashboard')).toBeDefined();
+    expect(screen.queryByText('settings-page')).toBeNull();
+  });
+
+  it('admin на /settings с inner admin-guard: рендерится', () => {
+    localStorage.setItem('accessToken', 'tok');
+    localStorage.setItem('staffRole', 'admin');
+
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Routes>
+          <Route path="/" element={<div>dashboard</div>} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'barista']}>
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <div>settings-page</div>
+                </ProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('settings-page')).toBeDefined();
+  });
 });
