@@ -19,7 +19,17 @@
     },
     "checkout": {
       "title": "Checkout",
-      "description": "Choose delivery method and pay"
+      "description": "Choose delivery method and pay",
+      "submit": "Place order",
+      "type": {
+        "pickup": "Pickup",
+        "delivery": "Delivery"
+      },
+      "delivery": {
+        "savedAddress": "Saved address",
+        "newAddress": "New address",
+        "saveForFuture": "Save for next order"
+      }
     },
     "orders": {
       "title": "My Orders",
@@ -39,9 +49,45 @@
       "saveError": "Failed to save changes",
       "logout": "Sign Out"
     },
+    "addresses": {
+      "title": "Delivery addresses",
+      "addButton": "Add address",
+      "empty": "You have no saved addresses yet",
+      "makePrimary": "Set as primary",
+      "primaryBadge": "Primary",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Delete this address?",
+      "form": {
+        "label": "Label (home, work, etc.)",
+        "apartment": "Apartment",
+        "entrance": "Entrance",
+        "floor": "Floor",
+        "comment": "Comment for courier",
+        "save": "Save",
+        "cancel": "Cancel"
+      }
+    },
     "notFound": {
       "title": "Page Not Found",
       "description": "The requested page does not exist"
+    }
+  },
+  "components": {
+    "addressAutocomplete": {
+      "placeholder": "Enter delivery address",
+      "loading": "Searching addresses…",
+      "noResults": "No suggestions found",
+      "degraded": "Suggestions service is temporarily unavailable. Please enter your address manually."
+    }
+  },
+  "errors": {
+    "delivery": {
+      "outOfRadius": "Address is outside the delivery zone",
+      "geocodePrecision": "Unable to determine the exact address. Please specify further.",
+      "belowMinAmount": "Order total is below the minimum for delivery",
+      "mapsUnavailable": "Address validation service is temporarily unavailable. Try later or choose pickup.",
+      "generic": "Failed to submit the delivery"
     }
   },
   "auth": {

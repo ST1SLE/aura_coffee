@@ -10,6 +10,7 @@ import { MenuPage } from '@/pages/Menu/MenuPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { AddressesPage } from '@/pages/Profile/Addresses/AddressesPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export function App() {
@@ -28,6 +29,7 @@ export function App() {
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="orders" element={<OrdersPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="profile/addresses" element={<AddressesPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Route>
