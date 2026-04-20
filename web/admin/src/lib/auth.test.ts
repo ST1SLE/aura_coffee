@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getRole, setRole, clearRole, type StaffRole } from '@/lib/auth';
+import { renderHook } from '@testing-library/react';
+import { getRole, setRole, clearRole, useCurrentRole, type StaffRole } from '@/lib/auth';
 
 describe('auth — role helpers', () => {
   beforeEach(() => {
@@ -37,5 +38,22 @@ describe('auth — role helpers', () => {
     // @ts-expect-error — произвольная строка не входит в StaffRole
     const invalid: StaffRole = 'ceo';
     expect(invalid).toBe('ceo');
+  });
+});
+
+describe('auth — useCurrentRole hook', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when no role persisted', () => {
+    const { result } = renderHook(() => useCurrentRole());
+    expect(result.current).toBeNull();
+  });
+
+  it('returns persisted role after setRole', () => {
+    setRole('barista');
+    const { result } = renderHook(() => useCurrentRole());
+    expect(result.current).toBe('barista');
   });
 });

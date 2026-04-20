@@ -6,11 +6,7 @@ import { ModifiersPanel } from './ModifiersPanel';
 import { NotificationList, useNotifier } from '@/components/ui/notifier';
 import type { CategoryResponse, ModifierResponse } from '@/api/menu';
 import { listModifiers, ApiError } from '@/api/menu';
-
-// TODO: wire via staff-auth — заменить на реальное получение роли из auth-стора
-function useCurrentRole(): 'admin' | 'barista' {
-  return 'admin';
-}
+import { useCurrentRole } from '@/lib/auth';
 
 export function MenuPage() {
   const { t } = useTranslation();
@@ -33,6 +29,10 @@ export function MenuPage() {
         else handleError(t('common.error'));
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Страница обёрнута в ProtectedRoute с allowedRoles=['admin','barista'],
+  // поэтому null/courier тут недостижимы — early return ради сужения типа.
+  if (currentRole === null || currentRole === 'courier') return null;
 
   return (
     <div className="space-y-6">

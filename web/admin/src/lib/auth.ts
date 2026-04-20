@@ -1,6 +1,8 @@
 // Роль сотрудника. Источник истины — сервер (INV-010),
 // localStorage хранит только UX-подсказку для роутинга.
 
+import { useMemo } from 'react';
+
 const STORAGE_KEY = 'staffRole';
 
 export type StaffRole = 'admin' | 'barista' | 'courier';
@@ -19,4 +21,11 @@ export function setRole(role: StaffRole): void {
 
 export function clearRole(): void {
   localStorage.removeItem(STORAGE_KEY);
+}
+
+// Роль не меняется в пределах сессии (login → logout через полный
+// navigate), поэтому useMemo достаточно — подписка на storage events
+// не нужна.
+export function useCurrentRole(): StaffRole | null {
+  return useMemo(() => getRole(), []);
 }
