@@ -513,7 +513,12 @@ def db_session() -> Generator[None, None, None]:
     """Функциональная сессия к реальному PostgreSQL с применёнными миграциями.
 
     Пропускается, если TEST_DATABASE_URL не указывает на Postgres.
-    Откатывает транзакцию после теста (данные не сохраняются).
+    Изоляция: внешняя транзакция + SAVEPOINT (join_transaction_mode=
+    "create_savepoint"), чтобы любые `session.commit()` внутри теста
+    превращались в release-savepoint, а внешний rollback в teardown
+    гарантированно очищал данные. Без этого staff-scoped тесты (которые
+    не фильтруют по user_id) видят накапливающиеся orders из соседних
+    тестов и падают.
     """
     if _TEST_DB_URL.startswith("sqlite"):
         pytest.skip("Требует PostgreSQL (TEST_DATABASE_URL)")
@@ -529,7 +534,13 @@ def db_session() -> Generator[None, None, None]:
     command.upgrade(cfg, "head")
 
     engine = create_engine(_TEST_DB_URL)
-    with Session(engine) as session:
+    connection = engine.connect()
+    outer_tx = connection.begin()
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
+    try:
         yield session
-        session.rollback()
-    engine.dispose()
+    finally:
+        session.close()
+        outer_tx.rollback()
+        connection.close()
+        engine.dispose()

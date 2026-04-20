@@ -14,6 +14,7 @@ from core_api.routers.orders import orders_router
 from core_api.routers.courier import router as courier_router
 from core_api.routers.order_actions import router as order_actions_router
 from core_api.routers.order_history import router as order_history_router
+from core_api.routers.admin_orders import router as admin_orders_router
 from core_api.routers.yandex_maps import router as yandex_maps_router
 from core_api.settings import settings
 
@@ -52,6 +53,7 @@ app.include_router(cart_router)
 app.include_router(orders_router)
 app.include_router(order_actions_router)
 app.include_router(order_history_router)
+app.include_router(admin_orders_router)
 app.include_router(yandex_maps_router)
 app.include_router(courier_router)
 
