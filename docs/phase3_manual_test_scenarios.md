@@ -1,547 +1,174 @@
----
-Pre-flight
+# Phase 3 — Manual UI clickthrough
 
-./scripts/up.sh
+Goal: a fresh operator opens Chrome, clicks through every user-facing flow that exists today, and observes the expected outcome. Backend logic (payments, webhooks, state machine) is covered by the automated suite — see Section 3 for what is intentionally out of scope here.
 
-Banner must show Migrations: applied ✓. If it shows FAILED, stop — run docker compose logs
-db-migrate.
+## Pre-flight
 
-> Dev notes
-> - OTP / notification SMS: dev stack sets SMS_BACKEND=log. All SMS (OTP and order
->   notifications) are printed to `docker compose logs sms-worker` as:
->     [SMS:log] to=<phone> msg=<text>
-> - ЮKassa: dev stack uses the FAKE backend (`YUKASSA_BACKEND=fake`). No network
->   calls to api.yookassa.ru; `FakeYukassaClient` returns a deterministic
->   `payment_id` + local `confirmation_url`, then self-drives the webhook via
->   a Celery callback (`countdown=1s`). Block 4.2 reaches `status=PAID`
->   autonomously in ~1–2 seconds — no tunnel, no sandbox creds, no test cards
->   required. Flip outcome with `YUKASSA_FAKE_OUTCOME={success,canceled,http_error}`.
-> - Opt-in sandbox/live path: set `YUKASSA_BACKEND=live` with real production
->   creds. The safety rail refuses to boot if secrets are empty or the base URL
->   contains `sandbox|test|localhost|127.0.0.1`. For real sandbox testing
->   upstream at https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing
->   the tunnel option (ngrok/cloudflared) remains the documented path.
-> - Webhook delivery: `payment-webhook` service runs `uvicorn` on port 8241
->   (host-exposed via `docker-compose.override.yml`); fake callbacks POST to
->   `http://payment-webhook:8241/webhooks/yukassa` through the docker network.
->   IP whitelist resolves hostnames, so the dev default
->   `YUKASSA_WEBHOOK_IPS=127.0.0.1,payment-worker,payment-webhook` is sufficient.
-> - Loyalty balance: each customer starts with 0 баллов. To test point redemption
->   you must either pay for one prior order that reaches COMPLETED (accrual), or
->   insert an ACCRUAL transaction directly (see Part D).
+1. Bring the stack up from the repo root:
 
----
-Part A — Get admin JWT
+   ```
+   ./scripts/up.sh
+   ```
 
-1. Open http://localhost:8240/admin → browser lands on /admin/dashboard.
-2. Log in with admin / admin123.
-3. Keep this tab open.
+   Wait for the banner line `Migrations: applied ✓`. If it says `FAILED`, stop and run `docker compose logs db-migrate`.
 
-For API testing get a token:
-curl -s -X POST http://localhost:8240/api/v1/staff/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"admin","password":"admin123"}' | jq -r .access_token
-Save as $ADMIN_TOKEN.
+2. Note the two URLs `up.sh` prints. They depend on `.env` (ports are bumped per worktree by `scripts/setup-worktree-env.sh`):
+
+   - Customer SPA: `http://localhost:${NGINX_PORT}/`
+   - Admin SPA:    `http://localhost:${NGINX_PORT}/admin/`
+
+   If you lose them: `grep NGINX_PORT .env`. On this worktree the port is usually `8260`.
+
+3. Open a second terminal for logs (keep running throughout the session):
+
+   ```
+   docker compose logs -f sms-worker
+   ```
+
+   All OTP codes and order notifications appear here as `[SMS:log] to=<phone> msg=<text>`. The dev stack does not send real SMS.
+
+4. Reset between runs (wipes DB, Redis, uploaded images):
+
+   ```
+   ./scripts/down.sh && ./scripts/up.sh
+   ```
 
 ---
-Part B — Get customer JWT (OTP workaround)
 
-1. Open http://localhost:8240/ → navigate to login.
-2. Enter phone +79991234567, submit.
-3. Pull OTP from logs:
-docker compose logs --tail 20 sms-worker | grep '[SMS:log]'
-4. Enter the code on the verify page. Keep tab open.
+## Section 1 — Customer
 
-For API testing:
-curl -s -X POST http://localhost:8240/api/v1/auth/send-code \
-  -H 'Content-Type: application/json' \
-  -d '{"phone":"+79991234567"}'
-# get code from: docker compose logs --tail 20 sms-worker | grep '[SMS:log]'
-curl -s -X POST http://localhost:8240/api/v1/auth/verify-code \
-  -H 'Content-Type: application/json' \
-  -d '{"phone":"+79991234567","code":"<code>"}' | jq -r .access_token
-Save as $CUST_TOKEN.
+Open the Customer SPA in Chrome. All steps below are clicks in the browser.
 
-Second customer (needed for 4.8, 10.3):
-Repeat the flow with +79991234568 → save as $CUST2_TOKEN.
+### 1.1 Login — happy path
 
----
-Part C — Staff tokens (barista, courier)
+1. Land on `/` — if unauthenticated, you are redirected to `/login`.
+2. Phone input is prefilled with `+7`. Type `9991234567`. The "Продолжить" / "Continue" button enables only once the phone is valid.
+3. Click the button. You land on `/login/verify`.
+4. Switch to the `sms-worker` log tail. The last line is `[SMS:log] to=+79991234567 msg=... <6-digit code> ...`.
+5. Type the 6 digits into the OTP input. The form auto-submits on the sixth digit.
+6. Expected: you land on `/` (the menu/home). Refresh the page — you stay logged in (token persisted).
 
-Staff users are created by seed migrations (login / password):
-- barista1 / barista123
-- courier1 / courier123
+### 1.2 Login — error paths
 
-curl -s -X POST http://localhost:8240/api/v1/staff/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"barista1","password":"barista123"}' | jq -r .access_token
-# save as $BAR_TOKEN
-curl -s -X POST http://localhost:8240/api/v1/staff/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"courier1","password":"courier123"}' | jq -r .access_token
-# save as $COUR_TOKEN
+Each of these starts from step 3 of 1.1 (on `/login/verify`).
 
-If seed logins differ, check `database/seeds/` and adjust.
+- **Wrong code.** Type six wrong digits. Expected: red error "Неверный код" / "Invalid code", inputs reset, focus returns to the first cell.
+- **Resend timer.** The "Отправить снова" / "Resend" button shows a countdown (e.g. `0:30`) and is disabled until it reaches zero. Click it once enabled → a new `[SMS:log]` line appears; the old code becomes invalid.
+- **Expired code.** Request a code, wait past its TTL (log the time; default ~5 min — skip this one if you don't want to wait), then enter it. Expected: error "Код истёк" / "Code expired".
+- **Rate limit.** Submit six wrong codes in a row. Expected: error changes to "Слишком много попыток" / "Too many attempts"; form disabled.
+- **No phone in state.** Open `/login/verify` directly in a new tab without going through `/login` first. Expected: redirect back to `/login`.
 
----
-Part D — Test data prep
+### 1.3 Browse menu
 
-Menu baseline (replays Phase 2 prep). Create if missing:
+1. Navigate to `/menu` (via nav or direct URL).
+2. Expected: a skeleton grid flashes, then categories render as sections ("Напитки", "Десерты", …). Each section contains item cards with photo, name, and the cheapest size's price.
+3. Toggle language to English via the language switcher. Category and item names switch; prices stay the same (formatted with `en` locale separators).
+4. Empty category: if a category has `is_visible=true` but no items, its section is rendered with the localized "Нет позиций" / "No items" placeholder.
+5. If the network drops (pause the `nginx` container: `docker compose pause nginx`), click "Retry" on the error state. Unpause with `docker compose unpause nginx` and click Retry again — menu loads.
 
-- Category Кофе (type=drink, sort_order=1, visible)
-- Item Эспрессо (base_price=15000, available=true) — save $ESPRESSO_ID
-- Item Капучино (base_price=0, available=true) — save $CAPPUCCINO_ID
-  - Sizes: M(26000), L(30000)
-  - Modifier: Vanilla syrup (5500, available=true) — save $VANILLA_ID
+### 1.4 Item detail modal
 
-All prices above are in **копейки** (150₽ → 15000). Verify via:
-curl -s http://localhost:8240/api/v1/menu | jq '.[0].items[] | {name,base_price}'
+1. Click any item card on `/menu`. A modal opens with the full description, all sizes, and all linked modifier groups.
+2. Sizes render as pill buttons. The unavailable ones (`is_visible=false` or stop-listed) are disabled and visibly muted.
+3. Click a different size. The total price in the footer updates to `size.price`.
+4. Toggle modifier checkboxes (multi-select per group). The total updates to `size.price + sum(selected modifier prices)`.
+5. Click "Добавить в корзину" / "Add to cart". Expected: green toast (`menu.added`), modal auto-closes after ~800 ms.
+6. Re-open the same item. The modal resets to defaults — previous selections are not sticky.
 
-Seed a loyalty balance of 500 баллов for the main test customer (needed for
-Block 3 point redemption). Run from the host:
-docker compose exec core-api python -c "
-from shared.db import SessionLocal
-from shared.models import User, LoyaltyAccount, LoyaltyTransaction
-from shared.enums import LoyaltyTransactionType
-s = SessionLocal()
-u = s.query(User).filter_by(phone_hash_lookup_hash='<paste hash from auth step>').first()
-# OR look up by phone directly if helper available
-acct = s.query(LoyaltyAccount).filter_by(user_id=u.id).one()
-acct.balance += 500
-s.add(LoyaltyTransaction(user_id=u.id, type=LoyaltyTransactionType.ADMIN_ADJUSTMENT,
-                         amount=500, balance_after=acct.balance, description='test seed'))
-s.commit()
-print('balance:', acct.balance)
-"
-Easier: log in to admin SPA → Users → find customer → "Adjust loyalty" (if UI
-exposes it). Note whichever method works; the assertions below assume balance ≥ 500.
+### 1.5 Cart
 
-Seed one promocode via admin SQL (Phase 5 will add UI). From host:
-docker compose exec db psql -U postgres -d aura -c "
-INSERT INTO promocodes (id, code, discount_type, discount_value, min_order_amount,
- valid_from, valid_until, max_uses, max_uses_per_user, current_uses, is_active, created_at)
-VALUES (gen_random_uuid(), 'WELCOME10', 'PERCENT', 10, 0,
- now() - interval '1 day', now() + interval '30 days', 100, 5, 0, true, now());
-INSERT INTO promocodes (id, code, discount_type, discount_value, min_order_amount,
- valid_from, valid_until, max_uses, max_uses_per_user, current_uses, is_active, created_at)
-VALUES (gen_random_uuid(), 'FLAT50', 'FIXED_AMOUNT', 5000, 0,
- now() - interval '1 day', now() + interval '30 days', 100, 5, 0, true, now());
-INSERT INTO promocodes (id, code, discount_type, discount_value, min_order_amount,
- valid_from, valid_until, max_uses, max_uses_per_user, current_uses, is_active, created_at)
-VALUES (gen_random_uuid(), 'EXPIRED', 'PERCENT', 50, 0,
- now() - interval '30 days', now() - interval '1 day', 100, 5, 0, true, now());
-"
+1. Navigate to `/cart`. If empty: muted text + CTA "В меню" / "Go to menu" that links to `/menu`.
+2. After adding at least one item from 1.4: each line shows name, chosen size label, joined modifier names, a `−` / `+` stepper, a `✕` remove button, and the line total.
+3. Click `+`: quantity increments, line total updates, subtotal at the bottom updates. Continue to 99 — the `+` button disables at 99.
+4. Click `−`: quantity decrements. When quantity is 1, clicking `−` removes the line entirely.
+5. Click `✕`: line removed immediately.
+6. Click "Очистить корзину" / "Clear cart" (top right). All lines gone, empty state returns.
+7. **Expired cart.** Leave the cart tab open overnight (or manually delete the cart Redis key: `docker compose exec redis redis-cli DEL "cart:$USER_ID"`). Next `+`/`−`/`✕` click shows the amber "Корзина устарела" / "Cart expired" toast and refreshes to the current server state.
+
+### 1.6 Profile
+
+1. Navigate to `/profile`. The phone number is shown masked (read-only).
+2. Change the display name field and click "Сохранить" / "Save". Expected: button briefly disabled, success implicit (name stays filled, Save re-disables because nothing changed since the last save).
+3. Try name = `""` → red error "Имя обязательно" / "Name is required". Try name > 100 chars → "Слишком длинное" / "Too long".
+4. Click the opposite language pill (Русский ↔ English). The whole SPA text switches instantly; the switch also persists (reload the page, language sticks).
+5. Click "Выйти" / "Logout". Expected: redirect to `/login`; opening `/profile` now redirects back to `/login`.
 
 ---
-Block 1 — Checkout: happy paths
 
-Before each scenario: clear cart (DELETE /api/v1/cart) to isolate state.
+## Section 2 — Admin
 
-1.1 Pickup, no modifiers, ASAP
-- Add Эспрессо × 2 to cart (POST /api/v1/cart/items via UI or API).
-- Submit:
-curl -s -X POST http://localhost:8240/api/v1/orders \
-  -H "Authorization: Bearer $CUST_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"PICKUP"}' | jq
-- Expect HTTP 201. Response: `status=CREATED`, `type=PICKUP`, `subtotal=30000`,
-  `discount_amount=0`, `points_used=0`, `delivery_fee=0`, `total=30000`,
-  `estimated_accrual=1500` (5% of 30000), `items[].line_total=15000` × 2,
-  `requested_time=null`, `estimated_ready_at` ≈ now + 15 min.
-- Save returned `id` as $ORDER_ID.
-- DB check: cart STILL present in Redis (deleted only after PAID).
-  docker compose exec redis redis-cli KEYS 'cart:*'
-  → at least one entry.
+Open the Admin SPA in Chrome (`/admin/` — note the trailing slash; `/admin` issues a 301).
 
-1.2 Delivery, with modifier and size
-- Add Капучино M + Vanilla syrup × 1 and × 2 separately until subtotal ≥ 50000
-  (min_delivery_amount). Example: Капучино M × 3 (780) + syrup × 3 = 96500.
-- Submit:
-curl -s -X POST http://localhost:8240/api/v1/orders \
-  -H "Authorization: Bearer $CUST_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"DELIVERY","delivery_address":{"text":"Москва, Тверская 1","lat":55.7601,"lon":37.6086,"apartment":"12","entrance":"2","floor":"3"}}' | jq
-- Expect HTTP 201. Response: `type=DELIVERY`, `delivery_fee=20000`,
-  `total=subtotal+20000`, `estimated_accrual` computed from `after_points` only
-  (excludes delivery fee — INV-003).
-- `delivery_address_snapshot` persisted (verify with GET detail).
+### 2.1 Login
 
-1.3 Total = 0 skips ЮKassa (full points coverage)
-- Add Эспрессо × 1 (price 15000). Require loyalty balance ≥ 150 (15000 коп).
-- Submit:
-curl -s -X POST http://localhost:8240/api/v1/orders \
-  -H "Authorization: Bearer $CUST_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"PICKUP","points_to_use":15000}' | jq
-- Expect HTTP 201. Response: `status=PAID` (not CREATED), `total=0`,
-  `points_used=15000`. No `confirmation_url`.
-- DB check: cart was deleted from Redis, loyalty balance decreased by 15000.
-- No Celery task enqueued for payment:
-  docker compose logs payment-worker --tail 20 | grep -i 'create_payment'
-  → no fresh entry.
+1. Land on `/admin/`; unauthenticated → redirect to `/admin/login`.
+2. Enter `login = admin`, `password = admin123`. Click submit.
+3. Expected: redirect to `/admin/` (dashboard stub with just a heading). Token persists in `localStorage` under key `accessToken`.
+4. **Wrong password.** Log out (clear `accessToken` via DevTools), re-open `/admin/login`, submit `admin` / `wrong`. Expected: red error "Неверные учётные данные" / "Invalid credentials"; the form stays filled.
+5. **Disabled state.** Empty either field → submit button disabled.
+6. **Return URL.** Visit `/admin/menu` while logged out. You are redirected to `/admin/login?returnUrl=/menu`. After a successful login you land on `/admin/menu` directly.
+
+### 2.2 Menu → Categories (left column)
+
+Navigate to `/admin/menu`.
+
+1. Enter `name_ru`, `name_en`, pick a type (`drink` / `food` / …), click "Добавить" / "Add". The category appears at the bottom of the list and is selected.
+2. Click the pencil icon on an existing row. Inline fields become editable: name_ru, name_en, type, sort_order. Change `sort_order`, click save — list reorders.
+3. Click the trash icon. Expected: browser confirm dialog → on confirm, the category disappears. If the category still holds items, the backend returns 409 and a red error toast is shown (category stays).
+4. **Validation.** Empty `name_ru` or `name_en` disables "Add". Submit with a too-long name → 422 → toast shows which fields failed.
+5. **Session expiry.** Delete `accessToken` from `localStorage` and click "Add". Expected: red toast "Сессия истекла" / "Session expired" and the app does not silently fail.
+
+### 2.3 Menu → Items (center column)
+
+Select a category in the left column; the center table filters to that category.
+
+1. Click "Добавить позицию" / "Add item". The `MenuItemFormDialog` opens.
+2. Fill: `name_ru`, `name_en`, `description_ru`, `description_en`, category dropdown (preselected), and — in the "Размеры" / "Sizes" editor — add at least one size row (label, price in the minor currency unit). You cannot save with zero sizes.
+3. In the "Модификаторы" / "Modifiers" picker, check one or more existing modifiers. Save.
+4. The new row appears in the table with name, cheapest-size price, and availability badge.
+5. **Edit.** Click the pencil icon → same dialog pre-filled. Change one size's price, save → the table's price column updates.
+6. **Availability toggle.** The row's switch flips `available` ↔ `stop_list`. Flip to stop-list → a yellow "Stop-list" badge appears. Flip to `archived` via the form's dropdown → the row shows a muted "Archived" badge.
+7. **Stop-listed items in customer SPA.** Reload `/menu` in the customer tab → the item still renders, but on the item modal its sizes (or the whole item) are disabled per 1.4.
+8. **Delete.** Trash icon → browser confirm → item row vanishes.
+
+### 2.4 Menu → Modifiers (bottom section)
+
+Scrolled to the bottom of `/admin/menu`.
+
+1. Add a modifier: `name_ru`, `name_en`, `price_delta` (signed, minor units). Save.
+2. Edit an existing modifier's price_delta → save → item totals that reference it update immediately in 1.4 next time the modal is opened.
+3. Delete a modifier. If it's linked to any item, expect a 409 and a red toast; otherwise it disappears.
 
 ---
-Block 2 — Checkout validation
 
-2.1 Empty cart
-- Clear cart. POST /api/v1/orders → 400 "Корзина пуста".
+## Section 3 — Known UI gaps (intentionally out of scope here)
 
-2.2 Stop-list enforcement
-- Admin: set Эспрессо available=false.
-- Customer cart has Эспрессо. POST /api/v1/orders → 409,
-  body references the unavailable item. No Order row created:
-  docker compose exec db psql -U postgres -d aura -c "SELECT count(*) FROM orders WHERE status='CREATED' AND created_at > now()-interval '1 min';"
-- Re-enable Эспрессо after test.
+These flows exist in the backend and are covered by automated tests, but they have no clickable UI yet. Do not try to test them through Chrome — you will hit placeholder pages.
 
-2.3 Working hours — scheduled time in the past
-curl -s -X POST http://localhost:8240/api/v1/orders \
-  -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"type":"PICKUP","requested_time":"2000-01-01T10:00:00Z"}'
-- Expect 409 with reason referring to time slot.
+- **Checkout.** `/checkout` in the customer SPA is a 12-line stub (`<h1>` + description only). Placing a real order, paying via ЮKassa, and observing payment status is a backend-only flow today.
+- **Customer order history.** `/orders` is a stub. Same for repeat-order and cancel-order actions.
+- **Admin orders.** `/admin/orders` is a stub. No barista queue, no order-status transitions, no refund UI.
+- **Admin users / promos / settings / dashboard.** All four are 12-line stubs. Loyalty balance, promocode management, and per-role settings cannot be exercised via Chrome.
+- **Barista & Courier personas.** There is no dedicated SPA for them. The admin Menu page reads role via `useCurrentRole()` in `web/admin/src/pages/Menu/index.tsx:12`, which is hardcoded to `'admin'` (see the TODO in that file). "Log in as barista" through `/admin/login` works, but the resulting UI is identical to an admin session, so it is not yet a distinct test persona.
 
-2.4 Working hours — outside shop hours
-- Temporarily shrink working hours via SQL so the current time is outside:
-  UPDATE shop_settings SET working_hours = '{"mon":{"open":"03:00","close":"03:05"},"tue":{"open":"03:00","close":"03:05"},...}' WHERE id=1;
-- POST /api/v1/orders (ASAP) → 409, validator finds next opening or rejects.
-- Restore working hours to defaults afterwards.
-
-2.5 Delivery — outside radius
-- Submit delivery order with `lat=0, lon=0` (far from shop) → 409 "outside delivery radius".
-
-2.6 Delivery — below min amount
-- Cart with single Эспрессо (subtotal 15000 < 50000). Submit DELIVERY:
-  → 409, message about min delivery amount.
-
-2.7 Delivery — no address
-- Cart subtotal ≥ 50000 but body omits `delivery_address`: → 422 validation error.
+If you need to exercise any of the above today, use the automated `pytest` suite (`services/core-api`, `services/payment-worker`) or the pre-existing API runbooks in `docs/` — not this document.
 
 ---
-Block 3 — Pricing chain
 
-3.1 Promocode PERCENT
-- Add Эспрессо × 2 (subtotal 30000). Submit:
-  `{"type":"PICKUP","promocode_code":"WELCOME10"}`
-- Expect `discount_amount=3000`, `total=27000`, `estimated_accrual=1350` (5% of 27000).
+## Appendix — Logs cheatsheet
 
-3.2 Promocode FIXED_AMOUNT
-- Same cart, `promocode_code=FLAT50` → `discount_amount=5000`, `total=25000`.
+Run in a separate terminal. `-f` follows new lines.
 
-3.3 Promocode — expired
-- `promocode_code=EXPIRED` → 409, message references promocode.
+```
+docker compose logs -f sms-worker         # OTP codes + order notifications ([SMS:log] lines)
+docker compose logs -f core-api           # HTTP errors from the SPA (401, 422, 500)
+docker compose logs -f payment-worker     # ЮKassa fake callbacks, webhook delivery
+docker compose logs -f nginx              # routing issues (404s, bad upstream)
+```
 
-3.4 Promocode — min order amount
-- Insert a promocode with min_order_amount=100000. Cart 30000 → 409.
+Common failure signatures:
 
-3.5 Promocode — per-user limit
-- Call 5 successful orders with WELCOME10 (decrement loyalty to avoid running out
-  of cash; use small carts). 6th attempt → 409, "max_uses_per_user".
-
-3.6 Loyalty — request more than balance
-- `points_to_use: 999999`, balance=500 → `points_used` capped at `min(balance, after_promo)`.
-  No error.
-
-3.7 Loyalty — reservation recorded
-- Before/after an order with points_to_use=100, query:
-  SELECT type, amount, balance_after FROM loyalty_transactions
-  WHERE user_id=<id> ORDER BY created_at DESC LIMIT 3;
-- Expect a `RESERVATION` row with amount=-100. Balance decremented immediately.
-
-3.8 Free delivery threshold
-- Cart subtotal ≥ 150000 (free_delivery_threshold). DELIVERY order → `delivery_fee=0`.
-
-3.9 Estimated accrual excludes delivery
-- DELIVERY order, subtotal=100000, delivery_fee=20000, no promo/points.
-- Expect `total=120000` but `estimated_accrual=5000` (5% of subtotal, not of total).
-
----
-Block 4 — Payment (ЮKassa)
-
-4.1 Payment creation kicks off
-- Place a pickup order with total > 0 (Block 1.1).
-- Within ~5s, observe:
-  docker compose logs payment-worker --tail 50 | grep -E 'create_payment|yukassa'
-  → sees a POST /v3/payments call.
-- Poll order detail until `confirmation_url` is populated:
-  watch -n1 'curl -s -H "Authorization: Bearer $CUST_TOKEN" http://localhost:8240/api/v1/orders/$ORDER_ID | jq .confirmation_url'
-- Expect a ЮKassa URL within 5–10s.
-
-4.2 Customer completes payment (sandbox)
-- Open `confirmation_url` in browser → ЮKassa test page.
-- Pay with test card 5555 5555 5555 4477 (any CVC, future expiry).
-- Within ~30s (webhook delivery or polling fallback — §6.1), GET the order:
-  `status=PAID`, loyalty reservation confirmed (balance unchanged vs before order),
-  and cart is gone from Redis.
-
-4.3 Webhook simulated — payment.succeeded
-Skip 4.2 if no ЮKassa tunnel. Place a new order, wait until Payment row has
-`yukassa_payment_id` populated (DB query or poll):
-  PAY_ID=$(docker compose exec -T db psql -U postgres -d aura -t -c "SELECT yukassa_payment_id FROM payments WHERE order_id='$ORDER_ID';" | xargs)
-Then POST a fake webhook:
-curl -s -X POST http://localhost:8241/webhooks/yukassa \
-  -H 'Content-Type: application/json' \
-  -d "{\"event\":\"payment.succeeded\",\"object\":{\"id\":\"$PAY_ID\",\"status\":\"succeeded\",\"paid\":true}}"
-- GET the order → `status=PAID`.
-- SMS in log: `[SMS:log] ... Заказ №<8hex> оплачен`.
-
-4.4 Webhook simulated — payment.canceled
-- Place a fresh order (with promocode WELCOME10 + points_to_use=50 so we can
-  observe unreservation).
-- Get PAY_ID as above. POST:
-curl -s -X POST http://localhost:8241/webhooks/yukassa \
-  -H 'Content-Type: application/json' \
-  -d "{\"event\":\"payment.canceled\",\"object\":{\"id\":\"$PAY_ID\",\"status\":\"canceled\"}}"
-- Expect: order `status=CANCELLED`, loyalty balance restored, `promocodes.current_uses`
-  decremented, `promocode_usages` row removed.
-- In-app notification recorded (GET notifications via DB: SELECT * FROM notifications
-  WHERE order_id=... ORDER BY created_at DESC).
-
-4.5 Webhook idempotency
-- Replay the exact same webhook payload → order state unchanged, no duplicate
-  notifications. Worker logs should show "already processed" / skip.
-
-4.6 Webhook IP blacklist (if enabled)
-- Set YUKASSA_WEBHOOK_IPS=1.2.3.4 in .env, restart payment-worker.
-- POST webhook from localhost → 403.
-- Restore YUKASSA_WEBHOOK_IPS=* afterwards.
-
-4.7 Payment failure retry + cancel
-- Temporarily break ЮKassa creds (YUKASSA_SECRET_KEY=bad) and restart worker.
-- Place an order. Observe 3 retry attempts in logs, then:
-  - Order → `CANCELLED`
-  - Payment → `PAYMENT_FAILED`
-  - Loyalty/promocode (if any) reverted.
-- Restore creds after test.
-
-4.8 Foreign order access
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H "Authorization: Bearer $CUST2_TOKEN" \
-  http://localhost:8240/api/v1/orders/$ORDER_ID
-- Expect 404 (INV-013 — no leak of existence).
-
----
-Block 5 — Order lifecycle (staff transitions)
-
-Use an order in `status=PAID` (from Block 4.2 or 4.3). Call as $BAR_TOKEN /
-$COUR_TOKEN / $ADMIN_TOKEN.
-
-5.1 PAID → PREPARING (barista)
-curl -s -X PATCH http://localhost:8240/api/v1/orders/$ORDER_ID/status \
-  -H "Authorization: Bearer $BAR_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"new_status":"PREPARING"}' | jq
-- 200. SMS: "... готовится".
-
-5.2 PREPARING → READY (barista)
-- Same pattern. SMS: "... готов".
-
-5.3 READY → COMPLETED — pickup path (barista)
-- For a PICKUP order: PATCH new_status=COMPLETED → 200.
-- DB: loyalty_transactions has an ACCRUAL row with amount = 5% of (total - delivery_fee).
-- Loyalty balance increased.
-
-5.4 READY → IN_DELIVERY (courier, delivery order only)
-- Create a DELIVERY order and advance to READY.
-- PATCH as $COUR_TOKEN with new_status=IN_DELIVERY → 200.
-- Attempting the same on a PICKUP order → 409.
-
-5.5 IN_DELIVERY → COMPLETED (courier)
-- PATCH new_status=COMPLETED → 200. Accrual happens now.
-
-5.6 Forbidden transition — backward
-- On a PREPARING order: PATCH new_status=PAID → 409 "transition_forbidden".
-
-5.7 Forbidden transition — from COMPLETED
-- On a COMPLETED order: PATCH new_status=PREPARING → 409.
-
-5.8 Role enforcement
-- As $BAR_TOKEN: PATCH READY→IN_DELIVERY → 403 / 409 (barista can't move to IN_DELIVERY).
-- As $COUR_TOKEN: PATCH PAID→PREPARING → 403 / 409.
-- As $CUST_TOKEN: PATCH any → 403 (customer cannot transition).
-
-5.9 Transition on unknown order
-- PATCH /api/v1/orders/<random-uuid>/status → 404.
-
----
-Block 6 — Cancellation
-
-6.1 Customer cancel — allowed only in PAID
-- Order in `status=PAID`:
-curl -s -X POST http://localhost:8240/api/v1/orders/$ORDER_ID/cancel \
-  -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"reason":"передумал"}' | jq
-- Expect 200, `status=CANCELLED`, `cancelled_by=customer`, `cancelled_at` set.
-- Refund task enqueued: docker compose logs payment-worker | grep initiate_refund
-- SMS: "... отменён, средства возвращены".
-
-6.2 Customer cancel in PREPARING — forbidden
-- Advance a paid order to PREPARING, then POST cancel as customer → 409
-  (INV-005: only admin can cancel after PREPARING).
-
-6.3 Customer cancel — foreign order
-- POST cancel on someone else's order → 403 or 404. No leakage of existence.
-
-6.4 Admin cancel in PREPARING
-- POST cancel as $ADMIN_TOKEN on a PREPARING order → 200, `cancelled_by=admin`.
-- Loyalty returned (REVERSAL transaction), promocode.current_uses decremented.
-
-6.5 Admin cancel in IN_DELIVERY — forbidden
-- POST cancel on IN_DELIVERY order → 409 (PDD §7.6: not cancellable after dispatch).
-
-6.6 Admin cancel of COMPLETED — forbidden
-- → 409.
-
-6.7 Cancel of total=0 order — no refund
-- Use order from 1.3 (total=0, status=PAID). Cancel as admin → 200.
-- payment-worker log: no initiate_refund fired (payment.amount=0).
-- Loyalty returned (balance back to pre-order value).
-
-6.8 Refund webhook — refund.succeeded
-- After 6.1, grab PAY_ID and simulate:
-curl -s -X POST http://localhost:8241/webhooks/yukassa \
-  -H 'Content-Type: application/json' \
-  -d "{\"event\":\"refund.succeeded\",\"object\":{\"id\":\"test_refund_1\",\"payment_id\":\"$PAY_ID\",\"status\":\"succeeded\"}}"
-- Payment row → `status=REFUNDED`.
-
----
-Block 7 — Notifications
-
-7.1 In-app feed
-- GET /api/v1/notifications (if UI route exists) or SQL check:
-  SELECT type, channel, message_ru, status FROM notifications
-  WHERE user_id=<id> ORDER BY created_at DESC LIMIT 10;
-- Every status transition from Blocks 5–6 should have an IN_APP row.
-
-7.2 SMS delivery
-- For each SMS-eligible status (PAID, PREPARING, READY, COMPLETED-delivery,
-  CANCELLED), verify a `[SMS:log]` line in sms-worker logs with message ≤70 chars
-  and including "Aura Coffee".
-
-7.3 SMS not sent on IN_DELIVERY or COMPLETED-pickup
-- IN_DELIVERY and COMPLETED (for PICKUP) are in-app-only per PDD §6.1. Confirm
-  no extra SMS line in logs around that transition timestamp.
-
-7.4 Language preference
-- Change user preferred_language to EN (PATCH /api/v1/profile or SQL).
-- Trigger a transition → notification.message_en is used; SMS line is English.
-- Restore language afterwards.
-
-7.5 SMS retry on worker failure
-- Stop sms-worker: docker compose stop sms-worker
-- Trigger an order transition → notification row created with status=PENDING.
-- Start worker: docker compose start sms-worker
-- Within ~30s, status flips to SENT (retry succeeded). Order flow NOT blocked.
-
----
-Block 8 — Order history & detail
-
-8.1 List own orders
-curl -s -H "Authorization: Bearer $CUST_TOKEN" \
-  'http://localhost:8240/api/v1/orders?page=1&per_page=5' | jq
-- 200, items sorted by created_at DESC, `total_count` ≥ number of orders placed.
-
-8.2 Pagination bounds
-- `per_page=100` → 422 (capped at 50).
-- `page=0` → 422.
-
-8.3 Next page
-- `page=2&per_page=2` returns next slice. Merging pages equals total_count items
-  with no duplicates.
-
-8.4 Foreign orders excluded
-- As $CUST2_TOKEN list /api/v1/orders → does NOT contain $ORDER_ID (belongs to CUST).
-
-8.5 GET detail includes snapshot immutability
-- GET /api/v1/orders/$ORDER_ID as owner → returns items with `menu_item_name_ru`,
-  `unit_price`, `modifiers_snapshot` that reflect the state AT checkout time.
-- Now admin-edit Капучино M price to something extreme, then GET the order again
-  → snapshot still shows the old price (INV-014). Revert the admin edit.
-
-8.6 Admin JWT can't access customer history endpoints
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://localhost:8240/api/v1/orders
-- Expect 403 (ROUTE_MATRIX — customer-only).
-
----
-Block 9 — Repeat order
-
-9.1 Happy path
-- Pick a completed order with multiple lines. POST /api/v1/orders/$ORDER_ID/repeat
-  → 200, `added_to_cart=N`, `skipped=[]`.
-- GET /api/v1/cart → cart populated with same items at CURRENT prices.
-
-9.2 Stop-listed item skipped
-- Admin: set one item on the source order to available=false. Repeat →
-  that line missing from cart, `skipped` contains it with reason referencing "недоступен".
-- Re-enable item.
-
-9.3 Archived item skipped
-- SQL: UPDATE menu_items SET archived=true WHERE id='<x>';
-- Repeat → skipped with reason "больше не в меню".
-- Revert archived=false.
-
-9.4 Missing size skipped (whole line)
-- Delete a size_option referenced by the order (admin UI or SQL). Repeat →
-  the entire line is skipped, reason references size.
-
-9.5 Missing modifier attached, item still added
-- Delete a modifier referenced by the order. Repeat → item is added but without
-  that modifier, `skipped` lists the modifier-level reason.
-
-9.6 All lines unavailable
-- Source order with single line → stop-list it. Repeat → 422
-  "Ни одна позиция из этого заказа сейчас недоступна". Cart remains empty.
-
-9.7 Foreign order
-- As $CUST2_TOKEN POST repeat on CUST's order → 404.
-
----
-Block 10 — Cross-cutting
-
-10.1 Auth required on order routes
-for path in \
-  /api/v1/orders \
-  /api/v1/orders/any-uuid \
-  /api/v1/orders/any-uuid/cancel; do
-  curl -s -o /dev/null -w "$path -> %{http_code}\n" "http://localhost:8240$path"
-done
-- Expect 401 for each (no token).
-
-10.2 Staff route matrix
-- Customer token on PATCH .../status → 403.
-- Staff token on GET /api/v1/orders (customer history) → 403.
-
-10.3 INV-013 no-leak: foreign order detail
-- As $CUST2_TOKEN GET /api/v1/orders/$ORDER_ID → 404 (NOT 403, so existence is
-  not disclosed).
-
-10.4 Accept-Language in order responses
-curl -s -H "Authorization: Bearer $CUST_TOKEN" -H 'Accept-Language: en' \
-  http://localhost:8240/api/v1/orders/$ORDER_ID | jq '.items[0].menu_item_name_en, .items[0].menu_item_name_ru'
-- Both fields present in snapshot regardless of header (snapshot stores both).
-  Any display-level localization is client-side.
-
-10.5 Idempotency on double-submit
-- Place an order and IMMEDIATELY re-POST the same body (while cart still present
-  in Redis before payment webhook). Should yield a second order (current design
-  does not dedupe on the client — document the observed behavior).
-- After PAID and cart auto-delete, re-POST same body → 400 "Корзина пуста".
-
-10.6 Latency smoke
-- time curl -s -X POST .../orders ... with a small cart.
-- SLA (PDD §4.1): ≤500ms p95 on create. A single dev box usually reports ~100–300ms;
-  anything >1s should be investigated.
-
-10.7 DB invariants after a full happy path
-Pick one order that went CREATED → PAID → PREPARING → READY → COMPLETED.
-Run:
-docker compose exec db psql -U postgres -d aura -c "
-SELECT o.status, o.total, p.status AS pay_status,
-       (SELECT sum(amount) FROM loyalty_transactions WHERE order_id=o.id) AS net_points,
-       (SELECT count(*) FROM order_items WHERE order_id=o.id) AS n_items,
-       (SELECT count(*) FROM notifications WHERE order_id=o.id) AS n_notifs
-FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.id='$ORDER_ID';
-"
-- `status=COMPLETED`, `pay_status=SUCCEEDED`,
-- `net_points` ≥ 0 (RESERVATION cancelled out by REDEMPTION, plus ACCRUAL).
-- `n_items` matches the order,
-- `n_notifs` ≥ number of status transitions that emitted notifications.
+- **Blank page in Chrome, DevTools shows a network error to `/api/...`** → core-api is down. `docker compose ps core-api`; if `Exited`, tail its log.
+- **Login succeeds but the next page 401s immediately** → the `accessToken` in `localStorage` is from a previous `./scripts/down.sh` run and the user was wiped. Log out → log in again.
+- **OTP never appears in sms-worker log** → check that `SMS_BACKEND=log` in `.env` (it is the dev default). If it is `kannel` or unset, change to `log` and `docker compose up -d sms-worker`.
+- **`/admin/` responds with the customer SPA** → Nginx routed to the wrong upstream; `docker compose restart nginx web-admin` and reload.
