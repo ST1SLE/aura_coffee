@@ -1,8 +1,13 @@
-# admin-users-api Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change admin-users-api-red. Update Purpose after archive.
-## Requirements
+_References: PDD §4.5 (Admin panel surfaces), §6.5 (User Account Lifecycle — ACTIVE↔BLOCKED, forbidden transitions), §7.1 Phase 6 item 2, §7.6 (Order Cancellation Chain), INV-004 (atomic financials), INV-010 (role isolation — admin-only endpoints), INV-013 (PII isolation — `phone_hash` is one-way, never exposed or searched; tombstone users excluded from detail)._
+
+All requirements below have the same normative text as the archived RED change, with two modifications for every requirement:
+
+**Previously:** each requirement contained a prose paragraph "In the RED change this symbol / route / rows MUST NOT exist" plus a leading `#### Scenario: RED — <symbol> is absent` that asserted `ImportError` / `KeyError` / route-count-zero.
+
+**Now:** those RED-only paragraphs and RED-only scenarios are removed because the implementation has landed. Every other scenario is preserved verbatim and now describes positive, GREEN behavior. Also, RBAC scenarios of the form `GREEN contract — <route> maps to ADMIN only` are rephrased to drop the `GREEN contract — ` prefix (redundant now that the GREEN change is landed).
+
 ### Requirement: Admin-scoped user list service
 
 The system SHALL expose a service function `list_users(db, *, status: str = "all", search: str | None = None, page: int = 1, per_page: int = 20) -> UserListResponse` at `core_api.services.admin_users`. It SHALL join `users` with `user_profiles` (LEFT JOIN — profile MAY be missing for `PENDING_VERIFICATION` accounts) and with `loyalty_accounts` (LEFT JOIN — balance coalesces to 0 when absent).
@@ -525,4 +530,3 @@ The existing `/api/v1/profile/*` routes and the customer-scoped profile / loyalt
 #### Scenario: Existing `GET /api/v1/profile/loyalty` row still lists CUSTOMER only
 - **WHEN** a test reads `ROUTE_MATRIX[("GET", "/api/v1/profile/loyalty")]`
 - **THEN** the value SHALL equal `{CUSTOMER}`
-
