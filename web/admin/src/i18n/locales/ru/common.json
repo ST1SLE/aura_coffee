@@ -15,7 +15,70 @@
     },
     "orders": {
       "title": "Заказы",
-      "description": "Управление заказами"
+      "description": "Управление заказами",
+      "filters": {
+        "active": "Активные",
+        "type": "Тип",
+        "type_all": "Все",
+        "type_pickup": "Самовывоз",
+        "type_delivery": "Доставка"
+      },
+      "columns": {
+        "id": "ID",
+        "created_at": "Создан",
+        "type": "Тип",
+        "status": "Статус",
+        "total": "Сумма",
+        "actions": "Действия"
+      },
+      "status": {
+        "created": "Создан",
+        "paid": "Оплачен",
+        "preparing": "Готовится",
+        "ready": "Готов",
+        "in_delivery": "В пути",
+        "completed": "Завершён",
+        "cancelled": "Отменён"
+      },
+      "type": {
+        "pickup": "Самовывоз",
+        "delivery": "Доставка"
+      },
+      "actions": {
+        "accept": "Принять",
+        "ready": "Готов",
+        "handout": "Выдан",
+        "cancel": "Отменить",
+        "details": "Детали"
+      },
+      "cancel_confirm": {
+        "title": "Отменить заказ?",
+        "body": "Действие необратимо. Средства клиенту вернутся автоматически.",
+        "confirm": "Да, отменить",
+        "cancel": "Нет"
+      },
+      "detail": {
+        "title": "Заказ",
+        "user_id": "Клиент (ID)",
+        "items": "Позиции",
+        "subtotal": "Сумма позиций",
+        "discount": "Скидка",
+        "delivery_fee": "Доставка",
+        "total": "Итого",
+        "unit_price": "Цена",
+        "quantity": "Кол-во"
+      },
+      "empty": "Нет заказов",
+      "pagination": {
+        "previous": "Назад",
+        "next": "Вперёд",
+        "page": "Страница {{page}}"
+      },
+      "errors": {
+        "illegal_transition": "Недопустимый переход — статус заказа обновлён",
+        "forbidden": "Недостаточно прав для этого действия",
+        "not_found": "Заказ не найден"
+      }
     },
     "menu": {
       "title": "Меню",
