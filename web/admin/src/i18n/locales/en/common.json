@@ -126,7 +126,66 @@
     },
     "promos": {
       "title": "Promo Codes",
-      "description": "Promo code management"
+      "description": "Promo code management",
+      "create": "Create",
+      "search_placeholder": "Search by code",
+      "empty": "No promo codes found",
+      "locked_hint": "Cannot be changed after first use",
+      "state": {
+        "all": "All",
+        "active": "Active",
+        "inactive": "Inactive",
+        "expired": "Expired",
+        "exhausted": "Exhausted"
+      },
+      "state_chip": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "expired": "Expired",
+        "exhausted": "Exhausted"
+      },
+      "columns": {
+        "code": "Code",
+        "state": "State",
+        "discount": "Discount",
+        "valid_until": "Valid Until",
+        "uses": "Uses",
+        "actions": "Actions"
+      },
+      "form": {
+        "code": "Code",
+        "discount_type": "Discount Type",
+        "percent": "Percent",
+        "fixed": "Fixed",
+        "discount_value": "Discount Value",
+        "discount_value_percent_suffix": "%",
+        "discount_value_rub_suffix": "₽",
+        "min_order": "Min Order Amount (₽)",
+        "valid_from": "Valid From",
+        "valid_until": "Valid Until",
+        "max_uses": "Max Uses",
+        "max_uses_per_user": "Max Uses Per User",
+        "create_title": "New Promo Code",
+        "edit_title": "Edit Promo Code"
+      },
+      "actions": {
+        "create": "Create",
+        "save": "Save",
+        "cancel": "Cancel",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "edit": "Edit"
+      },
+      "errors": {
+        "duplicate_code": "A promo code with this code already exists",
+        "dates_inverted": "Start date must be before end date",
+        "percent_out_of_range": "Percent must be between 1 and 100",
+        "field_locked_after_use": "Field cannot be changed after first use",
+        "activate_requires_valid_until": "Set a valid_until before activation",
+        "activate_expired": "Cannot activate an expired promo code",
+        "activate_exhausted": "Cannot activate an exhausted promo code",
+        "generic": "Could not save. Please try again."
+      }
     },
     "settings": {
       "title": "Settings",

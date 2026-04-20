@@ -6,7 +6,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { MenuPage } from '@/pages/Menu';
 import { UsersPage } from '@/pages/UsersPage';
-import { PromosPage } from '@/pages/PromosPage';
+import { PromosPage } from '@/pages/Promos';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { CourierShell } from '@/pages/Courier/CourierShell';
@@ -27,7 +27,14 @@ export function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="menu" element={<MenuPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="promos" element={<PromosPage />} />
+        <Route
+          path="promos"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <PromosPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route
