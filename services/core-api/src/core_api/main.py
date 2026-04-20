@@ -12,6 +12,7 @@ from core_api.routers.cart import router as cart_router
 from core_api.routers.orders import orders_router
 from core_api.routers.order_actions import router as order_actions_router
 from core_api.routers.order_history import router as order_history_router
+from core_api.routers.yandex_maps import router as yandex_maps_router
 from core_api.settings import settings
 
 app = FastAPI(
@@ -21,6 +22,7 @@ app = FastAPI(
         {"name": "menu-public"},
         {"name": "cart"},
         {"name": "orders"},
+        {"name": "maps"},
     ],
 )
 
@@ -45,6 +47,7 @@ app.include_router(cart_router)
 app.include_router(orders_router)
 app.include_router(order_actions_router)
 app.include_router(order_history_router)
+app.include_router(yandex_maps_router)
 
 
 @app.get("/health")
