@@ -121,7 +121,7 @@ def test_race_loss_raises_validation_error_and_does_not_overshoot_max_uses(
     uid = _seed_user(db_session)
     pid, code = _seed_promocode(db_session, max_uses=1, current_uses=0)
     item_id = _seed_menu_item(db_session, base_price=50000)
-    db_session.flush()
+    db_session.commit()  # фиксируем pre-state, чтобы rollback lose-транзакции его не затёр
 
     promo_stale = db_session.get(Promocode, pid)
     _seed_cart(fake_redis, uid, item_id)
@@ -135,7 +135,7 @@ def test_race_loss_raises_validation_error_and_does_not_overshoot_max_uses(
             text("UPDATE promocodes SET current_uses = 1 WHERE id = :pid"),
             {"pid": str(pid)},
         )
-        db_session.flush()
+        db_session.commit()
 
         with pytest.raises(PromocodeValidationError) as ei:
             create_order(
@@ -146,8 +146,10 @@ def test_race_loss_raises_validation_error_and_does_not_overshoot_max_uses(
             )
         assert "Global quota exhausted" in str(ei.value)
 
-    # Освежаем объекты и проверяем, что lose-транзакция не зафиксировала
-    # ни overshoot счётчика, ни побочные записи.
+    # Сбросить pending-flushes lose-транзакции (order/items/payments
+    # были flushed до PromocodeValidationError, но НЕ committed); после
+    # rollback запросы отражают только committed-состояние, как на проде.
+    db_session.rollback()
     db_session.expire_all()
     promo = db_session.get(Promocode, pid)
     assert promo.current_uses == 1, (
