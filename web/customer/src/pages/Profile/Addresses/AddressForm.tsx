@@ -24,7 +24,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
   const lang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
 
   const [address, setAddress] = useState<AddressValue>({
-    text: initial?.text ?? '',
+    text: initial?.address_text ?? '',
     lat: initial?.lat ?? null,
     lon: initial?.lon ?? null,
   });
@@ -57,10 +57,10 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
     setError(null);
 
     const payload: AddressCreatePayload = {
-      text: address.text,
+      label: label.trim(),
+      address_text: address.text,
       lat: address.lat,
       lon: address.lon,
-      label: label.trim() || null,
       apartment: apartment.trim() || null,
       entrance: entrance.trim() || null,
       floor: floor.trim() || null,
@@ -155,7 +155,10 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
       )}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={submitting || !address.text.trim()}>
+        <Button
+          type="submit"
+          disabled={submitting || !address.text.trim() || !label.trim()}
+        >
           {t('pages.addresses.form.save')}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>

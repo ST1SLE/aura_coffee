@@ -11,7 +11,7 @@ import {
   createAddress,
   updateAddress,
   deleteAddress,
-  setPrimaryAddress,
+  setDefaultAddress,
   AddressApiError,
   type AddressResponse,
   type AddressCreatePayload,
@@ -19,7 +19,7 @@ import {
 
 const addr = (over: Partial<AddressResponse> = {}): AddressResponse => ({
   id: 'a1',
-  text: 'ул. Ленина 1',
+  address_text: 'ул. Ленина 1',
   lat: 1,
   lon: 2,
   label: null,
@@ -27,7 +27,7 @@ const addr = (over: Partial<AddressResponse> = {}): AddressResponse => ({
   entrance: null,
   floor: null,
   comment: null,
-  is_primary: false,
+  is_default: false,
   ...over,
 });
 
@@ -50,9 +50,9 @@ beforeEach(() => {
 });
 
 describe('listAddresses', () => {
-  it('GETs /api/v1/profile/addresses and returns items', async () => {
+  it('GETs /api/v1/profile/addresses and returns a bare array', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(
-      asOk({ items: [addr({ id: 'a1' }), addr({ id: 'a2' })] }),
+      asOk([addr({ id: 'a1' }), addr({ id: 'a2' })]),
     );
 
     const result = await listAddresses();
@@ -63,18 +63,31 @@ describe('listAddresses', () => {
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe('a1');
   });
+
+  it('returns [] when server body is not an array (fail-soft)', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asOk({ items: [addr(), addr()] }),
+    );
+
+    const result = await listAddresses();
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe('createAddress', () => {
-  it('POSTs JSON body to /api/v1/profile/addresses', async () => {
+  it('POSTs JSON body with address_text and label to /api/v1/profile/addresses', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(asOk(addr(), 201));
 
     const payload: AddressCreatePayload = {
-      text: 'x',
+      label: 'Дом',
+      address_text: 'x',
       lat: 1,
       lon: 2,
-      label: 'Дом',
       apartment: '5',
+      entrance: null,
+      floor: null,
+      comment: null,
     };
     await createAddress(payload);
 
@@ -82,7 +95,11 @@ describe('createAddress', () => {
     expect(url).toBe('/api/v1/profile/addresses');
     expect(opts.method).toBe('POST');
     expect(opts.headers['Content-Type']).toBe('application/json');
-    expect(JSON.parse(opts.body)).toEqual(payload);
+    const parsed = JSON.parse(opts.body);
+    expect(parsed.address_text).toBe('x');
+    expect(parsed.label).toBe('Дом');
+    expect(parsed.apartment).toBe('5');
+    expect(parsed).not.toHaveProperty('text');
   });
 });
 
@@ -115,15 +132,19 @@ describe('deleteAddress', () => {
   });
 });
 
-describe('setPrimaryAddress', () => {
-  it('POSTs to /{id}/set-primary', async () => {
-    (authenticatedFetch as Mock).mockResolvedValue(asOk(addr({ is_primary: true })));
+describe('setDefaultAddress', () => {
+  it('PATCHes /{id} with is_default=true', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asOk(addr({ is_default: true })),
+    );
 
-    await setPrimaryAddress('a1');
+    await setDefaultAddress('a1');
 
     const [url, opts] = (authenticatedFetch as Mock).mock.calls[0];
-    expect(url).toBe('/api/v1/profile/addresses/a1/set-primary');
-    expect(opts.method).toBe('POST');
+    expect(url).toBe('/api/v1/profile/addresses/a1');
+    expect(opts.method).toBe('PATCH');
+    expect(opts.headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(opts.body)).toEqual({ is_default: true });
   });
 });
 
@@ -134,7 +155,16 @@ describe('errors', () => {
     );
 
     try {
-      await createAddress({ text: 'x', lat: 1, lon: 2 });
+      await createAddress({
+        label: 'Дом',
+        address_text: 'x',
+        lat: 1,
+        lon: 2,
+        apartment: null,
+        entrance: null,
+        floor: null,
+        comment: null,
+      });
       throw new Error('expected throw');
     } catch (e) {
       expect(e).toBeInstanceOf(AddressApiError);

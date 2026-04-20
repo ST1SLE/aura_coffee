@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   listAddresses,
   deleteAddress,
-  setPrimaryAddress,
+  setDefaultAddress,
   type AddressResponse,
 } from '@/api/addresses';
 import { AddressForm } from './AddressForm';
@@ -50,7 +50,7 @@ export function AddressesPage() {
 
   async function handleSetPrimary(id: string) {
     try {
-      await setPrimaryAddress(id);
+      await setDefaultAddress(id);
       await refetch();
     } catch {
       setError(t('pages.profile.saveError'));
@@ -89,7 +89,7 @@ export function AddressesPage() {
                       {a.label && (
                         <div className="font-medium">{a.label}</div>
                       )}
-                      <div>{a.text}</div>
+                      <div>{a.address_text}</div>
                       <div className="text-xs text-muted-foreground">
                         {[
                           a.apartment && `кв. ${a.apartment}`,
@@ -99,14 +99,14 @@ export function AddressesPage() {
                           .filter(Boolean)
                           .join(', ')}
                       </div>
-                      {a.is_primary && (
+                      {a.is_default && (
                         <span className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
                           {t('pages.addresses.primaryBadge')}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      {!a.is_primary && (
+                      {!a.is_default && (
                         <Button
                           size="sm"
                           variant="outline"
