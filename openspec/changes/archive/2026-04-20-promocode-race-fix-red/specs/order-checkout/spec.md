@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 _References: PDD §6.6 (Атомарный инкремент `current_uses`), §7.2 step 2 (Promocode application), INV-004 (atomic transaction), INV-011 (quota honoured)._
 

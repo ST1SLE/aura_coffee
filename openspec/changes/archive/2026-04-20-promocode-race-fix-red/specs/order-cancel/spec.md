@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 _References: PDD §6.6 (Атомарный инкремент `current_uses`), §7.6 step 2 (Возврат промокода), INV-004 (atomicity), INV-011 (quota honoured)._
 
