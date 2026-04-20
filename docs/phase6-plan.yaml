@@ -1,0 +1,1155 @@
+# Phase 6 — Admin Panel (closes PDD §7.1 Phase 6)
+#
+# Scope из PDD §7.1 Phase 6:
+#   1. Dashboard со статистикой: выручка (день/неделя/месяц), кол-во
+#      заказов, популярные позиции.
+#   2. Управление пользователями: список/детали, ручная корректировка
+#      баллов, блокировка (§6.5 ACTIVE→BLOCKED с каскадной отменой
+#      активных заказов и полным рефандом).
+#   3. Управление Shop Settings (singleton).
+#   4. Автозакрытие pickup-заказов (cron): READY → COMPLETED через N
+#      минут, auto_completed=true (PDD §6.1).
+#
+# Явные scope-решения (из explore-сессии 2026-04-20):
+#   - admin-orders-ui ВКЛЮЧЁН в phase 6 как orphan-cleanup: phase 5
+#     оставила backend /admin/orders без UI. Страница OrdersPage.tsx
+#     сегодня — stub с title. Доделываем здесь.
+#   - auto_close_minutes ДЕЛАЕМ configurable — новая колонка в
+#     shop_settings (миграция 0008). PDD §6.1 говорит "настраиваемый,
+#     по умолчанию 60 мин" — это означает admin UI, не env var.
+#   - Dashboard revenue считаем ТОЛЬКО по OrderStatus.COMPLETED
+#     (conservative, совпадает с моментом loyalty accrual).
+#   - Popular items группируем по snapshot name_ru/name_en из
+#     order_items (иммутабельные per INV-014). Переименование в меню
+#     не изменяет исторические row'ы.
+#   - Расчёт on-demand (без pre-agg таблицы и без Redis-кэша).
+#     Для одной точки ~100 заказов/день indexed-запрос укладывается
+#     в <50ms. Pre-aggregation — premature optimization.
+#   - Cron: Celery Beat + отдельный core-api worker-процесс.
+#     PDD §4.5 разрешает "cron-задача или delayed queue"; Beat даёт
+#     шедулинг, core-api worker держит бизнес-логику рядом с моделями
+#     и order_lifecycle-сервисом (reuse §6.1 transitions).
+#
+# Architecture:
+#
+#   Group 1 (backend, parallel) — merge_order 1→3
+#     ├─ dashboard-api            — GET /api/v1/admin/stats
+#     ├─ admin-users-api          — GET/POST /api/v1/admin/users/*
+#     └─ shop-settings-admin-api  — GET/PUT /api/v1/admin/settings
+#                                    + migration 0008 (auto_close_minutes)
+#
+#   Group 2 (backend + frontend, parallel) — merge_order 4→8
+#     ├─ pickup-autoclose         — Celery Beat + worker + task
+#     │                             (использует колонку из group 1)
+#     ├─ admin-orders-ui          — OrdersPage (orphan cleanup, UI-only)
+#     ├─ dashboard-ui             — DashboardPage (использует dashboard-api)
+#     ├─ admin-users-ui           — UsersPage (использует admin-users-api)
+#     └─ shop-settings-ui         — SettingsPage (использует shop-settings-admin-api)
+#
+# Использование:
+#   1. ./scripts/orchestrate.sh docs/phase6-plan.yaml     # group 1
+#   2. Дождаться DONE от dashboard-api, admin-users-api,
+#      shop-settings-admin-api
+#   3. ./scripts/merge.sh docs/phase6-plan.yaml           # merge_order 1→3
+#   4. ./scripts/orchestrate.sh docs/phase6-plan.yaml     # group 2
+#   5. Дождаться DONE от всех 5 фич группы 2
+#   6. ./scripts/merge.sh docs/phase6-plan.yaml           # merge_order 4→8
+
+phase: "6"
+base_branch: admin_ui_phase
+description: "Admin dashboard + user management + shop settings + pickup auto-close (PDD §7.1 Phase 6)"
+
+features:
+  # ===========================================================================
+  # Group 1 — backend параллельно
+  # ===========================================================================
+
+  - name: dashboard-api
+    type: backend
+    prompt: |
+      Admin dashboard statistics endpoint (PDD §7.1 Phase 6 item 1,
+      §4.5, INV-010).
+
+      Эндпоинт:
+        GET /api/v1/admin/stats?range=today|week|month
+
+      RBAC: только ADMIN (не BARISTA, не COURIER, не CUSTOMER).
+      Прописать в rbac_matrix.ROUTE_MATRIX.
+
+      Query:
+        - range: Literal['today','week','month'], default 'month'.
+          today  → [start_of_today_local, now]
+          week   → [now - 7 days, now]
+          month  → [now - 30 days, now]
+          Использовать now() = datetime.now(timezone.utc). Границу
+          "start_of_today" считать в Europe/Moscow (TZ магазина), затем
+          переводить в UTC для БД-запроса. TZ можно захардкодить
+          константой TIMEZONE="Europe/Moscow" — shop_settings не хранит
+          TZ, один магазин.
+
+      Response (AdminStatsResponse):
+        {
+          "range": "month",
+          "range_start": "<iso8601 UTC>",
+          "range_end":   "<iso8601 UTC>",
+          "revenue_kopecks": 1234500,
+          "orders_count": 42,
+          "popular_items": [
+             {"name_ru": "Латте", "name_en": "Latte", "quantity": 28},
+             ...  // top 10, отсортировано по quantity DESC
+          ]
+        }
+
+      Логика агрегаций:
+
+        revenue_kopecks:
+          SELECT COALESCE(SUM(total), 0) FROM orders
+          WHERE status = 'completed' AND created_at >= :start
+                                     AND created_at <  :end
+          Примечание: в БД `total` уже в копейках. Включает delivery_fee.
+          ОБОСНОВАНИЕ включения delivery_fee: это реальный money_paid,
+          который прошёл через ЮKassa. Да, §7.2 шаг 6 при расчёте
+          loyalty-accrual исключает delivery_fee — но там другая цель
+          (не инфлировать баллы). Для дашборда-выручки берём gross
+          receipts. Если пользователь захочет "выручка без доставки" —
+          отдельный тикет.
+
+        orders_count:
+          SELECT COUNT(*) FROM orders
+          WHERE status = 'completed' AND created_at в диапазоне.
+
+        popular_items:
+          SELECT oi.name_ru, oi.name_en, SUM(oi.quantity) AS qty
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status = 'completed' AND o.created_at в диапазоне
+          GROUP BY oi.name_ru, oi.name_en
+          ORDER BY qty DESC
+          LIMIT 10;
+          Группировка по snapshot-именам из order_items (INV-014 —
+          они иммутабельны). Если позиция переименована в меню
+          middle-of-range, два snapshot'а = две строки в топе — это
+          корректно исторически.
+
+      Файлы:
+        - services/core-api/src/core_api/routers/admin_stats.py (new)
+        - services/core-api/src/core_api/services/admin_stats.py (new)
+          * функции: compute_range(range_param) -> (start, end);
+                     get_revenue_and_count(db, start, end) -> tuple;
+                     get_popular_items(db, start, end, limit=10) -> list.
+          * Без ORM-lazy-load, только явные select() через SA Core/2.0.
+        - services/core-api/src/core_api/schemas/admin_stats.py (new)
+          * AdminStatsResponse, PopularItem.
+        - services/core-api/src/core_api/main.py (register router).
+        - services/core-api/src/core_api/rbac_matrix.py:
+            ("GET", "/api/v1/admin/stats"): {ADMIN}
+
+      Тесты (services/core-api/tests/):
+        - test_admin_stats_range.py:
+            * compute_range('today')/('week')/('month') — правильные
+              timedelta границы.
+            * Europe/Moscow: 'today' start ≠ UTC midnight (сдвиг +3h).
+            * Неизвестный range → 422.
+        - test_admin_stats_revenue.py (фикстуры через migrated_db_session):
+            * Нет COMPLETED заказов → revenue=0, count=0.
+            * Три COMPLETED + один CANCELLED + один PAID: revenue =
+              sum(total) COMPLETED only; count=3. CANCELLED не
+              учитывается, PAID (в полёте) тоже.
+            * Заказ с created_at вне диапазона → не учитывается.
+        - test_admin_stats_popular.py:
+            * Два COMPLETED заказа с одинаковым name_ru/name_en —
+              агрегируются в один row (sum quantity).
+            * Разные name_ru (одна и та же позиция переименована) —
+              две строки, snapshot-fidelity (INV-014).
+            * Limit 10: одиннадцатая позиция отсекается.
+        - test_admin_stats_rbac.py:
+            * barista → 403; courier → 403; customer → 403; no token → 401.
+
+      Ограничения:
+      - НЕ кэшировать в Redis (admin-traffic, преждевременная оптимизация).
+      - НЕ заводить pre-aggregated таблицу (daily_stats и т.п.) — для
+        одного магазина on-demand достаточно.
+      - НЕ включать PAID/PREPARING/READY/IN_DELIVERY в revenue — только
+        COMPLETED (realised, совпадает с loyalty accrual trigger).
+      - НЕ трогать shop_settings / Celery / фронтенд — это другие фичи.
+
+      Specs: PDD §4.5 Admin Panel (аналитика), §5.2 orders/order_items,
+      §6.1 Order Lifecycle (COMPLETED terminal), §7.1 Phase 6 item 1,
+      INV-010, INV-014.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_stats.py
+      - services/core-api/src/core_api/services/admin_stats.py
+      - services/core-api/src/core_api/schemas/admin_stats.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_stats_range.py
+      - services/core-api/tests/test_admin_stats_revenue.py
+      - services/core-api/tests/test_admin_stats_popular.py
+      - services/core-api/tests/test_admin_stats_rbac.py
+    parallel_group: 1
+    merge_order: 1
+
+  - name: admin-users-api
+    type: backend
+    prompt: |
+      Admin user management API (PDD §7.1 Phase 6 item 2, §6.5 User
+      Lifecycle, INV-010).
+
+      Эндпоинты (префикс /api/v1/admin/users, только ADMIN):
+
+        GET  /api/v1/admin/users                       — paginated list
+        GET  /api/v1/admin/users/{user_id}             — детали + loyalty
+        POST /api/v1/admin/users/{user_id}/block       — ACTIVE → BLOCKED
+                                                         + каскадная отмена
+                                                         активных заказов
+        POST /api/v1/admin/users/{user_id}/unblock     — BLOCKED → ACTIVE
+        POST /api/v1/admin/users/{user_id}/loyalty/adjust  — ADMIN_ADJUSTMENT
+
+      Barista/courier/customer → 403 (INV-010). Без токена → 401.
+
+      1. GET /api/v1/admin/users — список.
+         Query:
+           - status: 'active'|'blocked'|'pending_verification'|'deleted'|'all'
+             (default 'all').
+           - search: str (опционально) — prefix match по
+             user_profiles.display_name (case-insensitive). Телефон НЕ
+             искать (INV-013: phone_hash не обратим).
+           - page/per_page: как везде (default 1/20, max 100).
+         Response: UserListResponse, items = UserSummary:
+           { id, status, display_name, loyalty_balance, created_at }
+         Сортировка: created_at DESC.
+
+      2. GET /api/v1/admin/users/{user_id} — детали.
+         Response: UserDetailResponse:
+           {
+             id, status, display_name, language, created_at,
+             loyalty_balance: int,
+             loyalty_transactions: [ // последние 20 транзакций
+               { id, type, amount, balance_after, description, created_at }
+             ],
+             active_orders_count: int  // не в COMPLETED/CANCELLED
+           }
+         404 если user.deleted_at IS NOT NULL (INV-013: tombstone).
+
+      3. POST /api/v1/admin/users/{user_id}/block — ACTIVE → BLOCKED
+         + каскад (PDD §6.5 ACTIVE→BLOCKED row).
+
+         Logic (в ОДНОЙ DB-транзакции, INV-004):
+           a) SELECT user FOR UPDATE → если status ∈ {PENDING, DELETED}
+              → 409 с кодом "invalid_user_state". Если уже BLOCKED →
+              200 no-op (idempotent).
+           b) UPDATE users.status = BLOCKED.
+           c) SELECT orders WHERE user_id=? AND status NOT IN
+              ('completed','cancelled').
+           d) Для каждого активного заказа вызвать существующий
+              services.order_cancel.cancel_order(
+                  order_id, actor='admin', reason='user_blocked'
+              ).
+              Сервис уже реализует §7.6: рефанд + loyalty REVERSAL +
+              promocode decrement. НЕ дублировать логику.
+           e) COMMIT.
+
+         Response: BlockUserResponse:
+           { user_id, status: "blocked", cancelled_orders_count: int }
+
+         Важно:
+         - Блокировка уже-BLOCKED пользователя → 200 с
+           cancelled_orders_count=0 (idempotent, повторный клик
+           админа ничего не ломает).
+         - Если у пользователя 10+ активных заказов — в транзакции
+           будет 10+ refund-enqueue. Это приемлемо для MVP; flag'нуть
+           в логе если count > 10.
+         - order_cancel сам enqueue'ит SMS/refund в Celery; не дублировать.
+
+      4. POST /api/v1/admin/users/{user_id}/unblock — BLOCKED → ACTIVE.
+         Precondition: status = BLOCKED, иначе 409. Если уже ACTIVE →
+         200 no-op.
+         Никакого каскада (отменённые заказы не "воскрешают").
+
+      5. POST /api/v1/admin/users/{user_id}/loyalty/adjust.
+         Body (LoyaltyAdjustRequest):
+           { delta: int (signed, != 0), reason: str (len 1..500) }
+         Logic (INV-004, одна транзакция):
+           a) SELECT loyalty_account FOR UPDATE.
+           b) new_balance = current_balance + delta.
+             Если new_balance < 0 → 422 "insufficient_balance".
+           c) UPDATE loyalty_account.balance = new_balance.
+           d) INSERT loyalty_transaction:
+                type=ADMIN_ADJUSTMENT, amount=delta,
+                balance_after=new_balance, description=reason,
+                order_id=NULL.
+             Модель уже допускает order_id=NULL (shared/models/
+             loyalty_transaction.py комментарий "Админские корректировки
+             могут быть без order_id").
+           e) COMMIT.
+         Precondition: user.status ∈ {ACTIVE, BLOCKED} (заблокированному
+         тоже можно корректировать — например, вернуть баллы перед
+         unblock'ом). status=PENDING/DELETED → 409.
+         Response: LoyaltyAdjustResponse:
+           { transaction_id, new_balance, delta }
+
+      Файлы:
+        - services/core-api/src/core_api/routers/admin_users.py (new)
+        - services/core-api/src/core_api/services/admin_users.py (new)
+            * list_users(db, status, search, page, per_page)
+            * get_user_detail(db, user_id)
+            * block_user(db, user_id) -> BlockUserResponse
+            * unblock_user(db, user_id)
+            * adjust_loyalty(db, user_id, delta, reason)
+        - services/core-api/src/core_api/schemas/admin_users.py (new):
+            UserSummary, UserListResponse, UserDetailResponse,
+            LoyaltyTransactionItem, BlockUserResponse,
+            LoyaltyAdjustRequest, LoyaltyAdjustResponse.
+        - services/core-api/src/core_api/main.py (register router).
+        - services/core-api/src/core_api/rbac_matrix.py — добавить 5 routes, все {ADMIN}.
+
+      Тесты:
+        - test_admin_users_list.py — status filter matrix + search +
+          pagination + сортировка.
+        - test_admin_users_detail.py — loyalty_balance + последние 20
+          транзакций в порядке DESC; 404 на tombstone user.
+        - test_admin_users_block.py:
+            * Happy path: user с 3 активными заказами (CREATED, PAID,
+              PREPARING) → status=BLOCKED, 3 cancelled, рефанды
+              enqueue'нуты (mock celery), loyalty REVERSAL создан, где
+              были списания.
+            * COMPLETED/CANCELLED orders НЕ отменяются повторно.
+            * Idempotent: повторный block → 200, count=0.
+            * Block PENDING → 409.
+        - test_admin_users_unblock.py:
+            * BLOCKED → ACTIVE, happy.
+            * Unblock ACTIVE → 200 no-op.
+            * Unblock PENDING → 409.
+        - test_admin_users_loyalty_adjust.py:
+            * +500 → balance растёт, transaction.type=ADMIN_ADJUSTMENT.
+            * -200 при balance=100 → 422 "insufficient_balance".
+            * delta=0 → 422 validation.
+            * Длинный reason (501) → 422.
+            * User DELETED → 409.
+        - test_admin_users_rbac.py: barista/courier/customer → 403; нет
+          токена → 401; все 5 эндпоинтов.
+
+      Ограничения:
+      - НЕ реализовывать DELETE пользователя (self-delete через §6.5
+        ACTIVE→DELETED — customer-path, не phase 6 scope).
+      - НЕ дублировать логику §7.6: cancel_order — единственный путь.
+      - НЕ включать телефон в response (phone_hash не отображать —
+        INV-013, это hash).
+      - НЕ позволять BLOCKED→PENDING/ACTIVE→PENDING и прочим forbidden
+        transitions (§6.5 forbidden section).
+      - НЕ трогать services/order_cancel.py или models/* — это
+        потребительская зона.
+
+      Specs: PDD §6.5 User Account Lifecycle, §7.6 Order Cancellation
+      Chain, §7.1 Phase 6 item 2, INV-004, INV-010, INV-013.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_users.py
+      - services/core-api/src/core_api/services/admin_users.py
+      - services/core-api/src/core_api/schemas/admin_users.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_users_list.py
+      - services/core-api/tests/test_admin_users_detail.py
+      - services/core-api/tests/test_admin_users_block.py
+      - services/core-api/tests/test_admin_users_unblock.py
+      - services/core-api/tests/test_admin_users_loyalty_adjust.py
+      - services/core-api/tests/test_admin_users_rbac.py
+    parallel_group: 1
+    merge_order: 2
+
+  - name: shop-settings-admin-api
+    type: backend
+    prompt: |
+      Admin Shop Settings API + миграция 0008 добавляет колонку
+      auto_close_minutes (PDD §7.1 Phase 6 item 3, §5.2 настройки,
+      §6.1 "N минут с момента перехода в READY", INV-010).
+
+      Эндпоинты (префикс /api/v1/admin/settings, только ADMIN):
+        GET  /api/v1/admin/settings   — читать текущие настройки
+        PUT  /api/v1/admin/settings   — обновить (полный snapshot)
+
+      Barista/courier/customer → 403. Без токена → 401.
+
+      1. Миграция 0008_shop_settings_auto_close.py.
+         - ALTER TABLE shop_settings ADD COLUMN auto_close_minutes
+             INTEGER NOT NULL DEFAULT 60.
+         - down(): DROP COLUMN auto_close_minutes.
+         - Обязательно идемпотентная; проверить UPSERT-compat на seed
+           (если seed-скрипт перезаписывает row — должен включать новое
+           поле).
+
+      2. shared/models/shop_settings.py — добавить поле:
+           auto_close_minutes: Mapped[int] = mapped_column(
+               sa.Integer(), nullable=False, default=60
+           )
+
+      3. database/seeds/*.py (если есть initial seed для shop_settings) —
+         добавить auto_close_minutes=60. Если seed-скрипт — Python,
+         обновить; если SQL — обновить INSERT.
+
+      4. schemas/shop_settings.py — расширить существующий
+         ShopSettingsResponse + новые схемы:
+
+         ShopSettingsResponse (уже есть) + поле:
+           auto_close_minutes: int
+
+         ShopSettingsUpdate (новая, тело для PUT):
+           {
+             shop_lat: Decimal,
+             shop_lon: Decimal,
+             delivery_radius_km: Decimal,
+             min_delivery_amount: int,         // копейки, ≥ 0
+             free_delivery_threshold: int,     // копейки, ≥ 0
+             delivery_fee: int,                // копейки, ≥ 0
+             loyalty_percent: int,             // 0..100
+             default_prep_time_minutes: int,   // ≥ 1
+             estimated_delivery_time_minutes: int,  // ≥ 1
+             auto_close_minutes: int,          // ≥ 1, ≤ 1440 (24h)
+             working_hours: dict,              // validated ниже
+           }
+
+         Полный snapshot: PUT требует ВСЕ поля. PATCH НЕ делаем
+         (избегаем тонкого merge-semantics на JSONB working_hours).
+
+         Pydantic-валидаторы:
+           - shop_lat ∈ [-90, 90], shop_lon ∈ [-180, 180].
+           - delivery_radius_km ∈ [0.1, 50].
+           - loyalty_percent ∈ [0, 100].
+           - free_delivery_threshold ≥ min_delivery_amount (иначе
+             "свободная доставка" ниже минимума бессмысленна) → 422.
+           - auto_close_minutes ∈ [1, 1440].
+           - working_hours — строгая валидация:
+               ключи ровно {'mon','tue','wed','thu','fri','sat','sun'}
+               (7 штук, без опечаток).
+               значение = null (выходной) ИЛИ {"open":"HH:MM","close":"HH:MM"}
+               HH ∈ 00..23, MM ∈ 00..59.
+               open < close (строго).
+               НЕ поддерживать overnight (close < open) в этом spec —
+               если кофейне понадобится 20:00→02:00, отдельный тикет.
+             Любая несоответствие → 422 с полем 'working_hours.<day>'.
+
+      5. services/admin_shop_settings.py — get/update.
+         - get_settings(db) — читает singleton (id=1). Если row
+           отсутствует → 500 "shop_settings not seeded" (миграция +
+           seed обязаны гарантировать существование).
+         - update_settings(db, payload) — UPDATE одной row, НЕ INSERT
+           (CHECK ck_shop_settings_singleton).
+
+      6. routers/admin_shop_settings.py — FastAPI маршруты, тонкие
+         обёртки над сервисом. Внутри — явный dependency на session.
+
+      7. main.py — зарегистрировать router.
+
+      8. rbac_matrix.py — добавить:
+           ("GET", "/api/v1/admin/settings"): {ADMIN}
+           ("PUT", "/api/v1/admin/settings"): {ADMIN}
+
+      Тесты:
+        - test_migration_0008_auto_close.py (использует
+          migrated_db_session):
+            * После upgrade head: колонка auto_close_minutes существует,
+              default=60, NOT NULL.
+            * После downgrade -1: колонка отсутствует.
+            * Seed row (id=1) имеет auto_close_minutes=60.
+        - test_admin_shop_settings_get.py:
+            * Happy: все поля, включая auto_close_minutes=60 по умолчанию.
+        - test_admin_shop_settings_put.py:
+            * Happy: все поля обновляются, updated_at мигрирует.
+            * Singleton check: нельзя создать второй row (ORM попытка
+              id=2 → DB CHECK fail, обернуть в понятную 500/отсутствие
+              эндпоинта для create).
+        - test_admin_shop_settings_validation.py — таблица:
+            * lat=91 → 422.
+            * lon=181 → 422.
+            * loyalty_percent=101 → 422.
+            * free_delivery_threshold < min_delivery_amount → 422.
+            * auto_close_minutes=0 → 422.
+            * auto_close_minutes=1441 → 422.
+            * working_hours без 'sun' ключа → 422.
+            * working_hours.mon.open='25:00' → 422.
+            * working_hours.mon = {open:'10:00', close:'10:00'} → 422
+              (не строго меньше).
+            * working_hours.tue = null (выходной) → 200.
+        - test_admin_shop_settings_rbac.py: barista/courier/customer →
+          403; нет токена → 401.
+
+      Ограничения:
+      - НЕ вводить PATCH (только PUT full-snapshot — избегаем JSONB merge).
+      - НЕ заводить audit-таблицу shop_settings_audit (премэчурно;
+        отдельный тикет если понадобится).
+      - НЕ менять существующий ShopSettingsResponse для customer-API
+        (если где-то используется без admin-поля — auto_close_minutes
+        можно просто добавить, admin-only использование подразумевается,
+        но не ломать клиентов). Проверить: grep ShopSettingsResponse
+        по routers/*.
+      - НЕ трогать услуги валидации рабочих часов / радиуса доставки /
+        чекаут — они остаются read-only потребителями ShopSettings.
+      - Rename: НЕ переименовывать существующие поля (delivery_fee,
+        loyalty_percent, …) — миграция 0008 строго additive.
+
+      Specs: PDD §5.2 ShopSettings, §6.1 auto-close transition,
+      §7.1 Phase 6 item 3, INV-010.
+    file_zones:
+      - database/migrations/versions/0008_shop_settings_auto_close.py
+      - database/seeds/
+      - packages/shared/src/shared/models/shop_settings.py
+      - services/core-api/src/core_api/routers/admin_shop_settings.py
+      - services/core-api/src/core_api/services/admin_shop_settings.py
+      - services/core-api/src/core_api/schemas/shop_settings.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_migration_0008_auto_close.py
+      - services/core-api/tests/test_admin_shop_settings_get.py
+      - services/core-api/tests/test_admin_shop_settings_put.py
+      - services/core-api/tests/test_admin_shop_settings_validation.py
+      - services/core-api/tests/test_admin_shop_settings_rbac.py
+    parallel_group: 1
+    merge_order: 3
+
+  # ===========================================================================
+  # Group 2 — backend cron + 4 UI параллельно (после merge группы 1)
+  # ===========================================================================
+
+  - name: pickup-autoclose
+    type: backend
+    prompt: |
+      Автозакрытие pickup-заказов через Celery Beat (PDD §7.1 Phase 6
+      item 4, §6.1 READY → COMPLETED auto row).
+
+      Контекст:
+      - Таблица orders уже имеет auto_completed (bool, default false)
+        и auto_completed_at (timestamptz nullable) — миграция 0005.
+      - Колонка shop_settings.auto_close_minutes (int, default 60)
+        добавлена в shop-settings-admin-api (merge_order 3, уже merged
+        к этому моменту).
+      - Сегодня services/core-api использует Celery только как клиент
+        (send_task). Beat НЕ запущен; отдельного core-api worker-
+        процесса нет.
+
+      Архитектурное решение (из explore-сессии):
+      - Beat: отдельный контейнер `scheduler` (celery -A core_api
+        beat).
+      - Worker: отдельный контейнер `core-api-worker` (celery -A
+        core_api worker), использует ту же codebase что и core-api-
+        HTTP. Задачи регистрируются в core_api/tasks/*.
+      - Расписание захардкожено в code (beat_schedule): every 60s.
+        Частоту подмены в runtime не требуется.
+      - Бизнес-логика живёт в services/pickup_autoclose.py. Task —
+        тонкая обёртка, чтобы тесты гоняли сервис напрямую без Celery.
+
+      1. services/pickup_autoclose.py (новый, pure business logic):
+
+           def close_stale_pickups(db: Session, now: datetime) -> int:
+             """
+             Находит pickup-заказы в READY, висящие > auto_close_minutes,
+             переводит в COMPLETED с auto_completed=true, триггерит
+             loyalty accrual через order_lifecycle.
+             Возвращает число закрытых заказов.
+             """
+
+         Шаги (одна транзакция на каждый заказ; batch — но каждый
+         заказ — своя savepoint, чтобы ошибка одного не отменяла все):
+
+           a) settings = db.query(ShopSettings).get(1)
+              cutoff = now - timedelta(minutes=settings.auto_close_minutes)
+           b) stale = SELECT orders WHERE type='pickup'
+                        AND status='ready'
+                        AND updated_at < :cutoff
+                      FOR UPDATE SKIP LOCKED
+                      LIMIT 100
+              SKIP LOCKED — защита от гонки если случайно запустили два
+              beat'а.
+           c) Для каждого заказа:
+                - reuse services.order_lifecycle.transition(order,
+                    OrderStatus.COMPLETED, actor='system').
+                  Если order_lifecycle не принимает actor='system',
+                  extend: минимальный параметр + логирование.
+                  Сервис уже триггерит loyalty accrual (§6.1).
+                - Установить auto_completed=true,
+                  auto_completed_at=now.
+                - COMMIT savepoint.
+           d) Вернуть count.
+
+         ВАЖНО: уведомления при авто-закрытии — НЕТ (§6.1 row,
+         notifications column пуста). order_lifecycle может
+         автоматически слать SMS для READY→COMPLETED; ПРОВЕРИТЬ и,
+         если да, добавить флаг suppress_notifications=True или
+         actor='system'-условие, чтобы подавить. В тестах это
+         проверить.
+
+      2. services/core-api/src/core_api/tasks/__init__.py (new) + tasks/
+         pickup_autoclose.py (new):
+
+           from core_api.celery_app import celery_app
+           from core_api.database import SessionLocal  # или dep
+           from core_api.services.pickup_autoclose import close_stale_pickups
+           from datetime import datetime, timezone
+
+           @celery_app.task(name="pickup.close_stale")
+           def close_stale_pickups_task():
+               with SessionLocal() as db:
+                   return close_stale_pickups(db, datetime.now(timezone.utc))
+
+      3. services/core-api/src/core_api/celery_app.py — добавить
+         beat_schedule и import tasks:
+
+           from celery.schedules import schedule
+
+           celery_app = Celery(
+               "core_api",
+               broker=settings.redis_url,
+               backend=settings.redis_url,
+               include=["core_api.tasks.pickup_autoclose"],
+           )
+           celery_app.conf.beat_schedule = {
+               "close-stale-pickups-every-60s": {
+                   "task": "pickup.close_stale",
+                   "schedule": 60.0,
+               },
+           }
+
+      4. docker-compose.yml — ДВА новых сервиса:
+           scheduler:
+             image: <то же, что core-api>
+             command: celery -A core_api.celery_app beat --loglevel=info
+             depends_on: [redis, postgres]
+             environment: <те же env что core-api>
+             volumes: <те же>
+           core-api-worker:
+             image: <то же>
+             command: celery -A core_api.celery_app worker --loglevel=info --concurrency=2
+             depends_on: [redis, postgres]
+             environment: <те же>
+             volumes: <те же>
+         Оба контейнера shared codebase с core-api.
+
+      5. Тесты (services/core-api/tests/):
+         - test_pickup_autoclose_service.py — юнит-тесты на сервис:
+             * Нет pickup/READY заказов → 0, no-op.
+             * Один pickup/READY с updated_at=(now - 61min),
+               auto_close_minutes=60 → переведён в COMPLETED,
+               auto_completed=true, auto_completed_at set.
+             * Один pickup/READY с updated_at=(now - 30min) → НЕ
+               тронут (под cutoff'ом).
+             * Один DELIVERY/READY — НЕ тронут (только pickup).
+             * Один pickup/PREPARING — НЕ тронут (только READY).
+             * Loyalty accrual выставлен (транзакция ACCRUAL создана)
+               как побочный эффект order_lifecycle.
+             * Уведомление НЕ отправлено (celery.send_task mocked, не
+               вызван с sms-task). Если в текущей реализации
+               order_lifecycle шлёт SMS на COMPLETED — это bug,
+               который нужно исправить (actor='system' или
+               suppress flag).
+             * auto_close_minutes=120: заказ висит 119min → не
+               закрыт; 121min → закрыт. Параметризовать.
+         - test_pickup_autoclose_task.py:
+             * Регистрация Celery-таски: celery_app.tasks
+               содержит "pickup.close_stale".
+             * Вызов .delay()/.apply() в eager-mode дергает
+               close_stale_pickups (можно мокнуть сервис).
+         - test_celery_beat_schedule.py:
+             * celery_app.conf.beat_schedule имеет ключ
+               "close-stale-pickups-every-60s", schedule=60.
+
+      Ограничения:
+      - НЕ трогать bussines-логику order_lifecycle за пределами
+        минимального actor='system'/suppress-flag, если он нужен.
+      - НЕ добавлять SMS-уведомление на авто-закрытие (§6.1 row
+        говорит — notifications пусты).
+      - НЕ увеличивать частоту Beat (60s достаточно; меньшие интервалы
+        увеличивают нагрузку без UX-выгоды — клиент всё равно не ждёт
+        моментального auto-close).
+      - НЕ использовать `cron` из host OS — стандартизируем на Celery
+        Beat ради консистентности со стеком workers.
+      - НЕ совмещать beat и worker в один контейнер (single-process
+        beat+worker у Celery — anti-pattern для production; отдельные
+        службы легче масштабировать и логировать).
+      - НЕ регистрировать эту задачу в payment-worker/sms-worker —
+        бизнес-логика живёт в core-api codebase, смешение boundaries
+        запрещено (AGENTS.md §Scope для каждого воркера).
+
+      Specs: PDD §6.1 READY → COMPLETED auto-row, §7.1 Phase 6 item 4,
+      §4.5 (обновление ленты бариста ≤5s — не связано, но контекст).
+    file_zones:
+      - services/core-api/src/core_api/celery_app.py
+      - services/core-api/src/core_api/tasks/__init__.py
+      - services/core-api/src/core_api/tasks/pickup_autoclose.py
+      - services/core-api/src/core_api/services/pickup_autoclose.py
+      - services/core-api/src/core_api/services/order_lifecycle.py
+      - services/core-api/tests/test_pickup_autoclose_service.py
+      - services/core-api/tests/test_pickup_autoclose_task.py
+      - services/core-api/tests/test_celery_beat_schedule.py
+      - docker-compose.yml
+    parallel_group: 2
+    merge_order: 4
+
+  - name: admin-orders-ui
+    type: frontend
+    prompt: |
+      OrdersPage UI (orphan cleanup: phase 5 оставила backend
+      /api/v1/admin/orders без UI). PDD §4.5 staff-фид + INV-010.
+
+      Контекст:
+      - Сегодня web/admin/src/pages/OrdersPage.tsx — 12-строчный stub.
+      - Backend существует: GET /api/v1/admin/orders (список,
+        роли {ADMIN, BARISTA}), GET /api/v1/admin/orders/{id} (детали),
+        PATCH /api/v1/orders/{id}/status (staff-transitions:
+        {BARISTA, COURIER, ADMIN}).
+      - Сайдбар уже гейтится в Layout.tsx: 'orders' доступен admin и
+        barista (phase 5.5).
+      - api client паттерн: web/admin/src/api/*.ts (см. menu.ts,
+        promocodes.ts как reference).
+
+      Scope:
+
+      1. web/admin/src/api/admin-orders.ts (new) — клиент:
+           - listAdminOrders({status, type, page, perPage}) — GET list.
+             status: 'active'|'paid'|'preparing'|'ready'|'in_delivery'|
+                     'completed'|'cancelled'|'all' (default 'active').
+           - getAdminOrder(orderId) — GET детали.
+           - updateOrderStatus(orderId, newStatus) — PATCH
+             /api/v1/orders/{orderId}/status { status: '...' }.
+           Все через существующий authenticatedFetch из @/lib/.
+
+      2. web/admin/src/pages/Orders/ (заменить stub OrdersPage.tsx):
+           - index.tsx — роутинг/экспорт.
+           - OrdersPage.tsx — список заказов с фильтрами:
+             * status-табы (Активные | Оплачен | Готовится | Готов |
+               В пути | Завершён | Отменён | Все).
+             * type-dropdown (Все | Самовывоз | Доставка).
+             * Пагинация через query-params.
+             * Колонки: ID (short), created_at, тип, статус (badge),
+               total (₽), кнопка "Детали".
+           - OrdersTable.tsx + OrdersTable.test.tsx — компонент
+             таблицы, data-testid'ы для e2e.
+           - OrderDetailDialog.tsx + .test.tsx — модалка с деталями
+             (items list, customer display_name, адрес если delivery,
+             breakdown subtotal/discount/points/delivery_fee/total,
+             стейт-транзишны).
+           - StatusBadge.tsx — бейдж по OrderStatus (цвета: CREATED
+             серый, PAID синий, PREPARING оранжевый, READY зелёный,
+             IN_DELIVERY фиолетовый, COMPLETED нейтральный,
+             CANCELLED красный).
+
+      3. Staff-actions — кнопки переходов по §6.1 (role-aware):
+           - role=barista|admin на PAID → "Принять" (PREPARING).
+           - role=barista|admin на PREPARING → "Готов" (READY).
+           - role=barista|admin на READY type=pickup → "Выдан"
+             (COMPLETED).
+           - role=admin на любой ≠COMPLETED/CANCELLED → "Отменить"
+             (cancel). Использует POST /api/v1/orders/{id}/cancel.
+             Модалка с confirm.
+           - READY→IN_DELIVERY НЕ в этом UI (курьер делает через
+             CourierShell). READY→COMPLETED для delivery —
+             курьерская кнопка, тоже не здесь.
+
+         Гейтинг ролей: useCurrentRole() из @/lib/auth. Не показывать
+         кнопку если роль не соответствует.
+
+      4. App.tsx — роут /orders уже есть (stub). Заменить импорт:
+         from '@/pages/Orders' (директория вместо одиночного файла).
+         allowedRoles: не менять (наружний wrapper admin+barista).
+
+      5. i18n — web/admin/src/i18n/locales/(ru|en)/common.json:
+         добавить ключи:
+           pages.orders.title, pages.orders.filters.status,
+           pages.orders.filters.type, pages.orders.columns.id/
+           created_at/type/status/total/actions,
+           pages.orders.status.<state>,
+           pages.orders.type.pickup/delivery,
+           pages.orders.actions.accept/ready/handout/cancel/details,
+           pages.orders.cancel_confirm, pages.orders.detail.*.
+
+      Тесты (vitest + @testing-library/react):
+        - OrdersTable.test.tsx:
+            * Рендерит переданные rows.
+            * Клик "Детали" триггерит onSelect с правильным id.
+            * Пустой список → empty state.
+        - OrderDetailDialog.test.tsx:
+            * Рендер breakdown (все поля, форматирование копейки →
+              рубли).
+            * role=barista на PAID видит "Принять", не видит
+              "Отменить".
+            * role=admin на PAID видит и "Принять", и "Отменить".
+            * role=barista на COMPLETED не видит кнопок.
+            * Клик "Отменить" → confirmation modal → confirm → вызов
+              API (mock fetch).
+        - api/admin-orders.test.ts:
+            * listAdminOrders формирует правильный URL с query-params.
+            * updateOrderStatus отправляет правильный body.
+            * 403 пробрасывается как AuthError (как в menu.ts).
+
+      Ограничения:
+      - НЕ добавлять WebSocket / SSE — PDD §4.5 разрешает polling
+        (≤5s). Простейшая реализация: refetch по smart-interval
+        (useInterval 10s на activе-таб; pause на других табах).
+        Если вводите polling — через react-query refetchInterval или
+        явный setInterval с очисткой.
+      - НЕ трогать CourierShell / CourierPage — курьерский UI из
+        phase 4/5.
+      - НЕ дублировать StatusBadge — можно переиспользовать если
+        уже есть (grep); иначе локальный компонент.
+      - НЕ класть state-transition логику в API client — клиент
+        тонкий, UI-решения в компонентах.
+      - НЕ трогать Customer-side orders/history.
+
+      Specs: PDD §4.5 Admin Panel (staff-feed), §6.1 Order Lifecycle,
+      §7.1 Phase 6 (orphan fix), INV-010.
+    file_zones:
+      - web/admin/src/api/admin-orders.ts
+      - web/admin/src/api/admin-orders.test.ts
+      - web/admin/src/pages/Orders/
+      - web/admin/src/pages/OrdersPage.tsx
+      - web/admin/src/App.tsx
+      - web/admin/src/i18n/locales/ru/common.json
+      - web/admin/src/i18n/locales/en/common.json
+    parallel_group: 2
+    merge_order: 5
+
+  - name: dashboard-ui
+    type: frontend
+    prompt: |
+      DashboardPage UI (PDD §7.1 Phase 6 item 1, §4.5). Потребляет
+      GET /api/v1/admin/stats из dashboard-api (merge_order 1, уже
+      merged).
+
+      Контекст:
+      - Сегодня web/admin/src/pages/DashboardPage.tsx — 12-строчный
+        stub с title.
+      - В App.tsx Dashboard — `index` route внутри admin+barista
+        wrapper'а. НО PDD §4.5 + RBAC: дашборд admin-only.
+        Значит, обернуть в inner ProtectedRoute allowedRoles=['admin'],
+        как сделано для /promos. Если barista зайдёт на / — должен
+        получить permission-reject, а не увидеть админ-статистику
+        (даже без backend утечки, UX-согласованность).
+
+      Scope:
+
+      1. web/admin/src/api/admin-stats.ts (new):
+           - getAdminStats(range: 'today'|'week'|'month')
+             → AdminStatsResponse.
+
+      2. web/admin/src/pages/Dashboard/ (заменить
+         pages/DashboardPage.tsx — оставить файл как re-export для
+         совместимости импорта в App.tsx, либо поменять импорт):
+           - index.tsx (page) — основной компонент.
+           - RangeSelector.tsx + .test.tsx — tab-group или
+             segmented control: "Сегодня | Неделя | Месяц". Хранит
+             выбор в local state (или URL query ?range=month).
+           - StatsCards.tsx + .test.tsx — 2 карточки: revenue,
+             orders_count.
+           - PopularItemsList.tsx + .test.tsx — таблица top-10:
+             позиция (name по текущему i18n-языку), количество.
+           - DashboardPage.test.tsx — интеграция: mock API,
+             переключение range → refetch.
+
+      3. Форматирование:
+           - Копейки → рубли: existing formatKopecks helper если
+             есть, иначе завести в web/admin/src/lib/money.ts
+             (Intl.NumberFormat 'ru-RU' style='currency'
+             currency='RUB'). Тот же паттерн, что в промо / orders.
+           - Pусская/английская locale для чисел через i18n.
+
+      4. App.tsx — обернуть `<Route index element={<DashboardPage/>}/>`
+         в inner `<ProtectedRoute allowedRoles={['admin']}>` — ровно
+         как /promos. Обновить и юнит-тест App routing, если есть.
+
+      5. i18n:
+           pages.dashboard.title/description,
+           pages.dashboard.range.today/week/month,
+           pages.dashboard.cards.revenue/orders,
+           pages.dashboard.popular.title/column.name/column.quantity/empty.
+
+      6. Loading / error / empty states:
+           - Skeleton spinner пока загружается (pattern из Menu).
+           - 403 из API → redirect на /login (hook из api-client).
+           - Пустые popular_items → "Нет данных за период".
+
+      Тесты:
+        - RangeSelector.test.tsx: клик меняет selection, вызывает
+          onChange.
+        - StatsCards.test.tsx: рендер суммы в ₽ (1 234 500 копеек →
+          "12 345,00 ₽" или согласно locale).
+        - PopularItemsList.test.tsx: сортировка + empty state.
+        - DashboardPage.test.tsx:
+            * Default range='month' → API вызван с ?range=month.
+            * Клик "Сегодня" → refetch с ?range=today.
+            * Показывает данные из mock response.
+            * 403 → navigate('/login') или error boundary.
+        - api/admin-stats.test.ts: правильный URL, пропагация ошибок.
+
+      Ограничения:
+      - НЕ вводить графики / charts-библиотеки (premature; простые
+        cards + list достаточно для MVP).
+      - НЕ дублировать payment-breakdown из orders — там другая
+        семантика (per-order), здесь — агрегаты.
+      - НЕ polling'ить stats — пользователь сам refresh'ит / меняет
+        range. 5s-обновление из PDD §4.5 про barista-orders-feed,
+        не про dashboard.
+      - НЕ трогать OrdersPage / UsersPage / SettingsPage.
+      - НЕ добавлять server-side каких-либо изменений — всё через
+        существующий /api/v1/admin/stats.
+
+      Specs: PDD §4.5, §7.1 Phase 6 item 1, INV-010.
+    file_zones:
+      - web/admin/src/api/admin-stats.ts
+      - web/admin/src/api/admin-stats.test.ts
+      - web/admin/src/pages/Dashboard/
+      - web/admin/src/pages/DashboardPage.tsx
+      - web/admin/src/lib/money.ts
+      - web/admin/src/App.tsx
+      - web/admin/src/i18n/locales/ru/common.json
+      - web/admin/src/i18n/locales/en/common.json
+    parallel_group: 2
+    merge_order: 6
+
+  - name: admin-users-ui
+    type: frontend
+    prompt: |
+      UsersPage UI (PDD §7.1 Phase 6 item 2, §6.5, INV-010).
+      Потребляет /api/v1/admin/users/* из admin-users-api
+      (merge_order 2, уже merged).
+
+      Контекст:
+      - web/admin/src/pages/UsersPage.tsx — 12-строчный stub.
+      - /users в App.tsx обёрнут только admin+barista-layout'ом. По
+        RBAC (rbac_matrix) — admin-only. Добавить inner
+        ProtectedRoute allowedRoles=['admin'].
+
+      Scope:
+
+      1. web/admin/src/api/admin-users.ts (new):
+           - listUsers({status, search, page, perPage}) → UserListResponse
+           - getUser(userId) → UserDetailResponse
+           - blockUser(userId) → BlockUserResponse
+           - unblockUser(userId) → { user_id, status }
+           - adjustLoyalty(userId, {delta, reason})
+             → LoyaltyAdjustResponse
+
+      2. web/admin/src/pages/Users/ (заменить UsersPage.tsx):
+           - index.tsx + UsersPage.tsx — страница со списком.
+           - UsersTable.tsx + .test.tsx — колонки: display_name,
+             status (StatusBadge), loyalty_balance (₽? — нет, баллы,
+             т.е. integer "1 234 балл."), created_at, кнопка
+             "Детали".
+           - Фильтр status (tabs: All/Active/Blocked/Pending).
+           - Поиск по display_name (debounced input, 300ms).
+           - Пагинация.
+           - UserDetailDialog.tsx + .test.tsx — модалка:
+               * display_name, status, created_at.
+               * Loyalty balance (big number).
+               * Таблица последних 20 транзакций: type/amount/
+                 balance_after/description/created_at.
+               * Кнопка "Скорректировать баллы" → LoyaltyAdjustForm.
+               * Кнопка "Заблокировать" (если ACTIVE) /
+                 "Разблокировать" (если BLOCKED).
+           - BlockConfirmDialog.tsx + .test.tsx:
+               * Warning text: "Будут отменены N активных заказов
+                 с полным рефандом." (N считается из
+                 user.active_orders_count).
+               * Требовать явный confirm (типа чекбокс
+                 "Я понимаю, что все активные заказы будут отменены").
+               * Показ результата: "Заблокирован. Отменено N заказов."
+           - LoyaltyAdjustForm.tsx + .test.tsx:
+               * Поле delta (signed int, подсказка "+100 начислить,
+                 -50 списать").
+               * Поле reason (textarea, 1..500 символов).
+               * Валидация: delta != 0, reason непустой.
+               * После успеха: refetch user detail, очистить форму,
+                 показать snackbar "Баланс изменён".
+               * 422 insufficient_balance → показать inline-error на
+                 delta.
+
+      3. App.tsx — обернуть `/users` в inner
+         `<ProtectedRoute allowedRoles={['admin']}>`.
+
+      4. i18n:
+           pages.users.title,
+           pages.users.filters.status.all/active/blocked/pending,
+           pages.users.search.placeholder,
+           pages.users.columns.name/status/balance/created_at/actions,
+           pages.users.status.<state>,
+           pages.users.detail.balance/transactions,
+           pages.users.detail.block_button/unblock_button/adjust_button,
+           pages.users.block_confirm.title/warning/checkbox/confirm/cancel,
+           pages.users.block_confirm.result,
+           pages.users.adjust.title/delta_label/delta_hint/reason_label/
+              reason_placeholder/submit/error_insufficient.
+
+      5. Forms: использовать react-hook-form как в Promos
+         (PromoFormDialog паттерн). Re-use существующие shadcn/ui
+         компоненты (Dialog, Button, Input, Table, Badge).
+
+      Тесты:
+        - UsersTable.test.tsx: рендер rows, фильтр переключается,
+          поиск debounce.
+        - UserDetailDialog.test.tsx:
+            * Рендер transactions DESC.
+            * Кнопка "Заблокировать" видна только при ACTIVE.
+            * Кнопка "Разблокировать" видна только при BLOCKED.
+            * PENDING — никаких action-кнопок кроме adjust
+              (нет — PENDING нельзя adjust'ить по §6.5 + admin-users-api
+              возвращает 409; кнопка "Скорректировать" скрыта).
+        - BlockConfirmDialog.test.tsx:
+            * Warning содержит N (active_orders_count).
+            * Confirm-button disabled пока не отмечен checkbox.
+            * Confirm → onConfirm() вызывается.
+        - LoyaltyAdjustForm.test.tsx:
+            * delta=0 → inline validation error, API не вызвана.
+            * reason='' → validation error.
+            * Успех → refetch callback сработал.
+            * API возвращает 422 insufficient_balance → inline error.
+        - api/admin-users.test.ts: правильные URL'ы, пропагация ошибок.
+
+      Ограничения:
+      - НЕ отображать phone/phone_hash в UI (INV-013).
+      - НЕ дублировать StatusBadge (OrderStatus) и UserStatusBadge —
+        это разные enum'ы, разные цвета: завести отдельный
+        UserStatusBadge.
+      - НЕ кэшировать список агрессивно — admin может только что
+        заблокировать пользователя; refetch после каждой mutation.
+      - НЕ встраивать order-history пользователя в детальную модалку
+        (premature scope; можно добавить ссылку "К заказам"
+        фильтрующую OrdersPage по user_id — но ТОЛЬКО если у
+        /admin/orders есть user-filter query-param; если нет — не
+        вводить, это Phase 7).
+      - НЕ обходить block_confirm — даже если пользователь без
+        активных заказов (N=0), confirm остаётся; UX-гарантия.
+      - НЕ вводить bulk-операции.
+
+      Specs: PDD §6.5 User Lifecycle, §7.1 Phase 6 item 2, §7.6
+      Order Cancellation Chain (упоминание в warning text), INV-010,
+      INV-013.
+    file_zones:
+      - web/admin/src/api/admin-users.ts
+      - web/admin/src/api/admin-users.test.ts
+      - web/admin/src/pages/Users/
+      - web/admin/src/pages/UsersPage.tsx
+      - web/admin/src/App.tsx
+      - web/admin/src/i18n/locales/ru/common.json
+      - web/admin/src/i18n/locales/en/common.json
+    parallel_group: 2
+    merge_order: 7
+
+  - name: shop-settings-ui
+    type: frontend
+    prompt: |
+      SettingsPage UI (PDD §7.1 Phase 6 item 3, §5.2 ShopSettings).
+      Потребляет GET/PUT /api/v1/admin/settings из shop-settings-
+      admin-api (merge_order 3, уже merged). Включает поле
+      auto_close_minutes.
+
+      Контекст:
+      - web/admin/src/pages/SettingsPage.tsx — 12-строчный stub.
+      - /settings в App.tsx внутри admin+barista-обёртки. По
+        RBAC — admin-only. Обернуть inner ProtectedRoute
+        allowedRoles=['admin'].
+
+      Scope:
+
+      1. web/admin/src/api/admin-settings.ts (new):
+           - getSettings() → ShopSettingsResponse
+           - updateSettings(payload: ShopSettingsUpdate) →
+             ShopSettingsResponse
+
+      2. web/admin/src/pages/Settings/ (заменить SettingsPage.tsx):
+           - index.tsx + SettingsPage.tsx — одна форма (react-hook-form
+             + zod/yup schema-resolver или native validation — как в
+             PromoFormDialog).
+           - SectionCoords.tsx (.test.tsx) — shop_lat/lon, мини-карта
+             опционально (если есть готовый компонент с Yandex Maps
+             автокомплитом из customer-ui — НЕ переносить сюда,
+             premature). Достаточно текстовых полей с numeric
+             validation.
+           - SectionDelivery.tsx (.test.tsx) — delivery_radius_km,
+             min_delivery_amount (₽), free_delivery_threshold (₽),
+             delivery_fee (₽). Поля в "₽" но внутри модели копейки:
+             конвертация на входе/выходе через helper.
+           - SectionLoyalty.tsx (.test.tsx) — loyalty_percent
+             (slider или number input 0..100).
+           - SectionTiming.tsx (.test.tsx) — default_prep_time_minutes,
+             estimated_delivery_time_minutes, auto_close_minutes
+             (все в минутах).
+           - SectionWorkingHours.tsx (.test.tsx) — таблица 7 строк
+             (Пн/Вт/…/Вс), каждая строка:
+               * Checkbox "Выходной" (null).
+               * Если не выходной: два time-picker'а (open, close,
+                 HTML <input type="time">).
+             Валидация: open < close per row.
+
+      3. Form submit:
+           - Client-side validation перед PUT.
+           - Собираем payload, копейки строго int.
+           - PUT /api/v1/admin/settings.
+           - Snackbar "Настройки сохранены" при 200.
+           - 422 → показать field-level errors (map error.loc →
+             field name). Например, loc=['body','working_hours',
+             'mon','open'] → подсветить соответствующий input.
+           - 500 / network → generic error toast.
+
+      4. App.tsx — обернуть `/settings` в inner
+         `<ProtectedRoute allowedRoles={['admin']}>`.
+
+      5. Initial load:
+           - При mount — getSettings() → заполнить форму.
+           - Loading state (skeleton).
+           - Save disabled пока isDirty=false || !isValid.
+
+      6. i18n:
+           pages.settings.title,
+           pages.settings.sections.coords/delivery/loyalty/timing/
+              working_hours,
+           pages.settings.fields.* (все 10 полей + 7 дней недели),
+           pages.settings.units.km/kopecks/percent/minutes,
+           pages.settings.days.mon/tue/.../sun,
+           pages.settings.closed,
+           pages.settings.save_button,
+           pages.settings.toast.saved/error,
+           pages.settings.errors.* (валидация по §5.2 / phase 6 backend).
+
+      Тесты:
+        - SectionWorkingHours.test.tsx:
+            * Unchecking "Выходной" → показывает time-pickers.
+            * open=12:00, close=10:00 → inline error.
+            * Пусто + не выходной → error.
+        - SectionDelivery.test.tsx:
+            * Rubles ↔ kopecks конверсия (100 ₽ → 10000 kopecks в
+              payload).
+            * free_delivery_threshold < min_delivery_amount → inline
+              error.
+        - SectionLoyalty.test.tsx:
+            * 0..100 включительно, 101 → error.
+        - SectionTiming.test.tsx:
+            * auto_close_minutes=0 → error, 1441 → error, 60 → ok.
+        - SettingsPage.test.tsx:
+            * Mount → getSettings → форма заполнена.
+            * Save button disabled когда нет изменений.
+            * 422 от backend → field-level errors появляются в UI.
+            * 200 → snackbar показан, isDirty сбрасывается.
+        - api/admin-settings.test.ts: URL'ы, пропагация.
+
+      Ограничения:
+      - НЕ делать PATCH / partial save — форма PUT'ит full snapshot
+        (консистентно с backend).
+      - НЕ встраивать Yandex Maps picker для shop_lat/lon (premature;
+        numeric fields достаточны).
+      - НЕ реализовывать overnight (закрытие после полуночи) —
+        backend такой payload отклонит 422, UI matches (open < close).
+      - НЕ вводить "Reset to defaults" кнопку.
+      - НЕ показывать SettingsPage barista/courier — inner RBAC
+        wrapper + sidebar-filter (уже не показывает link для
+        barista) — двойная защита.
+      - НЕ кэшировать settings — после save refetch для корректности
+        updated_at.
+
+      Specs: PDD §5.2 ShopSettings, §7.1 Phase 6 item 3, INV-010.
+    file_zones:
+      - web/admin/src/api/admin-settings.ts
+      - web/admin/src/api/admin-settings.test.ts
+      - web/admin/src/pages/Settings/
+      - web/admin/src/pages/SettingsPage.tsx
+      - web/admin/src/App.tsx
+      - web/admin/src/i18n/locales/ru/common.json
+      - web/admin/src/i18n/locales/en/common.json
+    parallel_group: 2
+    merge_order: 8
