@@ -26,6 +26,12 @@ class ShopSettings(Base):
     loyalty_percent: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
     default_prep_time_minutes: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
     estimated_delivery_time_minutes: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
+    auto_close_minutes: Mapped[int] = mapped_column(
+        sa.Integer(),
+        nullable=False,
+        default=60,
+        server_default=sa.text("60"),
+    )
     working_hours: Mapped[dict] = mapped_column(
         JSONB().with_variant(sa.JSON(), "sqlite"),
         nullable=False,

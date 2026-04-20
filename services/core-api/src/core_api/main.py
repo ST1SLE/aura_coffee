@@ -19,6 +19,7 @@ from core_api.routers.admin_orders import router as admin_orders_router
 from core_api.routers.admin_users import router as admin_users_router
 from core_api.routers.admin_promocodes import router as admin_promocodes_router
 from core_api.routers.admin_stats import router as admin_stats_router
+from core_api.routers.admin_shop_settings import router as admin_settings_router
 from core_api.routers.yandex_maps import router as yandex_maps_router
 from core_api.settings import settings
 
@@ -62,6 +63,7 @@ app.include_router(admin_orders_router)
 app.include_router(admin_users_router)
 app.include_router(admin_promocodes_router)
 app.include_router(admin_stats_router)
+app.include_router(admin_settings_router)
 app.include_router(yandex_maps_router)
 app.include_router(courier_router)
 
