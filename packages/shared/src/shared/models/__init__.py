@@ -23,6 +23,9 @@ from shared.models.loyalty_transaction import LoyaltyTransaction  # noqa: E402
 from shared.models.promocode_usage import PromocodeUsage  # noqa: E402
 from shared.models.notification import Notification  # noqa: E402
 
+# Phase 4: Delivery
+from shared.models.delivery_assignment import DeliveryAssignment  # noqa: E402
+
 __all__ = [
     "Base",
     "User",
@@ -43,4 +46,5 @@ __all__ = [
     "Promocode",
     "PromocodeUsage",
     "Notification",
+    "DeliveryAssignment",
 ]

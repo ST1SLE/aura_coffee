@@ -103,3 +103,13 @@ class LoyaltyTransactionType(str, enum.Enum):
 class PromocodeDiscountType(str, enum.Enum):
     PERCENT = "percent"
     FIXED_AMOUNT = "fixed_amount"
+
+
+# Phase 4: Delivery Assignment Lifecycle (PDD §6.3)
+
+class DeliveryAssignmentStatus(str, enum.Enum):
+    AWAITING_COURIER = "awaiting_courier"
+    COURIER_ASSIGNED = "courier_assigned"
+    PICKED_UP = "picked_up"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
