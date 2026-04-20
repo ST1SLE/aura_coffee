@@ -296,6 +296,7 @@ PostgreSQL — единственный источник истины. Redis —
 - Валидация промокода: `is_active = true` AND `valid_from ≤ now ≤ valid_until` AND `current_uses < max_uses` (если задан) AND кол-во записей в `promocode_usages` для этого user < `max_uses_per_user` (если задан) AND `order.subtotal ≥ min_order_amount` (если задан).
 - `discount_type = percent`: скидка = `floor(subtotal * discount_value / 100)`. Процент не может превышать 100.
 - `discount_type = fixed_amount`: скидка = `min(discount_value, subtotal)`. Скидка не может превышать сумму заказа.
+- Жизненный цикл, удаление (archive-style), атомарный инкремент `current_uses` и правила редактирования — см. §6.6.
 
 #### Группа: Уведомления
 
@@ -515,37 +516,59 @@ PostgreSQL — единственный источник истины. Redis —
 
 ### 6.6. Promocode Lifecycle (Жизненный цикл промокода)
 
-**States:** `DRAFT`, `ACTIVE`, `PAUSED`, `EXPIRED`, `EXHAUSTED`
+**States:** `INACTIVE`, `ACTIVE`, `EXPIRED`, `EXHAUSTED`
 
-**Initial state:** `DRAFT` — создаётся админом через админку.
+**Storage:** Отдельная `status`-колонка НЕ заводится. В БД хранятся только `is_active` (bool) + `valid_from` / `valid_until` + `current_uses` / `max_uses`. `EXPIRED` и `EXHAUSTED` ВЫЧИСЛЯЮТСЯ на чтении; `INACTIVE` ↔ `ACTIVE` управляются через `is_active`. `INACTIVE` покрывает и "новый / ещё не активированный", и "админ деактивировал" — различать черновик и паузу не требуется.
+
+**Маппинг state → условие (порядок проверки сверху вниз):**
+
+| State | Условие |
+|-------|---------|
+| EXPIRED   | `valid_until IS NOT NULL AND now > valid_until` (приоритет над остальными) |
+| EXHAUSTED | не EXPIRED AND `max_uses IS NOT NULL AND current_uses ≥ max_uses` |
+| ACTIVE    | не EXPIRED AND не EXHAUSTED AND `is_active = true` AND (`valid_from IS NULL OR now ≥ valid_from`) |
+| INACTIVE  | иначе (`is_active = false`, либо `now < valid_from`) |
+
+**Initial state:** `INACTIVE` — промокод создаётся админом с `is_active = false`. Активация — отдельное действие.
 
 **Transitions:**
 
 | From | To | Trigger | Precondition |
 |------|----|---------|--------------|
-| DRAFT | ACTIVE | Админ активирует промокод | `valid_from` и `valid_until` заданы, `discount_value > 0` |
-| DRAFT | EXPIRED | Текущее время > `valid_until` | Автоматически (cron или проверка при попытке активации) |
-| ACTIVE | PAUSED | Админ приостанавливает промокод | Промокод перестаёт приниматься, но не удаляется |
-| PAUSED | ACTIVE | Админ возобновляет промокод | `valid_until` ещё не наступил |
-| ACTIVE | EXPIRED | Текущее время > `valid_until` | Автоматически (cron или проверка при попытке использования) |
-| ACTIVE | EXHAUSTED | `current_uses >= max_uses` | Автоматически при использовании последнего доступного слота |
-| PAUSED | EXPIRED | Текущее время > `valid_until` | Автоматически |
-| EXHAUSTED | ACTIVE | Отмена заказа освободила использование (см. §7.6) | `current_uses < max_uses` после декремента. `valid_until` ещё не наступил |
+| INACTIVE | ACTIVE | Админ активирует (`is_active = true`) | `valid_until` задан, `discount_value > 0`, не EXPIRED, не EXHAUSTED |
+| ACTIVE | INACTIVE | Админ деактивирует (`is_active = false`) | — |
+| ACTIVE | EXPIRED | `now > valid_until` | Вычисляется при чтении. Cron-синхронизация не требуется (опциональная подчистка — §7.1 Phase 6) |
+| ACTIVE | EXHAUSTED | `current_uses ≥ max_uses` | Атомарный conditional UPDATE в checkout (см. ниже) |
+| INACTIVE | EXPIRED | `now > valid_until` | Вычисляется при чтении |
+| EXHAUSTED | ACTIVE | Отмена заказа освободила слот (§7.6) | `current_uses < max_uses` после декремента, не EXPIRED, `is_active = true` |
 
 **Terminal states:**
-- `EXPIRED` — срок действия истёк
+- `EXPIRED` — срок действия истёк. Необратим: нельзя "продлить", нужно создать новый промокод.
 
 **Non-terminal exhaustion:**
-- `EXHAUSTED` — лимит использований исчерпан, но может вернуться в `ACTIVE` при отмене заказа, освободившей слот использования (см. §7.6, шаг 2).
+- `EXHAUSTED` — лимит исчерпан, но может вернуться в `ACTIVE` при отмене заказа (§7.6, шаг 2).
 
 **Forbidden transitions:**
-- `EXPIRED → any` (нельзя реактивировать истёкший промокод — создать новый)
-- `EXHAUSTED → PAUSED` (нельзя приостановить исчерпанный — он и так не принимается)
-- `EXHAUSTED → DRAFT` (нельзя вернуть в черновик)
+- `EXPIRED → any` — истёкший нельзя реактивировать.
+- Одновременный EXPIRED + EXHAUSTED невозможен по определению: EXPIRED имеет приоритет в маппинге.
 
-**Примечания:**
-- `DRAFT` — промокод создан, но ещё не активирован. Позволяет подготовить промокод заранее.
-- Админ МОЖЕТ изменить параметры промокода (discount_value, valid_until, max_uses) в статусах `DRAFT`, `ACTIVE`, `PAUSED`. В `EXPIRED` и `EXHAUSTED` — только просмотр.
+**Атомарный инкремент `current_uses`:**
+- Checkout ОБЯЗАН инкрементировать счётчик через conditional UPDATE:
+  ```sql
+  UPDATE promocodes SET current_uses = current_uses + 1
+  WHERE id = :id AND (max_uses IS NULL OR current_uses < max_uses)
+  RETURNING *;
+  ```
+- Нулевое количество обновлённых строк → параллельный checkout забрал последний слот → текущая транзакция откатывается с ошибкой квоты. Простой SELECT-then-UPDATE ЗАПРЕЩЁН (INV-004).
+
+**Удаление (archive-style):**
+- Физический `DELETE` промокодов ЗАПРЕЩЁН. FK `promocode_usages → promocodes` с `ondelete=RESTRICT` обеспечивает это на уровне БД.
+- "Удалить" промокод = деактивировать (`is_active = false`). Админский UI не показывает кнопку Delete.
+
+**Редактирование:**
+- `current_uses = 0`: админ МОЖЕТ изменить ЛЮБОЕ поле (`code`, `discount_type`, `discount_value`, даты, лимиты, `min_order_amount`, `is_active`).
+- `current_uses > 0`: редактируемы ТОЛЬКО `valid_until`, `max_uses`, `max_uses_per_user`, `min_order_amount`, `is_active`. Поля `code`, `discount_type`, `discount_value` — read-only. Причина: исторические `promocode_usages` и `orders` ссылаются на промокод; изменение скидочного значения задним числом искажает аудит, чеки клиентов и бухгалтерскую историю (родственно INV-014).
+- Переключение `is_active` разрешено в любом не-EXPIRED состоянии — это lifecycle-переход, а не редактирование полей.
 
 ## 7. Core Workflows & Fallback Hierarchies
 

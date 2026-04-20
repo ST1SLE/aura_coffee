@@ -1,0 +1,616 @@
+# Phase 5 — Loyalty & Promocodes (Admin & UI)
+#
+# Закрывает Phase 5 из PDD §7.1. Логика применения промокода, списания
+# и возврата баллов, начисления при COMPLETED уже реализована в Phase 3
+# (Pricing Chain §7.2, Order Lifecycle §6.1, Cancellation Chain §7.6).
+# Phase 5 добавляет:
+#   - Admin CRUD промокодов (PDD §6.6: INACTIVE/ACTIVE/EXPIRED/EXHAUSTED).
+#   - Customer loyalty UI: баланс + история транзакций (PDD §7.1 п.2).
+#   - In-scope bug fix: атомарный инкремент `current_uses` в checkout
+#     (PDD §6.6 "Атомарный инкремент", INV-004).
+#
+# Архитектурные решения из explore-сессии (отражены в PDD §5.2, §6.6):
+#   - status-колонки НЕТ. `is_active` (bool) + valid_until +
+#     current_uses/max_uses — источник истины. EXPIRED/EXHAUSTED
+#     вычисляются на чтении.
+#   - Archive-style: физический DELETE промокодов ЗАПРЕЩЁН.
+#     "Удалить" = деактивировать (is_active=false).
+#   - Редактирование: current_uses=0 → все поля редактируемы;
+#     current_uses>0 → code/discount_type/discount_value lock-only-read
+#     (защита аудита, родственно INV-014).
+#   - Cron для EXPIRED/EXHAUSTED НЕ делаем (деферрим в Phase 6).
+#
+# 5 фич, 2 группы. Group 2 стартует после merge группы 1.
+#
+# Использование:
+#   1. ./scripts/orchestrate.sh docs/phase5-plan.yaml       # group 1
+#   2. Дождаться DONE от promocode-race-fix, admin-promocodes-api,
+#      customer-loyalty-api
+#   3. ./scripts/merge.sh docs/phase5-plan.yaml             # merge_order 1→3
+#   4. ./scripts/orchestrate.sh docs/phase5-plan.yaml       # group 2
+#   5. Дождаться DONE от admin-promocodes-ui, customer-loyalty-ui
+#   6. ./scripts/merge.sh docs/phase5-plan.yaml             # merge_order 4→5
+
+phase: "5"
+base_branch: delivery
+description: "Promocode CRUD (admin) + loyalty balance/history (customer) + atomic current_uses fix"
+
+features:
+  # ===========================================================================
+  # Group 1 — backend параллельно
+  # ===========================================================================
+
+  - name: promocode-race-fix
+    type: backend
+    prompt: |
+      Атомарный инкремент `promocodes.current_uses` в checkout/cancel-путях
+      (PDD §6.6 "Атомарный инкремент", INV-004).
+
+      Проблема: сегодня промокод валидируется (services/validators/
+      promocode.py, только чтение), затем `current_uses` инкрементируется
+      через ORM-мутацию на объекте. При конкурентных checkout'ах оба
+      пройдут валидацию `current_uses < max_uses`, оба инкрементируют —
+      для max_uses=1 получим current_uses=2. Нарушение INV-011
+      (один промокод на заказ — квота реально не ограничена).
+
+      Что сделать:
+
+      1. Найти место инкремента `current_uses` в checkout-пути
+         (services/checkout.py или services/pricing.py — там, где
+         создаётся PromocodeUsage). Заменить ORM-мутацию на conditional
+         UPDATE через SQLAlchemy Core:
+           ```python
+           from sqlalchemy import or_, update
+           result = db.execute(
+               update(Promocode)
+               .where(
+                   Promocode.id == promo.id,
+                   or_(
+                       Promocode.max_uses.is_(None),
+                       Promocode.current_uses < Promocode.max_uses,
+                   ),
+               )
+               .values(current_uses=Promocode.current_uses + 1)
+           )
+           if result.rowcount == 0:
+               raise PromocodeValidationError("Global quota exhausted")
+           ```
+         Транзакция checkout'а откатывается целиком при zero rowcount —
+         точно так же, как если бы validator отклонил код. Сохранить
+         существующий контракт ошибок внешнего API (422 с тем же
+         message).
+
+      2. services/order_cancel.py `_return_promocode` — текущий
+         `promo.current_uses -= 1` на ORM-объекте заменить на
+         симметричный conditional UPDATE с защитой от отрицательных:
+           ```python
+           db.execute(
+               update(Promocode)
+               .where(
+                   Promocode.id == order.promocode_id,
+                   Promocode.current_uses > 0,
+               )
+               .values(current_uses=Promocode.current_uses - 1)
+           )
+           ```
+         Защита: двойная отмена (race в admin-path) не уводит
+         current_uses в отрицательные.
+
+      3. services/validators/promocode.py НЕ МЕНЯТЬ. Pre-check там
+         остаётся для UX (быстрый 422 до старта транзакции на заведомо
+         невалидных кодах). Атомарный UPDATE — вторая линия, ловит
+         race. Обе проверки дополняют друг друга.
+
+      4. Тесты:
+         - test_promocode_atomic_increment.py (новый):
+           * Setup: promocode с max_uses=1, current_uses=0.
+           * Simulate race: pre-выполнить conditional UPDATE в БД
+             (current_uses=1), затем вызвать checkout-функцию
+             инкремента — должен получить rowcount=0 и поднять
+             PromocodeValidationError. Не использовать threading —
+             моделировать через явную подстановку состояния.
+           * Assert: current_uses в БД остался 1 (не стал 2).
+         - test_order_cancel_atomic_decrement.py (новый или расширить
+           существующий test_order_cancel.py):
+           * Двойной вызов cancel на одном order — current_uses не
+             уходит ниже 0.
+         - Прогнать существующие test_checkout*.py и test_order_cancel.py
+           — они должны продолжать проходить без изменений контракта.
+
+      Ограничения:
+      - НЕ вводить SELECT FOR UPDATE — conditional UPDATE дешевле и
+        достаточен.
+      - НЕ менять схему БД.
+      - НЕ менять внешний API-контракт ошибок.
+      - Код ошибки "Global quota exhausted" — тот же, что в validator:
+        клиент не должен различать "обычный отказ" и "race".
+
+      Specs: PDD §6.6 "Атомарный инкремент current_uses", §7.2 шаг 2,
+      §7.6 шаг 2, INV-004, INV-011.
+    file_zones:
+      - services/core-api/src/core_api/services/checkout.py
+      - services/core-api/src/core_api/services/pricing.py
+      - services/core-api/src/core_api/services/order_cancel.py
+      - services/core-api/tests/test_promocode_atomic_increment.py
+      - services/core-api/tests/test_order_cancel_atomic_decrement.py
+    parallel_group: 1
+    merge_order: 1
+
+  - name: admin-promocodes-api
+    type: backend
+    prompt: |
+      Admin CRUD промокодов (PDD §6.6, §7.1 Phase 5 item 1, INV-010,
+      INV-011).
+
+      Scope: список / деталь / создание / частичное редактирование +
+      activate / deactivate. DELETE НЕТ (archive-style, §6.6).
+
+      1. Эндпоинты (префикс /api/v1/admin/promocodes, только ADMIN —
+         не BARISTA, не COURIER, не CUSTOMER):
+           POST   /                            — создать
+           GET    /                            — paginated list
+           GET    /{promocode_id}              — детальный просмотр
+           PATCH  /{promocode_id}              — редактирование
+           POST   /{promocode_id}/activate     — is_active=true
+           POST   /{promocode_id}/deactivate   — is_active=false
+         Barista / courier / customer → 403 (INV-010). Без токена → 401.
+
+      2. GET /api/v1/admin/promocodes — список.
+         Query:
+           - state: 'inactive' | 'active' | 'expired' | 'exhausted' | 'all'
+             (default 'all'). Фильтр по computed state (PDD §6.6):
+               EXPIRED:   valid_until IS NOT NULL AND now > valid_until
+               EXHAUSTED: не EXPIRED AND max_uses IS NOT NULL AND
+                          current_uses >= max_uses
+               ACTIVE:    не EXPIRED AND не EXHAUSTED AND is_active=true
+                          AND (valid_from IS NULL OR now >= valid_from)
+               INACTIVE:  иначе
+           - code: case-insensitive prefix match (опционально).
+           - page: int, default 1.
+           - per_page: int, default 20, max 100.
+         Response: PromocodeListResponse. Каждый item включает
+         computed поле `state` — сервер вычисляет один раз, клиент не
+         дублирует логику.
+         Сортировка: created_at DESC.
+
+      3. POST /api/v1/admin/promocodes — создание.
+         Body (PromocodeCreate):
+           - code: str, len 1..64, pattern `^[A-Z0-9_-]+$`. Сервер
+             автоматически UPPER() на входе (клиент может прислать
+             любой кейс). UNIQUE → 409 на коллизию.
+           - discount_type: 'percent' | 'fixed_amount'.
+           - discount_value: int > 0. Для percent ≤ 100. Для
+             fixed_amount — в копейках.
+           - min_order_amount: int ≥ 0 (в копейках), default 0.
+           - valid_from, valid_until: datetime, оба опциональны.
+             Если оба заданы: valid_from < valid_until.
+           - max_uses: int > 0, nullable.
+           - max_uses_per_user: int > 0, nullable. Если оба max_*
+             заданы: max_uses_per_user ≤ max_uses.
+         Новый промокод создаётся с is_active=false, current_uses=0
+         (initial state — INACTIVE per §6.6).
+         422 на любой ошибке валидации, 409 на дубликат code.
+
+      4. PATCH /api/v1/admin/promocodes/{id} — редактирование.
+         Body: PromocodeUpdate с теми же полями, все optional.
+         Enforcement (PDD §6.6 "Редактирование"):
+           - current_uses = 0: разрешено менять ВСЕ поля.
+           - current_uses > 0: разрешены ТОЛЬКО valid_until, max_uses,
+             max_uses_per_user, min_order_amount, is_active. Попытка
+             менять code / discount_type / discount_value → 422
+             с кодом "field_locked_after_use" и именем поля.
+         Инварианты инвариантов (после слияния patch'а):
+         valid_from < valid_until если оба заданы;
+         max_uses_per_user ≤ max_uses если оба заданы.
+
+      5. POST /api/v1/admin/promocodes/{id}/activate.
+         Precondition (PDD §6.6 INACTIVE → ACTIVE):
+           - valid_until NOT NULL → иначе 422 "valid_until required".
+           - discount_value > 0 → (всегда true по create, но явная проверка).
+           - computed state != 'expired' → иначе 409 "promocode expired".
+           - computed state != 'exhausted' → иначе 409 "promocode exhausted".
+         Эффект: is_active = true. Возврат: PromocodeResponse.
+
+      6. POST /api/v1/admin/promocodes/{id}/deactivate.
+         Precondition: computed state != 'expired' → иначе 409
+         "promocode expired" (деактивация истёкшего бессмысленна).
+         Эффект: is_active = false.
+
+      7. services/admin_promocodes.py:
+         - compute_state(promo, now) -> Literal['inactive','active',
+           'expired','exhausted'] — чистая функция, единый источник
+           истины для state-маппинга. Переиспользуется в list, detail,
+           activate/deactivate guards.
+         - CRUD-функции: create_promocode, list_promocodes,
+           get_promocode, update_promocode, activate, deactivate.
+         Все write-операции в рамках одной transaction (INV-004).
+
+      8. schemas/promocode.py — Pydantic модели:
+         PromocodeCreate, PromocodeUpdate, PromocodeResponse,
+         PromocodeListResponse, PromocodeState (Literal).
+         Переиспользовать shared.enums.PromocodeDiscountType.
+         Все суммы в внешнем API — в копейках (консистентно с menu/order).
+
+      9. Регистрация: router в
+         services/core-api/src/core_api/main.py.
+         rbac_matrix.py — добавить:
+           ("POST",  "/api/v1/admin/promocodes"):                        {ADMIN}
+           ("GET",   "/api/v1/admin/promocodes"):                        {ADMIN}
+           ("GET",   "/api/v1/admin/promocodes/{promocode_id}"):         {ADMIN}
+           ("PATCH", "/api/v1/admin/promocodes/{promocode_id}"):         {ADMIN}
+           ("POST",  "/api/v1/admin/promocodes/{promocode_id}/activate"):   {ADMIN}
+           ("POST",  "/api/v1/admin/promocodes/{promocode_id}/deactivate"): {ADMIN}
+
+      10. Тесты (services/core-api/tests/):
+          - test_admin_promocodes_crud.py — create happy-path +
+            валидация: bad pattern, percent >100, fixed_amount ≤ 0,
+            dates inverted, per_user > max_uses, uppercase-canonical,
+            duplicate code → 409.
+          - test_admin_promocodes_list.py — фикстуры со всеми 4
+            computed state'ами, фильтр state=..., фильтр code=...,
+            пагинация, сортировка created_at DESC.
+          - test_admin_promocodes_edit_rules.py — current_uses=0: все
+            поля patch'ятся; current_uses>0: code/discount_type/
+            discount_value → 422 "field_locked_after_use"; valid_until/
+            max_uses/is_active патчатся в обоих случаях.
+          - test_admin_promocodes_lifecycle.py — activate matrix:
+            no valid_until → 422; expired → 409; exhausted → 409;
+            happy → 200 + is_active=true. Deactivate: expired → 409;
+            happy → 200.
+          - test_admin_promocodes_rbac.py — barista → 403; courier → 403;
+            customer → 403; no token → 401.
+
+      Ограничения:
+      - НЕ заводить status-колонку в promocodes (PDD §6.6 явно
+        запрещает).
+      - НЕ добавлять DELETE-эндпоинт (archive-style, PDD §6.6).
+      - НЕ трогать services/validators/promocode.py (зона checkout-стороны).
+      - НЕ трогать pricing.py/checkout.py (зона promocode-race-fix).
+      - ADMIN_ADJUSTMENT loyalty — НЕ в этой фиче (Phase 6 users-admin).
+
+      Specs: PDD §3 Promocode, §5.2 Promocodes, §6.6 Promocode Lifecycle,
+      §7.2 шаг 2, INV-010, INV-011.
+    file_zones:
+      - services/core-api/src/core_api/routers/admin_promocodes.py
+      - services/core-api/src/core_api/services/admin_promocodes.py
+      - services/core-api/src/core_api/schemas/promocode.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_admin_promocodes_crud.py
+      - services/core-api/tests/test_admin_promocodes_list.py
+      - services/core-api/tests/test_admin_promocodes_edit_rules.py
+      - services/core-api/tests/test_admin_promocodes_lifecycle.py
+      - services/core-api/tests/test_admin_promocodes_rbac.py
+    parallel_group: 1
+    merge_order: 2
+
+  - name: customer-loyalty-api
+    type: backend
+    prompt: |
+      Customer loyalty balance + transaction history API (PDD §7.1
+      Phase 5 item 2, §5.2 Лояльность).
+
+      Scope: read-only endpoints для личного кабинета. Мутации (accrual,
+      redemption, reversal) уже реализованы в Phase 3 — этой фиче их
+      трогать не нужно.
+
+      1. Эндпоинты (префикс /api/v1/profile/loyalty, только CUSTOMER):
+           GET /                → LoyaltyBalanceResponse
+           GET /transactions    → LoyaltyTransactionListResponse (paginated)
+
+      2. GET /api/v1/profile/loyalty
+         Response (LoyaltyBalanceResponse):
+           {
+             "balance": int,             # баллы (штуки, 1 балл = 1₽;
+                                         # НЕ копейки)
+             "lifetime_accrued": int     # сумма amount всех ACCRUAL-
+                                         # транзакций; REVERSAL в
+                                         # lifetime не влияет — это
+                                         # метрика "всего заработано".
+           }
+         Чтение: loyalty_accounts.balance + агрегат SUM по
+         loyalty_transactions.amount WHERE type='accrual'. Lifetime
+         вычисляется on-the-fly, не денормализуется.
+         Если loyalty_accounts row отсутствует — 500 (data integrity
+         issue; row создаётся при ACTIVE-регистрации в Phase 1).
+
+      3. GET /api/v1/profile/loyalty/transactions
+         Query:
+           - page: int, default 1.
+           - per_page: int, default 20, max 100.
+         Response (LoyaltyTransactionListResponse):
+           {
+             "items": [LoyaltyTransactionResponse],
+             "page": int,
+             "per_page": int,
+             "total": int
+           }
+         Item:
+           {
+             "id": UUID,
+             "type": "accrual"|"redemption"|"reversal"|"admin_adjustment",
+             "amount": int,              # может быть отрицательным
+                                         # для REDEMPTION
+             "balance_after": int,
+             "order_id": UUID | null,    # null для ADMIN_ADJUSTMENT
+             "description": str | null,
+             "created_at": datetime
+           }
+         Сортировка: created_at DESC. Индекс
+         loyalty_transactions(user_id, created_at DESC) уже есть
+         (PDD §5.4).
+
+      4. services/loyalty.py (новый):
+         - get_balance(user_id, db) → LoyaltyBalanceResponse
+         - list_transactions(user_id, page, per_page, db) →
+           LoyaltyTransactionListResponse
+         ОБЯЗАТЕЛЬНО фильтровать по user_id (INV-002, INV-010: customer
+         видит только СВОИ записи; не полагаться на API-handler).
+
+      5. schemas/loyalty.py (новый):
+         Pydantic response-модели. Переиспользовать
+         shared.enums.LoyaltyTransactionType (уже есть).
+
+      6. Регистрация: router в
+         services/core-api/src/core_api/main.py.
+         rbac_matrix.py:
+           ("GET", "/api/v1/profile/loyalty"):              {CUSTOMER}
+           ("GET", "/api/v1/profile/loyalty/transactions"): {CUSTOMER}
+
+      7. Тесты (services/core-api/tests/):
+         - test_profile_loyalty_balance.py — happy (баланс > 0),
+           zero-balance (новый user), lifetime_accrued считается только
+           из ACCRUAL (не учитывает REVERSAL / REDEMPTION).
+         - test_profile_loyalty_transactions.py — пагинация,
+           сортировка DESC, пустая история, все 4 типа транзакций
+           в ответе, order_id=null для admin_adjustment.
+         - test_profile_loyalty_rbac.py — admin/barista/courier → 403;
+           no token → 401; user A не видит транзакции user B
+           (важный isolation-тест — запросить /transactions с user A
+           JWT после создания транзакций для user B и проверить, что
+           в response только user A items).
+
+      Ограничения:
+      - НЕ расширять GET /api/v1/profile — отдельный префикс проще.
+      - НЕ добавлять мутационные endpoint'ы ("redeem points", "add
+        points"). Списание/начисление внутри checkout/cancel pipeline.
+        ADMIN_ADJUSTMENT UI — Phase 6 (users management).
+      - Баллы — штуки, не копейки. Никакой конвертации на API-boundary.
+
+      Specs: PDD §3 Loyalty, §5.2 Лояльность, §5.4 индексы, §7.1
+      Phase 5 item 2, INV-002, INV-003, INV-010.
+    file_zones:
+      - services/core-api/src/core_api/routers/profile_loyalty.py
+      - services/core-api/src/core_api/services/loyalty.py
+      - services/core-api/src/core_api/schemas/loyalty.py
+      - services/core-api/src/core_api/main.py
+      - services/core-api/src/core_api/rbac_matrix.py
+      - services/core-api/tests/test_profile_loyalty_balance.py
+      - services/core-api/tests/test_profile_loyalty_transactions.py
+      - services/core-api/tests/test_profile_loyalty_rbac.py
+    parallel_group: 1
+    merge_order: 3
+
+  # ===========================================================================
+  # Group 2 — UI, параллельно, после group 1
+  # ===========================================================================
+
+  - name: admin-promocodes-ui
+    type: frontend
+    prompt: |
+      Admin promocodes CRUD UI (PDD §4.5, §6.6, INV-010).
+
+      Заменить плоский web/admin/src/pages/PromosPage.tsx stub на
+      полноценную страницу. Роль: только admin. Barista/courier пункта
+      в sidebar не видят — Layout-фильтр из phase 3.5 admin-role-wiring
+      это уже обеспечивает.
+
+      Паттерн копировать с web/admin/src/pages/Menu/ (index.tsx +
+      CategoryList.tsx + MenuItemsTable.tsx + MenuItemFormDialog.tsx).
+
+      1. web/admin/src/api/promocodes.ts (новый):
+         - listPromocodes({state?, code?, page?, per_page?}) →
+             GET /api/v1/admin/promocodes
+         - getPromocode(id) → GET /api/v1/admin/promocodes/{id}
+         - createPromocode(body) → POST /api/v1/admin/promocodes
+         - updatePromocode(id, body) →
+             PATCH /api/v1/admin/promocodes/{id}
+         - activatePromocode(id) → POST .../activate
+         - deactivatePromocode(id) → POST .../deactivate
+         Types через zod, соответствуют schemas/promocode.py. JWT из
+         существующего client.ts.
+
+      2. web/admin/src/pages/Promos/ (новый каталог; старый плоский
+         PromosPage.tsx удалить, импорт в App.tsx обновить):
+         - PromosPage.tsx — shell:
+             * State-filter табы: All | Active | Inactive | Expired |
+               Exhausted (default All). Использовать серверный фильтр
+               ?state=.
+             * Search-input по code (debounce 300ms, передаётся как
+               ?code=).
+             * Кнопка "Создать" → открывает PromoFormDialog в create-mode.
+             * Таблица — PromosTable.
+         - PromosTable.tsx — список:
+             колонки: code (моно-шрифт), state-chip (цветной badge по
+             computed state, серверный), discount-preview
+             ("10%" или "500 ₽"), valid_until (локальный формат,
+             dim-color если expired), uses ("3 / 10" или "3 / ∞"),
+             actions (Edit, Activate/Deactivate).
+             Click на row → PromoFormDialog в edit-mode.
+             Action кнопки disabled в process запроса.
+         - PromoFormDialog.tsx — create + edit:
+             Поля:
+               code (text; на UI показывается как пользователь ввёл,
+                     server автоматически uppercase'ит; disabled, если
+                     edit-mode && promo.current_uses > 0)
+               discount_type (radio: percent / fixed;
+                     disabled если current_uses > 0)
+               discount_value (number; отображение суффикса "%" или
+                     "₽" по discount_type; conversion rubles ↔ kopecks
+                     на save для fixed_amount; disabled если
+                     current_uses > 0)
+               min_order_amount (number в рублях, опционально, rubles ↔
+                     kopecks конвертация; разрешено редактировать всегда)
+               valid_from / valid_until (datetime-local inputs)
+               max_uses, max_uses_per_user (numbers, опционально;
+                     разрешено редактировать всегда)
+             Клиентская валидация — mirror серверной (UX-слой). При 422
+             от сервера — показать field-level errors в форме.
+             Кнопки footer'а:
+               create-mode: Cancel / Create
+               edit-mode: Cancel / Save / (Activate если is_active=false
+                 и state != expired && state != exhausted)
+                 / (Deactivate если is_active=true)
+             Activate/Deactivate действия — отдельные запросы, не часть
+             patch'а (см. API).
+
+      3. web/admin/src/App.tsx:
+         - Если PromosPage импортируется из старого пути — обновить на
+           новый @/pages/Promos или index.tsx.
+         - ProtectedRoute для /promos: allowedRoles = ['admin'].
+
+      4. i18n: web/admin/src/i18n/locales/{ru,en}.json
+           pages.promos.{title, create, search_placeholder, empty}
+           pages.promos.state.{all, active, inactive, expired, exhausted}
+           pages.promos.state_chip.{active, inactive, expired, exhausted}
+           pages.promos.columns.{code, discount, valid_until, uses, actions}
+           pages.promos.form.{code, discount_type, percent, fixed,
+             discount_value, discount_value_percent_suffix,
+             discount_value_rub_suffix, min_order, valid_from,
+             valid_until, max_uses, max_uses_per_user,
+             create_title, edit_title}
+           pages.promos.actions.{create, save, cancel, activate,
+             deactivate, edit}
+           pages.promos.errors.{duplicate_code, dates_inverted,
+             percent_out_of_range, field_locked_after_use,
+             activate_requires_valid_until, activate_expired,
+             activate_exhausted}
+           pages.promos.locked_hint — tooltip для read-only полей
+             в edit-mode: "Поле нельзя изменить после первого использования".
+
+      5. Тесты (vitest):
+         - PromosTable.test.tsx — state-chip рендер для каждого state;
+           visibility/disabled actions по state (expired: no activate;
+           active: deactivate only; inactive: activate only).
+         - PromoFormDialog.test.tsx — edit-mode с uses=0 vs uses>0:
+           code/discount_type/discount_value disabled во втором
+           случае; rubles ↔ kopecks конвертация на save/load для
+           discount_value fixed_amount + min_order_amount.
+         - PromosPage.test.tsx — state-filter табы → reload; search
+           debounce → один запрос; create-dialog open/close.
+
+      Ограничения:
+      - НЕ показывать Delete-кнопку (archive-style, §6.6).
+      - НЕ обходить сервер в edit-правилах — рендер-дисейбл это UX;
+        сервер 422-ит на попытку менять locked поля независимо.
+      - Копейки/рубли: UI в рублях, API-boundary в копейках. Для
+        discount_value percent — целое число без конвертации.
+      - state вычисляется сервером — UI использует server-provided
+        `state` из list/detail response'а, не дублирует маппинг.
+
+      Specs: PDD §4.5 Admin, §6.6 Promocode Lifecycle, §7.1 Phase 5
+      item 1, INV-010, INV-011.
+    file_zones:
+      - web/admin/src/pages/Promos/
+      - web/admin/src/pages/PromosPage.tsx
+      - web/admin/src/api/promocodes.ts
+      - web/admin/src/api/promocodes.test.ts
+      - web/admin/src/App.tsx
+      - web/admin/src/i18n/
+    parallel_group: 2
+    merge_order: 4
+
+  - name: customer-loyalty-ui
+    type: frontend
+    prompt: |
+      Customer loyalty page: balance + paginated transaction history
+      (PDD §7.1 Phase 5 item 2, §4.4).
+
+      Новый route /profile/loyalty, симметричный существующему
+      /profile/addresses. На /profile добавляется entry-point карточка
+      "Мои баллы" с балансом и ссылкой на /profile/loyalty.
+
+      1. web/customer/src/api/loyalty.ts (новый):
+         - getLoyaltyBalance() → GET /api/v1/profile/loyalty
+             returns { balance: number, lifetime_accrued: number }
+         - listLoyaltyTransactions(page, per_page) →
+             GET /api/v1/profile/loyalty/transactions
+             returns { items: LoyaltyTransaction[], page, per_page, total }
+         Types через zod, соответствуют schemas/loyalty.py. JWT через
+         существующий client.ts.
+
+      2. web/customer/src/pages/Profile/Loyalty/ (новый каталог, по
+         аналогии с Profile/Addresses/):
+         - LoyaltyPage.tsx — route /profile/loyalty, ProtectedRoute.
+             Header:
+               balance — крупная цифра с подписью "баллов".
+               subline: "Всего начислено: {lifetime_accrued}".
+             Body:
+               "История" — TransactionsList.
+               Empty state: "История пока пуста. Баллы начисляются
+                 после получения заказа."
+             На mount: useQuery для balance + useInfiniteQuery для
+             transactions (паттерн как в customer-orders-ui
+             OrderHistoryPage из phase 3.5).
+         - TransactionRow.tsx — одна строка:
+             left: дата (locale-короткий формат) + localized type label
+                   (Начисление / Списание / Возврат / Корректировка).
+             center: description (если есть) + "Заказ #{short_id}"
+                   если order_id != null — clickable Link на
+                   /orders/{order_id}; если null — ничего.
+             right: amount (большой шрифт; +зелёный / -красный /
+                   =чёрный для 0) + "после: {balance_after}".
+
+      3. web/customer/src/pages/Profile/LoyaltyCard.tsx (новый):
+         Карточка для /profile ProfilePage:
+           Header: "Мои баллы"
+           Body: balance big number
+           CTA: Link "История" → /profile/loyalty
+         Использует тот же React Query key, что LoyaltyPage — один
+         fetch на переходе между страницами.
+
+      4. web/customer/src/pages/ProfilePage.tsx:
+         Вставить <LoyaltyCard /> между language-block и logout-button.
+
+      5. web/customer/src/App.tsx:
+         Route '/profile/loyalty' → element={<LoyaltyPage />} под
+         существующим ProtectedRoute.
+
+      6. i18n: web/customer/src/i18n/locales/{ru,en}.json
+           pages.profile.loyaltyCard.{title, balance_suffix, view_history}
+           pages.loyalty.{title, balance_label, lifetime_label,
+             history_title, empty, load_more}
+           pages.loyalty.txType.{accrual, redemption, reversal,
+             admin_adjustment}
+           pages.loyalty.txRow.{balance_after, order_link}
+
+      7. Тесты (vitest):
+         - LoyaltyPage.test.tsx — balance render (включая
+           lifetime_accrued); empty state; order-link navigation;
+           infinite-pagination trigger.
+         - LoyaltyCard.test.tsx — render balance, Link на /profile/loyalty.
+         - TransactionRow.test.tsx — color rules (+зелёный/-красный);
+           order_id=null → нет ссылки; order_id=uuid → ссылка с
+           коротким id.
+
+      Ограничения:
+      - Баллы — штуки (1 балл = 1₽), НЕ копейки. API и UI работают с
+        одним целочисленным значением без конвертации.
+      - НЕ делать polling / WebSocket — баланс не realtime, PDD этого
+        не требует.
+      - НЕ добавлять "redeem points" action — списание только внутри
+        checkout-пути.
+      - Short-id для заказа — первые 8 символов UUID (паттерн из
+        customer-orders-ui).
+
+      Specs: PDD §4.4 Customer Frontend, §7.1 Phase 5 item 2, §3 Loyalty.
+    file_zones:
+      - web/customer/src/pages/Profile/Loyalty/
+      - web/customer/src/pages/Profile/LoyaltyCard.tsx
+      - web/customer/src/pages/ProfilePage.tsx
+      - web/customer/src/api/loyalty.ts
+      - web/customer/src/api/loyalty.test.ts
+      - web/customer/src/App.tsx
+      - web/customer/src/i18n/
+    parallel_group: 2
+    merge_order: 5
