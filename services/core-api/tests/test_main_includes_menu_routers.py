@@ -27,14 +27,14 @@ def test_main_registers_three_new_routers(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7.6 include_router в main.py (Phase 1: 3 + Phase 2: 3 + Phase 3: 3)
+# 7.6 include_router в main.py (Phase 1: 3 + Phase 2: 3 + Phase 3: 3 + Phase 4 maps: 1 + delivery-addresses: 1)
 # ---------------------------------------------------------------------------
 
 def test_main_include_router_call_count() -> None:
     main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
     content = main_path.read_text()
     count = content.count("include_router(")
-    assert count == 10, (
-        f"Ожидается 10 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps), "
+    assert count == 11, (
+        f"Ожидается 11 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses), "
         f"найдено: {count}"
     )

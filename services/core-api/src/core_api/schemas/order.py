@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from shared.enums import OrderStatus, OrderType
 
@@ -28,9 +28,23 @@ class CreateOrderRequest(BaseModel):
 
     type: OrderType
     delivery_address: DeliveryAddress | None = None
+    delivery_address_id: UUID | None = None
     requested_time: datetime | None = None
     promocode_code: str | None = None
     points_to_use: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _check_delivery_address_xor(self) -> "CreateOrderRequest":
+        # XOR: для доставки должно быть выставлено РОВНО одно из двух полей.
+        if self.type == OrderType.DELIVERY:
+            has_inline = self.delivery_address is not None
+            has_id = self.delivery_address_id is not None
+            if has_inline == has_id:
+                raise ValueError(
+                    "For type=delivery, set exactly one of delivery_address "
+                    "or delivery_address_id (both or neither is invalid)."
+                )
+        return self
 
 
 class OrderItemResponse(BaseModel):

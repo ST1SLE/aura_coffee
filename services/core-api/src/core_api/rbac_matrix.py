@@ -15,6 +15,11 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # Профиль — только customer
     ("GET", "/api/v1/profile"): {CUSTOMER},
     ("PATCH", "/api/v1/profile"): {CUSTOMER},
+    # Сохранённые адреса доставки — только customer (PDD §3, §5.2)
+    ("GET",    "/api/v1/profile/addresses"):              {CUSTOMER},
+    ("POST",   "/api/v1/profile/addresses"):              {CUSTOMER},
+    ("PATCH",  "/api/v1/profile/addresses/{address_id}"): {CUSTOMER},
+    ("DELETE", "/api/v1/profile/addresses/{address_id}"): {CUSTOMER},
     # Logout — любой аутентифицированный пользователь
     ("POST", "/api/v1/auth/logout"): ALL_ROLES,
     ("POST", "/api/v1/staff/auth/logout"): ALL_STAFF,
