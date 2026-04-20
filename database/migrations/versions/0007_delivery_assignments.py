@@ -1,7 +1,7 @@
 """Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
 
 Revision ID: 0007
-Revises: 0005
+Revises: 0006
 Create Date: 2026-04-20
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = "0007"
-down_revision: str | None = "0005"
+down_revision: str | None = "0006"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
