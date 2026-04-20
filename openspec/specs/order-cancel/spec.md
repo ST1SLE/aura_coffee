@@ -54,7 +54,7 @@ If any step in the cancellation chain raises, the system MUST roll back so that 
 
 ### Requirement: Promocode usage counter SHALL be decremented atomically with a zero floor
 
-`core_api.services.order_cancel._return_promocode` SHALL decrement `promocodes.current_uses` through a single conditional UPDATE whose `WHERE` clause includes the floor predicate `current_uses > 0`. The `SET` clause SHALL be `current_uses = current_uses - 1` (self-reference). Concurrent double-cancel attempts SHALL NOT drive `current_uses` below zero: the second attempt's UPDATE SHALL match zero rows and SHALL be a no-op on the counter.
+`core_api.services.order_cancel._return_promocode` SHALL decrement `promocodes.current_uses` through a single conditional UPDATE whose `WHERE` clause includes the floor predicate `current_uses > 0`. The `SET` clause SHALL be `current_uses = current_uses - 1` (self-reference). Concurrent double-cancel attempts SHALL NOT drive `current_uses` below zero: the second attempt's UPDATE SHALL match zero rows and SHALL be a no-op on the counter. The `PromocodeUsage` delete for the order SHALL still run unconditionally (idempotent on empty result).
 
 #### Scenario: Double-cancel race — second decrement is a floored no-op
 - **GIVEN** a promocode `P` with `current_uses=1` and an order `O` that redeemed `P`

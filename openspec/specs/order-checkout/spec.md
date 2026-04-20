@@ -220,6 +220,8 @@ The UPDATE SHALL match when `id = :promo_id AND (max_uses IS NULL OR current_use
 
 When a promocode with `max_uses IS NULL` is applied, the conditional UPDATE SHALL still match and increment `current_uses`.
 
+The UPDATE SHALL fire BEFORE the corresponding `PromocodeUsage` INSERT; on zero rowcount the INSERT MUST NOT happen and the whole transaction rolls back.
+
 #### Scenario: Atomic race — validator's view is stale by the time UPDATE fires
 - **GIVEN** a promocode `P` with `max_uses=1`, `current_uses=0`
 - **AND** the checkout validator has already been invoked for user A's cart (observing `current_uses=0`)
