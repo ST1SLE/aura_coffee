@@ -8,6 +8,7 @@ import {
   updateProfile,
   type ProfileData,
 } from '@/api/profile';
+import { LoyaltyCard } from '@/pages/Profile/LoyaltyCard';
 
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -159,6 +160,8 @@ export function ProfilePage() {
       {error && profile && (
         <p className="text-sm text-destructive">{error}</p>
       )}
+
+      <LoyaltyCard />
 
       {/* Выход */}
       <Button

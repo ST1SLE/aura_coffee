@@ -47,7 +47,31 @@
       "nameTooLong": "Name is too long (max 100 characters)",
       "loadError": "Failed to load profile",
       "saveError": "Failed to save changes",
-      "logout": "Sign Out"
+      "logout": "Sign Out",
+      "loyaltyCard": {
+        "title": "My points",
+        "balance_suffix": "points",
+        "view_history": "History"
+      }
+    },
+    "loyalty": {
+      "title": "My points",
+      "balance_label": "points",
+      "lifetime_label": "Lifetime earned: {{value}}",
+      "history_title": "History",
+      "empty": "No transactions yet. Points are accrued after you receive an order.",
+      "load_more": "Load more",
+      "txType": {
+        "accrual": "Accrual",
+        "redemption": "Redemption",
+        "reversal": "Reversal",
+        "reservation": "Reservation",
+        "admin_adjustment": "Adjustment"
+      },
+      "txRow": {
+        "balance_after": "after: {{value}}",
+        "order_link": "Order #{{id}}"
+      }
     },
     "addresses": {
       "title": "Delivery addresses",
