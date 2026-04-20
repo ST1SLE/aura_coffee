@@ -1,8 +1,14 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { getAccessToken } from '@/api/client';
+import { getRole, type StaffRole } from '@/lib/auth';
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+interface ProtectedRouteProps {
+  children: ReactNode;
+  allowedRoles?: StaffRole[];
+}
+
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const token = getAccessToken();
   const location = useLocation();
 
@@ -14,6 +20,15 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         replace
       />
     );
+  }
+
+  if (allowedRoles) {
+    const role = getRole();
+    if (role === null || !allowedRoles.includes(role)) {
+      // UX-подсказка. Сервер — источник истины (INV-010).
+      const target = role === 'courier' ? '/courier' : '/';
+      return <Navigate to={target} replace />;
+    }
   }
 
   return <>{children}</>;

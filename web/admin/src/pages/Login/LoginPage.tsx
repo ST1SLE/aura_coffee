@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { staffLogin, setAccessToken, ApiError } from '@/api/client';
+import { setRole, type StaffRole } from '@/lib/auth';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -25,7 +26,11 @@ export function LoginPage() {
     try {
       const result = await staffLogin(login, password);
       setAccessToken(result.access_token);
-      navigate(returnUrl ?? '/', { replace: true });
+      const role = result.role as StaffRole;
+      setRole(role);
+      // Курьер всегда попадает на /courier, returnUrl игнорируется (INV-010).
+      const target = role === 'courier' ? '/courier' : (returnUrl ?? '/');
+      navigate(target, { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError(t('auth.login.invalidCredentials'));

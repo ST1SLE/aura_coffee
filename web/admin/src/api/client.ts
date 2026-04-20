@@ -1,3 +1,5 @@
+import { clearRole } from '@/lib/auth';
+
 const STORAGE_KEY = 'accessToken';
 
 export function getAccessToken(): string | null {
@@ -14,6 +16,7 @@ export function clearAccessToken(): void {
 
 export function logout(): void {
   clearAccessToken();
+  clearRole();
   // Полная навигация гарантирует сброс состояния React после очистки токена
   window.location.assign('/admin/login');
 }

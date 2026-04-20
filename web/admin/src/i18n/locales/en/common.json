@@ -164,5 +164,34 @@
   "language": {
     "ru": "РУ",
     "en": "EN"
+  },
+  "courier": {
+    "tabs": {
+      "available": "Available",
+      "mine": "Mine"
+    },
+    "actions": {
+      "take": "Take",
+      "pickup": "Picked up",
+      "deliver": "Delivered"
+    },
+    "empty": {
+      "available": "No available deliveries right now",
+      "mine": "You have no assigned deliveries"
+    },
+    "errors": {
+      "alreadyTaken": "This order has already been taken by another courier"
+    },
+    "fields": {
+      "requestedAsap": "ASAP",
+      "total": "Total",
+      "address": "Address"
+    },
+    "status": {
+      "COURIER_ASSIGNED": "Assigned",
+      "PICKED_UP": "Picked up",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled"
+    }
   }
 }
