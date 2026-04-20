@@ -34,6 +34,7 @@ from shared.models import (
 )
 
 from core_api import celery_app as _celery_mod
+from core_api.services.delivery_assignment import cancel_assignment_for_order
 from core_api.services.order_notifications import send_order_notification
 
 # Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
@@ -136,6 +137,10 @@ def cancel_order(
     order.cancelled_by = cancelled_by
     order.cancelled_at = datetime.now(UTC)
     db_session.flush()
+
+    # 4a. Каскадная отмена DeliveryAssignment в той же транзакции (PDD §6.3, INV-004).
+    #     No-op для PICKUP-заказов / PICKED_UP / DELIVERED.
+    cancel_assignment_for_order(order.id, db_session)
 
     # 5. Уведомление — ДО постановки refund-таска, чтобы падение уведомления
     #    не оставило enqueued задачу (контракт теста 2.12).

@@ -1,9 +1,14 @@
 """Order state machine — сервисный слой (PDD §6.1, INV-003, INV-010, INV-016).
 
 `transition_order` — единственная точка входа для переходов статуса заказа.
+`transition_order_bridge` — тот же переход, но БЕЗ commit и notify: используется
+сервисом `delivery_assignment` для атомарного каскада assignment + order в одной
+транзакции (PDD §6.3).
 Запрещённые переходы и запрещённые роли → `OrderTransitionError(reason=...)`.
 При переходе в COMPLETED начисляются баллы лояльности из суммы товаров
 (без delivery_fee, INV-003).
+Для DELIVERY-заказов при PAID→PREPARING создаётся `DeliveryAssignment`
+в статусе AWAITING_COURIER (PDD §6.3).
 """
 from __future__ import annotations
 
@@ -11,8 +16,14 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from shared.enums import LoyaltyTransactionType, OrderStatus, OrderType
+from shared.enums import (
+    DeliveryAssignmentStatus,
+    LoyaltyTransactionType,
+    OrderStatus,
+    OrderType,
+)
 from shared.models import (
+    DeliveryAssignment,
     LoyaltyAccount,
     LoyaltyTransaction,
     Order,
@@ -83,6 +94,52 @@ def _accrue_loyalty(order: Order, db: Session) -> None:
     db.flush()
 
 
+def _apply_transition(
+    order_id: uuid.UUID,
+    new_status: OrderStatus,
+    actor_role: str,
+    db_session: Session,
+) -> Order:
+    """Ядро перехода: валидация + мутация + side-effects БЕЗ commit и notify."""
+    order = db_session.get(Order, order_id)
+    if order is None:
+        raise OrderTransitionError(reason="order_not_found")
+
+    current = order.status
+    key = (current, new_status)
+
+    if key not in _ALLOWED_TRANSITIONS:
+        raise OrderTransitionError(reason="forbidden_transition")
+
+    if actor_role not in _ALLOWED_ROLES[key]:
+        raise OrderTransitionError(reason="role_not_allowed")
+
+    # Гварды по типу заказа для READY-переходов (PDD §6.1).
+    if key == (OrderStatus.READY, OrderStatus.IN_DELIVERY) and order.type != OrderType.DELIVERY:
+        raise OrderTransitionError(reason="wrong_order_type_for_transition")
+    if key == (OrderStatus.READY, OrderStatus.COMPLETED) and order.type != OrderType.PICKUP:
+        raise OrderTransitionError(reason="wrong_order_type_for_transition")
+
+    order.status = new_status
+    db_session.flush()
+
+    # PDD §6.3: на PAID→PREPARING для DELIVERY-заказа сразу создаём
+    # DeliveryAssignment в статусе AWAITING_COURIER.
+    if key == (OrderStatus.PAID, OrderStatus.PREPARING) and order.type == OrderType.DELIVERY:
+        db_session.add(
+            DeliveryAssignment(
+                order_id=order.id,
+                status=DeliveryAssignmentStatus.AWAITING_COURIER,
+            )
+        )
+        db_session.flush()
+
+    if new_status == OrderStatus.COMPLETED:
+        _accrue_loyalty(order, db_session)
+
+    return order
+
+
 def transition_order(
     order_id: uuid.UUID,
     new_status: OrderStatus,
@@ -108,31 +165,23 @@ def transition_order(
             - `wrong_order_type_for_transition` — тип заказа не подходит
               (READY→IN_DELIVERY требует DELIVERY, READY→COMPLETED — PICKUP).
     """
-    order = db_session.get(Order, order_id)
-    if order is None:
-        raise OrderTransitionError(reason="order_not_found")
-
-    current = order.status
-    key = (current, new_status)
-
-    if key not in _ALLOWED_TRANSITIONS:
-        raise OrderTransitionError(reason="forbidden_transition")
-
-    if actor_role not in _ALLOWED_ROLES[key]:
-        raise OrderTransitionError(reason="role_not_allowed")
-
-    # Гварды по типу заказа для READY-переходов (PDD §6.1).
-    if key == (OrderStatus.READY, OrderStatus.IN_DELIVERY) and order.type != OrderType.DELIVERY:
-        raise OrderTransitionError(reason="wrong_order_type_for_transition")
-    if key == (OrderStatus.READY, OrderStatus.COMPLETED) and order.type != OrderType.PICKUP:
-        raise OrderTransitionError(reason="wrong_order_type_for_transition")
-
-    order.status = new_status
-    db_session.flush()
-
-    if new_status == OrderStatus.COMPLETED:
-        _accrue_loyalty(order, db_session)
-
+    order = _apply_transition(order_id, new_status, actor_role, db_session)
     send_order_notification(order, new_status)
     db_session.commit()
     return order
+
+
+def transition_order_bridge(
+    order_id: uuid.UUID,
+    new_status: OrderStatus,
+    actor_role: str,
+    db_session: Session,
+) -> Order:
+    """Bridge-вариант перехода для вызова изнутри delivery_assignment (PDD §6.3).
+
+    Тот же allow-list / validation / side-effects, что и `transition_order`,
+    но БЕЗ `db.commit()` и БЕЗ `send_order_notification` — эти шаги делает
+    вызывающий сервис, чтобы весь каскад (assignment + order) поместился
+    в одну транзакцию (INV-004).
+    """
+    return _apply_transition(order_id, new_status, actor_role, db_session)
