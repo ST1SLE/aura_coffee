@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoginPage } from '@/pages/Login';
@@ -11,6 +11,15 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { CourierShell } from '@/pages/Courier/CourierShell';
 import { CourierPage } from '@/pages/Courier/CourierPage';
+import { useCurrentRole } from '@/lib/auth';
+
+// Index-маршрут admin-only. Barista в admin+barista-layout'е редиректится
+// на /orders, чтобы избежать loop'а внутреннего ProtectedRoute.
+function DashboardIndex() {
+  const role = useCurrentRole();
+  if (role === 'admin') return <DashboardPage />;
+  return <Navigate to="/orders" replace />;
+}
 
 export function AppRoutes() {
   return (
@@ -23,7 +32,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route index element={<DashboardIndex />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="menu" element={<MenuPage />} />
         <Route path="users" element={<UsersPage />} />
