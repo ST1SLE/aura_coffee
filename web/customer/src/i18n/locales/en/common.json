@@ -52,6 +52,10 @@
         "title": "My points",
         "balance_suffix": "points",
         "view_history": "History"
+      },
+      "addressesLink": {
+        "title": "Delivery addresses",
+        "subtitle": "Manage saved addresses"
       }
     },
     "loyalty": {

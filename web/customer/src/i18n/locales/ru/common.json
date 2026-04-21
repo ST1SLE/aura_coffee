@@ -52,6 +52,10 @@
         "title": "Мои баллы",
         "balance_suffix": "баллов",
         "view_history": "История"
+      },
+      "addressesLink": {
+        "title": "Адреса доставки",
+        "subtitle": "Управление сохранёнными адресами"
       }
     },
     "loyalty": {

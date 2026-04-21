@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/auth/useAuth';
@@ -156,6 +156,18 @@ export function ProfilePage() {
           </Button>
         </div>
       </div>
+
+      <Link
+        to="/profile/addresses"
+        className="block rounded-md border p-4 hover:bg-accent"
+      >
+        <div className="text-sm font-medium">
+          {t('pages.profile.addressesLink.title')}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {t('pages.profile.addressesLink.subtitle')}
+        </div>
+      </Link>
 
       {error && profile && (
         <p className="text-sm text-destructive">{error}</p>
