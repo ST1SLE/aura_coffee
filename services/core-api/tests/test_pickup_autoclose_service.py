@@ -97,8 +97,11 @@ def _seed_order_with_updated_at(
     from shared.enums import OrderStatus, OrderType
     from shared.models import Order
 
-    uid = user_id or _seed_user(db)
-    _seed_loyalty(db, uid)
+    if user_id is None:
+        uid = _seed_user(db)
+        _seed_loyalty(db, uid)
+    else:
+        uid = user_id
     o = Order(
         user_id=uid,
         status=OrderStatus(status),

@@ -91,6 +91,50 @@ services:
       db-seed:
         condition: service_completed_successfully
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+      target: dev
+    env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
+    volumes:
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./services/core-api/src:/app/services/core-api/src
+      - ./services/core-api/tests:/app/services/core-api/tests
+      - ./database:/app/database
+    command: ["celery", "-A", "core_api.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  core-api-worker:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+      target: dev
+    env_file: .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/pycache"
+    volumes:
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./services/core-api/src:/app/services/core-api/src
+      - ./services/core-api/tests:/app/services/core-api/tests
+      - ./database:/app/database
+    command: ["celery", "-A", "core_api.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      db-seed:
+        condition: service_completed_successfully
+
   payment-worker:
     build:
       context: .
