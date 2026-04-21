@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoginPage } from '@/pages/Login';
 import { DashboardPage } from '@/pages/DashboardPage';
-import { OrdersPage } from '@/pages/OrdersPage';
+import { OrdersPage } from '@/pages/Orders';
 import { MenuPage } from '@/pages/Menu';
 import { UsersPage } from '@/pages/UsersPage';
 import { PromosPage } from '@/pages/Promos';

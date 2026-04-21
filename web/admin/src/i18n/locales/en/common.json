@@ -15,7 +15,70 @@
     },
     "orders": {
       "title": "Orders",
-      "description": "Order management"
+      "description": "Order management",
+      "filters": {
+        "active": "Active",
+        "type": "Type",
+        "type_all": "All",
+        "type_pickup": "Pickup",
+        "type_delivery": "Delivery"
+      },
+      "columns": {
+        "id": "ID",
+        "created_at": "Created",
+        "type": "Type",
+        "status": "Status",
+        "total": "Total",
+        "actions": "Actions"
+      },
+      "status": {
+        "created": "Created",
+        "paid": "Paid",
+        "preparing": "Preparing",
+        "ready": "Ready",
+        "in_delivery": "In delivery",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "type": {
+        "pickup": "Pickup",
+        "delivery": "Delivery"
+      },
+      "actions": {
+        "accept": "Accept",
+        "ready": "Ready",
+        "handout": "Hand out",
+        "cancel": "Cancel",
+        "details": "Details"
+      },
+      "cancel_confirm": {
+        "title": "Cancel order?",
+        "body": "This action cannot be undone. The customer will be refunded automatically.",
+        "confirm": "Yes, cancel",
+        "cancel": "No"
+      },
+      "detail": {
+        "title": "Order",
+        "user_id": "Customer (ID)",
+        "items": "Items",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "delivery_fee": "Delivery",
+        "total": "Total",
+        "unit_price": "Price",
+        "quantity": "Qty"
+      },
+      "empty": "No orders",
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {{page}}"
+      },
+      "errors": {
+        "illegal_transition": "Transition not allowed — order status refreshed",
+        "forbidden": "You don't have permission for this action",
+        "not_found": "Order not found"
+      }
     },
     "menu": {
       "title": "Menu",
