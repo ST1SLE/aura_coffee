@@ -205,7 +205,80 @@
     },
     "users": {
       "title": "Users",
-      "description": "Customer management"
+      "description": "Customer management",
+      "empty": "No users found",
+      "balance_unit_short": "pts",
+      "filters": {
+        "status": {
+          "all": "All",
+          "active": "Active",
+          "blocked": "Blocked",
+          "pending": "Pending"
+        }
+      },
+      "search": {
+        "placeholder": "Search by name"
+      },
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "balance": "Points",
+        "created_at": "Created",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "blocked": "Blocked",
+        "pending_verification": "Pending verification",
+        "deleted": "Deleted"
+      },
+      "detail": {
+        "title": "User",
+        "balance": "Loyalty balance",
+        "transactions": "Recent transactions",
+        "block_button": "Block",
+        "unblock_button": "Unblock",
+        "adjust_button": "Adjust points",
+        "details": "Details",
+        "empty_transactions": "No transactions",
+        "tx_columns": {
+          "type": "Type",
+          "amount": "Amount",
+          "balance_after": "Balance after",
+          "description": "Description",
+          "created_at": "Date"
+        },
+        "tx_type": {
+          "accrual": "Accrual",
+          "redemption": "Redemption",
+          "reversal": "Reversal",
+          "admin_adjustment": "Adjustment"
+        }
+      },
+      "block_confirm": {
+        "title": "Block user",
+        "warning": "{{count}} active orders will be cancelled with full refund.",
+        "checkbox": "I understand that all active orders will be cancelled",
+        "confirm": "Block",
+        "cancel": "Cancel",
+        "close": "Close",
+        "result": "Blocked. {{count}} orders cancelled."
+      },
+      "adjust": {
+        "title": "Adjust loyalty points",
+        "delta_label": "Balance change",
+        "delta_hint": "+100 to accrue, -50 to deduct",
+        "reason_label": "Reason",
+        "reason_placeholder": "Describe the reason for the adjustment",
+        "submit": "Apply",
+        "cancel": "Cancel",
+        "success": "Balance updated",
+        "error_insufficient": "Not enough points to deduct",
+        "error_delta_zero": "Change cannot be zero",
+        "error_delta_invalid": "Enter an integer",
+        "error_reason_empty": "Please provide a reason",
+        "error_reason_too_long": "Reason must be 500 characters or fewer"
+      }
     },
     "promos": {
       "title": "Promo Codes",
