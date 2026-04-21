@@ -51,7 +51,14 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
       <Route
         element={

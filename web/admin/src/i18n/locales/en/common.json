@@ -345,7 +345,57 @@
     },
     "settings": {
       "title": "Settings",
-      "description": "Shop settings"
+      "description": "Shop settings",
+      "sections": {
+        "coords": "Shop coordinates",
+        "delivery": "Delivery",
+        "loyalty": "Loyalty program",
+        "timing": "Timings",
+        "working_hours": "Working hours"
+      },
+      "fields": {
+        "shop_lat": "Latitude",
+        "shop_lon": "Longitude",
+        "delivery_radius_km": "Delivery radius",
+        "min_delivery_amount": "Min. delivery order amount",
+        "free_delivery_threshold": "Free delivery threshold",
+        "delivery_fee": "Delivery fee",
+        "loyalty_percent": "Points accrual rate",
+        "default_prep_time_minutes": "Preparation time",
+        "estimated_delivery_time_minutes": "Delivery time",
+        "auto_close_minutes": "Pickup auto-close",
+        "open": "Open",
+        "close": "Close"
+      },
+      "units": {
+        "km": "km",
+        "rub": "₽",
+        "percent": "%",
+        "minutes": "min"
+      },
+      "days": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      },
+      "closed": "Closed",
+      "save_button": "Save",
+      "toast": {
+        "saved": "Settings saved",
+        "error": "Could not save settings"
+      },
+      "errors": {
+        "out_of_range": "Value out of allowed range",
+        "below_min_delivery": "Must be at least the minimum order amount",
+        "open_after_close": "Opening time must be earlier than closing time",
+        "empty_time": "Enter a time or mark as closed",
+        "invalid_time": "Invalid time format",
+        "generic": "Could not save. Please try again."
+      }
     },
     "notFound": {
       "title": "Page Not Found",
