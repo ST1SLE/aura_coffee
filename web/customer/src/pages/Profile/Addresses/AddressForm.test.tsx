@@ -31,28 +31,26 @@ beforeEach(() => {
 });
 
 describe('AddressForm submit', () => {
-  it('calls createAddress with form data', async () => {
+  it('calls createAddress with address_text and label', async () => {
     (createAddress as Mock).mockResolvedValue({
       id: 'a1',
-      text: 'Ул. Ленина 1',
+      address_text: 'Ул. Ленина 1',
       lat: null,
       lon: null,
-      label: null,
+      label: 'Дом',
       apartment: null,
       entrance: null,
       floor: null,
       comment: null,
-      is_primary: false,
+      is_default: false,
     });
 
     const onSaved = vi.fn();
-    render(
-      <AddressForm onSaved={onSaved} onCancel={() => {}} />,
-    );
+    render(<AddressForm onSaved={onSaved} onCancel={() => {}} />);
 
-    // Изменить значение адреса (Autocomplete input — первый text input в форме)
     const inputs = screen.getAllByRole('textbox');
     // [label, address, apartment, entrance, floor, comment]
+    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
     fireEvent.change(inputs[1], { target: { value: 'Ул. Ленина 1' } });
     fireEvent.change(inputs[2], { target: { value: '42' } });
 
@@ -66,33 +64,44 @@ describe('AddressForm submit', () => {
     });
 
     const payload = (createAddress as Mock).mock.calls[0][0];
-    expect(payload.text).toBe('Ул. Ленина 1');
+    expect(payload.address_text).toBe('Ул. Ленина 1');
+    expect(payload.label).toBe('Дом');
     expect(payload.apartment).toBe('42');
+    expect(payload).not.toHaveProperty('text');
 
     await waitFor(() => {
       expect(onSaved).toHaveBeenCalled();
     });
   });
+
+  it('disables Save button when label is empty', () => {
+    render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
+
+    const inputs = screen.getAllByRole('textbox');
+    // Fill address but leave label empty
+    fireEvent.change(inputs[1], { target: { value: 'Ул. Ленина 1' } });
+
+    const submit = screen.getByRole('button', {
+      name: /сохранить|save/i,
+    }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+  });
 });
 
 describe('AddressForm radius error', () => {
   it('shows localized error on 409', async () => {
-    (createAddress as Mock).mockRejectedValue(
-      new AddressApiError(409, ''),
-    );
+    (createAddress as Mock).mockRejectedValue(new AddressApiError(409, ''));
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
 
     const inputs = screen.getAllByRole('textbox');
+    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
     fireEvent.change(inputs[1], { target: { value: 'Далеко' } });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /сохранить|save/i }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
     await waitFor(() => {
       const alert = screen.getByRole('alert');
-      // локализованный fallback "Адрес вне зоны доставки"/"outside the delivery zone"
       expect(alert.textContent).toMatch(/вне зоны|outside the delivery zone/i);
     });
   });
@@ -104,11 +113,10 @@ describe('AddressForm radius error', () => {
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
     const inputs = screen.getAllByRole('textbox');
+    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
     fireEvent.change(inputs[1], { target: { value: 'X' } });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /сохранить|save/i }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain(

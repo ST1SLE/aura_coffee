@@ -71,7 +71,7 @@ function renderPage() {
 
 const savedA: AddressResponse = {
   id: 'saved-1',
-  text: 'Невский 1',
+  address_text: 'Невский 1',
   lat: 1,
   lon: 2,
   label: 'Дом',
@@ -79,11 +79,11 @@ const savedA: AddressResponse = {
   entrance: null,
   floor: null,
   comment: null,
-  is_primary: true,
+  is_default: true,
 };
 const savedB: AddressResponse = {
   id: 'saved-2',
-  text: 'Невский 2',
+  address_text: 'Невский 2',
   lat: 1,
   lon: 2,
   label: null,
@@ -91,7 +91,7 @@ const savedB: AddressResponse = {
   entrance: null,
   floor: null,
   comment: null,
-  is_primary: false,
+  is_default: false,
 };
 
 beforeEach(() => {

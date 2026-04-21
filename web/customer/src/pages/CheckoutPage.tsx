@@ -59,7 +59,7 @@ export function CheckoutPage() {
       .then((items) => {
         setSaved(items);
         if (items.length > 0) {
-          const primary = items.find((a) => a.is_primary) ?? items[0];
+          const primary = items.find((a) => a.is_default) ?? items[0];
           setChoice({ kind: 'saved', address_id: primary.id });
         } else {
           setChoice(emptyNew);
@@ -121,9 +121,12 @@ export function CheckoutPage() {
         choice.saveForFuture
       ) {
         // Сохранение — best-effort: ошибка не блокирует переход к статусу заказа.
+        // label обязателен (server min_length=1, max_length=100); у checkout нет
+        // отдельного поля — используем сам адрес, обрезанный до серверного лимита.
         try {
           await createAddress({
-            text: choice.address.text,
+            label: choice.address.text.slice(0, 100),
+            address_text: choice.address.text,
             lat: choice.address.lat,
             lon: choice.address.lon,
             apartment: choice.apartment.trim() || null,
@@ -185,7 +188,7 @@ export function CheckoutPage() {
                   value="saved"
                   checked={choice.kind === 'saved'}
                   onChange={() => {
-                    const primary = saved.find((a) => a.is_primary) ?? saved[0];
+                    const primary = saved.find((a) => a.is_default) ?? saved[0];
                     setChoice({ kind: 'saved', address_id: primary.id });
                   }}
                 />
@@ -222,7 +225,7 @@ export function CheckoutPage() {
                       {a.label && (
                         <span className="font-medium">{a.label}: </span>
                       )}
-                      {a.text}
+                      {a.address_text}
                     </span>
                   </label>
                 </li>
