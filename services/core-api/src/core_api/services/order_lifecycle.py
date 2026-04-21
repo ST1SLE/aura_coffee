@@ -63,7 +63,7 @@ _ALLOWED_ROLES: dict[tuple[OrderStatus, OrderStatus], frozenset[str]] = {
     (OrderStatus.PREPARING, OrderStatus.READY):       frozenset({"barista", "admin"}),
     (OrderStatus.PREPARING, OrderStatus.CANCELLED):   frozenset({"admin"}),
     (OrderStatus.READY, OrderStatus.IN_DELIVERY):     frozenset({"courier", "admin"}),
-    (OrderStatus.READY, OrderStatus.COMPLETED):       frozenset({"barista", "admin"}),
+    (OrderStatus.READY, OrderStatus.COMPLETED):       frozenset({"barista", "admin", "system"}),
     (OrderStatus.READY, OrderStatus.CANCELLED):       frozenset({"admin"}),
     (OrderStatus.IN_DELIVERY, OrderStatus.COMPLETED): frozenset({"courier", "admin"}),
 }
@@ -166,7 +166,11 @@ def transition_order(
               (READY→IN_DELIVERY требует DELIVERY, READY→COMPLETED — PICKUP).
     """
     order = _apply_transition(order_id, new_status, actor_role, db_session)
-    send_order_notification(order, new_status)
+    # actor_role="system" — служебный вызов (например, scheduler
+    # pickup-autoclose): §6.1 row "Автозакрытие по таймеру" явно требует
+    # отсутствия уведомлений для этого перехода.
+    if actor_role != "system":
+        send_order_notification(order, new_status)
     db_session.commit()
     return order
 
