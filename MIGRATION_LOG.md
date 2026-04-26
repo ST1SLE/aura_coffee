@@ -16,8 +16,8 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 | CP2 | completed | c9933aa | Mothball OpenSpec layer |
 | CP3 | completed | dfa4bbc | Python contract retrofit (113 files, 374 contracts) |
 | CP4 | completed | c852386 | TS contract retrofit (121 files, 291 contracts) |
-| CP5 | in_progress | — | LDD logging wire-up |
-| CP6 | pending | — | LDD test fixtures |
+| CP5 | completed | 5763a95 | LDD logging across 8 functions, 7 files |
+| CP6 | in_progress | — | LDD test fixtures |
 | CP7 | pending | — | Docs finalization |
 
 ## Decisions log
@@ -103,3 +103,29 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 - `transition_order`: spec hint included a `prev=` field, but no separate `previous_status` variable exists at the commit point. Subagent omitted the field rather than introduce a cosmetic local. Acceptable.
 - `checkout.create_order`: zero-total flow sets `Order.status = PAID` directly, so the `belief="CREATED"` line will emit STATUS=MISMATCH. This is informative — distinguishes paid vs zero-total flow in logs, exactly what LDD is for. Not a bug.
 - `webhook.dispatch_event`: emissions placed inside the per-event handlers (`_handle_payment_succeeded`, `_handle_payment_canceled`) rather than at the dispatcher itself, because that's where the actual Payment.status transition happens. All emissions still carry `fn="process_webhook"` to match the verification-plan markers exactly.
+
+### CP6 (LDD test fixtures) — in progress
+- Added `packages/shared/src/shared/grace/testing.py` (~150 lines) with `GraceLogCapture` context manager + `parse_belief` helper + `BeliefLine` dataclass. Pure-python; no pytest dependency at import time so the helper is reusable outside test contexts.
+- Added `packages/shared/tests/conftest.py` exposing the `grace_logs` pytest fixture.
+- Appended a parallel `grace_logs` fixture to `services/core-api/tests/conftest.py` (after the existing PostgreSQL session fixture) so backend tests can use the same API.
+- Added `packages/shared/tests/test_grace_logging.py` (8 smoke tests) exercising:
+  - `block()` emission format
+  - `belief()` MATCH and MISMATCH paths
+  - `assert_trajectory()` happy path and missing-marker failure
+  - `parse_belief()` standalone (positive + negative)
+  - GraceLogger constructor with custom base logger
+- Existing `test_enums_menu.py` (3 tests) preserved. Full `pytest packages/shared/tests/` run: **11/11 passed in 0.01s**.
+
+API the fixture exposes (for tests that opt into LDD assertions):
+```python
+def test_x(grace_logs):
+    ... call code under test ...
+    grace_logs.assert_trajectory(
+        ("orders.create", "BLOCK_TX_BEGIN"),
+        ("orders.create", "BLOCK_STATE_TRANSITION"),
+        ("orders.create", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+```
+
+Convention: tests that opt into LDD assertions carry a `# GRACE-LDD` header comment (e.g., the new `test_grace_logging.py`). Existing tests left untouched per CP6 scope.

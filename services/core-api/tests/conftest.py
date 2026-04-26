@@ -544,3 +544,36 @@ def db_session() -> Generator[None, None, None]:
         outer_tx.rollback()
         connection.close()
         engine.dispose()
+
+
+# ─────────────────────────────────────────────
+# GRACE-LDD: log-capture fixture for verification tests
+# ─────────────────────────────────────────────
+# Exposes shared.grace.testing.GraceLogCapture as the `grace_logs` fixture so
+# tests can assert on [Module][fn][BLOCK] markers and BELIEF/ACTUAL/STATUS
+# pairs emitted by code paths under test. See docs/verification-plan.xml
+# GlobalPolicy/log-format and packages/shared/tests/test_grace_logging.py
+# for usage examples.
+from shared.grace.testing import GraceLogCapture as _GraceLogCapture  # noqa: E402
+
+
+@pytest.fixture
+def grace_logs():
+    """Capture GRACE LDD log lines emitted during a test.
+
+    Usage:
+        def test_x(grace_logs):
+            ... call code under test ...
+            grace_logs.assert_trajectory(
+                ("orders.create", "BLOCK_TX_BEGIN"),
+                ("orders.create", "BLOCK_STATE_TRANSITION"),
+                ("orders.create", "BLOCK_TX_COMMIT"),
+            )
+            assert grace_logs.beliefs(status="MISMATCH") == []
+    """
+    capture = _GraceLogCapture()
+    capture.install()
+    try:
+        yield capture
+    finally:
+        capture.uninstall()
