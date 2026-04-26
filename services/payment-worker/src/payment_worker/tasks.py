@@ -54,6 +54,10 @@ if TYPE_CHECKING:
 from payment_worker.main import celery_app
 from payment_worker.yukassa_client import YukassaClient
 
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("PaymentWorker")
+
 logger = logging.getLogger(__name__)
 
 
@@ -226,6 +230,7 @@ def create_payment(
     return_url = f"https://aura.coffee/orders/{order_id}"
     description = f"Order #{order_id}"
 
+    _grace_log.block("create_intent", "BLOCK_YUKASSA_CALL", order_id=str(order_id))
     try:
         result = client.create_payment(
             amount_kopecks=amount_kopecks,

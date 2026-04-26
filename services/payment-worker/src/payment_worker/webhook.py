@@ -56,6 +56,9 @@ from fastapi.responses import JSONResponse
 from payment_worker.db import get_engine, session_scope  # noqa: F401  (patch target)
 from payment_worker.redis_client import get_redis  # noqa: F401  (patch target)
 from payment_worker.settings import Settings
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("PaymentWorker")
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -220,6 +223,15 @@ def _handle_payment_succeeded(
 
     payment.status = PaymentStatus.SUCCEEDED
     order.status = OrderStatus.PAID
+    _grace_log.block(
+        "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+    )
+    _grace_log.belief(
+        "process_webhook",
+        "BLOCK_STATE_TRANSITION",
+        belief="PAID",
+        actual=str(order.status),
+    )
 
     # RESERVATION -> REDEMPTION: конвертируем тип существующей записи.
     reservation = (
@@ -283,6 +295,15 @@ def _handle_payment_canceled(
 
     payment.status = PaymentStatus.PAYMENT_FAILED
     order.status = OrderStatus.CANCELLED
+    _grace_log.block(
+        "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+    )
+    _grace_log.belief(
+        "process_webhook",
+        "BLOCK_STATE_TRANSITION",
+        belief="CANCELLED",
+        actual=str(order.status),
+    )
 
     if order.points_used and order.points_used > 0:
         last_tx = (
@@ -462,6 +483,9 @@ async def yukassa_webhook(request: Request) -> JSONResponse:
     body = await request.json()
     event = body.get("event", "")
     obj = body.get("object", {}) or {}
+    _grace_log.block(
+        "process_webhook", "BLOCK_WEBHOOK_VERIFY", event_type=str(event)
+    )
 
     raw_body = await request.body()
     event_id = request.headers.get("X-Event-Id") or hashlib.sha256(

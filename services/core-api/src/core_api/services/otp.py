@@ -24,6 +24,9 @@ from enum import Enum
 import redis
 
 from shared.enums import OTPStatus
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("CoreApi")
 
 OTP_TTL = 300
 OTP_MAX_ATTEMPTS = 5
@@ -176,6 +179,7 @@ class OTPService:
     # END_CONTRACT: OTPService.create_otp
     def create_otp(self, phone_hash: str) -> str:
         """Создание OTP: 6 цифр, статус CREATED, TTL 300с."""
+        _grace_log.block("auth.otp_request", "BLOCK_OTP_GEN")
         code = f"{secrets.randbelow(1_000_000):06d}"
         otp_data = json.dumps({
             "code": code,
@@ -204,6 +208,12 @@ class OTPService:
         )
         data = json.loads(raw)
         result = VerifyResult(data["result"])
+        _grace_log.belief(
+            "auth.otp_verify",
+            "BLOCK_AUTH_VERIFY",
+            belief="VERIFIED",
+            actual=str(result.value),
+        )
 
         if result == VerifyResult.WRONG_CODE:
             remaining = data["max"] - data["attempts"]

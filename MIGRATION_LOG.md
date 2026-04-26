@@ -15,8 +15,8 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 | CP1 | completed | 7534d83 | GRACE bootstrap (docs/*.xml + LDD logger) |
 | CP2 | completed | c9933aa | Mothball OpenSpec layer |
 | CP3 | completed | dfa4bbc | Python contract retrofit (113 files, 374 contracts) |
-| CP4 | in_progress | — | TS contract retrofit (2 modules) |
-| CP5 | pending | — | LDD logging wire-up |
+| CP4 | completed | c852386 | TS contract retrofit (121 files, 291 contracts) |
+| CP5 | in_progress | — | LDD logging wire-up |
 | CP6 | pending | — | LDD test fixtures |
 | CP7 | pending | — | Docs finalization |
 
@@ -84,3 +84,22 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 5. **Customer `pages/CartPage.tsx` is an obsolete stub.** Real `/cart` route mounts `pages/Cart/CartPage.tsx`. The stub got a contract noting this; deletion is a future cleanup.
 6. **Admin `staffRole` localStorage hint can drift from JWT claims.** UX glitch only (not security; INV-002 enforced server-side). `useCurrentRole` should arguably read from the JWT instead of a separate localStorage key.
 7. **Admin `parseStatus` in OrdersPage silently casts unknown server status `'created'`.** `AdminOrderStatusFilter` type union doesn't include `'created'`. Not blocking; flagged for next reviewer.
+
+### CP5 (LDD logging wire-up) — in progress
+- Single focused subagent wired `shared.grace.logging.get_grace_logger` into 8 high-value functions across 7 files.
+- Each touched file now has 3 added lines at the top (`from shared.grace.logging import get_grace_logger` + `_grace_log = get_grace_logger("<MODULE_LABEL>")`) and 1–3 emission lines at the strategic boundaries.
+- ~40 lines of new code total. AST-parse clean across all 7 files.
+- Wiring summary (function → emissions):
+  - `services/core-api/.../checkout.py::create_order` — BLOCK_TX_BEGIN (entry), BLOCK_STATE_TRANSITION belief="CREATED" (post-persist), BLOCK_TX_COMMIT (exit). INV-004 atomic flow.
+  - `services/core-api/.../order_lifecycle.py::transition_order` — BLOCK_STATE_TRANSITION belief at the apply-transition boundary. INV-016.
+  - `services/core-api/.../delivery_assignment.py::{take,pickup,deliver}_assignment` — BLOCK_STATE_TRANSITION belief on each (target states COURIER_ASSIGNED, PICKED_UP, DELIVERED). PDD §6.3.
+  - `services/core-api/.../otp.py::OTPService.{create_otp,verify_otp}` — BLOCK_OTP_GEN (request) + BLOCK_AUTH_VERIFY belief="VERIFIED" (verify). PDD §6.4. INV-013 honored — no phone or OTP code in emissions.
+  - `services/payment-worker/.../tasks.py::create_payment` — BLOCK_YUKASSA_CALL just before the HTTP call.
+  - `services/payment-worker/.../webhook.py::yukassa_webhook + _handle_payment_{succeeded,canceled}` — BLOCK_WEBHOOK_VERIFY (post-signature), BLOCK_TX_PAYMENT (in handler), BLOCK_STATE_TRANSITION belief in each handler. PDD §6.2.
+  - `services/sms-worker/.../tasks/otp.py::send_otp_sms` — BLOCK_SMSRU_CALL just before the SMS.ru transport. INV-013 honored.
+- Existing `logger.info/.warning/.error` calls were left untouched per design — `shared.grace.logging` is additive, not replacement.
+
+**CP5 deviations (all sensible, logged for transparency):**
+- `transition_order`: spec hint included a `prev=` field, but no separate `previous_status` variable exists at the commit point. Subagent omitted the field rather than introduce a cosmetic local. Acceptable.
+- `checkout.create_order`: zero-total flow sets `Order.status = PAID` directly, so the `belief="CREATED"` line will emit STATUS=MISMATCH. This is informative — distinguishes paid vs zero-total flow in logs, exactly what LDD is for. Not a bug.
+- `webhook.dispatch_event`: emissions placed inside the per-event handlers (`_handle_payment_succeeded`, `_handle_payment_canceled`) rather than at the dispatcher itself, because that's where the actual Payment.status transition happens. All emissions still carry `fn="process_webhook"` to match the verification-plan markers exactly.

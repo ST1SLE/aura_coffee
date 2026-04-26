@@ -52,6 +52,10 @@ from shared.models import (
 
 from core_api.services.order_notifications import send_order_notification
 
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("CoreApi")
+
 
 # START_CONTRACT: OrderTransitionError
 #   PURPOSE: Raised on disallowed Order state transition or RBAC gate failure.
@@ -219,6 +223,13 @@ def transition_order(
     if actor_role != "system":
         send_order_notification(order, new_status)
     db_session.commit()
+    _grace_log.belief(
+        "order_lifecycle.transition_order",
+        "BLOCK_STATE_TRANSITION",
+        belief=str(new_status),
+        actual=str(order.status),
+        order_id=str(order.id),
+    )
     return order
 
 

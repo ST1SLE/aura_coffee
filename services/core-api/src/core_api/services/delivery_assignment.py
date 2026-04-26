@@ -45,6 +45,10 @@ from shared.models import DeliveryAssignment, Order
 from core_api.services.order_lifecycle import transition_order_bridge
 from core_api.services.order_notifications import send_order_notification
 
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("CoreApi")
+
 
 # START_CONTRACT: AssignmentTransitionError
 #   PURPOSE: Domain error for delivery-assignment transitions, carrying a
@@ -141,7 +145,15 @@ def take_assignment(
 
     db_session.commit()
     # Возвращаем свежий объект — после commit identity map expired.
-    return db_session.get(DeliveryAssignment, assignment_id)
+    assignment = db_session.get(DeliveryAssignment, assignment_id)
+    _grace_log.belief(
+        "delivery.accept",
+        "BLOCK_STATE_TRANSITION",
+        belief="COURIER_ASSIGNED",
+        actual=str(assignment.status),
+        assignment_id=str(assignment.id),
+    )
+    return assignment
 
 
 # START_CONTRACT: pickup_assignment
@@ -195,6 +207,13 @@ def pickup_assignment(
     )
 
     db_session.commit()
+    _grace_log.belief(
+        "delivery.pickup",
+        "BLOCK_STATE_TRANSITION",
+        belief="PICKED_UP",
+        actual=str(assignment.status),
+        assignment_id=str(assignment.id),
+    )
     send_order_notification(order, OrderStatus.IN_DELIVERY)
     return assignment
 
@@ -243,6 +262,13 @@ def deliver_assignment(
     )
 
     db_session.commit()
+    _grace_log.belief(
+        "delivery.deliver",
+        "BLOCK_STATE_TRANSITION",
+        belief="DELIVERED",
+        actual=str(assignment.status),
+        assignment_id=str(assignment.id),
+    )
     send_order_notification(order, OrderStatus.COMPLETED)
     return assignment
 

@@ -88,6 +88,10 @@ from shared.models import (
 )
 from shared.models.menu import MenuItem, Modifier, SizeOption
 
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("CoreApi")
+
 
 # START_CONTRACT: EmptyCartError
 #   PURPOSE: Raised when checkout reads an empty/missing Redis cart — router
@@ -431,6 +435,7 @@ def create_order(
     db_session: Session,
 ) -> OrderResponse:
     """Конвертирует корзину в заказ. См. модуль-docstring."""
+    _grace_log.block("orders.create", "BLOCK_TX_BEGIN", user_id=str(user_id))
     # 1. Чтение корзины
     cart_items = _read_cart(redis_client, user_id)
 
@@ -602,6 +607,14 @@ def create_order(
 
     db_session.flush()
     db_session.commit()
+    _grace_log.belief(
+        "orders.create",
+        "BLOCK_STATE_TRANSITION",
+        belief="CREATED",
+        actual=str(order.status),
+        order_id=str(order.id),
+    )
+    _grace_log.block("orders.create", "BLOCK_TX_COMMIT", order_id=str(order.id))
 
     # 5. Post-commit побочные эффекты
     if total > 0:
