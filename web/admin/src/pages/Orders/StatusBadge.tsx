@@ -2,6 +2,21 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import type { OrderStatus } from '@/api/admin-orders';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Localized colored badge for OrderStatus; deliberately separate
+//            palette from user-status badge (PDD §6.1 / design.md Decision 6).
+//            Pure presentation.
+//   SCOPE:   Used by OrdersTable rows and OrderDetailDialog header.
+//   DEPENDS: react-i18next, ui Badge, @/api/admin-orders type.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   StatusBadge - colored localized badge for OrderStatus
+// END_MODULE_MAP
+
 // Цветовая карта статусов заказа (PDD §6.1, design.md Decision 6).
 const STATUS_CLASSES: Record<OrderStatus, string> = {
   created: 'bg-gray-200 text-gray-800',

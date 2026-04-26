@@ -3,6 +3,24 @@ import type { CartItemResponse } from '@/api/cartTypes';
 import { formatPrice } from '@/lib/formatPrice';
 import { Button } from '@/components/ui/button';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: One row in the cart list — renders the menu item name, optional
+//            size + modifier list, qty stepper (with auto-remove at 0), and
+//            line totals. Delegates persistence to its onUpdateQuantity /
+//            onRemove props (CartPage owns the store + error handling).
+//   SCOPE:   CartLine component.
+//   DEPENDS: react-i18next, @/api/cartTypes (CartItemResponse), @/lib/formatPrice,
+//            @/components/ui/button.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart;
+//            INV-014 — name_ru/name_en come from server snapshots, never recomputed.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CartLine  - cart row with qty stepper and remove button
+// END_MODULE_MAP
+
 interface Props {
   item: CartItemResponse;
   lang: 'ru' | 'en';
@@ -12,6 +30,16 @@ interface Props {
   itemId: string;
 }
 
+// START_CONTRACT: CartLine
+//   PURPOSE: Render one cart line and surface user actions through callbacks.
+//   INPUTS:  Props — item: CartItemResponse, lang: 'ru'|'en',
+//            onUpdateQuantity: (itemId, qty) => void, onRemove: (itemId) => void,
+//            itemId: string.
+//   OUTPUTS: JSX — full row (name + variants + stepper + price).
+//   SIDE_EFFECTS: only via the callbacks. Auto-remove when decrementing from 1.
+//                 INV-014 — prices/snapshot fields rendered as-is (no client math).
+//   LINKS:   PDD §5; consumed by Cart/CartPage.
+// END_CONTRACT: CartLine
 export function CartLine({ item, lang, onUpdateQuantity, onRemove, itemId }: Props) {
   const { t } = useTranslation();
   const locale = lang === 'ru' ? 'ru' : 'en';

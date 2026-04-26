@@ -11,6 +11,21 @@ import { Button } from '@/components/ui/button';
 import type { UserSummary } from '@/api/admin-users';
 import { UserStatusBadge } from './UserStatusBadge';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the paginated users list as a clickable table. Pure
+//            presentation given items + onSelect callback.
+//   SCOPE:   Used only by UsersPage.
+//   DEPENDS: react-i18next, ui Table + Button, @/api/admin-users type, ./UserStatusBadge.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, INV-013 (display_name only,
+//            no PII columns).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   UsersTable - clickable users list with status badge and balance column
+// END_MODULE_MAP
+
 interface Props {
   items: UserSummary[];
   onSelect: (userId: string) => void;

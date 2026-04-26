@@ -18,6 +18,25 @@ import {
   type InlineDeliveryAddress,
 } from '@/api/orders';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Checkout route page — choose pickup vs delivery, pick a saved
+//            delivery address or enter a new one (with optional save), submit
+//            the order, render server-localized error detail on 409 (out-of-
+//            radius), and navigate to the order status page on success.
+//   SCOPE:   CheckoutPage component.
+//   DEPENDS: react, react-router-dom, react-i18next, @/components/ui/button,
+//            @/components/AddressAutocomplete, @/api/addresses, @/api/orders.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 checkout;
+//            INV-013 (raw address text + comment are PII, never logged);
+//            INV-014 (server returns order_items snapshot; UI does not recompute).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CheckoutPage  - /checkout route with pickup/delivery + address logic
+// END_MODULE_MAP
+
 type OrderType = 'PICKUP' | 'DELIVERY';
 
 type DeliveryChoice =
@@ -42,6 +61,18 @@ const emptyNew: Extract<DeliveryChoice, { kind: 'new' }> = {
   saveForFuture: false,
 };
 
+// START_CONTRACT: CheckoutPage
+//   PURPOSE: Render and orchestrate the checkout form — order type selector,
+//            saved/new address picker, submit handler, and success redirect.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — full form with pickup/delivery + saved/new address subforms.
+//   SIDE_EFFECTS: HTTP listAddresses() when DELIVERY is selected; HTTP
+//                 createOrder() on submit; HTTP createAddress() best-effort if
+//                 "save for future" is checked; navigate(`/orders/:id`) on success.
+//                 INV-013 — payload contains PII, do not log raw values.
+//                 INV-014 — order_items snapshot rendered server-side later.
+//   LINKS:   PDD §7; AddressForm shares the same renderError pattern.
+// END_CONTRACT: CheckoutPage
 export function CheckoutPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();

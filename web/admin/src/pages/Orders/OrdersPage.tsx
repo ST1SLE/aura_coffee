@@ -18,6 +18,28 @@ import type {
 import { OrdersTable } from './OrdersTable';
 import { OrderDetailDialog } from './OrderDetailDialog';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin/barista orders feed — status filter tabs (incl. 'active'
+//            aggregate), type filter, paginated list, polling on 'active' tab
+//            (paused when document.hidden), and an OrderDetailDialog for
+//            inspecting and transitioning orders.
+//   SCOPE:   Mounted at /orders under the admin/barista layout. Visible to both
+//            roles; the dialog hides destructive controls for non-admin roles.
+//   DEPENDS: react, react-router-dom, react-i18next, ui primitives,
+//            @/api/admin-orders, sibling OrdersTable + OrderDetailDialog.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
+//            AGENTS.md (real-time feed within 5s — implemented as 10s polling),
+//            INV-002 (server enforces role on every transition),
+//            INV-014 (order_items shown carry snapshot names),
+//            INV-016 (state-machine transitions triggered from the detail dialog).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   OrdersPage - data-fetching admin/barista orders feed with poll + filters
+// END_MODULE_MAP
+
 // Семь табов — серверный фильтр status. 'active' — агрегирующий (paid+preparing+ready+in_delivery).
 const STATUS_TABS: AdminOrderStatusFilter[] = [
   'active',
@@ -60,6 +82,20 @@ function parsePage(raw: string | null): number {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
+// START_CONTRACT: OrdersPage
+//   PURPOSE: Sync filter state with URL query params, fetch the paginated order
+//            list, poll the 'active' filter every 10s while the tab is visible,
+//            and own the selected-order dialog with retry-after-error logic.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listAdminOrders / getAdminOrder; polling interval lifecycle;
+//            visibilitychange listener; URL search param updates; transition
+//            actions are dispatched from the dialog and refresh both the list
+//            and the open order on success.
+//   LINKS:   INV-002 (admin and barista may read; the underlying transition
+//            endpoints accept role-specific actions — server is authoritative),
+//            INV-016 (transitions go through the dialog).
+// END_CONTRACT: OrdersPage
 export function OrdersPage() {
   const { t } = useTranslation();
   const { notifications, notify, dismiss } = useNotifier();

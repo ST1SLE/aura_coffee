@@ -9,6 +9,22 @@ import {
   ApiError,
 } from '@/api/admin-users';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Inline form for an admin loyalty-balance adjustment — strict
+//            integer delta, mandatory reason, surfaces server insufficient_balance
+//            as a field-level error rather than a toast.
+//   SCOPE:   Embedded in UserDetailDialog.
+//   DEPENDS: react, react-i18next, ui primitives, @/api/admin-users.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.7,
+//            INV-002 (admin scope).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   LoyaltyAdjustForm - admin-only loyalty-balance adjustment form
+// END_MODULE_MAP
+
 interface Props {
   userId: string;
   onSuccess: () => void;
@@ -28,6 +44,16 @@ function parseIntStrict(s: string): number | null {
   return Number.isInteger(n) ? n : null;
 }
 
+// START_CONTRACT: LoyaltyAdjustForm
+//   PURPOSE: Validate delta as a non-zero integer and reason as non-empty text,
+//            then POST adjustLoyalty. Routes 422 insufficient_balance into the
+//            field-level error map; other errors go through the parent's notify.
+//   INPUTS:  Props { userId, onSuccess, onNotify }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: POST adjustLoyalty (admin-only); 422/other errors surfaced
+//            via field errors or onNotify.
+//   LINKS:   INV-002.
+// END_CONTRACT: LoyaltyAdjustForm
 export function LoyaltyAdjustForm({ userId, onSuccess, onNotify }: Props) {
   const { t } = useTranslation();
   const [delta, setDelta] = useState('');

@@ -8,6 +8,23 @@ import type { CategoryResponse, CategoryType } from '@/api/menu';
 import { listCategories, createCategory, updateCategory, deleteCategory, ApiError } from '@/api/menu';
 import { pickLang } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Left-column category list with admin-only inline create/edit/delete
+//            controls. Lifts the loaded categories up to MenuPage so siblings
+//            (MenuItemsTable) can render category dropdowns without refetching.
+//   SCOPE:   Used only by MenuPage.
+//   DEPENDS: react, react-i18next, lucide-react, ui primitives, @/api/menu, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (server enforces admin scope on category CRUD),
+//            INV-010 (barista cannot create/delete; this UI hides those buttons).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CategoryList - data-fetching list with admin-only CRUD inline UI
+// END_MODULE_MAP
+
 interface Props {
   selectedId: number | null;
   onSelect: (id: number | null) => void;
@@ -16,6 +33,18 @@ interface Props {
   onError: (msg: string) => void;
 }
 
+// START_CONTRACT: CategoryList
+//   PURPOSE: Render the category sidebar — fetch categories once, allow admin
+//            to create/edit/delete inline, and notify the parent of selection
+//            and category-set changes.
+//   INPUTS:  Props { selectedId, onSelect, onCategoriesLoaded, currentRole, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listCategories; POST/PUT/DELETE category endpoints
+//            (admin only — server rejects barista). 422/409/401 handled into
+//            onError callback.
+//   LINKS:   INV-002 (CRUD enforced server-side); the isAdmin flag here only
+//            decides which buttons render.
+// END_CONTRACT: CategoryList
 export function CategoryList({
   selectedId,
   onSelect,

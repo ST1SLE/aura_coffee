@@ -1,5 +1,20 @@
 import { useCallback, useRef } from 'react';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: 6-digit OTP input — six single-character inputs that auto-advance,
+//            handle Backspace (clear current then move back), accept paste of
+//            the full code, and fire onComplete when all six digits are filled.
+//   SCOPE:   OTPInput component.
+//   DEPENDS: react (useCallback, useRef).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.2 verify-code.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   OTPInput  - controlled 6-digit OTP input with auto-advance and paste support
+// END_MODULE_MAP
+
 const CODE_LENGTH = 6;
 
 interface OTPInputProps {
@@ -9,6 +24,16 @@ interface OTPInputProps {
   disabled?: boolean;
 }
 
+// START_CONTRACT: OTPInput
+//   PURPOSE: Controlled 6-digit code entry — emits onChange on every edit and
+//            onComplete exactly when the value becomes a valid 6-digit string.
+//   INPUTS:  OTPInputProps — value: string, onChange: (code) => void,
+//            onComplete: (code) => void, disabled?: boolean.
+//   OUTPUTS: JSX — six <input maxLength=1> with shared keyboard/paste behavior.
+//   SIDE_EFFECTS: focus(), parent state via callbacks. INV-013 — code is short-
+//                 lived auth secret, do not log.
+//   LINKS:   PDD §6.2; consumed by VerifyPage.
+// END_CONTRACT: OTPInput
 export function OTPInput({ value, onChange, onComplete, disabled }: OTPInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const digits = value.padEnd(CODE_LENGTH, ' ').slice(0, CODE_LENGTH).split('');

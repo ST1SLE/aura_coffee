@@ -14,6 +14,21 @@ import type {
   PromocodeState,
 } from '@/api/promocodes';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the promocodes list as a clickable table with state chip,
+//            formatted discount/uses/valid_until, and inline activate/deactivate
+//            buttons gated by current state. Pure presentation given props.
+//   SCOPE:   Used only by PromosPage.
+//   DEPENDS: react-i18next, ui Table/Button/Badge, @/api/promocodes types.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   PromosTable - clickable promo list with inline activate/deactivate
+// END_MODULE_MAP
+
 interface Props {
   items: PromocodeResponse[];
   onRowClick: (promo: PromocodeResponse) => void;

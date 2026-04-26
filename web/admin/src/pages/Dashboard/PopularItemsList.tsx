@@ -9,6 +9,21 @@ import {
 } from '@/components/ui/table';
 import type { PopularItem } from '@/api/admin-stats';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the dashboard "popular items" table with locale-aware name
+//            picking. Pure presentation given a PopularItem[] from the parent.
+//   SCOPE:   Used only by DashboardPage.
+//   DEPENDS: react-i18next, @/components/ui/table, @/api/admin-stats type.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, INV-014 (snapshot names
+//            from order_items keep this list stable across menu renames).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   PopularItemsList - localized popular items table or empty state
+// END_MODULE_MAP
+
 interface PopularItemsListProps {
   items: PopularItem[];
   locale: 'ru' | 'en';

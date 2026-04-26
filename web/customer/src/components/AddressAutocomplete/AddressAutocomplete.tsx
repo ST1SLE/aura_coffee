@@ -7,6 +7,27 @@ import {
   type MapsLang,
 } from '@/api/yandex_maps';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Address autocomplete input — debounced query against the
+//            core-api Yandex.Maps proxy with a degraded-fallback path:
+//            on MapsUnavailableError (503/network) the dropdown disappears
+//            and the user can still type a free-form address that the server
+//            will geocode at order time. Stale-response guarding is done with
+//            a monotonic request-id ref.
+//   SCOPE:   AddressValue type + AddressAutocomplete component.
+//   DEPENDS: react, react-i18next, @/api/yandex_maps (suggest, MapsLang,
+//            SuggestResult, MapsUnavailableError).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7.3 / §8.3 maps
+//            degradation. INV-013 — text input is PII; component does not log it.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   AddressValue          - { text, lat, lon } shape used by parent forms
+//   AddressAutocomplete   - debounced input + dropdown + degraded mode
+// END_MODULE_MAP
+
 export interface AddressValue {
   text: string;
   lat: number | null;
@@ -24,6 +45,18 @@ interface Props {
 const MIN_QUERY_LEN = 3;
 const DEBOUNCE_MS = 300;
 
+// START_CONTRACT: AddressAutocomplete
+//   PURPOSE: Controlled address input that streams suggestions from /api/v1/
+//            maps/suggest and writes the selection (text + coords) back via
+//            onChange. Falls back to plain input on MapsUnavailableError.
+//   INPUTS:  Props — value: AddressValue, onChange: (next) => void,
+//            lang: MapsLang, inputId?: string, required?: boolean.
+//   OUTPUTS: JSX — <input> + suggestion <ul role="listbox"> + degraded notice.
+//   SIDE_EFFECTS: HTTP call via api/yandex_maps.suggest (debounced 300ms,
+//                 minimum 3 chars); reads/writes parent state through onChange.
+//                 INV-013 — query string is PII; do not log.
+//   LINKS:   PDD §7.3 / §8.3; consumed by AddressForm and CheckoutPage.
+// END_CONTRACT: AddressAutocomplete
 // AddressAutocomplete: debounced-input с dropdown-подсказками Яндекс.Карт.
 // На 503/network — уходит в degraded-режим на всю сессию монтирования (§8.3).
 export function AddressAutocomplete({

@@ -1,6 +1,20 @@
 import { useTranslation } from 'react-i18next';
 import { formatKopecks } from '@/lib/money';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Two summary cards — revenue (formatted via formatKopecks) and
+//            orders count (locale-formatted integer). Pure presentation.
+//   SCOPE:   Used only by DashboardPage.
+//   DEPENDS: react-i18next, @/lib/money.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §5.2.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   StatsCards - revenue + orders summary cards
+// END_MODULE_MAP
+
 interface StatsCardsProps {
   revenueKopecks: number;
   ordersCount: number;

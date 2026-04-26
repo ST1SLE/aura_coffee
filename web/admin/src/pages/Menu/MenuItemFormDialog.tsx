@@ -15,6 +15,24 @@ import type { MenuItemResponse, CategoryResponse, ModifierResponse } from '@/api
 import { createItem, updateItem, ApiError } from '@/api/menu';
 import { rublesToKopecks, kopecksToRublesStr, pickLang } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Modal dialog for creating or editing a menu item. After successful
+//            create, switches into edit mode so the user can immediately add
+//            sizes and modifier links to the new item.
+//   SCOPE:   Opened by MenuItemsTable. Admin-only feature on the server side.
+//   DEPENDS: react, react-i18next, ui primitives, @/api/menu, sibling SizeOptionsEditor,
+//            ModifiersPicker, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (admin-only server-side; this dialog should not be reachable
+//            for barista since MenuItemsTable hides the trigger button).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   MenuItemFormDialog - admin-only create/edit dialog with sizes + modifiers panel
+// END_MODULE_MAP
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -51,6 +69,15 @@ function makeForm(item?: MenuItemResponse | null): FormState {
   };
 }
 
+// START_CONTRACT: MenuItemFormDialog
+//   PURPOSE: Render the item form, validate locally, POST/PUT through createItem/
+//            updateItem, and on success notify the parent list. After create,
+//            transitions into edit mode so size/modifier panels become enabled.
+//   INPUTS:  Props { open, onClose, categories, modifiers, item, onSaved, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: POST createItem / PUT updateItem; 422/401 surfaced via onError.
+//   LINKS:   INV-002 (admin scope server-enforced).
+// END_CONTRACT: MenuItemFormDialog
 export function MenuItemFormDialog({ open, onClose, categories, modifiers, item, onSaved, onError }: Props) {
   const { t, i18n } = useTranslation();
 

@@ -3,6 +3,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SettingsFormState, ErrorMap } from './validation';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the "loyalty" subsection — single loyalty_percent input
+//            (0..100). Pure presentation.
+//   SCOPE:   Used only by SettingsPage.
+//   DEPENDS: react-i18next, ui Input/Label, ./validation types.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SectionLoyalty - loyalty_percent input with error rendering
+// END_MODULE_MAP
+
 interface Props {
   form: SettingsFormState;
   onChange: (key: keyof SettingsFormState, value: string) => void;

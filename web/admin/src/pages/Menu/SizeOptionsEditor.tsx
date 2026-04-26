@@ -12,6 +12,21 @@ import {
 } from '@/api/menu';
 import { kopecksToRublesStr, rublesToKopecks } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Inline editor for a menu item's size options (S/M/L) — add/edit/
+//            delete rows. Disabled until the parent item exists.
+//   SCOPE:   Embedded in MenuItemFormDialog.
+//   DEPENDS: react, react-i18next, lucide-react, ui primitives, @/api/menu, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (admin-only on server).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SizeOptionsEditor - admin-only size CRUD inline editor
+// END_MODULE_MAP
+
 interface Props {
   menuItemId: number;
   sizes: SizeOptionResponse[];
@@ -29,6 +44,16 @@ const SIZE_LABELS: SizeLabel[] = ['S', 'M', 'L'];
 
 const emptyRow = (): AddRow => ({ label: 'S', price: '' });
 
+// START_CONTRACT: SizeOptionsEditor
+//   PURPOSE: Render an editable list of size options for a menu item; persist
+//            create/update/delete via the menu API and propagate the resulting
+//            size array back via onChange.
+//   INPUTS:  Props { menuItemId, sizes, onChange, disabled?, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: POST createSize / PUT updateSize / DELETE deleteSize;
+//            409 on duplicate label routed to onError.
+//   LINKS:   INV-002.
+// END_CONTRACT: SizeOptionsEditor
 export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onError }: Props) {
   const { t } = useTranslation();
   const [addRow, setAddRow] = useState<AddRow>(emptyRow());

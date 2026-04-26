@@ -2,6 +2,22 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: shadcn/ui Badge primitive — small colored pill used for statuses
+//            (order status, user status, promo state). Pure presentation.
+//   SCOPE:   Wrapped by domain-specific badges (StatusBadge, UserStatusBadge, StateChip).
+//   DEPENDS: react, class-variance-authority, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Badge         - styled <div> with variant prop
+//   badgeVariants - cva config (default/secondary/destructive/outline/warning/muted)
+//   BadgeProps    - prop type combining HTMLDiv attrs with VariantProps
+// END_MODULE_MAP
+
 const badgeVariants = cva(
   'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {

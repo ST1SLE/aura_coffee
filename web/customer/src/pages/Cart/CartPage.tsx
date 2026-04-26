@@ -7,6 +7,36 @@ import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/formatPrice';
 import { CartLine } from './CartLine';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Cart route page — drives the zustand cart store (refresh on mount),
+//            renders skeleton/error/empty/list states, and handles 410 EXPIRED
+//            specifically by showing a transient toast and refetching.
+//            This is the "real" CartPage; pages/CartPage.tsx is a placeholder
+//            stub from earlier scaffolding.
+//   SCOPE:   CartPage component.
+//   DEPENDS: react, react-router-dom, react-i18next, @/store/cart (useCartStore),
+//            @/api/client (ApiError), @/lib/formatPrice, @/components/ui/button,
+//            ./CartLine.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart;
+//            INV-014 (snapshot rendering — never recompute prices).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CartPage  - /cart route — list + qty stepper + sticky subtotal
+// END_MODULE_MAP
+
+// START_CONTRACT: CartPage
+//   PURPOSE: Render the customer's cart with optimistic mutations through the
+//            zustand store and graceful expired-cart handling.
+//   INPUTS:  none (reads useCartStore + i18n).
+//   OUTPUTS: JSX — skeleton / error / empty / list with sticky footer.
+//   SIDE_EFFECTS: useCartStore.refresh on mount; updateQuantity / removeItem /
+//                 clearCart through callbacks; transient expiredToast state.
+//                 INV-014 — subtotal/lines from server snapshots.
+//   LINKS:   PDD §5 cart; ApiError(410) -> refetch + toast.
+// END_CONTRACT: CartPage
 export function CartPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';

@@ -3,6 +3,22 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: shadcn/ui Button primitive with variant/size cva configuration.
+//            Pure presentation — no hooks, no state, no side effects.
+//   SCOPE:   Used everywhere in the admin SPA for clickable actions.
+//   DEPENDS: react, @radix-ui/react-slot, class-variance-authority, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Button         - forwardRef component rendering a button or Slot child
+//   buttonVariants - cva variants: variant (default/destructive/outline/secondary/ghost/link), size
+//   ButtonProps    - prop type combining HTMLButton attrs with VariantProps
+// END_MODULE_MAP
+
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {

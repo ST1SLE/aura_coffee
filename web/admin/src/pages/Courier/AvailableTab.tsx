@@ -10,6 +10,34 @@ import { AssignmentCard } from '@/pages/Courier/AssignmentCard';
 import { useCourierNotifier } from '@/pages/Courier/notifier-context';
 import { Button } from '@/components/ui/button';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Tab listing assignments awaiting a courier — polls every 5s and
+//            offers a Take action that races against other couriers; on 409
+//            shows a toast and refetches.
+//   SCOPE:   Used only by CourierPage.
+//   DEPENDS: react-i18next, @tanstack/react-query, @/api/courier,
+//            ./AssignmentCard, ./notifier-context, ui Button.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (5s real-time),
+//            INV-002 (server gates courier scope), INV-010 (no PII beyond address),
+//            INV-016 (take is COURIER_ASSIGNED transition).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   AvailableTab - polled list of takeable assignments with mutation handler
+// END_MODULE_MAP
+
+// START_CONTRACT: AvailableTab
+//   PURPOSE: Poll listAvailable every 5s while the document is visible; render
+//            cards with a Take button that POSTs takeAssignment, invalidating
+//            both 'available' and 'mine' queries on success.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listAvailable; POST takeAssignment; query invalidation;
+//            409 routed to courier notifier.
+//   LINKS:   INV-002, INV-010, INV-016.
+// END_CONTRACT: AvailableTab
 export function AvailableTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();

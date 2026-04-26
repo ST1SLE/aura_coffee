@@ -17,6 +17,27 @@ import {
 } from '@/api/admin-orders';
 import type { OrderResponse, OrderStatus } from '@/api/admin-orders';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Modal dialog showing full order detail (items, totals, user link)
+//            and exposing role-gated state-machine actions — Accept (paid→
+//            preparing), Mark Ready (preparing→ready), Hand Out (ready→completed
+//            for pickup), Cancel (admin only).
+//   SCOPE:   Mounted by OrdersPage with the currently selected order.
+//   DEPENDS: react, react-i18next, ui primitives, @/lib/auth (useCurrentRole),
+//            @/api/admin-orders, ./StatusBadge.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
+//            INV-002 (server enforces role on every transition; client merely
+//            decides which buttons to render),
+//            INV-014 (item names rendered from snapshot fields),
+//            INV-016 (each button triggers an INV-016 state-machine transition).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   OrderDetailDialog - role-gated modal that renders order detail and dispatches transitions
+// END_MODULE_MAP
+
 // Форматируем копейки в "350,00 ₽" (locale ru-RU, currency RUB).
 // Отрицательная скидка рендерится как "-50,00 ₽"; ноль — без минуса.
 const moneyFormatter = new Intl.NumberFormat('ru-RU', {
@@ -109,6 +130,22 @@ function StaffActions({ order, onTransition, onCancelClick, inFlight }: StaffAct
   );
 }
 
+// START_CONTRACT: OrderDetailDialog
+//   PURPOSE: Render the order detail modal with role-gated action buttons that
+//            drive the order state machine forward, and an admin-only cancel
+//            confirmation. Reports successful transitions via onAction so the
+//            parent re-fetches; routes 409/other errors to onError for unified
+//            handling.
+//   INPUTS:  Props { order, open, onClose, onAction, onError? }
+//   OUTPUTS: JSX.Element | null (null when no order selected).
+//   SIDE_EFFECTS: PATCH updateOrderStatus / POST cancelAdminOrder; transitions
+//            are server-validated (INV-016). Reads useCurrentRole solely to
+//            decide which buttons to render.
+//   LINKS:   INV-002 (server is the security boundary; this component only
+//            controls UX visibility of buttons),
+//            INV-014 (rendered item names come from snapshot fields),
+//            INV-016 (each button is a state-machine transition trigger).
+// END_CONTRACT: OrderDetailDialog
 export function OrderDetailDialog({
   order,
   open,

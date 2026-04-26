@@ -4,6 +4,34 @@
 
 import { authenticatedFetch, ApiError } from './client';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Typed client for admin shop settings — working hours, delivery
+//            radius/fees, loyalty percent, timing thresholds — plus rubles<>kopecks
+//            converters and FastAPI 422 deep-error parser.
+//   SCOPE:   Wraps GET/PUT /api/v1/admin/settings (admin only). UI works in
+//            rubles, wire format is kopecks.
+//   DEPENDS: ./client (authenticatedFetch, ApiError).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 shop settings,
+//            INV-002 (admin scope enforced server-side).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ApiError              - re-export from ./client
+//   DayKey                - 'mon'|'tue'|...|'sun'
+//   DAYS                  - readonly DayKey[] in week order
+//   WorkingHoursDay       - {open, close} 'HH:MM' pair
+//   WorkingHours          - Record<DayKey, WorkingHoursDay | null>
+//   ShopSettingsResponse  - GET response shape
+//   ShopSettingsUpdate    - PUT body shape (kopecks)
+//   toKopecks             - rubles number → integer kopecks
+//   kopecksToRubles       - kopecks → rubles string for UI inputs
+//   getSettings           - GET /api/v1/admin/settings
+//   updateSettings        - PUT /api/v1/admin/settings
+//   parseFieldErrorsDeep  - FastAPI 422 deep-path → flat error map
+// END_MODULE_MAP
+
 export { ApiError };
 
 // ── Working hours ────────────────────────────────────────────────────────────
@@ -60,10 +88,24 @@ export interface ShopSettingsUpdate {
 
 // ── Money helpers (UI работает с рублями, API — с копейками) ─────────────────
 
+// START_CONTRACT: toKopecks
+//   PURPOSE: Convert rubles (UI) to integer kopecks (wire) — Math.round to
+//            absorb floating-point drift.
+//   INPUTS:  rubles: number
+//   OUTPUTS: number — integer kopecks
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: toKopecks
 export function toKopecks(rubles: number): number {
   return Math.round(rubles * 100);
 }
 
+// START_CONTRACT: kopecksToRubles
+//   PURPOSE: Convert kopecks (wire) to a compact rubles string for UI inputs;
+//            strips trailing ".00" and a single trailing zero in tenths.
+//   INPUTS:  kopecks: number
+//   OUTPUTS: string
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: kopecksToRubles
 export function kopecksToRubles(kopecks: number): string {
   const rubles = kopecks / 100;
   const rounded = Math.round(rubles * 100) / 100;
@@ -79,9 +121,23 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// START_CONTRACT: getSettings
+//   PURPOSE: Fetch current shop settings (admin only).
+//   INPUTS:  none
+//   OUTPUTS: Promise<ShopSettingsResponse>
+//   SIDE_EFFECTS: GET; 401/403.
+//   LINKS:   INV-002.
+// END_CONTRACT: getSettings
 export const getSettings = (): Promise<ShopSettingsResponse> =>
   json('/api/v1/admin/settings');
 
+// START_CONTRACT: updateSettings
+//   PURPOSE: Replace the full shop settings document (admin only).
+//   INPUTS:  payload: ShopSettingsUpdate (kopecks for money fields)
+//   OUTPUTS: Promise<ShopSettingsResponse>
+//   SIDE_EFFECTS: PUT; 422 on validation, 401/403 on auth.
+//   LINKS:   INV-002.
+// END_CONTRACT: updateSettings
 export const updateSettings = (
   payload: ShopSettingsUpdate,
 ): Promise<ShopSettingsResponse> =>
@@ -98,6 +154,14 @@ export const updateSettings = (
 // остальное join'им через '.'. Для 'working_hours.mon.open' путь —
 // ['body', 'working_hours', 'mon', 'open'] → 'working_hours.mon.open'.
 
+// START_CONTRACT: parseFieldErrorsDeep
+//   PURPOSE: Convert a FastAPI 422 ApiError into a flat {dotted.path: msg} map
+//            so deeply-nested validation errors (e.g. working_hours.mon.open)
+//            can be surfaced under the correct field in the form.
+//   INPUTS:  err: unknown — caller passes the rejection value as-is.
+//   OUTPUTS: Record<string, string> — empty if not an ApiError or no detail.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: parseFieldErrorsDeep
 export function parseFieldErrorsDeep(err: unknown): Record<string, string> {
   if (!(err instanceof ApiError)) return {};
   const body = err.body as

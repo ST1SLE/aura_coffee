@@ -2,6 +2,25 @@ import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Lightweight inline-banner notification system — a useNotifier hook
+//            that owns a queue + auto-dismiss timer, and a presentational
+//            NotificationList that renders the queue with per-variant styling.
+//            No external toast library; sized for the admin SPA's small needs.
+//   SCOPE:   Used by every admin page that needs success/error/info banners.
+//            CourierShell exposes the same hook through React context so child
+//            tabs can dispatch notifications upward.
+//   DEPENDS: react, lucide-react (X icon), @/lib/utils (cn).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   useNotifier      - owns notifications array + notify/dismiss callbacks
+//   NotificationList - renders the queue at fixed bottom-right with dismiss
+// END_MODULE_MAP
+
 type NotifyVariant = 'error' | 'success' | 'info';
 
 interface Notification {
@@ -12,6 +31,14 @@ interface Notification {
 
 let _nextId = 0;
 
+// START_CONTRACT: useNotifier
+//   PURPOSE: React hook that owns a notifications queue + provides notify(message,
+//            variant) and dismiss(id). Auto-dismisses each banner after 4s.
+//   INPUTS:  none
+//   OUTPUTS: { notifications: Notification[], notify: (msg, variant?) => void,
+//              dismiss: (id: number) => void }
+//   SIDE_EFFECTS: setTimeout for auto-dismiss; component-local state.
+// END_CONTRACT: useNotifier
 // Хук для показа inline-баннеров без внешней зависимости
 export function useNotifier() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

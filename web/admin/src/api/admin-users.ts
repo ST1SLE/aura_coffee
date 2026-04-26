@@ -4,6 +4,42 @@
 
 import { authenticatedFetch, ApiError } from './client';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Typed client for admin user-management endpoints — list, get detail,
+//            block/unblock, adjust loyalty balance — plus error parser for the
+//            insufficient_balance code returned from /loyalty/adjust.
+//   SCOPE:   Wraps /api/v1/admin/users/*; mirrors core-api Pydantic schemas
+//            in services/core-api/src/core_api/schemas/admin_users.py.
+//   DEPENDS: ./client (authenticatedFetch, ApiError).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.7 user management,
+//            INV-002 (admin scope), INV-013 (PII handling — display_name only,
+//            no raw phone numbers in summaries).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ApiError                    - re-export
+//   UserStatus                  - 'active'|'blocked'|'pending_verification'|'deleted'
+//   UserStatusFilter            - UserStatus | 'all'
+//   LoyaltyTransactionType      - accrual/redemption/reversal/admin_adjustment
+//   UserSummary                 - row in users list (no raw PII per INV-013)
+//   UserListResponse            - paginated list shape
+//   LoyaltyTransactionItem      - single ledger row
+//   UserDetailResponse          - per-user detail with transactions and balance
+//   BlockUserResponse           - response of /block (cancelled_orders_count)
+//   UnblockUserResponse         - response of /unblock
+//   LoyaltyAdjustRequest        - {delta, reason} body
+//   LoyaltyAdjustResponse       - new balance + transaction id
+//   ListUsersParams             - status/search/page/perPage params
+//   listUsers                   - GET /api/v1/admin/users
+//   getUser                     - GET /api/v1/admin/users/{id}
+//   blockUser                   - POST /block (admin only; cancels active orders)
+//   unblockUser                 - POST /unblock (admin only)
+//   adjustLoyalty               - POST /loyalty/adjust (admin only)
+//   parseAdjustError            - extract 'insufficient_balance' code from 422 body
+// END_MODULE_MAP
+
 export { ApiError };
 
 // ── Enums / literals ─────────────────────────────────────────────────────────
@@ -122,20 +158,60 @@ function buildListQuery(params: ListUsersParams | undefined): string {
 
 // ── API functions ────────────────────────────────────────────────────────────
 
+// START_CONTRACT: listUsers
+//   PURPOSE: Fetch paginated user list with optional status filter and search.
+//   INPUTS:  params?: ListUsersParams — status='all' omits the param;
+//            search is server-side substring match.
+//   OUTPUTS: Promise<UserListResponse>
+//   SIDE_EFFECTS: GET; 401/403.
+//   LINKS:   INV-002, INV-013.
+// END_CONTRACT: listUsers
 export const listUsers = (
   params?: ListUsersParams,
 ): Promise<UserListResponse> =>
   json(`/api/v1/admin/users${buildListQuery(params)}`);
 
+// START_CONTRACT: getUser
+//   PURPOSE: Fetch user detail including loyalty transaction history and active
+//            order count (used by block-confirmation dialog).
+//   INPUTS:  userId: string
+//   OUTPUTS: Promise<UserDetailResponse>
+//   SIDE_EFFECTS: GET.
+//   LINKS:   INV-002, INV-013.
+// END_CONTRACT: getUser
 export const getUser = (userId: string): Promise<UserDetailResponse> =>
   json(`/api/v1/admin/users/${userId}`);
 
+// START_CONTRACT: blockUser
+//   PURPOSE: Block a user (admin only). Server cancels active orders as a side
+//            effect and reports cancelled_orders_count for UX feedback.
+//   INPUTS:  userId: string
+//   OUTPUTS: Promise<BlockUserResponse>
+//   SIDE_EFFECTS: POST; cascading order cancellations server-side.
+//   LINKS:   INV-002, INV-016 (cancellations are state-machine transitions).
+// END_CONTRACT: blockUser
 export const blockUser = (userId: string): Promise<BlockUserResponse> =>
   post(`/api/v1/admin/users/${userId}/block`);
 
+// START_CONTRACT: unblockUser
+//   PURPOSE: Unblock a previously blocked user (admin only).
+//   INPUTS:  userId: string
+//   OUTPUTS: Promise<UnblockUserResponse>
+//   SIDE_EFFECTS: POST.
+//   LINKS:   INV-002.
+// END_CONTRACT: unblockUser
 export const unblockUser = (userId: string): Promise<UnblockUserResponse> =>
   post(`/api/v1/admin/users/${userId}/unblock`);
 
+// START_CONTRACT: adjustLoyalty
+//   PURPOSE: Apply a manual loyalty-balance adjustment (admin only). Delta may
+//            be negative, but server rejects with insufficient_balance if it
+//            would drop the balance below zero.
+//   INPUTS:  userId: string, input: LoyaltyAdjustRequest {delta, reason}
+//   OUTPUTS: Promise<LoyaltyAdjustResponse>
+//   SIDE_EFFECTS: POST; 422 on insufficient_balance or validation.
+//   LINKS:   INV-002.
+// END_CONTRACT: adjustLoyalty
 export const adjustLoyalty = (
   userId: string,
   input: LoyaltyAdjustRequest,
@@ -148,6 +224,14 @@ export const adjustLoyalty = (
 // в detail-строке или code-поле. Иначе null. Формат сервера для этого
 // конкретного случая не зафиксирован в phase6-plan, поэтому парсер
 // гибкий: принимает и {code: 'insufficient_balance'}, и {detail: '...'}.
+// START_CONTRACT: parseAdjustError
+//   PURPOSE: Detect the 'insufficient_balance' marker inside a 422 ApiError so
+//            the LoyaltyAdjustForm can render the dedicated localized message.
+//            Tolerant: accepts {code} or substring in {detail}.
+//   INPUTS:  err: unknown
+//   OUTPUTS: 'insufficient_balance' | null
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: parseAdjustError
 export function parseAdjustError(err: unknown): 'insufficient_balance' | null {
   if (!(err instanceof ApiError)) return null;
   const body = err.body as

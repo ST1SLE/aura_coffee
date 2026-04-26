@@ -3,6 +3,30 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: shadcn/ui Dialog primitives — modal root, overlay, content, header,
+//            title, description, plus DialogClose. Pure presentation wrappers
+//            around Radix DialogPrimitive.
+//   SCOPE:   Used by all modal UIs in the admin SPA (order detail, user detail,
+//            promo form, menu item form, block confirmation, cancel confirmation).
+//   DEPENDS: react, @radix-ui/react-dialog, lucide-react, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Dialog            - re-export of DialogPrimitive.Root
+//   DialogPortal      - re-export of DialogPrimitive.Portal
+//   DialogOverlay     - styled Radix overlay
+//   DialogClose       - re-export of DialogPrimitive.Close
+//   DialogTrigger     - re-export of DialogPrimitive.Trigger
+//   DialogContent     - styled portal+overlay+content with built-in close button
+//   DialogHeader      - flex column wrapper for title/description
+//   DialogTitle       - styled DialogPrimitive.Title
+//   DialogDescription - styled DialogPrimitive.Description
+// END_MODULE_MAP
+
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;

@@ -10,6 +10,37 @@ import {
 } from '@/api/profile';
 import { LoyaltyCard } from '@/pages/Profile/LoyaltyCard';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: /profile route — show masked phone, edit display name, switch
+//            preferred language (also calls i18n.changeLanguage so the UI
+//            updates immediately), navigate to addresses, render LoyaltyCard,
+//            and provide the logout button.
+//   SCOPE:   ProfilePage component.
+//   DEPENDS: react, react-router-dom, react-i18next, @/components/ui/button,
+//            @/auth/useAuth, @/api/profile (getProfile, updateProfile),
+//            @/pages/Profile/LoyaltyCard.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §8 profile;
+//            INV-013 — display_name + phone are PII; phone is shown masked.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ProfilePage  - /profile — name/language editor + addresses link + logout
+// END_MODULE_MAP
+
+// START_CONTRACT: ProfilePage
+//   PURPOSE: Render the profile editor and bind it to the profile API.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — phone (read-only) / name editor / language toggle /
+//            addresses link / LoyaltyCard / logout button.
+//   SIDE_EFFECTS: HTTP getProfile() on mount; updateProfile() on save / lang
+//                 toggle (and calls i18n.changeLanguage for client-side UI);
+//                 useAuth().logout() then navigate('/login') from the logout
+//                 button. INV-013 — do not log raw display_name / phone.
+//   LINKS:   PDD §8; AGENTS.md "must not store auth tokens in localStorage" —
+//            access token is in-memory; logout clears both.
+// END_CONTRACT: ProfilePage
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
   const { logout } = useAuth();

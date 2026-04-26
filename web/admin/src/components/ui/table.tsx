@@ -1,6 +1,25 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: shadcn/ui Table primitives — Table/TableHeader/TableBody/TableRow/
+//            TableHead/TableCell. Pure presentation.
+//   SCOPE:   Used by every list view (orders, users, promos, popular items, menu items, transactions).
+//   DEPENDS: react, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Table       - <table> wrapped in scrollable container
+//   TableHeader - styled <thead>
+//   TableBody   - styled <tbody>
+//   TableRow    - styled <tr> with hover/selected states
+//   TableHead   - styled <th>
+//   TableCell   - styled <td>
+// END_MODULE_MAP
+
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">

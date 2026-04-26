@@ -23,6 +23,35 @@ import {
   type WorkingHoursDayInput,
 } from './validation';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin shop-settings page — load current settings, run client-side
+//            validation, submit a full ShopSettingsUpdate payload, and surface
+//            FastAPI 422 server errors per-field.
+//   SCOPE:   Admin-only route (gated client-side via ProtectedRoute and server-
+//            side via INV-002).
+//   DEPENDS: react, react-i18next, @/api/admin-settings, @/components/ui/*,
+//            sibling Section* components, ./validation.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 shop settings,
+//            INV-002 (admin scope server-enforced).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SettingsPage - data-fetching admin form for shop settings with full validation
+// END_MODULE_MAP
+
+// START_CONTRACT: SettingsPage
+//   PURPOSE: Load shop settings on mount, render five form sections, run client
+//            validation, submit updates and merge server-side 422 errors into
+//            the form state. Disables the Save button when nothing is dirty
+//            or the form is invalid.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element (loading skeleton initially, then form).
+//   SIDE_EFFECTS: GET /api/v1/admin/settings on mount; PUT on submit; notifier
+//            toasts for transport errors; cancellation flag avoids stale state.
+//   LINKS:   INV-002 (admin scope; 401 surfaces as session-expired toast).
+// END_CONTRACT: SettingsPage
 export function SettingsPage() {
   const { t } = useTranslation();
   const { notifications, notify, dismiss } = useNotifier();

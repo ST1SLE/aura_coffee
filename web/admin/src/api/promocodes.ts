@@ -5,6 +5,37 @@
 
 import { authenticatedFetch, ApiError } from './client';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Typed client for admin promocode endpoints — list/get/create/update/
+//            activate/deactivate — plus rubles<>kopecks/percent wire conversion
+//            and FastAPI 422 flat-error parser.
+//   SCOPE:   Wraps /api/v1/admin/promocodes/*; UI works in rubles, server stores kopecks.
+//   DEPENDS: ./client (authenticatedFetch, ApiError).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 promocodes,
+//            INV-002 (admin scope).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ApiError                  - re-export
+//   PromocodeDiscountType     - 'percent' | 'fixed_amount'
+//   PromocodeState            - inactive/active/expired/exhausted
+//   PromocodeStateFilter      - PromocodeState | 'all'
+//   PromocodeResponse         - server response shape (kopecks for fixed_amount)
+//   PromocodeListResponse     - paginated list
+//   PromocodeCreateInput      - UI-level create (rubles + percent integers)
+//   PromocodeUpdateInput      - UI-level partial update
+//   ListPromocodesParams      - state/code/page/per_page params
+//   listPromocodes            - GET list
+//   getPromocode              - GET one
+//   createPromocode           - POST (translates rubles→kopecks)
+//   updatePromocode           - PATCH (translates rubles→kopecks)
+//   activatePromocode         - POST /activate (admin only)
+//   deactivatePromocode       - POST /deactivate (admin only)
+//   parseFieldErrors          - 422 detail → {field: msg} map
+// END_MODULE_MAP
+
 export { ApiError };
 
 // ── Enums / literals ─────────────────────────────────────────────────────────
@@ -142,14 +173,36 @@ function buildListQuery(params: ListPromocodesParams | undefined): string {
 
 // ── API functions ────────────────────────────────────────────────────────────
 
+// START_CONTRACT: listPromocodes
+//   PURPOSE: Fetch paginated promocode list with optional state filter and code search.
+//   INPUTS:  params?: ListPromocodesParams — state='all' omits the param.
+//   OUTPUTS: Promise<PromocodeListResponse>
+//   SIDE_EFFECTS: GET.
+//   LINKS:   INV-002.
+// END_CONTRACT: listPromocodes
 export const listPromocodes = (
   params?: ListPromocodesParams,
 ): Promise<PromocodeListResponse> =>
   json(`/api/v1/admin/promocodes${buildListQuery(params)}`);
 
+// START_CONTRACT: getPromocode
+//   PURPOSE: Fetch a single promocode by id.
+//   INPUTS:  id: string
+//   OUTPUTS: Promise<PromocodeResponse>
+//   SIDE_EFFECTS: GET.
+//   LINKS:   INV-002.
+// END_CONTRACT: getPromocode
 export const getPromocode = (id: string): Promise<PromocodeResponse> =>
   json(`/api/v1/admin/promocodes/${id}`);
 
+// START_CONTRACT: createPromocode
+//   PURPOSE: Create a new promocode (admin only). Translates UI rubles to wire
+//            kopecks for fixed_amount and rounds percent values to integers.
+//   INPUTS:  input: PromocodeCreateInput
+//   OUTPUTS: Promise<PromocodeResponse>
+//   SIDE_EFFECTS: POST; 409 on duplicate code, 422 on validation.
+//   LINKS:   INV-002.
+// END_CONTRACT: createPromocode
 export const createPromocode = (
   input: PromocodeCreateInput,
 ): Promise<PromocodeResponse> => {
@@ -166,6 +219,15 @@ export const createPromocode = (
   return post('/api/v1/admin/promocodes', wire);
 };
 
+// START_CONTRACT: updatePromocode
+//   PURPOSE: Partial-update a promocode (admin only). Wire conversion mirrors
+//            createPromocode but only for fields actually present in input.
+//            Server may reject if current_uses > 0 (locked fields).
+//   INPUTS:  id: string, input: PromocodeUpdateInput
+//   OUTPUTS: Promise<PromocodeResponse>
+//   SIDE_EFFECTS: PATCH; 422 with field_locked_after_use possible.
+//   LINKS:   INV-002.
+// END_CONTRACT: updatePromocode
 export const updatePromocode = (
   id: string,
   input: PromocodeUpdateInput,
@@ -187,9 +249,24 @@ export const updatePromocode = (
   return patch(`/api/v1/admin/promocodes/${id}`, wire);
 };
 
+// START_CONTRACT: activatePromocode
+//   PURPOSE: Flip is_active=true on a promocode (admin only). Server rejects
+//            with 409 if expired/exhausted.
+//   INPUTS:  id: string
+//   OUTPUTS: Promise<PromocodeResponse>
+//   SIDE_EFFECTS: POST; 409 on terminal state.
+//   LINKS:   INV-002.
+// END_CONTRACT: activatePromocode
 export const activatePromocode = (id: string): Promise<PromocodeResponse> =>
   post(`/api/v1/admin/promocodes/${id}/activate`);
 
+// START_CONTRACT: deactivatePromocode
+//   PURPOSE: Flip is_active=false on a promocode (admin only).
+//   INPUTS:  id: string
+//   OUTPUTS: Promise<PromocodeResponse>
+//   SIDE_EFFECTS: POST.
+//   LINKS:   INV-002.
+// END_CONTRACT: deactivatePromocode
 export const deactivatePromocode = (id: string): Promise<PromocodeResponse> =>
   post(`/api/v1/admin/promocodes/${id}/deactivate`);
 
@@ -199,6 +276,15 @@ export const deactivatePromocode = (id: string): Promise<PromocodeResponse> =>
 // ошибок в форме. Server может прислать msg-код вида "field_locked_after_use"
 // или обычный текст; рендер выбирает локализованное сообщение по совпадению.
 
+// START_CONTRACT: parseFieldErrors
+//   PURPOSE: Convert a FastAPI 422 ApiError into a flat {field: msg} map keyed
+//            by the last segment of `loc`, matching the form-state field names.
+//            Server may return code-style msgs (e.g. 'field_locked_after_use')
+//            which the form localizes by lookup.
+//   INPUTS:  err: unknown
+//   OUTPUTS: Record<string, string> — empty if not ApiError or no detail.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: parseFieldErrors
 export function parseFieldErrors(err: unknown): Record<string, string> {
   if (!(err instanceof ApiError)) return {};
   const body = err.body as

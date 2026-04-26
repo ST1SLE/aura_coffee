@@ -5,6 +5,34 @@
 
 import { authenticatedFetch, ApiError } from './client';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Typed client for admin-only order endpoints — list/get/transition/cancel.
+//   SCOPE:   Wraps /api/v1/admin/orders/* and /api/v1/orders/{id}/{status,cancel};
+//            UI decides which button to show, server enforces transition legality.
+//   DEPENDS: ./client (authenticatedFetch, ApiError); mirrors core-api Pydantic schemas.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
+//            INV-002 (admin scope enforced server-side), INV-014 (order_items
+//            include menu_item_name snapshot for historical fidelity),
+//            INV-016 (state-machine transitions).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ApiError                  - re-export from ./client
+//   OrderStatus               - PDD §6.1 state union
+//   OrderType                 - 'pickup' | 'delivery'
+//   AdminOrderStatusFilter    - server statuses + 'active' aggregate + 'all'
+//   OrderItemResponse         - one line of an order, name snapshot per INV-014
+//   OrderResponse             - full order shape returned by GET endpoints
+//   OrderListResponse         - paginated list shape
+//   ListAdminOrdersParams     - query params for listAdminOrders
+//   listAdminOrders           - GET /api/v1/admin/orders
+//   getAdminOrder             - GET /api/v1/admin/orders/{id}
+//   updateOrderStatus         - PATCH /api/v1/orders/{id}/status (INV-016)
+//   cancelAdminOrder          - POST /api/v1/orders/{id}/cancel (INV-016)
+// END_MODULE_MAP
+
 export { ApiError };
 
 // ── Enums ────────────────────────────────────────────────────────────────────
@@ -92,14 +120,38 @@ function buildListQuery(params: ListAdminOrdersParams | undefined): string {
 
 // ── API functions ────────────────────────────────────────────────────────────
 
+// START_CONTRACT: listAdminOrders
+//   PURPOSE: Fetch paginated admin order list with optional status/type filter.
+//   INPUTS:  params?: ListAdminOrdersParams — status/type/page/per_page; status='all'
+//            means omit the param so the server uses its default.
+//   OUTPUTS: Promise<OrderListResponse>
+//   SIDE_EFFECTS: GET request; throws ApiError on non-2xx (401 → redirect via client.ts).
+//   LINKS:   INV-002 (server enforces admin/barista scope), PDD §6.1.
+// END_CONTRACT: listAdminOrders
 export const listAdminOrders = (
   params?: ListAdminOrdersParams,
 ): Promise<OrderListResponse> =>
   json(`/api/v1/admin/orders${buildListQuery(params)}`);
 
+// START_CONTRACT: getAdminOrder
+//   PURPOSE: Fetch single order by id (used to refresh after a transition).
+//   INPUTS:  orderId: string — UUID of the order
+//   OUTPUTS: Promise<OrderResponse>
+//   SIDE_EFFECTS: GET request; throws ApiError (404 → not found).
+//   LINKS:   INV-002, PDD §6.1.
+// END_CONTRACT: getAdminOrder
 export const getAdminOrder = (orderId: string): Promise<OrderResponse> =>
   json(`/api/v1/admin/orders/${orderId}`);
 
+// START_CONTRACT: updateOrderStatus
+//   PURPOSE: Drive the order state machine forward (paid→preparing→ready→completed).
+//            Server validates the transition; client only sends the requested next state.
+//   INPUTS:  orderId: string, newStatus: OrderStatus
+//   OUTPUTS: Promise<OrderResponse> — updated order with new status.
+//   SIDE_EFFECTS: PATCH; 409 on illegal transition, 403 on wrong role, 401 on session.
+//   LINKS:   INV-016 (state-machine transitions are server-enforced; this is the only
+//            client surface that triggers them via Mark Ready / Hand Out / etc).
+// END_CONTRACT: updateOrderStatus
 export const updateOrderStatus = (
   orderId: string,
   newStatus: OrderStatus,
@@ -110,6 +162,14 @@ export const updateOrderStatus = (
     body: JSON.stringify({ new_status: newStatus }),
   });
 
+// START_CONTRACT: cancelAdminOrder
+//   PURPOSE: Force-cancel an order (admin only). Bypasses the linear state machine
+//            but is itself a state-machine transition gated server-side.
+//   INPUTS:  orderId: string, reason?: string | null — optional cancel reason text.
+//   OUTPUTS: Promise<OrderResponse> — order with status='cancelled'.
+//   SIDE_EFFECTS: POST; 409 if order is already finalized, 403 if not admin.
+//   LINKS:   INV-002 (admin role enforced server-side), INV-016.
+// END_CONTRACT: cancelAdminOrder
 export const cancelAdminOrder = (
   orderId: string,
   reason?: string | null,

@@ -1,5 +1,30 @@
 import { authenticatedFetch } from './client';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Yandex.Maps REST client — talks to the core-api proxy
+//            /api/v1/maps/* (the real Yandex API key is never exposed to the
+//            browser, see AGENTS.md "must not"). Wraps suggest + geocode
+//            calls and maps 503/network failures into MapsUnavailableError so
+//            AddressAutocomplete can drop into degraded plain-text mode.
+//   SCOPE:   MapsLang, SuggestResult, GeocodeResult types, MapsUnavailableError,
+//            suggest, geocode.
+//   DEPENDS: M-CORE-API (HTTP /api/v1/maps/*), ./client (authenticatedFetch).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7.3 / §8.3 maps
+//            degradation. INV-013 — query strings can be PII; UI must not log
+//            verbatim queries.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   MapsLang                - 'ru_RU' | 'en_US' query-string locale
+//   SuggestResult           - one address suggestion (text + lat + lon)
+//   GeocodeResult           - canonical address resolution result
+//   MapsUnavailableError    - thrown on 503/network so caller degrades gracefully
+//   suggest                 - GET /maps/suggest — autocomplete suggestions
+//   geocode                 - GET /maps/geocode — resolve text to coords
+// END_MODULE_MAP
+
 export type MapsLang = 'ru_RU' | 'en_US';
 
 export interface SuggestResult {
@@ -14,6 +39,15 @@ export interface GeocodeResult {
   lon: number;
 }
 
+// START_CONTRACT: MapsUnavailableError
+//   PURPOSE: Marker error class for "Yandex.Maps proxy is unavailable" (503,
+//            timeout, network). AddressAutocomplete catches this and switches
+//            to degraded plain-text input for the rest of the mount session.
+//   INPUTS:  message?: string — defaults to 'Maps API unavailable'.
+//   OUTPUTS: MapsUnavailableError instance.
+//   SIDE_EFFECTS: none.
+//   LINKS:   PDD §8.3 degraded address input.
+// END_CONTRACT: MapsUnavailableError
 // Маркер недоступности Яндекс.Карт: 503, timeout, network error.
 // Компонент автокомплита ловит её и уходит в degraded-режим (§8.3).
 export class MapsUnavailableError extends Error {
@@ -23,6 +57,16 @@ export class MapsUnavailableError extends Error {
   }
 }
 
+// START_CONTRACT: suggest
+//   PURPOSE: Fetch address autocomplete suggestions from the core-api Yandex.Maps
+//            proxy.
+//   INPUTS:  query: string  — partial address string (INV-013 PII; do not log)
+//            lang: MapsLang — 'ru_RU' | 'en_US' for language hint.
+//   OUTPUTS: Promise<SuggestResult[]> — possibly empty array.
+//   SIDE_EFFECTS: HTTP GET /api/v1/maps/suggest. Throws MapsUnavailableError on
+//                 503 / network failure; throws plain Error on other non-2xx.
+//   LINKS:   PDD §8.3; AddressAutocomplete is the only caller.
+// END_CONTRACT: suggest
 export async function suggest(
   query: string,
   lang: MapsLang,
@@ -44,6 +88,16 @@ export async function suggest(
   return body.items ?? [];
 }
 
+// START_CONTRACT: geocode
+//   PURPOSE: Resolve a free-text address to canonical text + coordinates.
+//   INPUTS:  text: string — full address (INV-013 PII)
+//            lang?: MapsLang — defaults to 'ru_RU'
+//   OUTPUTS: Promise<GeocodeResult | null> — null when server returns 404
+//            (address not found).
+//   SIDE_EFFECTS: HTTP GET /api/v1/maps/geocode; throws MapsUnavailableError on
+//                 503 / network; plain Error on other non-2xx.
+//   LINKS:   PDD §8.3 geocode fallback.
+// END_CONTRACT: geocode
 export async function geocode(
   text: string,
   lang: MapsLang = 'ru_RU',

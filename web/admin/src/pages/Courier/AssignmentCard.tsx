@@ -2,6 +2,20 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CourierAssignmentResponse } from '@/api/courier';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Card representation of one courier assignment — requested time,
+//            total, address line, optional action slot. Pure presentation.
+//   SCOPE:   Used by AvailableTab and MineTab.
+//   DEPENDS: react-i18next, @/api/courier type.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (courier views).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   AssignmentCard - single-assignment card with time, total, address, action slot
+// END_MODULE_MAP
+
 interface AssignmentCardProps {
   assignment: CourierAssignmentResponse;
   action?: ReactNode;

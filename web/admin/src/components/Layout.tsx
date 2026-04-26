@@ -4,6 +4,24 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useCurrentRole, type StaffRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin/barista shell layout — left sidebar nav whose visible items
+//            are filtered by the current role hint, plus header with language
+//            switcher and a main outlet for nested routes. Courier role uses
+//            CourierShell instead.
+//   SCOPE:   Mounted under the admin/barista ProtectedRoute branch in App.tsx.
+//   DEPENDS: react-router-dom (Outlet/Link/useLocation), react-i18next,
+//            @/components/LanguageSwitcher, @/lib/auth, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (role isolation),
+//            INV-002, INV-010.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Layout - admin/barista shell with role-filtered sidebar nav and outlet
+// END_MODULE_MAP
+
 const navItems = [
   { path: '/', key: 'dashboard' },
   { path: '/orders', key: 'orders' },
@@ -23,6 +41,17 @@ const NAV_BY_ROLE: Record<StaffRole, readonly string[]> = {
   courier: [],
 };
 
+// START_CONTRACT: Layout
+//   PURPOSE: Render the admin/barista shell — sidebar nav (filtered by role) +
+//            header + Outlet for nested route content. Courier never reaches
+//            this component (separate CourierShell tree).
+//   INPUTS:  none (uses router/i18n/role hooks).
+//   OUTPUTS: JSX.Element
+//   SIDE_EFFECTS: reads useCurrentRole / useLocation / useTranslation; Link
+//            navigation is the only "side effect" (router state updates).
+//   LINKS:   INV-002 (server enforces auth/role; this filter is UX only),
+//            INV-010 (role isolation — barista nav has only orders+menu).
+// END_CONTRACT: Layout
 export function Layout() {
   const { t } = useTranslation();
   const location = useLocation();

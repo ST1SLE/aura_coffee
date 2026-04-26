@@ -30,6 +30,22 @@ import { UserStatusBadge } from './UserStatusBadge';
 import { BlockConfirmDialog } from './BlockConfirmDialog';
 import { LoyaltyAdjustForm } from './LoyaltyAdjustForm';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Modal dialog showing one user's detail — current balance, transaction
+//            ledger, and action buttons (block/unblock/adjust loyalty).
+//   SCOPE:   Opened by UsersPage with the selected userId.
+//   DEPENDS: react, react-i18next, ui primitives, @/api/admin-users, sibling
+//            UserStatusBadge + BlockConfirmDialog + LoyaltyAdjustForm.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.7,
+//            INV-002 (admin scope), INV-013 (only safe PII shown — display_name).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   UserDetailDialog - modal with user summary, ledger, block/unblock/adjust actions
+// END_MODULE_MAP
+
 interface Props {
   userId: string | null;
   open: boolean;
@@ -49,6 +65,16 @@ function formatDate(iso: string, locale: string): string {
   }
 }
 
+// START_CONTRACT: UserDetailDialog
+//   PURPOSE: Fetch and render the selected user's detail; provide hooks into
+//            block/unblock and the loyalty adjust form. Mutations call onMutated
+//            so the parent list reloads.
+//   INPUTS:  Props { userId, open, onClose, onMutated }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET getUser; POST unblockUser (admin only); embeds child
+//            dialogs that POST blockUser and adjustLoyalty.
+//   LINKS:   INV-002, INV-013, INV-016 (block cascades order cancellations).
+// END_CONTRACT: UserDetailDialog
 export function UserDetailDialog({ userId, open, onClose, onMutated }: Props) {
   const { t, i18n } = useTranslation();
   const [detail, setDetail] = useState<UserDetailResponse | null>(null);

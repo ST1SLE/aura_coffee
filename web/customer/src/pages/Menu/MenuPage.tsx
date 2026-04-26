@@ -6,6 +6,31 @@ import { Button } from '@/components/ui/button';
 import { MenuItemCard } from './MenuItemCard';
 import { ItemDetail } from './ItemDetail';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: /menu route — load the menu localized to current i18next language,
+//            re-load on language change, render category sections of cards,
+//            and open ItemDetail when a card is tapped.
+//   SCOPE:   MenuPage component.
+//   DEPENDS: react, react-i18next, @/api/menu (fetchPublicMenu), @/api/menuTypes,
+//            @/components/ui/button, ./MenuItemCard, ./ItemDetail.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   MenuPage  - /menu route — categories + grid of cards + item modal
+// END_MODULE_MAP
+
+// START_CONTRACT: MenuPage
+//   PURPOSE: Fetch and render the bilingual menu, opening ItemDetail when a
+//            card is selected.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — skeleton / error / empty / category grid (+ modal).
+//   SIDE_EFFECTS: HTTP GET /api/v1/menu via fetchPublicMenu on mount; reloads
+//                 on i18next 'languageChanged' event (subscribe + cleanup).
+//   LINKS:   PDD §3.
+// END_CONTRACT: MenuPage
 export function MenuPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';

@@ -10,6 +10,38 @@ import { RangeSelector } from './RangeSelector';
 import { StatsCards } from './StatsCards';
 import { PopularItemsList } from './PopularItemsList';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin dashboard — selects a time range (today/week/month) and
+//            fetches /api/v1/admin/stats, then renders revenue/orders cards
+//            and a popular items table.
+//   SCOPE:   Index page of the admin layout (admin-only via DashboardIndex
+//            redirect in App.tsx; baristas land on /orders).
+//   DEPENDS: react, react-i18next, @/api/admin-stats, @/components/ui/notifier,
+//            sibling Dashboard subcomponents.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §4.5/§7.1,
+//            INV-002 (admin scope server-enforced), INV-014 (popular items use
+//            snapshot names from order_items).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   DashboardPage - data-fetching index page with range tabs + stats + popular
+// END_MODULE_MAP
+
+// START_CONTRACT: DashboardPage
+//   PURPOSE: Fetch admin dashboard stats whenever the selected range changes,
+//            handle 401 silently (authenticatedFetch redirects), surface other
+//            errors via notifier, and render range tabs + stats cards + popular
+//            items list.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET /api/v1/admin/stats on mount and on range change;
+//            notifier toasts for failures; cancellation flag avoids stale
+//            setState after unmount.
+//   LINKS:   INV-002 (server enforces admin scope; 403 would land here as a
+//            generic "load failed" toast — UX, not security).
+// END_CONTRACT: DashboardPage
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const locale: 'ru' | 'en' = i18n.language.startsWith('ru') ? 'ru' : 'en';

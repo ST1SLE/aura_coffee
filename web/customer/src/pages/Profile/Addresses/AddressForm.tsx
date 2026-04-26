@@ -13,12 +13,42 @@ import {
   type AddressCreatePayload,
 } from '@/api/addresses';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Create/edit form for a saved delivery address — wraps
+//            AddressAutocomplete plus label + apartment/entrance/floor/comment
+//            fields, dispatches to api/addresses createAddress or updateAddress
+//            (depending on the optional `initial`), and renders localized
+//            server detail on AddressApiError(409 = out-of-radius).
+//   SCOPE:   AddressForm component.
+//   DEPENDS: react, react-i18next, @/components/ui/button,
+//            @/components/AddressAutocomplete, @/api/addresses.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 saved addresses;
+//            INV-013 — every field is PII; do not log raw values.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   AddressForm  - controlled create/edit form for a saved address
+// END_MODULE_MAP
+
 interface Props {
   initial?: AddressResponse;
   onSaved: (addr: AddressResponse) => void;
   onCancel: () => void;
 }
 
+// START_CONTRACT: AddressForm
+//   PURPOSE: Render the address fields, validate required-ness in the disabled
+//            state of the submit button, POST or PATCH on submit, and notify
+//            parent through onSaved/onCancel.
+//   INPUTS:  Props — initial?: AddressResponse (edit mode), onSaved: (addr) =>
+//            void, onCancel: () => void.
+//   OUTPUTS: JSX — full form.
+//   SIDE_EFFECTS: HTTP createAddress() or updateAddress() on submit; throws
+//                 AddressApiError handled inline. INV-013 PII handling.
+//   LINKS:   PDD §7; consumed by AddressesPage create/edit modes.
+// END_CONTRACT: AddressForm
 export function AddressForm({ initial, onSaved, onCancel }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';

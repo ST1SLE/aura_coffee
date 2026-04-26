@@ -17,6 +17,22 @@ import type {
 import { PromosTable } from './PromosTable';
 import { PromoFormDialog } from './PromoFormDialog';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin promocodes management page — state filter tabs, debounced
+//            code search, paginated list, and a create/edit dialog.
+//   SCOPE:   Admin-only route (gated by ProtectedRoute and INV-002).
+//   DEPENDS: react, react-i18next, ui primitives, @/api/promocodes,
+//            sibling PromosTable + PromoFormDialog.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 promocodes,
+//            INV-002 (admin scope).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   PromosPage - admin promocodes page with filters, table, form dialog
+// END_MODULE_MAP
+
 const STATE_FILTERS: PromocodeStateFilter[] = [
   'all',
   'active',
@@ -28,6 +44,16 @@ const STATE_FILTERS: PromocodeStateFilter[] = [
 const DEFAULT_PER_PAGE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
+// START_CONTRACT: PromosPage
+//   PURPOSE: Compose the promocodes UI — state tabs, 300ms-debounced code search,
+//            paginated list, dialog state for create/edit, and inline activate/
+//            deactivate controls. Reload cycles on any filter/page change.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listPromocodes; POST activatePromocode/deactivatePromocode;
+//            child dialog triggers create/update/activate/deactivate.
+//   LINKS:   INV-002 (admin scope server-enforced).
+// END_CONTRACT: PromosPage
 export function PromosPage() {
   const { t } = useTranslation();
   const { notifications, notify, dismiss } = useNotifier();

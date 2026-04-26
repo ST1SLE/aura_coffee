@@ -4,8 +4,31 @@ import { cn } from '@/lib/utils';
 import { AvailableTab } from '@/pages/Courier/AvailableTab';
 import { MineTab } from '@/pages/Courier/MineTab';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Courier index page — two tabs ('available', 'mine') switching
+//            between the public delivery feed and the courier's claimed assignments.
+//   SCOPE:   Mounted at /courier under CourierShell.
+//   DEPENDS: react, react-i18next, @/lib/utils, sibling AvailableTab + MineTab.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (courier views),
+//            INV-002, INV-010 (courier sees only assignments).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CourierPage - tablist toggling AvailableTab vs MineTab
+// END_MODULE_MAP
+
 type TabKey = 'available' | 'mine';
 
+// START_CONTRACT: CourierPage
+//   PURPOSE: Render the courier tab switcher and mount the active tab's
+//            content. Tab state is local; no URL persistence.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: none directly; the selected tab triggers its own data fetches.
+//   LINKS:   INV-002, INV-010.
+// END_CONTRACT: CourierPage
 export function CourierPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>('available');

@@ -2,6 +2,22 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { LoyaltyTransaction } from '@/api/loyalty';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: One row in the loyalty history list — formatted date, type label,
+//            optional description + order link, signed amount, and
+//            balance-after. No state, just formatting helpers.
+//   SCOPE:   TransactionRow component (private helpers shortId / amountClass /
+//            formatAmount / formatDate are not exported).
+//   DEPENDS: react-router-dom (Link), react-i18next, @/api/loyalty types.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §9 loyalty history.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   TransactionRow  - one ledger row in the loyalty history (pure presentation)
+// END_MODULE_MAP
+
 interface Props {
   tx: LoyaltyTransaction;
 }

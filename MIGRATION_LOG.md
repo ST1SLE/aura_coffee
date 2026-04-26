@@ -14,8 +14,8 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 | CP0 | completed | — | 8 worktrees pruned (no commit needed) |
 | CP1 | completed | 7534d83 | GRACE bootstrap (docs/*.xml + LDD logger) |
 | CP2 | completed | c9933aa | Mothball OpenSpec layer |
-| CP3 | in_progress | — | Python contract retrofit (5 modules) |
-| CP4 | pending | — | TS contract retrofit (2 modules) |
+| CP3 | completed | dfa4bbc | Python contract retrofit (113 files, 374 contracts) |
+| CP4 | in_progress | — | TS contract retrofit (2 modules) |
 | CP5 | pending | — | LDD logging wire-up |
 | CP6 | pending | — | LDD test fixtures |
 | CP7 | pending | — | Docs finalization |
@@ -68,3 +68,19 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 1. **Promocode lifecycle is computed, not stored.** No `PromocodeStatus` enum in `shared.enums`; promocode state derives from `is_active` + date window + `current_uses`. PDD §6.6 may want an explicit enum to match INV-016 exhaustiveness, but the current code is correct as-is.
 2. **notification.py state matrix gap.** Subagent on M-CORE-API/services flagged that `notification.py` matrix omits `CREATED → PAID` and `CREATED → CANCELLED`. The zero-total checkout path in `services/checkout.create_order` sets `Order.PAID` directly without notification. Could be deliberate; verify against PDD §6.1 if a missing notification surfaces in QA.
 3. **Payment.REFUND_FAILED state.** `webhook._handle_refund_canceled` writes `Payment.REFUND_FAILED`. PDD §6.2's visible chain is `REFUND_PENDING → REFUNDED`. May need to be added to §6.2 explicit transitions for INV-016 exhaustiveness.
+
+### CP4 (TypeScript contract retrofit) — in progress
+- 2 parallel subagents (M-WEB-CUSTOMER, M-WEB-ADMIN) executed concurrently with non-overlapping write scopes; both tsc-clean before+after.
+- **121 .ts/.tsx files modified**: 121 MODULE_CONTRACT, 111 MODULE_MAP, 170 function CONTRACT pairs. Comments only — no behavior, JSX, types, signatures, or imports changed.
+- Per-module breakdown:
+  - **M-WEB-CUSTOMER** (38 in-scope files): module + ~47 fn contracts. Skipped `api/mocks/auth.ts` (test-only MSW mock, not imported at runtime); no auto-generated client present.
+  - **M-WEB-ADMIN** (74 in-scope files): module + ~106 fn contracts. tsc clean before and after.
+- Format: line-comment variant of GRACE block convention — `// START_MODULE_CONTRACT … // END_MODULE_CONTRACT`, `// START_CONTRACT: name`, etc. MODULE_CONTRACT placed AFTER `import` block in each file (TypeScript requires imports first).
+- Pure presentation components (no useState/useEffect/custom hooks) got MODULE_CONTRACT only; logic-bearing components got both module + function contracts.
+- INV-002 cited consistently on role-gated routes/components with the explicit "server enforces; client is UX redirect only" caveat.
+
+**Concerns flagged for human review (NONE blocking; surface for next refactor pass):**
+4. **Customer `auth/token.ts` keeps refresh token in `localStorage`.** Subagent flagged this as a conflict with `web/customer/AGENTS.md` guidance ("must not store auth tokens in localStorage"). PDD §6 may want httpOnly cookies; not changed in this pass — comments only.
+5. **Customer `pages/CartPage.tsx` is an obsolete stub.** Real `/cart` route mounts `pages/Cart/CartPage.tsx`. The stub got a contract noting this; deletion is a future cleanup.
+6. **Admin `staffRole` localStorage hint can drift from JWT claims.** UX glitch only (not security; INV-002 enforced server-side). `useCurrentRole` should arguably read from the JWT instead of a separate localStorage key.
+7. **Admin `parseStatus` in OrdersPage silently casts unknown server status `'created'`.** `AdminOrderStatusFilter` type union doesn't include `'created'`. Not blocking; flagged for next reviewer.

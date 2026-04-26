@@ -5,6 +5,34 @@
 import type { DayKey, WorkingHours, WorkingHoursDay } from '@/api/admin-settings';
 import { DAYS } from '@/api/admin-settings';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Client-side validators for the SettingsPage form plus form↔wire
+//            mapping helpers. Mirrors backend invariants (phase6 plan §414-429)
+//            so the user gets fast feedback before hitting 422; server is
+//            still the source of truth for validation.
+//   SCOPE:   Used only by SettingsPage and Section* sub-forms; tests pull from testUtils.
+//   DEPENDS: @/api/admin-settings (types + DAYS + kopeck converters).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SettingsFormState     - string-typed UI form state
+//   WorkingHoursDayInput  - per-day editor row (closed/open/close)
+//   ErrorMap              - Record<string, string> with dotted keys
+//   parseTime             - 'HH:MM' → minutes since midnight (-1 invalid)
+//   validateCoords        - lat/lon range checks
+//   validateDelivery      - radius/min/free/fee checks + cross-field rule
+//   validateLoyalty       - 0..100 percent integer check
+//   validateTiming        - prep/delivery/auto-close minute checks
+//   validateWorkingHours  - per-day open<close + format checks
+//   validateAll           - merge of all validators
+//   isFormValid           - convenience boolean wrapper
+//   responseToForm        - ShopSettingsResponse → SettingsFormState (kopecks→rubles)
+//   formToPayload         - SettingsFormState → ShopSettingsUpdate (rubles→kopecks)
+// END_MODULE_MAP
+
 // Строковое UI-представление формы (отдельно от wire-типа).
 export interface SettingsFormState {
   shop_lat: string;
@@ -44,6 +72,12 @@ function isFiniteNumber(s: string): boolean {
   return Number.isFinite(n);
 }
 
+// START_CONTRACT: parseTime
+//   PURPOSE: Parse an 'HH:MM' string into minutes since midnight.
+//   INPUTS:  s: string
+//   OUTPUTS: number — minutes [0, 1440); -1 if format invalid or out of range.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: parseTime
 // 'HH:MM' → число минут с полуночи. -1 если невалидный формат.
 export function parseTime(s: string): number {
   const m = /^(\d{2}):(\d{2})$/.exec(s);
@@ -54,6 +88,12 @@ export function parseTime(s: string): number {
   return hh * 60 + mm;
 }
 
+// START_CONTRACT: validateCoords
+//   PURPOSE: Validate shop_lat/shop_lon are finite and within geographic ranges.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap — keys: 'shop_lat', 'shop_lon'.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateCoords
 export function validateCoords(form: SettingsFormState): ErrorMap {
   const e: ErrorMap = {};
   if (!isFiniteNumber(form.shop_lat) || num(form.shop_lat) < -90 || num(form.shop_lat) > 90) {
@@ -65,6 +105,13 @@ export function validateCoords(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateDelivery
+//   PURPOSE: Validate radius/min/free/fee fields and the cross-field rule that
+//            free_delivery_threshold ≥ min_delivery_amount.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateDelivery
 export function validateDelivery(form: SettingsFormState): ErrorMap {
   const e: ErrorMap = {};
 
@@ -100,6 +147,12 @@ export function validateDelivery(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateLoyalty
+//   PURPOSE: Validate loyalty_percent is an integer in [0, 100].
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateLoyalty
 export function validateLoyalty(form: SettingsFormState): ErrorMap {
   const e: ErrorMap = {};
   if (!isInt(form.loyalty_percent)) {
@@ -111,6 +164,13 @@ export function validateLoyalty(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateTiming
+//   PURPOSE: Validate prep/delivery/auto-close fields are positive integers
+//            (auto-close additionally capped at 1440 minutes).
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateTiming
 export function validateTiming(form: SettingsFormState): ErrorMap {
   const e: ErrorMap = {};
 
@@ -132,6 +192,12 @@ export function validateTiming(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateWorkingHours
+//   PURPOSE: Validate every non-closed day has well-formed times and open<close.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap — dotted keys 'working_hours.<day>.open'/'.close'.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateWorkingHours
 export function validateWorkingHours(form: SettingsFormState): ErrorMap {
   const e: ErrorMap = {};
   for (const d of DAYS) {
@@ -158,6 +224,12 @@ export function validateWorkingHours(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateAll
+//   PURPOSE: Aggregate every validator into a single ErrorMap.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateAll
 export function validateAll(form: SettingsFormState): ErrorMap {
   return {
     ...validateCoords(form),
@@ -168,6 +240,12 @@ export function validateAll(form: SettingsFormState): ErrorMap {
   };
 }
 
+// START_CONTRACT: isFormValid
+//   PURPOSE: Convenience wrapper — true iff validateAll returned no errors.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: boolean
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: isFormValid
 export function isFormValid(form: SettingsFormState): boolean {
   return Object.keys(validateAll(form)).length === 0;
 }
@@ -177,6 +255,13 @@ export function isFormValid(form: SettingsFormState): boolean {
 import type { ShopSettingsResponse, ShopSettingsUpdate } from '@/api/admin-settings';
 import { kopecksToRubles, toKopecks } from '@/api/admin-settings';
 
+// START_CONTRACT: responseToForm
+//   PURPOSE: Convert a ShopSettingsResponse from the server (kopecks for money,
+//            null-or-day for working_hours) into the string-typed UI form.
+//   INPUTS:  r: ShopSettingsResponse
+//   OUTPUTS: SettingsFormState
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: responseToForm
 export function responseToForm(r: ShopSettingsResponse): SettingsFormState {
   const wh: Record<DayKey, WorkingHoursDayInput> = {} as Record<
     DayKey,
@@ -203,6 +288,14 @@ export function responseToForm(r: ShopSettingsResponse): SettingsFormState {
   };
 }
 
+// START_CONTRACT: formToPayload
+//   PURPOSE: Convert the UI form back to the wire shape expected by PUT
+//            /api/v1/admin/settings — Number()-coerce strings, kopecks for money,
+//            null for closed days.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ShopSettingsUpdate
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: formToPayload
 export function formToPayload(form: SettingsFormState): ShopSettingsUpdate {
   const wh: WorkingHours = {} as WorkingHours;
   for (const d of DAYS) {

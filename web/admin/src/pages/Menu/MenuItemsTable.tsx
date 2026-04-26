@@ -17,6 +17,24 @@ import type { MenuItemResponse, CategoryResponse, Availability, ModifierResponse
 import { listItems, deleteItem, setItemAvailability, ApiError } from '@/api/menu';
 import { formatPrice, pickLang } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Center-column menu items table — list, toggle availability
+//            (admin AND barista), edit and delete (admin only). Owns the
+//            MenuItemFormDialog state.
+//   SCOPE:   Used only by MenuPage.
+//   DEPENDS: react, react-i18next, lucide-react, ui primitives, @/api/menu, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (item CRUD admin-only server-side; availability toggle
+//            allowed for admin+barista — matches stop-list rule from AGENTS.md),
+//            INV-010.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   MenuItemsTable - data-fetching items table with availability switch and admin-only CRUD
+// END_MODULE_MAP
+
 interface Props {
   categoryId: number | null;
   categories: CategoryResponse[];
@@ -36,6 +54,17 @@ function AvailabilityBadge({ value }: { value: Availability }) {
   return null;
 }
 
+// START_CONTRACT: MenuItemsTable
+//   PURPOSE: Fetch items for the selected category, render them as a table,
+//            and wire the availability switch + delete + edit buttons. Opens
+//            MenuItemFormDialog for create/edit.
+//   INPUTS:  Props { categoryId, categories, modifiers, currentRole, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listItems (refetch on categoryId change);
+//            PATCH setItemAvailability (admin+barista — INV-002);
+//            DELETE deleteItem (admin only — server enforces).
+//   LINKS:   INV-002, INV-010 (barista sees only the availability switch).
+// END_CONTRACT: MenuItemsTable
 export function MenuItemsTable({ categoryId, categories, modifiers, currentRole, onError }: Props) {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState<MenuItemResponse[]>([]);

@@ -2,6 +2,27 @@ import type { SendCodeResponse, VerifyCodeResponse, AuthTokens } from './types';
 import { AuthError } from './types';
 import { getAccessToken, getRefreshToken } from '@/auth/token';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Customer-facing OTP auth API client — talks to /api/v1/auth/*
+//            (send-code, verify-code, refresh, logout) and normalises HTTP
+//            errors into typed AuthError codes for the UI.
+//   SCOPE:   sendCode, verifyCode, refreshTokens, logout. Re-exports AuthError
+//            and the auth DTO types so consumers import a single module.
+//   DEPENDS: M-CORE-API (HTTP /api/v1/auth/*), ./types (AuthError, DTOs),
+//            @/auth/token (access/refresh storage for logout body).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6 OTP state machine.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   sendCode       - POST /auth/send-code, returns phone_hash
+//   verifyCode     - POST /auth/verify-code, returns tokens + parsed AuthUser
+//   refreshTokens  - POST /auth/refresh, returns new AuthTokens
+//   logout         - POST /auth/logout (best-effort; ignores network errors)
+//   AuthError      - re-export of ./types AuthError
+// END_MODULE_MAP
+
 export { AuthError } from './types';
 export type {
   AuthTokens,
@@ -41,6 +62,15 @@ async function handleErrorResponse(res: Response): Promise<never> {
   throw new AuthError('UNKNOWN_ERROR', body.detail ?? `HTTP ${res.status}`);
 }
 
+// START_CONTRACT: sendCode
+//   PURPOSE: Request the server to send an OTP SMS to the given phone number.
+//   INPUTS:  phone: string — E.164 form (e.g. '+79991234567'). INV-013 — server
+//            stores hashed phone; client passes plain to API only.
+//   OUTPUTS: Promise<SendCodeResponse> — { message, phone_hash }.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/send-code; may throw AuthError for
+//                 RATE_LIMITED (429), CODE_NOT_DELIVERED (409), NETWORK_ERROR.
+//   LINKS:   PDD §6.1 send-code state.
+// END_CONTRACT: sendCode
 export async function sendCode(phone: string): Promise<SendCodeResponse> {
   let res: Response;
   try {
@@ -57,6 +87,18 @@ export async function sendCode(phone: string): Promise<SendCodeResponse> {
   return res.json();
 }
 
+// START_CONTRACT: verifyCode
+//   PURPOSE: Submit OTP code, receive access/refresh tokens and parsed user.
+//   INPUTS:  phone: string — same E.164 phone used in sendCode (INV-013)
+//            code: string  — 6-digit OTP from SMS
+//   OUTPUTS: Promise<VerifyCodeResponse> — { accessToken, refreshToken, user }.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/verify-code; throws AuthError for
+//                 INVALID_CODE (401), CODE_EXPIRED (410), CODE_NOT_DELIVERED (409),
+//                 RATE_LIMITED (429), NETWORK_ERROR. Also decodes the JWT payload
+//                 client-side to extract user.id/role (INV-002 — server is the
+//                 authority; this is convenience only).
+//   LINKS:   PDD §6.2 verify-code state.
+// END_CONTRACT: verifyCode
 export async function verifyCode(
   phone: string,
   code: string,
@@ -84,6 +126,15 @@ export async function verifyCode(
   };
 }
 
+// START_CONTRACT: refreshTokens
+//   PURPOSE: Exchange a refresh token for a fresh access/refresh pair.
+//   INPUTS:  refreshToken: string — current refresh token from localStorage
+//   OUTPUTS: Promise<AuthTokens> — new accessToken + refreshToken.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/refresh; throws AuthError on non-2xx
+//                 (NETWORK_ERROR for fetch failure, UNKNOWN_ERROR for 4xx/5xx).
+//   LINKS:   PDD §6 token refresh; called both by api/client.ts (single-flight
+//            on 401) and AuthProvider mount-time silent refresh.
+// END_CONTRACT: refreshTokens
 export async function refreshTokens(
   refreshToken: string,
 ): Promise<AuthTokens> {
@@ -107,6 +158,15 @@ export async function refreshTokens(
   };
 }
 
+// START_CONTRACT: logout
+//   PURPOSE: Tell the server to invalidate the current refresh token. Best-effort:
+//            network errors are swallowed because the client also clears its
+//            local state regardless (see AuthProvider.logout).
+//   INPUTS:  none (reads access + refresh from @/auth/token).
+//   OUTPUTS: Promise<void> — always resolves.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/logout (best-effort); never throws.
+//   LINKS:   PDD §6 sign-out.
+// END_CONTRACT: logout
 export async function logout(): Promise<void> {
   const accessToken = getAccessToken();
   const headers: Record<string, string> = {

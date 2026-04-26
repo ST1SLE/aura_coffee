@@ -15,6 +15,22 @@ import {
 } from '@/api/menu';
 import { kopecksToRublesStr, rublesToKopecks, pickLang } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Bottom panel on the menu page — list of modifiers with availability
+//            toggle (admin OR barista — stop-list) and admin-only create/edit/delete.
+//   SCOPE:   Used only by MenuPage.
+//   DEPENDS: react, react-i18next, lucide-react, ui primitives, @/api/menu, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (CRUD admin-only; availability toggle admin+barista),
+//            INV-010.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ModifiersPanel - modifiers list with role-gated CRUD and stop-list switch
+// END_MODULE_MAP
+
 interface Props {
   modifiers: ModifierResponse[];
   onModifiersChange: (next: ModifierResponse[]) => void;
@@ -30,6 +46,17 @@ interface FormRow {
 
 const emptyForm = (): FormRow => ({ name_ru: '', name_en: '', price: '' });
 
+// START_CONTRACT: ModifiersPanel
+//   PURPOSE: Render the modifier table; expose admin-only create/edit/delete and
+//            shared availability toggle. The full list is owned by MenuPage to
+//            stay in sync with ModifiersPicker selectors.
+//   INPUTS:  Props { modifiers, onModifiersChange, currentRole, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: createModifier/updateModifier/deleteModifier/setModifierAvailability;
+//            401/422 routed to onError.
+//   LINKS:   INV-002 (server enforces; client filters CRUD UI for barista),
+//            INV-010.
+// END_CONTRACT: ModifiersPanel
 export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onError }: Props) {
   const { t, i18n } = useTranslation();
   const [addForm, setAddForm] = useState<FormRow>(emptyForm());

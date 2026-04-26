@@ -1,6 +1,28 @@
 import type { ShopSettingsResponse } from '@/api/admin-settings';
 import type { SettingsFormState } from './validation';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Test fixture builders used by Settings *.test.tsx files — produce
+//            a baseline ShopSettingsResponse and the matching SettingsFormState.
+//            Not imported by production code despite living outside __tests__.
+//   SCOPE:   Imported only by colocated test files; safe to evolve with tests.
+//   DEPENDS: @/api/admin-settings, ./validation (types only).
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   baseResponse - ShopSettingsResponse with realistic defaults for tests
+//   baseForm     - SettingsFormState matching baseResponse via responseToForm semantics
+// END_MODULE_MAP
+
+// START_CONTRACT: baseResponse
+//   PURPOSE: Build a deterministic ShopSettingsResponse for tests.
+//   INPUTS:  none
+//   OUTPUTS: ShopSettingsResponse
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: baseResponse
 export function baseResponse(): ShopSettingsResponse {
   return {
     shop_lat: 55.75,
@@ -26,6 +48,13 @@ export function baseResponse(): ShopSettingsResponse {
   };
 }
 
+// START_CONTRACT: baseForm
+//   PURPOSE: Build a SettingsFormState whose values mirror baseResponse() — kept
+//            in sync by hand to avoid coupling tests to responseToForm.
+//   INPUTS:  none
+//   OUTPUTS: SettingsFormState
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: baseForm
 export function baseForm(): SettingsFormState {
   return {
     shop_lat: '55.75',

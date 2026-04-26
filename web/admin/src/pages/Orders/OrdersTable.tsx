@@ -11,6 +11,21 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import type { OrderResponse } from '@/api/admin-orders';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the orders list as a table with status badge, formatted
+//            kopecks total, short id and a Details button. Pure presentation.
+//   SCOPE:   Used only by OrdersPage.
+//   DEPENDS: react-i18next, ui primitives, ./StatusBadge, @/api/admin-orders type.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §5.2 (kopecks),
+//            INV-014 (item snapshot fields visible from row → dialog).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   OrdersTable - clickable orders table, calls onSelect with row id
+// END_MODULE_MAP
+
 // Копейки → "350,00 ₽" локалью ru-RU. Модуль-приватный хелпер: нам нужен
 // один и тот же формат в списке и в детальной модалке — держим код DRY,
 // но не поднимаем его в @/lib до тех пор, пока его не потребует ещё один

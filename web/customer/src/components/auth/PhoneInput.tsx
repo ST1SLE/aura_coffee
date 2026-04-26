@@ -1,5 +1,23 @@
 import { useCallback, useState } from 'react';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Russian-format phone input — locks the country code to +7,
+//            formats the 10 trailing digits as `(NNN) NNN-NN-NN` while typing,
+//            and emits a normalized `+7XXXXXXXXXX` string via onChange.
+//            Also exports a small validator used by LoginPage to enable submit.
+//   SCOPE:   PhoneInput component + isValidPhone validator.
+//   DEPENDS: react (useCallback, useState).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.1 send-code.
+//            INV-013 — phone is PII; component does not log raw values.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   PhoneInput     - controlled phone input with mask and onChange normalization
+//   isValidPhone   - test that a normalized string matches +7\d{10}
+// END_MODULE_MAP
+
 interface PhoneInputProps {
   value: string;
   onChange: (normalized: string) => void;
@@ -19,6 +37,15 @@ function extractDigits(raw: string): string {
   return raw.replace(/\D/g, '').slice(0, 10);
 }
 
+// START_CONTRACT: PhoneInput
+//   PURPOSE: Render a phone input with a static "+7" prefix and a digit-mask
+//            for the 10 user digits.
+//   INPUTS:  PhoneInputProps — value: string ('+7'+digits), onChange:
+//            (normalized) => void, disabled?: boolean.
+//   OUTPUTS: JSX — span("+7") + masked <input type="tel">.
+//   SIDE_EFFECTS: parent state via onChange. INV-013 — do not log raw value.
+//   LINKS:   PDD §6.1; consumed by LoginPage; pairs with isValidPhone.
+// END_CONTRACT: PhoneInput
 export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
   const digits = value.startsWith('+7') ? value.slice(2) : '';
   const [displayValue, setDisplayValue] = useState(formatDisplay(digits));
@@ -50,6 +77,12 @@ export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
   );
 }
 
+// START_CONTRACT: isValidPhone
+//   PURPOSE: Verify a normalized phone string is exactly "+7" + 10 digits.
+//   INPUTS:  normalized: string — the value emitted by PhoneInput.onChange.
+//   OUTPUTS: boolean.
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: isValidPhone
 export function isValidPhone(normalized: string): boolean {
   return /^\+7\d{10}$/.test(normalized);
 }

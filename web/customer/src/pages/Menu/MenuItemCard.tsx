@@ -2,6 +2,21 @@ import { useTranslation } from 'react-i18next';
 import type { PublicMenuItem } from '@/api/menuTypes';
 import { formatPrice } from '@/lib/formatPrice';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Menu grid card — image, name, base price, "unavailable" badge.
+//            Pure presentation: dispatches one onOpen callback when the user
+//            clicks/keyboard-activates an available item.
+//   SCOPE:   MenuItemCard component.
+//   DEPENDS: react-i18next, @/api/menuTypes (PublicMenuItem), @/lib/formatPrice.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   MenuItemCard  - tile in the menu grid (pure presentation)
+// END_MODULE_MAP
+
 interface Props {
   item: PublicMenuItem;
   lang: 'ru' | 'en';

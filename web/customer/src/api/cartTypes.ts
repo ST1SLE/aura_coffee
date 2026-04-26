@@ -1,5 +1,27 @@
 import type { MenuItemAvailability, SizeLabel } from './menuTypes';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Cart DTOs — the wire-format types returned by /api/v1/cart and the
+//            CartItemCreate body. Snapshot fields (menu_item_snapshot, size_*,
+//            modifiers_*) preserve historical names/prices on the server side
+//            so a renamed/edited menu does not retroactively rewrite carts.
+//   SCOPE:   Pure types; no runtime behavior.
+//   DEPENDS: ./menuTypes (MenuItemAvailability, SizeLabel).
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart;
+//            INV-014 (snapshot semantics — also applies to orders).
+//   ROLE:    TYPES
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   CartItemCreate          - POST /cart/items body shape
+//   MenuItemCartSnapshot    - menu_item_snapshot field on a cart line
+//   SizeSnapshot            - size_snapshot field (label + price in kopecks)
+//   ModifierSnapshot        - one entry of modifiers_snapshot
+//   CartItemResponse        - one cart line as returned by the server
+//   CartResponse            - full cart payload (items + subtotal + expires_at)
+// END_MODULE_MAP
+
 export interface CartItemCreate {
   menu_item_id: number;
   size_option_id: number | null;

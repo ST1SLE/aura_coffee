@@ -3,6 +3,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SettingsFormState, ErrorMap } from './validation';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the "timing" subsection — default prep time, estimated
+//            delivery time, auto-close minutes inputs. Pure presentation.
+//   SCOPE:   Used only by SettingsPage.
+//   DEPENDS: react-i18next, ui Input/Label, ./validation types.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SectionTiming - timing-related minute inputs with validation rendering
+// END_MODULE_MAP
+
 interface Props {
   form: SettingsFormState;
   onChange: (key: keyof SettingsFormState, value: string) => void;

@@ -9,8 +9,33 @@ import {
 } from '@/api/loyalty';
 import { TransactionRow } from './TransactionRow';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: /profile/loyalty route — show loyalty balance + lifetime accrued
+//            and a paginated transaction history loaded one page at a time
+//            (page size 20). Independent error states for balance vs history.
+//   SCOPE:   LoyaltyPage component.
+//   DEPENDS: react, react-i18next, @/components/ui/button, @/api/loyalty
+//            (getLoyaltyBalance, listLoyaltyTransactions), ./TransactionRow.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §9 loyalty.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   LoyaltyPage  - /profile/loyalty — balance card + paginated transactions
+// END_MODULE_MAP
+
 const PER_PAGE = 20;
 
+// START_CONTRACT: LoyaltyPage
+//   PURPOSE: Render loyalty balance and paginate the transaction history.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — header card with balance + history section with rows.
+//   SIDE_EFFECTS: HTTP getLoyaltyBalance() and listLoyaltyTransactions(1, 20)
+//                 on mount; further pages on "load more" click. Empty-page
+//                 heuristic decides hasMore.
+//   LINKS:   PDD §9; TransactionRow renders each entry.
+// END_CONTRACT: LoyaltyPage
 export function LoyaltyPage() {
   const { t } = useTranslation();
 

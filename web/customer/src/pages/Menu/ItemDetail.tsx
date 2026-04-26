@@ -5,12 +5,39 @@ import { formatPrice } from '@/lib/formatPrice';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Bottom-sheet modal that lets the user pick a size + modifiers for
+//            a menu item, shows the running price (display-only — server
+//            recomputes on add), and adds the configured item to the cart.
+//   SCOPE:   ItemDetail component.
+//   DEPENDS: react, react-i18next, @/api/menuTypes, @/lib/formatPrice,
+//            @/components/ui/button, @/store/cart.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu / §5 cart.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ItemDetail  - bottom-sheet modal for size + modifier selection + add-to-cart
+// END_MODULE_MAP
+
 interface Props {
   item: PublicMenuItem;
   lang: 'ru' | 'en';
   onClose: () => void;
 }
 
+// START_CONTRACT: ItemDetail
+//   PURPOSE: Render the size/modifier picker and call useCartStore.addItem on
+//            confirm.
+//   INPUTS:  Props — item: PublicMenuItem, lang: 'ru'|'en', onClose: () => void.
+//   OUTPUTS: JSX — modal dialog (role="dialog" aria-modal).
+//   SIDE_EFFECTS: cart store addItem (HTTP POST /cart/items); shows
+//                 success/error toast and auto-closes after success.
+//                 NOTE: currentPrice in the UI is display-only — the server
+//                 re-prices on the back end (AGENTS.md "Prices always from server").
+//   LINKS:   PDD §3 / §5; consumed by MenuPage.
+// END_CONTRACT: ItemDetail
 export function ItemDetail({ item, lang, onClose }: Props) {
   const { t } = useTranslation();
   const addToCart = useCartStore((s) => s.addItem);

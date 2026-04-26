@@ -9,11 +9,38 @@ import {
 } from '@/api/addresses';
 import { AddressForm } from './AddressForm';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: /profile/addresses route — list saved addresses, mark one default,
+//            and switch into create/edit modes that mount AddressForm. Confirms
+//            deletion via window.confirm before calling api/addresses.deleteAddress.
+//   SCOPE:   AddressesPage component.
+//   DEPENDS: react, react-i18next, @/components/ui/button, @/api/addresses
+//            (listAddresses, deleteAddress, setDefaultAddress), ./AddressForm.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 saved addresses;
+//            INV-013 PII handling.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   AddressesPage  - /profile/addresses — list/create/edit mode switcher
+// END_MODULE_MAP
+
 type Mode =
   | { kind: 'list' }
   | { kind: 'create' }
   | { kind: 'edit'; address: AddressResponse };
 
+// START_CONTRACT: AddressesPage
+//   PURPOSE: Drive list/create/edit modes for saved delivery addresses.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — loading spinner / list with action buttons / AddressForm.
+//   SIDE_EFFECTS: HTTP listAddresses() on mount and after every mutation;
+//                 deleteAddress() (confirm-gated); setDefaultAddress();
+//                 mounting AddressForm triggers further HTTP calls.
+//                 INV-013 PII handling.
+//   LINKS:   PDD §7.
+// END_CONTRACT: AddressesPage
 export function AddressesPage() {
   const { t } = useTranslation();
   const [addresses, setAddresses] = useState<AddressResponse[]>([]);

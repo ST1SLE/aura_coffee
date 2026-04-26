@@ -4,6 +4,21 @@ import type { ModifierResponse } from '@/api/menu';
 import { setItemModifiers, ApiError } from '@/api/menu';
 import { pickLang } from './utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Checkbox list that links/unlinks modifiers to a menu item via
+//            setItemModifiers (PUT replaces the full set).
+//   SCOPE:   Embedded in MenuItemFormDialog. Admin-only on the server.
+//   DEPENDS: react, react-i18next, @/api/menu, ./utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4,
+//            INV-002 (server enforces admin scope).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   ModifiersPicker - admin-only modifier link manager for a menu item
+// END_MODULE_MAP
+
 interface Props {
   menuItemId: number;
   allModifiers: ModifierResponse[];
@@ -13,6 +28,14 @@ interface Props {
   onError: (msg: string) => void;
 }
 
+// START_CONTRACT: ModifiersPicker
+//   PURPOSE: Toggle a modifier into/out of the linked set for the given item;
+//            persist via PUT setItemModifiers and reflect server response back.
+//   INPUTS:  Props { menuItemId, allModifiers, selectedIds, onChange, disabled?, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: PUT /api/v1/admin/menu/items/{id}/modifiers; 401 → onError.
+//   LINKS:   INV-002.
+// END_CONTRACT: ModifiersPicker
 export function ModifiersPicker({
   menuItemId,
   allModifiers,

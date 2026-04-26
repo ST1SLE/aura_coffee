@@ -2,6 +2,20 @@ import * as React from 'react';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import { cn } from '@/lib/utils';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: shadcn/ui Switch primitive wrapping Radix SwitchPrimitive.Root.
+//            Pure presentation; the consumer wires onCheckedChange to state/API.
+//   SCOPE:   Used for stop-list toggles in MenuItemsTable and ModifiersPanel.
+//   DEPENDS: react, @radix-ui/react-switch, @/lib/utils.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Switch - styled Radix Switch.Root with internal Thumb
+// END_MODULE_MAP
+
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>

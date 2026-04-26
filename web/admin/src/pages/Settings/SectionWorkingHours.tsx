@@ -4,6 +4,21 @@ import { Label } from '@/components/ui/label';
 import { DAYS, type DayKey } from '@/api/admin-settings';
 import type { SettingsFormState, ErrorMap, WorkingHoursDayInput } from './validation';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Render the per-day working-hours editor — checkbox to mark a day
+//            closed plus open/close time inputs. Pure presentation; parent
+//            owns the state.
+//   SCOPE:   Used only by SettingsPage.
+//   DEPENDS: react-i18next, ui Input/Label, @/api/admin-settings (DAYS), ./validation.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   SectionWorkingHours - 7-day working-hours editor
+// END_MODULE_MAP
+
 interface Props {
   form: SettingsFormState;
   onDayChange: (day: DayKey, next: WorkingHoursDayInput) => void;

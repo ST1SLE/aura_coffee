@@ -24,6 +24,22 @@ import type {
   PromocodeUpdateInput,
 } from '@/api/promocodes';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Modal dialog for creating or editing a promocode — handles
+//            datetime-local↔ISO conversion, rubles↔kopecks/percent wire shape,
+//            and locks code/discount fields once current_uses > 0.
+//   SCOPE:   Opened by PromosPage; admin-only on the server.
+//   DEPENDS: react, react-i18next, ui primitives, @/api/promocodes.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 promocodes,
+//            INV-002 (admin scope server-enforced).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   PromoFormDialog - admin-only create/edit form with activate/deactivate buttons
+// END_MODULE_MAP
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -106,6 +122,16 @@ function fromPromo(promo: PromocodeResponse): FormState {
   };
 }
 
+// START_CONTRACT: PromoFormDialog
+//   PURPOSE: Render the promo form, validate via server-side 422 (translated to
+//            field-level errors), submit via createPromocode/updatePromocode, and
+//            optionally trigger activate/deactivate inline on edit.
+//   INPUTS:  Props { open, onClose, promo?, onSaved, onError }
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: POST/PATCH/POST(activate)/POST(deactivate); 422 → field errors,
+//            409 → duplicate_code field error, other → onError toast.
+//   LINKS:   INV-002.
+// END_CONTRACT: PromoFormDialog
 export function PromoFormDialog({ open, onClose, promo, onSaved, onError }: Props) {
   const { t } = useTranslation();
   const isEdit = promo != null;

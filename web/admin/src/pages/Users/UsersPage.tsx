@@ -12,6 +12,24 @@ import {
 import { UsersTable } from './UsersTable';
 import { UserDetailDialog } from './UserDetailDialog';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Admin user-management page — status tabs, debounced search,
+//            paginated list, and a detail dialog with block/unblock and
+//            loyalty adjust actions.
+//   SCOPE:   Admin-only route (gated by ProtectedRoute and INV-002).
+//   DEPENDS: react, react-i18next, ui primitives, @/api/admin-users,
+//            sibling UsersTable + UserDetailDialog.
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.7,
+//            INV-002 (admin scope), INV-013 (PII handling — display_name only,
+//            no raw phones in the list).
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   UsersPage - data-fetching admin users page with filter/search/pagination
+// END_MODULE_MAP
+
 const STATUS_TABS: { key: UserStatusFilter; labelKey: string }[] = [
   { key: 'all', labelKey: 'pages.users.filters.status.all' },
   { key: 'active', labelKey: 'pages.users.filters.status.active' },
@@ -22,6 +40,16 @@ const STATUS_TABS: { key: UserStatusFilter; labelKey: string }[] = [
 const DEFAULT_PER_PAGE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
+// START_CONTRACT: UsersPage
+//   PURPOSE: Compose the user-management UI — status filter tabs, 300ms-debounced
+//            search box, paginated list, detail dialog with mutation hooks. Reload
+//            cycles on any filter/page/search change.
+//   INPUTS:  none.
+//   OUTPUTS: JSX.Element.
+//   SIDE_EFFECTS: GET listUsers; notifier toasts; child detail dialog triggers
+//            blockUser/unblockUser/adjustLoyalty (admin-only server-side).
+//   LINKS:   INV-002, INV-013.
+// END_CONTRACT: UsersPage
 export function UsersPage() {
   const { t } = useTranslation();
   const { notifications, notify, dismiss } = useNotifier();

@@ -14,6 +14,31 @@ import { AddressesPage } from '@/pages/Profile/Addresses/AddressesPage';
 import { LoyaltyPage } from '@/pages/Profile/Loyalty/LoyaltyPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: Top-level App component — wires BrowserRouter + AuthProvider and
+//            declares the customer SPA route tree (public LoginPage/VerifyPage,
+//            then ProtectedRoute-gated pages under the shared Layout).
+//   SCOPE:   App component (only export).
+//   DEPENDS: react-router-dom, AuthProvider, ProtectedRoute, Layout, all page
+//            components.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §4.4 boundaries.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   App  - root SPA component: BrowserRouter -> AuthProvider -> Routes
+// END_MODULE_MAP
+
+// START_CONTRACT: App
+//   PURPOSE: Mount the SPA's router and auth provider, declare the route tree.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — entire route tree rendered through react-router.
+//   SIDE_EFFECTS: registers BrowserRouter (history), creates AuthContext.
+//                 Routes under <ProtectedRoute> redirect to /login when
+//                 unauthenticated (INV-002 — UX guard, server enforces).
+//   LINKS:   PDD §4.4; ProtectedRoute and Layout are the layout routes.
+// END_CONTRACT: App
 export function App() {
   return (
     <BrowserRouter>

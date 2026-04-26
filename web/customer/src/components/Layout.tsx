@@ -3,6 +3,31 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/auth/useAuth';
 
+// START_MODULE_CONTRACT
+//   PURPOSE: App shell — sticky header with logo + nav links + logout +
+//            LanguageSwitcher, the <main> outlet, and a mobile bottom nav.
+//            Wraps all authenticated routes (see App.tsx).
+//   SCOPE:   Layout component.
+//   DEPENDS: react-router-dom (Outlet/Link/useNavigate), react-i18next,
+//            @/components/LanguageSwitcher, @/auth/useAuth.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §4.4.
+//   ROLE:    RUNTIME
+//   MAP_MODE: EXPORTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   Layout  - app shell (header + Outlet + bottom nav)
+// END_MODULE_MAP
+
+// START_CONTRACT: Layout
+//   PURPOSE: Render the app shell and provide the <Outlet/> for nested routes.
+//   INPUTS:  none.
+//   OUTPUTS: JSX — header + main + mobile bottom nav, with Outlet inside main.
+//   SIDE_EFFECTS: handleLogout calls useAuth().logout (which clears tokens +
+//                 calls /auth/logout) then navigates to /login.
+//                 INV-002 — server enforces auth; this nav is UX only.
+//   LINKS:   App.tsx wraps protected routes with this layout.
+// END_CONTRACT: Layout
 export function Layout() {
   const { t } = useTranslation();
   const { logout } = useAuth();
