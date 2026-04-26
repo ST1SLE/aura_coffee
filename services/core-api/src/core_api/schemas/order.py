@@ -1,4 +1,27 @@
 """Pydantic-схемы заказов (PDD §5.2, §6.1, §7.7)."""
+# START_MODULE_CONTRACT
+#   PURPOSE: Order DTOs covering create/read, status update, cancel and repeat.
+#            Holds the XOR validator for delivery vs. saved-address selection.
+#   SCOPE:   Pydantic models + a model_validator on CreateOrderRequest.
+#   DEPENDS: pydantic v2, M-SHARED (OrderStatus, OrderType enums).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §6.1 (order FSM),
+#            §7.7 (repeat order); INV-013 (delivery_address only inside snapshot,
+#            never as PII columns); INV-014 (order_items snapshots)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DeliveryAddress       - inline delivery snapshot (text/lat/lon/details)
+#   CreateOrderRequest    - POST /api/v1/orders body w/ delivery XOR validator
+#   OrderItemResponse     - one line snapshot in OrderResponse (INV-014)
+#   OrderResponse         - full order projection (header + items)
+#   OrderListResponse     - paginated GET /api/v1/orders body
+#   OrderStatusUpdate     - PATCH /orders/{id}/status body
+#   CancelOrderRequest    - POST /orders/{id}/cancel body
+#   SkippedItem           - one skipped entry from RepeatOrderResult
+#   RepeatOrderResult     - POST /orders/{id}/repeat response
+# END_MODULE_MAP
 
 from __future__ import annotations
 

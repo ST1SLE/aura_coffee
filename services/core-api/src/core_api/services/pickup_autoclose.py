@@ -1,3 +1,20 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Scheduled job that closes stale READY pickup orders by transitioning
+#            them to COMPLETED via the canonical lifecycle bridge — preserves
+#            INV-016 single-entry-point and suppresses notifications via
+#            actor_role="system".
+#   SCOPE:   close_stale_pickups (one batch per call).
+#   DEPENDS: M-SHARED (Order, ShopSettings, OrderStatus/Type),
+#            services.order_lifecycle.transition_order_bridge, M-DATABASE
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1 (autoclose row),
+#            §7.1 Phase 6/4, INV-003, INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   close_stale_pickups - close READY pickups stale beyond auto_close_minutes
+# END_MODULE_MAP
 """Auto-close pickup-заказов по таймеру (PDD §6.1 row "READY → COMPLETED —
 Автозакрытие по таймеру", §7.1 Phase 6 item 4).
 
@@ -22,6 +39,20 @@ from core_api.services.order_lifecycle import transition_order_bridge
 _BATCH_LIMIT = 100
 
 
+# START_CONTRACT: close_stale_pickups
+#   PURPOSE: Sweep up to _BATCH_LIMIT READY pickup orders older than
+#            ShopSettings.auto_close_minutes and finalize each with READY →
+#            COMPLETED via the lifecycle bridge plus auto_completed bookkeeping.
+#   INPUTS:  db: Session
+#            now: datetime — caller-fixed clock
+#   OUTPUTS: int — number of orders successfully closed.
+#   SIDE_EFFECTS: DB SELECT (with FOR UPDATE SKIP LOCKED on Postgres),
+#                 per-order savepoint with bridge transition + UPDATE, final
+#                 commit. Source: READY (PICKUP). Target: COMPLETED. Loyalty
+#                 accrual fires inside _apply_transition (INV-003). Failures on
+#                 a single order do not abort the batch.
+#   LINKS:   PDD §6.1, §7.1, INV-003, INV-016
+# END_CONTRACT: close_stale_pickups
 def close_stale_pickups(db: Session, now: datetime) -> int:
     """Закрывает все pickup/READY-заказы с `updated_at < now - auto_close_minutes`.
 

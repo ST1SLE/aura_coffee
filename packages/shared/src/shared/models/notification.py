@@ -1,5 +1,24 @@
 """Notification — уведомления пользователю (PDD §5.2)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `notifications` table — log of every
+#            in-app or SMS notification dispatched to a user.
+#   SCOPE:   Holds bilingual message bodies, channel/type/status, and
+#            optional order_id linkage (OTP and system notifications may have
+#            order_id NULL). Status drives the per-row dispatch lifecycle
+#            (pending → sent | failed).
+#   DEPENDS: M-SHARED enums (NotificationChannel, NotificationType,
+#            NotificationStatus); SQLAlchemy 2.x ORM; M-DATABASE Base;
+#            references users.id and orders.id.
+#   LINKS:   PDD §5.2 (notifications table), docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   Notification - SQLAlchemy ORM class for `notifications`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

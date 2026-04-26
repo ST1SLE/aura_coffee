@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Read-only order feeds for both customer (own history) and staff
+#            (all-orders, INV-010 RBAC enforced upstream). Sort rule: finalized
+#            orders by updated_at DESC, others by created_at DESC.
+#   SCOPE:   list_orders, list_orders_for_staff, get_order_for_staff.
+#   DEPENDS: M-SHARED (Order, OrderStatus, OrderType), M-DATABASE,
+#            schemas.order_history
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.4, §7.7, INV-010
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderNotFoundForStaffError - staff get-by-id missing target
+#   list_orders                - customer-scoped paginated history
+#   list_orders_for_staff      - staff-scoped feed with status/type filters
+#   get_order_for_staff        - single-order detail without ownership check
+# END_MODULE_MAP
 """Сервис list_orders — пагинированная история заказов пользователя (PDD §7.7).
 
 Дополнительно: staff-scoped helpers для admin-orders-api (PDD §4.5, INV-010):
@@ -20,10 +38,25 @@ from shared.models.order import Order
 _FINALIZED_STATUSES = {OrderStatus.COMPLETED, OrderStatus.CANCELLED}
 
 
+# START_CONTRACT: OrderNotFoundForStaffError
+#   PURPOSE: Raised by get_order_for_staff when id is unknown — kept distinct
+#            from customer-scoped errors so the router can map cleanly.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: OrderNotFoundForStaffError
 class OrderNotFoundForStaffError(Exception):
     """Заказ с таким id отсутствует — staff-вариант (отделён от customer-scoped ошибки)."""
 
 
+# START_CONTRACT: list_orders
+#   PURPOSE: Customer-scoped paginated order history sorted by created_at DESC,
+#            with eager-loaded items.
+#   INPUTS:  user_id: UUID, page: int, per_page: int, db_session: Session
+#   OUTPUTS: OrderListResponse
+#   SIDE_EFFECTS: DB SELECTs only.
+#   LINKS:   PDD §7.7, INV-010 (router enforces ownership)
+# END_CONTRACT: list_orders
 def list_orders(
     *,
     user_id: uuid.UUID,
@@ -61,6 +94,17 @@ def list_orders(
     )
 
 
+# START_CONTRACT: list_orders_for_staff
+#   PURPOSE: Staff-scoped paginated feed across all users with status filter
+#            ("active" or specific OrderStatus) and optional type filter.
+#   INPUTS:  status_filter: OrderStatus | str
+#            type_filter: OrderType | None
+#            page, per_page: int
+#            db_session: Session
+#   OUTPUTS: OrderListResponse
+#   SIDE_EFFECTS: DB SELECTs only.
+#   LINKS:   PDD §5.4, INV-010 (admin/barista/courier RBAC at router)
+# END_CONTRACT: list_orders_for_staff
 def list_orders_for_staff(
     *,
     status_filter: OrderStatus | str,
@@ -120,6 +164,14 @@ def list_orders_for_staff(
     )
 
 
+# START_CONTRACT: get_order_for_staff
+#   PURPOSE: Load a single order by id without ownership check (RBAC enforced
+#            at router). Eager-loads items.
+#   INPUTS:  order_id: UUID, db_session: Session
+#   OUTPUTS: OrderResponse
+#   SIDE_EFFECTS: DB SELECT only; raises OrderNotFoundForStaffError on miss.
+#   LINKS:   INV-010
+# END_CONTRACT: get_order_for_staff
 def get_order_for_staff(
     *,
     order_id: uuid.UUID,

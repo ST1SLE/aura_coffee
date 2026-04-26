@@ -1,3 +1,27 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Declarative single source of truth for route-level RBAC: maps
+#            (HTTP method, path pattern) → allowed role set, plus the public
+#            (no-auth) route allowlist.
+#   SCOPE:   Role constants, ROUTE_MATRIX, PUBLIC_ROUTES. No runtime logic —
+#            consumed by core_api.middleware.rbac.
+#   DEPENDS: stdlib only.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6, PDD §7.1, INV-002,
+#            INV-010 (role isolation), INV-011 (promo admin)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   CUSTOMER       - role string constant for end-user role
+#   ADMIN          - role string constant for shop administrator
+#   BARISTA        - role string constant for in-shop staff
+#   COURIER        - role string constant for delivery courier
+#   ALL_STAFF      - frozenset-like {ADMIN, BARISTA, COURIER}
+#   ALL_ROLES      - {CUSTOMER} | ALL_STAFF
+#   ROUTE_MATRIX   - dict[(method, path_pattern), set[role]] — RBAC matrix
+#   PUBLIC_ROUTES  - set[(method, path_pattern)] — no-auth routes
+# END_MODULE_MAP
+
 # Декларативная матрица доступа: маршрут → допустимые роли.
 # Единственный источник истины для авторизации на уровне маршрутов.
 

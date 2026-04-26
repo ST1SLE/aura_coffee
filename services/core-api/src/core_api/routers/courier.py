@@ -12,6 +12,30 @@
 """
 from __future__ import annotations
 
+# START_MODULE_CONTRACT
+#   PURPOSE: HTTP routes for the courier panel under /api/v1/courier
+#            — list available, list mine, take, pickup, deliver assignments.
+#   SCOPE:   Delivery assignment state-machine transitions
+#            (AWAITING_COURIER → COURIER_ASSIGNED → PICKED_UP → DELIVERED)
+#            and matching Order transitions (PDD §6.1, §6.3).
+#   DEPENDS: M-SHARED (enums.DeliveryAssignmentStatus, models.DeliveryAssignment),
+#            M-DATABASE, core_api.services.delivery_assignment,
+#            core_api.deps.{auth,database}, RBACMiddleware (COURIER-only).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.3,
+#            INV-002, INV-010 (role isolation), INV-016 (state transitions).
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   router                       - APIRouter("/api/v1/courier", tags=["courier"])
+#   get_available_assignments    - GET  /api/v1/courier/assignments/available
+#   get_my_assignments           - GET  /api/v1/courier/assignments/mine
+#   post_take_assignment         - POST /api/v1/courier/assignments/{assignment_id}/take
+#   post_pickup_assignment       - POST /api/v1/courier/assignments/{assignment_id}/pickup
+#   post_deliver_assignment      - POST /api/v1/courier/assignments/{assignment_id}/deliver
+# END_MODULE_MAP
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -56,6 +80,13 @@ def _assignment_error_to_http(exc: AssignmentTransitionError) -> HTTPException:
     )
 
 
+# START_CONTRACT: get_available_assignments
+#   PURPOSE: List AWAITING_COURIER assignments visible to any courier.
+#   INPUTS:  current_user (get_current_user), Session.
+#   OUTPUTS: 200 list[dict] of available assignments.
+#   SIDE_EFFECTS: none (read-only DB query).
+#   LINKS:   PDD §6.3, INV-002, INV-010, services.delivery_assignment.
+# END_CONTRACT: get_available_assignments
 @router.get("/assignments/available")
 def get_available_assignments(
     current_user: dict = Depends(get_current_user),
@@ -65,6 +96,15 @@ def get_available_assignments(
     return list_available_for_courier(db)
 
 
+# START_CONTRACT: get_my_assignments
+#   PURPOSE: Return the active assignments (COURIER_ASSIGNED / PICKED_UP)
+#            owned by the current courier.
+#   INPUTS:  current_user, Session.
+#   OUTPUTS: 200 list[dict].
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §6.3, INV-002, INV-010, INV-013 (courier sees only own
+#            delivery rows).
+# END_CONTRACT: get_my_assignments
 @router.get("/assignments/mine")
 def get_my_assignments(
     current_user: dict = Depends(get_current_user),
@@ -97,6 +137,15 @@ def get_my_assignments(
     ]
 
 
+# START_CONTRACT: post_take_assignment
+#   PURPOSE: AWAITING_COURIER → COURIER_ASSIGNED transition with optimistic
+#            lock — only the first courier wins.
+#   INPUTS:  assignment_id: UUID, current_user, Session.
+#   OUTPUTS: 200 {"status": "courier_assigned"}; 404 not found;
+#            403 not_owner; 409 already_taken / forbidden_transition.
+#   SIDE_EFFECTS: DB update on delivery_assignment row.
+#   LINKS:   PDD §6.3, INV-002, INV-010, INV-016, services.delivery_assignment.
+# END_CONTRACT: post_take_assignment
 @router.post("/assignments/{assignment_id}/take")
 def post_take_assignment(
     assignment_id: uuid.UUID,
@@ -117,6 +166,15 @@ def post_take_assignment(
     return {"status": "courier_assigned"}
 
 
+# START_CONTRACT: post_pickup_assignment
+#   PURPOSE: COURIER_ASSIGNED → PICKED_UP transition + Order → IN_DELIVERY.
+#   INPUTS:  assignment_id: UUID, current_user, Session.
+#   OUTPUTS: 200 {"status": "picked_up"}; 404; 403; 409.
+#   SIDE_EFFECTS: DB updates on delivery_assignment + order
+#                 (atomic within service, INV-004 / INV-016).
+#   LINKS:   PDD §6.1, §6.3, INV-002, INV-010, INV-016,
+#            services.delivery_assignment.
+# END_CONTRACT: post_pickup_assignment
 @router.post("/assignments/{assignment_id}/pickup")
 def post_pickup_assignment(
     assignment_id: uuid.UUID,
@@ -137,6 +195,16 @@ def post_pickup_assignment(
     return {"status": "picked_up"}
 
 
+# START_CONTRACT: post_deliver_assignment
+#   PURPOSE: PICKED_UP → DELIVERED transition + Order → COMPLETED + loyalty
+#            accrual.
+#   INPUTS:  assignment_id: UUID, current_user, Session.
+#   OUTPUTS: 200 {"status": "delivered"}; 404; 403; 409.
+#   SIDE_EFFECTS: Atomic DB writes — assignment, order, loyalty balance,
+#                 loyalty transaction (INV-004 single transaction).
+#   LINKS:   PDD §6.1, §6.3, INV-002, INV-004, INV-010, INV-016,
+#            services.delivery_assignment.
+# END_CONTRACT: post_deliver_assignment
 @router.post("/assignments/{assignment_id}/deliver")
 def post_deliver_assignment(
     assignment_id: uuid.UUID,

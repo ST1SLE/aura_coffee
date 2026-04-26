@@ -1,3 +1,25 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Pydantic settings model for payment-worker — Redis/DB URLs,
+#            YuKassa backend selector (live | fake), credentials, base URL,
+#            webhook IP whitelist. Carries a live-mode safety-rail that
+#            refuses empty creds or sandbox/test URLs in production.
+#   SCOPE:   Settings class + lazy module-level `settings` accessor. Used by
+#            main.py at worker boot and by webhook.py at request time. NOT
+#            imported by tasks.py / db.py / redis_client.py to avoid firing
+#            the safety-rail during test imports.
+#   DEPENDS: pydantic, pydantic-settings
+#   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §8.1 (YuKassa
+#            compliance), INV-015 (no secrets in code; live mode requires
+#            non-empty real creds against a non-sandbox endpoint)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   Settings - pydantic BaseSettings carrying env-driven worker config
+#   settings - lazily instantiated module-level Settings() (via __getattr__)
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 from typing import Annotated, Literal
@@ -6,6 +28,18 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode
 
 
+# START_CONTRACT: Settings
+#   PURPOSE: Strongly-typed env config; on instantiation in live mode it
+#            verifies INV-015 (creds non-empty, base_url not pointing at
+#            test/sandbox/localhost).
+#   INPUTS:  reads env vars (REDIS_URL, DATABASE_URL, YUKASSA_BACKEND,
+#            YUKASSA_FAKE_OUTCOME, YUKASSA_SHOP_ID, YUKASSA_SECRET_KEY,
+#            YUKASSA_WEBHOOK_IPS, YUKASSA_BASE_URL).
+#   OUTPUTS: Settings instance.
+#   SIDE_EFFECTS: none (no I/O); raises ValidationError when live-mode safety
+#                 rail fails.
+#   LINKS:   PDD §8.1, INV-015
+# END_CONTRACT: Settings
 class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     database_url: str = "postgresql+psycopg://postgres:postgres@postgres:5432/aura"

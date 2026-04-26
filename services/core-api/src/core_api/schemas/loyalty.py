@@ -1,4 +1,20 @@
 """Pydantic-схемы customer-loyalty-api (PDD §3, §5.2, §7.1 Phase 5 item 2)."""
+# START_MODULE_CONTRACT
+#   PURPOSE: Customer-side loyalty DTOs: balance + paginated transaction feed.
+#   SCOPE:   Read-only Pydantic projections.
+#   DEPENDS: pydantic v2, M-SHARED (LoyaltyTransactionType enum).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §3, §5.2,
+#            §7.1 Phase 5 item 2, INV-004 (financial atomicity)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   LoyaltyBalanceResponse        - balance + lifetime_accrued projection
+#   LoyaltyTransactionResponse    - one transaction row
+#   LoyaltyTransactionListResponse - paginated transaction feed
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import uuid

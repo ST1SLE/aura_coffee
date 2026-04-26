@@ -5,6 +5,25 @@
 (см. RED-тесты).
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: Provide a lazy SQLAlchemy engine + transactional session scope so
+#            Celery tasks and the webhook FastAPI app share one DB access pattern
+#            without importing Settings on module load (Settings has live-mode
+#            safety-rails that must NOT fire on test imports).
+#   SCOPE:   Engine factory + session context manager. Re-exported by tasks.py
+#            and webhook.py as patch targets for tests.
+#   DEPENDS: SQLAlchemy 2.x, stdlib os
+#   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §4.2, INV-004
+#            (atomic compensation requires single-transaction scope)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   get_engine    - lazy SQLAlchemy Engine factory (singleton per-process)
+#   session_scope - context manager yielding a Session with auto commit/rollback
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -21,6 +40,16 @@ if TYPE_CHECKING:
 _engine: Engine | None = None
 
 
+# START_CONTRACT: get_engine
+#   PURPOSE: Lazily build the per-process SQLAlchemy Engine; reads DATABASE_URL
+#            on first call so tests can patch this symbol without triggering
+#            Settings-validation side-effects.
+#   INPUTS:  none
+#   OUTPUTS: sqlalchemy.engine.Engine — process-singleton engine
+#   SIDE_EFFECTS: caches the engine in a module-level global; opens a connection
+#                 pool against DATABASE_URL on first invocation.
+#   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §4.2
+# END_CONTRACT: get_engine
 def get_engine() -> Engine:
     """Ленивое создание engine: читаем DATABASE_URL из env на первый вызов.
 
@@ -39,6 +68,18 @@ def get_engine() -> Engine:
     return _engine
 
 
+# START_CONTRACT: session_scope
+#   PURPOSE: Yield a SQLAlchemy Session that auto-commits on clean exit and
+#            rolls back on any exception — required for INV-004 atomic
+#            compensation (Payment + Order + LoyaltyTransaction must succeed
+#            or fail together).
+#   INPUTS:  engine: Engine | None — optional override (tests inject SQLite);
+#                                    defaults to get_engine().
+#   OUTPUTS: Iterator[Session] — context-managed Session
+#   SIDE_EFFECTS: opens a Session bound to the engine; commits or rolls back
+#                 the underlying DB transaction on context exit.
+#   LINKS:   PDD §4.2, INV-004 (atomic), INV-016 (explicit transitions)
+# END_CONTRACT: session_scope
 @contextmanager
 def session_scope(engine: Engine | None = None) -> Iterator[Session]:
     """Сессия с автоматическим commit/rollback.

@@ -7,6 +7,25 @@ RBAC: только {CUSTOMER} — прописано в rbac_matrix.ROUTE_MATRIX
 """
 from __future__ import annotations
 
+# START_MODULE_CONTRACT
+#   PURPOSE: HTTP routes for the customer loyalty surface under
+#            /api/v1/profile/loyalty — current balance + transaction feed.
+#   SCOPE:   Read-only views of the user's loyalty balance and history.
+#            CUSTOMER-only via rbac_matrix.ROUTE_MATRIX.
+#   DEPENDS: M-DATABASE (Session), core_api.services.loyalty,
+#            core_api.deps.{auth,database}.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §3, §5.2, §7.1
+#            Phase 5 item 2, INV-002, INV-013 (own-data only).
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   router                         - APIRouter("/api/v1/profile/loyalty", tags=["loyalty"])
+#   get_my_loyalty_balance         - GET /api/v1/profile/loyalty
+#   list_my_loyalty_transactions   - GET /api/v1/profile/loyalty/transactions
+# END_MODULE_MAP
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -30,6 +49,13 @@ def _get_session():
     yield from _db_dep.get_session()
 
 
+# START_CONTRACT: get_my_loyalty_balance
+#   PURPOSE: Return current balance + lifetime_accrued for the customer.
+#   INPUTS:  current_user, Session.
+#   OUTPUTS: 200 LoyaltyBalanceResponse; 500 if loyalty account missing.
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §3, INV-002, INV-013, services.loyalty.
+# END_CONTRACT: get_my_loyalty_balance
 @router.get("", response_model=LoyaltyBalanceResponse)
 def get_my_loyalty_balance(
     current_user: dict = Depends(get_current_user),
@@ -45,6 +71,13 @@ def get_my_loyalty_balance(
         ) from exc
 
 
+# START_CONTRACT: list_my_loyalty_transactions
+#   PURPOSE: Paginated DESC feed of loyalty transactions for the customer.
+#   INPUTS:  page (1+), per_page (1..100), current_user, Session.
+#   OUTPUTS: 200 LoyaltyTransactionListResponse.
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §3, §7.1 Phase 5 item 2, INV-002, INV-013, services.loyalty.
+# END_CONTRACT: list_my_loyalty_transactions
 @router.get("/transactions", response_model=LoyaltyTransactionListResponse)
 def list_my_loyalty_transactions(
     page: int = Query(1, ge=1),

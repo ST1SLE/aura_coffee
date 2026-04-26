@@ -8,6 +8,40 @@
    ``yukassa:event:*`` пишется ТОЛЬКО после успешного commit.
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: FastAPI webhook surface for YuKassa events. Security-relevant:
+#            verifies caller authenticity by IP whitelist (literal IPs, CIDRs,
+#            or DNS-resolved hostnames from settings.yukassa_webhook_ips),
+#            enforces event-id idempotency via Redis, and runs every state
+#            transition inside one DB transaction so the Redis "processed"
+#            marker is only written after a successful commit (PDD §7.9).
+#            Drives PDD §6.2 transitions: payment.succeeded ->
+#            Payment.SUCCEEDED + Order.PAID, payment.canceled ->
+#            Payment.PAYMENT_FAILED + Order.CANCELLED, refund.succeeded ->
+#            Payment.REFUNDED, refund.canceled -> Payment.REFUND_FAILED.
+#   SCOPE:   FastAPI app + dispatcher + Redis idempotency helpers. Per-event
+#            handlers are private and live in this file.
+#   DEPENDS: M-SHARED (shared.enums, shared.models.{order,payment,
+#            loyalty_transaction,notification,promocode}), M-DATABASE,
+#            payment_worker.db, payment_worker.redis_client,
+#            payment_worker.settings, FastAPI
+#   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §4.2, §7.9,
+#            §6.2, INV-004 (atomic), INV-016 (explicit transitions),
+#            INV-013 (no PII in logs)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   app                  - FastAPI application
+#   health               - GET /health route — liveness + active YuKassa backend
+#   is_event_processed   - returns True if the YuKassa event_id is already in Redis
+#   mark_event_processed - records the YuKassa event_id in Redis with TTL
+#   dispatch_event       - routes a parsed YuKassa event to its private handler
+#   yukassa_webhook      - POST /webhooks/yukassa route — IP-gated entry point
+#   logger               - module logger
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import hashlib
@@ -35,6 +69,14 @@ app = FastAPI()
 _EVENT_TTL_SECONDS = 86_400
 
 
+# START_CONTRACT: health
+#   PURPOSE: Liveness probe + reports the active YuKassa backend (live | fake)
+#            so smoke tests can assert the deploy mode.
+#   INPUTS:  none
+#   OUTPUTS: dict[str, str] — {"status": "ok", "yukassa_backend": <mode>}
+#   SIDE_EFFECTS: instantiates Settings() each call (cheap, low QPS).
+#   LINKS:   docs/verification-plan.xml V-M-PAYMENT-WORKER (probe surface)
+# END_CONTRACT: health
 @app.get("/health")
 async def health() -> dict[str, str]:
     # Читаем Settings каждый раз — env может меняться между тестами/релоадами.
@@ -107,10 +149,28 @@ def _event_key(event_id: str) -> str:
     return f"yukassa:event:{event_id}"
 
 
+# START_CONTRACT: is_event_processed
+#   PURPOSE: Idempotency guard — has this YuKassa event_id already been
+#            processed (Redis key present)?
+#   INPUTS:  redis_client: Any — redis-py-compatible client
+#            event_id: str — YuKassa X-Event-Id (or sha256(body) fallback)
+#   OUTPUTS: bool — True if the event has been recorded already
+#   SIDE_EFFECTS: one Redis EXISTS read against `yukassa:event:{event_id}`.
+#   LINKS:   PDD §7.9 (webhook idempotency)
+# END_CONTRACT: is_event_processed
 def is_event_processed(redis_client: Any, event_id: str) -> bool:
     return bool(redis_client.exists(_event_key(event_id)))
 
 
+# START_CONTRACT: mark_event_processed
+#   PURPOSE: Persist the YuKassa event_id with a 24h TTL so retries from
+#            YuKassa (up to 10 in 24h) are deduplicated.
+#   INPUTS:  redis_client: Any — redis-py-compatible client
+#            event_id: str
+#   OUTPUTS: None
+#   SIDE_EFFECTS: Redis SET with EX=86400 on `yukassa:event:{event_id}`.
+#   LINKS:   PDD §7.9 (webhook idempotency)
+# END_CONTRACT: mark_event_processed
 def mark_event_processed(redis_client: Any, event_id: str) -> None:
     redis_client.set(_event_key(event_id), b"1", ex=_EVENT_TTL_SECONDS)
 
@@ -317,6 +377,29 @@ def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
         )
 
 
+# START_CONTRACT: dispatch_event
+#   PURPOSE: Route a parsed YuKassa event to the right private handler. All
+#            mutating handlers run inside the caller's DB transaction so a
+#            handler failure rolls back the entire event (prerequisite for
+#            INV-004 atomicity + INV-016 explicit-transition guarantee).
+#   INPUTS:  session: Session — open SQLAlchemy session (caller-provided)
+#            redis_client: Any — redis client for ancillary writes
+#            event: str — YuKassa event name (payment.succeeded |
+#                         payment.canceled | refund.succeeded | refund.canceled)
+#            obj: dict[str, Any] — event payload object
+#   OUTPUTS: UUID | None — user_id whose Redis cart should be cleared
+#                          (only for payment.succeeded), else None
+#   SIDE_EFFECTS: DB writes via the called handler — `payments` (status),
+#                 `orders` (status), `loyalty_transactions`, `promocodes`,
+#                 `notifications`. Drives PDD §6.2 transitions:
+#                 payment.succeeded -> Payment.SUCCEEDED + Order.PAID;
+#                 payment.canceled -> Payment.PAYMENT_FAILED +
+#                 Order.CANCELLED + loyalty REVERSAL + promocode decrement;
+#                 refund.succeeded -> Payment.REFUNDED;
+#                 refund.canceled -> Payment.REFUND_FAILED. Exceptions
+#                 propagate so the webhook returns 500 and YuKassa retries.
+#   LINKS:   PDD §6.2, §7.9, INV-004 (atomic), INV-016 (explicit transitions)
+# END_CONTRACT: dispatch_event
 def dispatch_event(
     session: Session,
     redis_client: Any,
@@ -344,6 +427,28 @@ def dispatch_event(
 # --- HTTP endpoint ----------------------------------------------------
 
 
+# START_CONTRACT: yukassa_webhook
+#   PURPOSE: HTTP entry point for YuKassa callbacks. Security-relevant:
+#            first-hop X-Forwarded-For IP is checked against the configured
+#            whitelist (literal IPs / CIDRs / DNS-resolved hostnames); on
+#            miss returns 403. Idempotent: dedupes by X-Event-Id (falling
+#            back to sha256(body)) via Redis. Mutating work runs inside one
+#            DB transaction; the Redis "processed" marker is written ONLY
+#            after the transaction commits — exceptions return 500 and
+#            YuKassa retries.
+#   INPUTS:  request: fastapi.Request — incoming POST with JSON body and
+#                                       optional X-Event-Id header
+#   OUTPUTS: JSONResponse — 200 {"ok": True} on success or dedup,
+#                           403 on untrusted IP
+#   SIDE_EFFECTS: DB writes (orders, payments, loyalty_transactions,
+#                 promocodes, notifications) via dispatch_event; Redis
+#                 SET on `yukassa:event:*`; Redis DELETE on `cart:{user_id}`
+#                 for payment.succeeded; potentially dispatches downstream
+#                 notifications consumed by sms-worker. Drives the PDD §6.2
+#                 Payment lifecycle transitions handled by dispatch_event.
+#   LINKS:   PDD §4.2, §7.9, §6.2, INV-004 (atomic), INV-016 (explicit
+#            transitions), INV-013 (no PII in logs)
+# END_CONTRACT: yukassa_webhook
 @app.post("/webhooks/yukassa")
 async def yukassa_webhook(request: Request) -> JSONResponse:
     ip = _client_ip(request)

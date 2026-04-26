@@ -1,4 +1,19 @@
 """Pydantic-схемы для CRUD сохранённых адресов доставки (PDD §3, §5.2)."""
+# START_MODULE_CONTRACT
+#   PURPOSE: DTOs for the customer's saved delivery addresses CRUD.
+#   SCOPE:   Pydantic create/update/read models. No business logic.
+#   DEPENDS: pydantic v2.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §3, §5.2, §7.3,
+#            INV-013 (address text is PII — only return to address owner)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DeliveryAddressCreate  - POST body for creating a new saved address
+#   DeliveryAddressUpdate  - PATCH body (partial; lat/lon immutable here)
+#   DeliveryAddressRead    - response projection of DeliveryAddress
+# END_MODULE_MAP
 
 from __future__ import annotations
 

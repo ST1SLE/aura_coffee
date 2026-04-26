@@ -1,3 +1,20 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Synchronous Yandex.Maps Suggest + Geocoder client — Core API's
+#            allowed external sync call (≤ 500 ms latency target). Owns
+#            httpx.Client with 3s timeout, response normalization, error
+#            classification (timeout/5xx → MapsUnavailableError).
+#   SCOPE:   suggest, geocode, low-precision check; cache & rate-limit live in router.
+#   DEPENDS: httpx, schemas.yandex_maps, settings
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.3, §8.3, INV-015
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   MapsUnavailableError - timeout/connect/5xx normalised to single error class
+#   is_low_precision     - precision below "street" threshold check
+#   YandexMapsClient     - sync client wrapping suggest + geocode endpoints
+# END_MODULE_MAP
 """Синхронный клиент Яндекс.Карт для Core API (PDD §7.3, §8.3, INV-015).
 
 Владеет httpx.Client (timeout 3.0s), нормализацией Suggest/Geocoder и
@@ -26,10 +43,26 @@ SUGGEST_URL = "https://suggest-maps.yandex.ru/v1/suggest"
 GEOCODER_URL = "https://geocode-maps.yandex.ru/1.x/"
 
 
+# START_CONTRACT: MapsUnavailableError
+#   PURPOSE: Single exception type for retryable upstream Yandex failures —
+#            timeouts, connect errors, 5xx. 4xx is treated as a client error
+#            and bubbles via httpx.HTTPStatusError.
+#   INPUTS:  message: str
+#   OUTPUTS: RuntimeError instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: MapsUnavailableError
 class MapsUnavailableError(RuntimeError):
     """Яндекс недоступен: timeout, connect error или 5xx."""
 
 
+# START_CONTRACT: is_low_precision
+#   PURPOSE: True when the supplied geocoder precision is below the "street"
+#            threshold (PDD §7.3 step 2). Unknown values count as low.
+#   INPUTS:  precision: str
+#   OUTPUTS: bool
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §7.3, INV-015
+# END_CONTRACT: is_low_precision
 def is_low_precision(precision: str) -> bool:
     """True, если точность ниже 'street' (PDD §7.3 шаг 2)."""
     try:
@@ -39,6 +72,14 @@ def is_low_precision(precision: str) -> bool:
         return True
 
 
+# START_CONTRACT: YandexMapsClient
+#   PURPOSE: Synchronous httpx-backed client for Suggest + Geocoder endpoints.
+#   INPUTS:  api_key: str = ""
+#            timeout: float = 3.0 — httpx timeout in seconds
+#   OUTPUTS: YandexMapsClient instance.
+#   SIDE_EFFECTS: opens an httpx.Client on construction.
+#   LINKS:   PDD §7.3, §8.3, INV-015
+# END_CONTRACT: YandexMapsClient
 class YandexMapsClient:
     """Синхронный прокси к Suggest и Geocoder Yandex.Maps."""
 
@@ -50,6 +91,12 @@ class YandexMapsClient:
         self._timeout = httpx.Timeout(timeout)
         self._client = httpx.Client(timeout=self._timeout)
 
+    # START_CONTRACT: YandexMapsClient.timeout
+    #   PURPOSE: Expose the configured httpx Timeout for diagnostics/tests.
+    #   INPUTS:  none
+    #   OUTPUTS: httpx.Timeout
+    #   SIDE_EFFECTS: none
+    # END_CONTRACT: YandexMapsClient.timeout
     @property
     def timeout(self) -> httpx.Timeout:
         return self._timeout
@@ -58,6 +105,16 @@ class YandexMapsClient:
         # settings — источник истины; ключ из __init__ оставлен как fallback.
         return settings.yandex_maps_api_key or self._api_key
 
+    # START_CONTRACT: YandexMapsClient.suggest
+    #   PURPOSE: Call Yandex Suggest endpoint and normalise into a list of
+    #            Suggestion DTOs, dropping entries without coordinates.
+    #   INPUTS:  text: str, lang: str
+    #   OUTPUTS: list[Suggestion]
+    #   SIDE_EFFECTS: outbound HTTP GET to suggest-maps.yandex.ru with API key.
+    #                 Timeout / connect / 5xx → MapsUnavailableError; 4xx →
+    #                 httpx.HTTPStatusError bubbles up.
+    #   LINKS:   PDD §7.3, INV-015
+    # END_CONTRACT: YandexMapsClient.suggest
     def suggest(self, text: str, lang: str) -> list[Suggestion]:
         params = {
             "text": text,
@@ -90,6 +147,15 @@ class YandexMapsClient:
             )
         return suggestions
 
+    # START_CONTRACT: YandexMapsClient.geocode
+    #   PURPOSE: Call Yandex Geocoder, parse first feature, return canonical
+    #            text + lat/lon + precision; None when no feature returned.
+    #   INPUTS:  text: str — free-form address
+    #   OUTPUTS: GeocodeResult | None
+    #   SIDE_EFFECTS: outbound HTTP GET to geocode-maps.yandex.ru. Timeout /
+    #                 connect / 5xx → MapsUnavailableError.
+    #   LINKS:   PDD §7.3, §8.3, INV-015
+    # END_CONTRACT: YandexMapsClient.geocode
     def geocode(self, text: str) -> GeocodeResult | None:
         params = {
             "geocode": text,

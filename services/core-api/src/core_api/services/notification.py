@@ -1,3 +1,25 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Order-status notification service — creates IN_APP Notification
+#            rows for every PDD §6.1 transition and enqueues SMS jobs for the
+#            subset that requires phone delivery.
+#   SCOPE:   resolve_notification_text matrix; build_sms_body; resolve_display_text;
+#            send_order_notification (write IN_APP + optional Celery dispatch).
+#   DEPENDS: M-SHARED (Notification, Order, UserProfile, enums), M-DATABASE,
+#            celery (sms-worker boundary)
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §7.8, §8.2,
+#            INV-013 (encrypted phone in Celery), INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   NotificationText               - dataclass holding RU/EN bodies + SMS flag
+#   resolve_notification_text      - lookup §6.1 matrix
+#   build_sms_body                 - format SMS body (≤70 chars)
+#   resolve_display_text           - choose RU/EN per profile preference
+#   send_order_notification        - write IN_APP + enqueue SMS (boundary)
+#   send_order_notification_sms    - Celery stub (real impl in sms-worker)
+# END_MODULE_MAP
 """Сервис уведомлений о статусах заказа (PDD §6.1 / §7.8 / §8.2).
 
 Создаёт строки `notifications` для каждого перехода статуса заказа из §6.1,
@@ -42,6 +64,17 @@ logger = logging.getLogger(__name__)
 _celery_app = Celery("core_api_notifications", broker=settings.redis_url)
 
 
+# START_CONTRACT: send_order_notification_sms
+#   PURPOSE: Celery-task placeholder used as `.delay()` target so SMS worker
+#            picks up the message; the real handler runs in sms-worker.
+#   INPUTS:  notification_id: UUID | str
+#            encrypted_phone_hex: str — INV-013, never plaintext
+#            message: str — formatted SMS body
+#   OUTPUTS: None
+#   SIDE_EFFECTS: Raises NotImplementedError when called inside core-api;
+#                 dispatch happens via Celery .delay().
+#   LINKS:   PDD §6.4, §7.8, INV-013
+# END_CONTRACT: send_order_notification_sms
 @_celery_app.task(name="sms_worker.send_order_notification_sms", queue="sms")
 def send_order_notification_sms(
     notification_id: uuid.UUID | str,
@@ -59,6 +92,13 @@ def send_order_notification_sms(
 # ─────────────────────────────────────────────
 
 
+# START_CONTRACT: NotificationText
+#   PURPOSE: Resolved notification text bundle — bilingual messages plus an
+#            SMS-status phrase and `requires_sms` flag.
+#   INPUTS:  message_ru, message_en, sms_status_ru, sms_status_en, requires_sms
+#   OUTPUTS: frozen dataclass instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: NotificationText
 @dataclass(frozen=True)
 class NotificationText:
     """Результат `resolve_notification_text` — тексты + флаг SMS."""
@@ -146,6 +186,18 @@ _MATRIX: dict[
 _TYPE_DEPENDENT_STATUSES = {OrderStatus.READY, OrderStatus.COMPLETED}
 
 
+# START_CONTRACT: resolve_notification_text
+#   PURPOSE: Look up the §6.1 cell for (new_status, order_type, cancelled_by)
+#            and return formatted bilingual texts. Unknown transitions raise
+#            ValueError → enforces INV-016.
+#   INPUTS:  new_status: OrderStatus
+#            order_type: OrderType
+#            cancelled_by: "customer" | "admin" | None
+#            short_id: str
+#   OUTPUTS: NotificationText
+#   SIDE_EFFECTS: none (pure lookup); raises ValueError on missing entry.
+#   LINKS:   PDD §6.1, INV-016
+# END_CONTRACT: resolve_notification_text
 def resolve_notification_text(
     new_status: OrderStatus,
     order_type: OrderType,
@@ -186,6 +238,14 @@ def resolve_notification_text(
     )
 
 
+# START_CONTRACT: build_sms_body
+#   PURPOSE: Format the canonical SMS body `{status}. Заказ №{short_id}. Aura Coffee`,
+#            guaranteed ≤ 70 chars for all matrix entries.
+#   INPUTS:  status_text: str, short_id: str
+#   OUTPUTS: str
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §8.2
+# END_CONTRACT: build_sms_body
 def build_sms_body(status_text: str, short_id: str) -> str:
     """PDD §8.2 — формат SMS: `{status_text}. Заказ №{short_id}. Aura Coffee`.
 
@@ -194,6 +254,13 @@ def build_sms_body(status_text: str, short_id: str) -> str:
     return f"{status_text}. Заказ №{short_id}. Aura Coffee"
 
 
+# START_CONTRACT: resolve_display_text
+#   PURPOSE: Pick message_ru/message_en off a Notification row based on the
+#            user's preferred_language.
+#   INPUTS:  notification: Notification, preferred_language: str
+#   OUTPUTS: str — display message body.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: resolve_display_text
 def resolve_display_text(notification: Notification, preferred_language: str) -> str:
     """Выбирает message_ru/message_en по предпочтению пользователя."""
     if preferred_language == "en":
@@ -206,6 +273,21 @@ def resolve_display_text(notification: Notification, preferred_language: str) ->
 # ─────────────────────────────────────────────
 
 
+# START_CONTRACT: send_order_notification
+#   PURPOSE: Persist IN_APP Notification row and (when matrix requires) enqueue
+#            SMS via Celery — phone payload always passes the boundary in
+#            encrypted hex form (INV-013).
+#   INPUTS:  order_id: UUID
+#            user_id: UUID
+#            new_status: OrderStatus — target §6.1 state
+#            db_session: Session — caller owns transaction commit
+#            cancelled_by: "customer" | "admin" | None — required for CANCELLED
+#   OUTPUTS: None
+#   SIDE_EFFECTS: DB INSERT(s) on notifications; Celery dispatch to queue 'sms'
+#                 for status types in the matrix; ValueError on unknown
+#                 transitions (INV-016) or missing UserProfile/Order.
+#   LINKS:   PDD §6.1, §7.8, §8.2, INV-013, INV-016
+# END_CONTRACT: send_order_notification
 def send_order_notification(
     order_id: uuid.UUID,
     user_id: uuid.UUID,

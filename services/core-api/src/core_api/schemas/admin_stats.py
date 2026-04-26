@@ -1,4 +1,18 @@
 """Pydantic v2 схемы для GET /api/v1/admin/stats (PDD §4.5, §7.1 Phase 6)."""
+# START_MODULE_CONTRACT
+#   PURPOSE: Response DTOs for the admin dashboard stats endpoint.
+#   SCOPE:   Pydantic BaseModel subclasses for revenue/order-count/popular-items.
+#   DEPENDS: pydantic v2 (no ORM imports — read-only projections).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, §7.1 Phase 6, INV-010
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   PopularItemOut       - row in popular_items[]: name_ru, name_en, quantity
+#   AdminStatsResponse   - top-level body of GET /admin/stats
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 from datetime import datetime

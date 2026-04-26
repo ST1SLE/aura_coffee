@@ -4,6 +4,26 @@ menu_item_id и size_option_id хранятся как ссылки (не FK) д
 Chain: архивирование меню не должно ломать историю заказов.
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `order_items` table — immutable per-line
+#            snapshot of a sold item taken at checkout time.
+#   SCOPE:   Stores fully denormalized data (menu_item name in ru/en, unit
+#            price, size label, modifiers_snapshot JSONB, quantity, line_total)
+#            so that historic orders survive menu archiving (PDD §7.7 Repeat
+#            Order Chain). menu_item_id and size_option_id are deliberately
+#            plain integers — NOT foreign keys — to prevent referential
+#            cascades from rewriting history. Rows are insert-only (INV-014).
+#   DEPENDS: SQLAlchemy 2.x ORM; M-DATABASE Base; references orders.id only.
+#   LINKS:   PDD §5.2 (order_items table), PDD §7.7 (Repeat Order Chain),
+#            INV-014 (order_items immutability), docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderItem - SQLAlchemy ORM class for `order_items` (immutable, INV-014)
+# END_MODULE_MAP
+
 import uuid
 
 import sqlalchemy as sa

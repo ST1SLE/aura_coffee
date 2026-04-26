@@ -2,6 +2,26 @@
 
 Computed `state` вычисляется в сервисе; здесь — только контракт.
 """
+# START_MODULE_CONTRACT
+#   PURPOSE: Admin promocode DTOs with cross-field validators (date order,
+#            quota bounds, percent ceiling, code regex/upper-casing).
+#   SCOPE:   Pydantic models + private validator helpers (_check_*).
+#   DEPENDS: pydantic v2, M-SHARED (PromocodeDiscountType enum).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.6,
+#            INV-010 (admin-only mutators), INV-011 (promocode FSM)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   PromocodeState        - Literal["inactive","active","expired","exhausted"]
+#   CodeStr               - Annotated[str] with min/max length constraints
+#   PromocodeCreate       - POST /admin/promocodes body
+#   PromocodeUpdate       - PATCH /admin/promocodes/{id} body (partial)
+#   PromocodeResponse     - read projection of Promocode + computed state
+#   PromocodeListResponse - paginated GET /admin/promocodes body
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import re

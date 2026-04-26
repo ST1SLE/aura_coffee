@@ -1,3 +1,18 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Staff (admin/barista/courier) authentication — login + bcrypt
+#            password verification, JWT access + opaque refresh tokens with
+#            Redis storage. Tokens carry role for INV-002 / INV-010 enforcement.
+#   SCOPE:   authenticate, refresh_tokens, logout.
+#   DEPENDS: M-SHARED (StaffAccount), M-DATABASE, Redis, PyJWT, bcrypt
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, INV-002, INV-010, INV-013
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   StaffTokenPair    - dataclass (access_token, refresh_token, role)
+#   StaffAuthService  - login + token issuance + refresh rotation + logout
+# END_MODULE_MAP
 import json
 import uuid
 from dataclasses import dataclass
@@ -12,6 +27,12 @@ from core_api.settings import settings
 from shared.models.staff_account import StaffAccount
 
 
+# START_CONTRACT: StaffTokenPair
+#   PURPOSE: Bundle of issued tokens for a staff session.
+#   INPUTS:  access_token: str, refresh_token: str, role: str
+#   OUTPUTS: dataclass instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: StaffTokenPair
 @dataclass
 class StaffTokenPair:
     access_token: str
@@ -19,11 +40,28 @@ class StaffTokenPair:
     role: str
 
 
+# START_CONTRACT: StaffAuthService
+#   PURPOSE: Staff-side authentication boundary — owns login validation,
+#            access+refresh token minting, refresh rotation, logout.
+#   INPUTS:  db: Session — DB to look up StaffAccount
+#            redis_client: redis.Redis — backend for refresh token sessions
+#   OUTPUTS: StaffAuthService instance.
+#   SIDE_EFFECTS: per method; bcrypt verify + Redis SET/DEL on session keys.
+#   LINKS:   PDD §4.5, INV-002, INV-010, INV-013
+# END_CONTRACT: StaffAuthService
 class StaffAuthService:
     def __init__(self, db: Session, redis_client: redis.Redis) -> None:
         self._db = db
         self._redis = redis_client
 
+    # START_CONTRACT: StaffAuthService.authenticate
+    #   PURPOSE: Verify staff credentials with bcrypt; on success, issue token pair.
+    #   INPUTS:  login: str, password: str
+    #   OUTPUTS: StaffTokenPair | None — None on unknown/inactive/wrong password.
+    #   SIDE_EFFECTS: DB SELECT on staff_accounts; bcrypt comparison; on success
+    #                 a Redis SET on `staff_refresh:<uuid>`.
+    #   LINKS:   INV-002, INV-013 (no PII in tokens)
+    # END_CONTRACT: StaffAuthService.authenticate
     def authenticate(self, login: str, password: str) -> StaffTokenPair | None:
         """Аутентификация по логину/паролю. Возвращает токены или None."""
         staff = (
@@ -43,6 +81,12 @@ class StaffAuthService:
 
         return self._issue_tokens(staff.id, staff.role.value)
 
+    # START_CONTRACT: StaffAuthService.refresh_tokens
+    #   PURPOSE: Single-use refresh rotation — old token deleted, new pair issued.
+    #   INPUTS:  refresh_token: str
+    #   OUTPUTS: StaffTokenPair | None
+    #   SIDE_EFFECTS: Redis GET + DEL on the old key, SET on the new one.
+    # END_CONTRACT: StaffAuthService.refresh_tokens
     def refresh_tokens(self, refresh_token: str) -> StaffTokenPair | None:
         """Ротация refresh token: валидация → удаление → новая пара."""
         key = f"staff_refresh:{refresh_token}"
@@ -56,6 +100,12 @@ class StaffAuthService:
         role = session_data["role"]
         return self._issue_tokens(staff_id, role)
 
+    # START_CONTRACT: StaffAuthService.logout
+    #   PURPOSE: Invalidate the staff refresh token session.
+    #   INPUTS:  refresh_token: str
+    #   OUTPUTS: bool — True if a session was deleted.
+    #   SIDE_EFFECTS: Redis DEL on `staff_refresh:<uuid>`.
+    # END_CONTRACT: StaffAuthService.logout
     def logout(self, refresh_token: str) -> bool:
         """Удаление staff refresh token из Redis."""
         return bool(self._redis.delete(f"staff_refresh:{refresh_token}"))

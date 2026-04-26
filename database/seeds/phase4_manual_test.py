@@ -18,6 +18,34 @@ end-to-end (checkout, маршруты доставки, курьерская п
 Секреты (bcrypt-хеши, ENCRYPTION_KEY для AES-GCM) — только для dev.
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: Manual-QA fixture seed for Phase 4 (delivery) — populates the
+#            minimum set of rows required to exercise the end-to-end checkout
+#            -> courier flow described in docs/phase4_manual_test_scenarios.md.
+#   SCOPE:   DEV / TEST ONLY. Not run in production. Idempotent: existence
+#            checks before each INSERT so reruns are safe. Delegates the
+#            shop_settings singleton to shop_settings_seed.run().
+#   DEPENDS: M-SHARED (staff_accounts, categories, menu_items, size_options,
+#            users, user_profiles, loyalty_accounts, delivery_addresses,
+#            shop_settings schemas), database.seeds.shop_settings,
+#            sqlalchemy, bcrypt, cryptography (AES-256-GCM), stdlib.
+#   LINKS:   docs/development-plan.xml M-DATABASE,
+#            docs/phase4_manual_test_scenarios.md, PDD §3 (shop terminology),
+#            PDD §5.2 (table groups), INV-002 (auth), INV-013 (PII / phone
+#            encryption + phone_hash), INV-014 (no order_items writes here).
+#   ROLE:    SCRIPT
+#   MAP_MODE: LOCALS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   CUSTOMER_PHONE      - dev phone number for the QA user (+79991234567)
+#   CUSTOMER_PHONE_HASH - SHA-256 hex of CUSTOMER_PHONE for users.phone_hash lookup
+#   run                 - orchestrates idempotent seed: shop_settings ->
+#                         staff -> menu -> customer -> default address.
+#   (private helpers _hash_password / _encrypt_phone / _seed_staff /
+#    _seed_menu / _seed_customer / _seed_default_address — see code.)
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import hashlib
@@ -192,6 +220,26 @@ def _seed_default_address(conn, user_id: uuid.UUID) -> None:
     )
 
 
+# START_CONTRACT: run
+#   PURPOSE: Orchestrate the Phase 4 manual-QA seed end-to-end. Calls
+#            shop_settings_seed.run() first (so Haversine validation has a
+#            singleton row), then idempotently seeds staff, menu, customer,
+#            and a default delivery address inside the shop radius.
+#   INPUTS:  database_url: str | None — explicit connection URL; falls back to
+#            os.environ["DATABASE_URL"] when None. Also reads ENCRYPTION_KEY
+#            (hex) for AES-256-GCM phone encryption.
+#   OUTPUTS: None
+#   SIDE_EFFECTS: idempotent INSERTs into shop_settings (via dedicated seed),
+#                 staff_accounts, categories, menu_items, size_options, users,
+#                 user_profiles, loyalty_accounts, delivery_addresses. Each
+#                 helper guards with an existence check or ON CONFLICT DO
+#                 NOTHING. Raises RuntimeError if DATABASE_URL or
+#                 ENCRYPTION_KEY is missing. Engine is disposed in finally.
+#                 INV-013: phone is AES-GCM encrypted before INSERT.
+#                 INV-014: deliberately does NOT insert into order_items.
+#   LINKS:   docs/phase4_manual_test_scenarios.md, PDD §5.2,
+#            INV-002 (bcrypt staff passwords), INV-013, INV-014.
+# END_CONTRACT: run
 def run(database_url: str | None = None) -> None:
     url = database_url or os.environ.get("DATABASE_URL")
     if not url:

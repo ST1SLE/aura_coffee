@@ -2,6 +2,27 @@
 
 INV-013: ни одна DTO НЕ выставляет phone / phone_hash / deleted_at.
 """
+# START_MODULE_CONTRACT
+#   PURPOSE: Request/response DTOs for the admin-users-api (list, detail,
+#            block/unblock, loyalty manual adjust).
+#   SCOPE:   Pydantic models, no behaviour beyond validators on LoyaltyAdjustRequest.
+#   DEPENDS: pydantic v2, M-SHARED (LoyaltyTransactionType enum).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.5, §7.1 Phase 6 item 2,
+#            INV-010, INV-013 (NO phone/phone_hash/deleted_at exposed)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   UserSummary             - list-row projection of a User for admin
+#   UserListResponse        - paginated GET /admin/users body
+#   LoyaltyTransactionItem  - read-only projection of LoyaltyTransaction
+#   UserDetailResponse      - GET /admin/users/{id} body
+#   BlockUserResponse       - POST /block and /unblock body
+#   LoyaltyAdjustRequest    - body of manual points adjust (delta != 0, reason)
+#   LoyaltyAdjustResponse   - response of manual points adjust
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import uuid

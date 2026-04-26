@@ -1,3 +1,28 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Admin operations on User aggregate: list/detail, block/unblock with
+#            cascade order cancellation, manual loyalty adjustment.
+#   SCOPE:   Drives PDD §6.5 User Account Lifecycle (ACTIVE↔BLOCKED) and §7.6
+#            cascade-cancel of in-flight orders on block. PII-safe: no phone
+#            search, tombstoned users return 404.
+#   DEPENDS: M-SHARED (User, UserProfile, LoyaltyAccount, LoyaltyTransaction,
+#            Order), M-DATABASE, schemas.admin_users, services.order_cancel
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.5, §7.6,
+#            INV-002, INV-004, INV-010, INV-013, INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   AdminUsersError          - base class for admin-users domain errors
+#   UserNotFoundError        - id missing / tombstoned (INV-013)
+#   InvalidUserStateError    - forbidden §6.5 transition or invalid src state
+#   InsufficientBalanceError - adjust_loyalty would drive balance < 0
+#   list_users               - paginated list with status/search filters
+#   get_user_detail          - profile + loyalty + recent transactions
+#   block_user               - ACTIVE→BLOCKED + cascade order cancel
+#   unblock_user             - BLOCKED→ACTIVE
+#   adjust_loyalty           - manual ADMIN_ADJUSTMENT loyalty txn (INV-004)
+# END_MODULE_MAP
 """Сервисы admin-users-api (PDD §6.5, §7.1 item 2, §7.6).
 
 Пять операций для оператора панели администратора:
@@ -51,18 +76,47 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: AdminUsersError
+#   PURPOSE: Base class for all admin-users service domain errors.
+#   INPUTS:  message: str (optional)
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: AdminUsersError
 class AdminUsersError(Exception):
     """Базовый класс ошибок admin-users-api."""
 
 
+# START_CONTRACT: UserNotFoundError
+#   PURPOSE: Raised when target user id is missing or tombstoned (deleted_at IS
+#            NOT NULL or status=DELETED). Tombstone variant enforces INV-013 —
+#            PII never re-surfaces.
+#   INPUTS:  message: str — typically the user id
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §6.5, INV-013
+# END_CONTRACT: UserNotFoundError
 class UserNotFoundError(AdminUsersError):
     """Пользователь не найден (или tombstoned — PII недоступны)."""
 
 
+# START_CONTRACT: InvalidUserStateError
+#   PURPOSE: Raised when an admin operation hits a forbidden §6.5 transition
+#            (e.g. operating on PENDING_VERIFICATION/DELETED).
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §6.5, INV-016
+# END_CONTRACT: InvalidUserStateError
 class InvalidUserStateError(AdminUsersError):
     """Запрещённый §6.5 переход или состояние для операции."""
 
 
+# START_CONTRACT: InsufficientBalanceError
+#   PURPOSE: Raised by adjust_loyalty when delta would drive balance negative.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: InsufficientBalanceError
 class InsufficientBalanceError(AdminUsersError):
     """adjust_loyalty: new_balance < 0 → 422."""
 
@@ -110,6 +164,17 @@ def _status_predicate(status_filter: str):
     return None
 
 
+# START_CONTRACT: list_users
+#   PURPOSE: Paginated user list for admin panel with status filter and optional
+#            display_name prefix search. Never reads or matches phone fields.
+#   INPUTS:  db: Session
+#            status: str — "all"|"active"|"blocked"|"pending_verification"|"deleted"
+#            search: str|None — case-insensitive prefix on display_name
+#            page, per_page: int — pagination
+#   OUTPUTS: UserListResponse (items + total_count + page meta)
+#   SIDE_EFFECTS: DB SELECT only.
+#   LINKS:   PDD §4.5, §6.5, INV-013 (no PII search), INV-010
+# END_CONTRACT: list_users
 def list_users(
     db: Session,
     *,
@@ -192,6 +257,15 @@ def list_users(
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: get_user_detail
+#   PURPOSE: Full admin view of a single user: status, profile, loyalty balance,
+#            last 20 loyalty transactions, count of active orders.
+#   INPUTS:  db: Session
+#            user_id: UUID
+#   OUTPUTS: UserDetailResponse
+#   SIDE_EFFECTS: DB SELECTs only; tombstoned → UserNotFoundError (INV-013).
+#   LINKS:   PDD §6.5, INV-013
+# END_CONTRACT: get_user_detail
 def get_user_detail(db: Session, user_id: uuid.UUID) -> UserDetailResponse:
     """Полная карточка пользователя для админки.
 
@@ -244,6 +318,18 @@ def get_user_detail(db: Session, user_id: uuid.UUID) -> UserDetailResponse:
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: block_user
+#   PURPOSE: State transition ACTIVE → BLOCKED with cascade cancellation of
+#            in-flight orders (CREATED/PAID/PREPARING/READY). Idempotent on
+#            already-BLOCKED. IN_DELIVERY orders are skipped silently.
+#   INPUTS:  db: Session
+#            user_id: UUID
+#   OUTPUTS: BlockUserResponse — final status + cancelled_orders_count
+#   SIDE_EFFECTS: DB UPDATE users.status; FOR UPDATE row lock; per-order cancel
+#                 delegated to cancel_order (each its own atomic txn under
+#                 INV-004). Source state: ACTIVE. Target state: BLOCKED.
+#   LINKS:   PDD §6.5, §7.6, INV-004, INV-005, INV-016
+# END_CONTRACT: block_user
 def block_user(db: Session, user_id: uuid.UUID) -> BlockUserResponse:
     """ACTIVE → BLOCKED + каскад отмены {CREATED, PAID, PREPARING, READY}.
 
@@ -298,6 +384,14 @@ def block_user(db: Session, user_id: uuid.UUID) -> BlockUserResponse:
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: unblock_user
+#   PURPOSE: State transition BLOCKED → ACTIVE. Idempotent on already-ACTIVE.
+#            Does not undo prior cascade-cancellations.
+#   INPUTS:  db: Session, user_id: UUID
+#   OUTPUTS: BlockUserResponse — status="active", cancelled_orders_count=0
+#   SIDE_EFFECTS: DB UPDATE users.status + commit. Source: BLOCKED. Target: ACTIVE.
+#   LINKS:   PDD §6.5, INV-016
+# END_CONTRACT: unblock_user
 def unblock_user(db: Session, user_id: uuid.UUID) -> BlockUserResponse:
     """BLOCKED → ACTIVE. Без каскада — CANCELLED заказы остаются CANCELLED."""
     user = db.execute(
@@ -324,6 +418,19 @@ def unblock_user(db: Session, user_id: uuid.UUID) -> BlockUserResponse:
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: adjust_loyalty
+#   PURPOSE: Manual ADMIN_ADJUSTMENT loyalty txn — atomically updates balance
+#            and inserts a LoyaltyTransaction row.
+#   INPUTS:  db: Session
+#            user_id: UUID
+#            delta: int — signed point delta
+#            reason: str — free-text description stored on the transaction
+#   OUTPUTS: LoyaltyAdjustResponse — transaction_id, new_balance, delta
+#   SIDE_EFFECTS: SELECT FOR UPDATE on user + loyalty_account; UPDATE balance +
+#                 INSERT loyalty_transaction in a single txn (INV-004).
+#                 Negative result → InsufficientBalanceError (rolled back).
+#   LINKS:   PDD §6.5, INV-004, INV-013
+# END_CONTRACT: adjust_loyalty
 def adjust_loyalty(
     db: Session,
     user_id: uuid.UUID,

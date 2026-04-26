@@ -1,3 +1,23 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Celery application bootstrap for the payment_worker process —
+#            wires the broker, declares the `payments` queue, autodiscovers
+#            tasks, and validates Settings at worker boot so misconfigured
+#            live-mode (empty creds / sandbox URL) fails fast instead of at
+#            first request.
+#   SCOPE:   Celery app singleton + boot-time safety-rail signal handler.
+#            Imported by tasks.py and yukassa_fake.py to register tasks.
+#   DEPENDS: celery, kombu, payment_worker.settings, payment_worker.yukassa_fake
+#   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §4.2, INV-015
+#            (no secrets in code; safety-rail enforces non-empty creds at boot)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   celery_app - Celery application instance (broker bound to REDIS_URL,
+#                default queue `payments`)
+# END_MODULE_MAP
+
 import os
 
 from celery import Celery

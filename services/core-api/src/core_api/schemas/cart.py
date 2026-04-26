@@ -4,6 +4,28 @@
 Снапшоты — эфемерные DTO для отображения; не заменяют иммутабельные
 снапшоты позиций заказа (INV-014), которые формируются при checkout.
 """
+# START_MODULE_CONTRACT
+#   PURPOSE: Cart DTOs — request bodies + server-side responses with computed
+#            line totals and snapshots. Redis-backed cart, not persisted via ORM.
+#   SCOPE:   Snapshots, create/update bodies, response models, deterministic
+#            line_id computation helper on CartItemResponse.
+#   DEPENDS: pydantic v2, M-SHARED (MenuItemAvailability, SizeLabel enums).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.2 (cart),
+#            INV-006 (server-side stop-list), INV-014 (cart snapshots are
+#            ephemeral — order_items have their own immutable snapshots)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   MenuItemCartSnapshot   - menu-item display snapshot in cart
+#   SizeSnapshot           - chosen size snapshot
+#   ModifierSnapshot       - chosen modifier snapshot
+#   CartItemCreate         - body for adding/changing a cart line
+#   CartItemQuantityUpdate - body for changing only quantity
+#   CartItemResponse       - cart line w/ server-computed line_total + snapshots
+#   CartResponse           - whole cart with subtotal/expiry
+# END_MODULE_MAP
 
 from __future__ import annotations
 

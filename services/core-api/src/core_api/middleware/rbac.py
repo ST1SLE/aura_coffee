@@ -1,3 +1,20 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Centralised ASGI middleware that enforces the route-level RBAC
+#            matrix on every non-OPTIONS request. Decodes the Bearer JWT,
+#            looks up the longest-matching matrix rule, and replies with 401
+#            (no/invalid auth) or 403 (role denied / unmapped route).
+#   SCOPE:   RBACMiddleware class + private route-matching helpers.
+#   DEPENDS: M-CORE-API (rbac_matrix, services.auth), Starlette.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.1, INV-002,
+#            INV-010 (role isolation), INV-011
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   RBACMiddleware - Starlette BaseHTTPMiddleware enforcing ROUTE_MATRIX
+# END_MODULE_MAP
+
 import re
 
 from fastapi import Request, Response
@@ -46,6 +63,19 @@ def _is_public(method: str, path: str) -> bool:
 _INTERNAL_PREFIXES = ("/docs", "/redoc", "/openapi.json")
 
 
+# START_CONTRACT: RBACMiddleware
+#   PURPOSE: ASGI middleware enforcing route-level RBAC for every request.
+#            Skips OPTIONS (CORS preflight), FastAPI internal docs, and
+#            PUBLIC_ROUTES. Otherwise requires a valid Bearer JWT and a
+#            ROUTE_MATRIX entry whose role set contains the caller.
+#   INPUTS:  Inherited Starlette BaseHTTPMiddleware __init__(app, ...).
+#   OUTPUTS: RBACMiddleware instance; .dispatch returns the wrapped Response
+#            or a JSONResponse(401/403) on auth/role failure.
+#   SIDE_EFFECTS: parses Authorization header; calls AuthService.decode_access_token;
+#                 returns 401 on missing/invalid token, 403 on role denial or
+#                 default-deny when no matrix rule matches.
+#   LINKS:   PDD §4.1, INV-002, INV-010
+# END_CONTRACT: RBACMiddleware
 class RBACMiddleware(BaseHTTPMiddleware):
     """Middleware для централизованной проверки ролей по матрице доступа."""
 

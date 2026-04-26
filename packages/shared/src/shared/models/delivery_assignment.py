@@ -1,5 +1,27 @@
 """DeliveryAssignment — привязка курьера к DELIVERY-заказу (PDD §6.3)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `delivery_assignments` table — 1:1 link
+#            between a delivery-type Order and the courier handling it.
+#   SCOPE:   order_id is UNIQUE (one assignment per order). courier_id is
+#            nullable while the order sits in awaiting_courier. Status drives
+#            the assignment state machine (awaiting_courier →
+#            courier_assigned → picked_up → delivered | cancelled) per
+#            PDD §6.3 / INV-016, mirrored by the corresponding *_at
+#            timestamp columns.
+#   DEPENDS: M-SHARED enums (DeliveryAssignmentStatus); SQLAlchemy 2.x ORM;
+#            M-DATABASE Base; references orders.id and staff_accounts.id.
+#   LINKS:   PDD §6.3 (delivery assignment state machine), INV-016,
+#            docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DeliveryAssignment - SQLAlchemy ORM class for `delivery_assignments`
+#                        (PDD §6.3, INV-016)
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

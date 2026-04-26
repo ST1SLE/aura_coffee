@@ -1,3 +1,19 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Public menu read service — assembles localized, stop-list-filtered
+#            menu tree (Categories → MenuItems → SizeOptions/Modifiers) for
+#            customer SPA.
+#   SCOPE:   single read entry-point + private mappers; no writes.
+#   DEPENDS: M-SHARED (Category, MenuItem, Modifier, SizeOption), M-DATABASE,
+#            schemas.menu
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.3, INV-006
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   Language         - request-language enum (RU/EN)
+#   get_public_menu  - load and shape full public menu tree
+# END_MODULE_MAP
 """Сервис публичного меню — читает и фильтрует данные для клиента."""
 
 import enum
@@ -16,6 +32,13 @@ from shared.enums import CategoryType, SizeLabel
 from shared.models.menu import Category, MenuItem, Modifier
 
 
+# START_CONTRACT: Language
+#   PURPOSE: Request-language enum used by the public menu mappers to choose
+#            between *_ru / *_en string fields.
+#   INPUTS:  enum members RU, EN.
+#   OUTPUTS: enum class.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: Language
 class Language(str, enum.Enum):
     RU = "ru"
     EN = "en"
@@ -94,6 +117,16 @@ def _map_category(
     )
 
 
+# START_CONTRACT: get_public_menu
+#   PURPOSE: Build the public menu tree (visible categories with their items
+#            and modifiers/sizes), applying archived/stop-list/visibility rules.
+#   INPUTS:  db: Session
+#            only_available: bool — when True, hides stop-listed items/sizes
+#            language: Language — RU or EN
+#   OUTPUTS: PublicMenuResponse
+#   SIDE_EFFECTS: DB SELECT only (with selectinload eager loading).
+#   LINKS:   PDD §5.3, INV-006
+# END_CONTRACT: get_public_menu
 def get_public_menu(
     db: Session,
     *,

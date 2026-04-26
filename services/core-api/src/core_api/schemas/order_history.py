@@ -1,4 +1,24 @@
 """Pydantic-схемы истории заказов и repeat-order (PDD §7.7)."""
+# START_MODULE_CONTRACT
+#   PURPOSE: DTOs for the customer order-history feed and repeat-order result.
+#            Models expose immutable order_item snapshots (INV-014) and accept
+#            both attribute and subscript access for fallback test patterns.
+#   SCOPE:   Pydantic models + private _SubscriptMixin for getitem support.
+#   DEPENDS: pydantic v2.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.7,
+#            INV-014 (order_items are immutable snapshots)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderItemResponse         - one historical order line (immutable snapshot)
+#   OrderResponse             - order header + items
+#   OrderListResponse         - paginated GET /api/v1/orders body
+#   RepeatOrderSkippedEntry   - one skipped entry from repeat-order
+#   RepeatOrderResult         - POST /orders/{id}/repeat response
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import uuid

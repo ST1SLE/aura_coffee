@@ -1,5 +1,23 @@
 """LoyaltyTransaction — ledger начислений/списаний баллов (PDD §5.2)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `loyalty_transactions` table — append-only
+#            ledger of every loyalty points movement (accrual, redemption,
+#            reservation, reversal, admin adjustment).
+#   SCOPE:   Each row records a signed amount, the resulting balance_after,
+#            optional order_id link, and a typed reason. Admin adjustments may
+#            have order_id NULL; rows are never updated, only inserted.
+#   DEPENDS: M-SHARED enums (LoyaltyTransactionType); SQLAlchemy 2.x ORM;
+#            M-DATABASE Base; references users.id and orders.id.
+#   LINKS:   PDD §5.2 (loyalty ledger), docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   LoyaltyTransaction - SQLAlchemy ORM class for `loyalty_transactions`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

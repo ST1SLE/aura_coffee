@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `delivery_addresses` table — saved customer
+#            delivery destinations with at-most-one default per user.
+#   SCOPE:   Geocoded address (lat/lon), free-form metadata (apartment/entrance/
+#            floor/comment), and default-flag uniqueness via partial index.
+#            Addresses are PII-adjacent — service-layer code is responsible for
+#            authorization; INV-013 still applies to free-form fields.
+#   DEPENDS: SQLAlchemy 2.x ORM; M-DATABASE Base; references users.id.
+#   LINKS:   PDD §5.2 (delivery_addresses table), INV-013,
+#            docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DeliveryAddress - SQLAlchemy ORM class for `delivery_addresses`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

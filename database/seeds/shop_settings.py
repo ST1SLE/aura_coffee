@@ -7,6 +7,29 @@
     python -m database.seeds.shop_settings
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: One-shot seed that upserts the singleton shop_settings row
+#            (id=1) with canonical defaults from PDD §5.2 — coordinates,
+#            delivery radius, fees, loyalty %, prep / delivery times,
+#            working hours.
+#   SCOPE:   Invoked at deploy time (and re-invoked by phase4_manual_test
+#            seed) to guarantee the singleton row exists before any
+#            checkout / Haversine validation runs.
+#   DEPENDS: M-SHARED (shop_settings schema with CHECK (id = 1)),
+#            alembic-applied migrations, sqlalchemy, stdlib (json, os, sys).
+#   LINKS:   docs/development-plan.xml M-DATABASE, PDD §3 (Shop terminology),
+#            PDD §5.2 (Settings/shop_settings singleton),
+#            database/AGENTS.md "Singleton shop_settings".
+#   ROLE:    SCRIPT
+#   MAP_MODE: LOCALS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DEFAULT_WORKING_HOURS - mon..sun -> {open: "08:00", close: "22:00"} dict
+#   DEFAULTS              - canonical PDD §5.2 defaults bound to SQL params
+#   run                   - upsert singleton row id=1 (ON CONFLICT DO UPDATE)
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import json
@@ -36,6 +59,21 @@ DEFAULTS = {
 }
 
 
+# START_CONTRACT: run
+#   PURPOSE: Upsert the singleton shop_settings row (id=1) with the PDD §5.2
+#            defaults. Repeated invocations RESET the row to canonical values
+#            — this is intentional for fresh worktrees and CI.
+#   INPUTS:  database_url: str | None — explicit connection URL; falls back to
+#            os.environ["DATABASE_URL"] when None.
+#   OUTPUTS: None
+#   SIDE_EFFECTS: INSERT ... ON CONFLICT (id) DO UPDATE on shop_settings.
+#                 Idempotent for shape, but DESTRUCTIVE for any operator-tuned
+#                 values: rerunning overwrites delivery_radius_km, fees, etc.
+#                 Raises RuntimeError if DATABASE_URL is missing. Engine is
+#                 disposed in a finally block.
+#   LINKS:   PDD §5.2 (shop_settings, CHECK (id = 1)),
+#            INV-014 (does not touch order_items at seed time).
+# END_CONTRACT: run
 def run(database_url: str | None = None) -> None:
     url = database_url or os.environ.get("DATABASE_URL")
     if not url:

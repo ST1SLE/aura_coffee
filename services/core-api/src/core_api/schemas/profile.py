@@ -1,3 +1,18 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Customer profile DTOs (read + partial-update).
+#   SCOPE:   ProfileResponse, ProfileUpdateRequest.
+#   DEPENDS: pydantic v2.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §3 (customer profile),
+#            INV-013 (phone is PII — only exposed as phone_masked, never raw)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   ProfileResponse       - GET /api/v1/profile body (phone_masked, not raw)
+#   ProfileUpdateRequest  - PATCH /api/v1/profile body (display_name, language)
+# END_MODULE_MAP
+
 import uuid
 from typing import Literal
 

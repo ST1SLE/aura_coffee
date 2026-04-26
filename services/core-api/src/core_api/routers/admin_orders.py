@@ -8,6 +8,27 @@ RBAC: только {ADMIN, BARISTA}, прописано в rbac_matrix.ROUTE_MAT
 """
 from __future__ import annotations
 
+# START_MODULE_CONTRACT
+#   PURPOSE: HTTP routes for the staff orders feed under /api/v1/admin/orders
+#            — list and detail. Read-only views for ADMIN/BARISTA.
+#   SCOPE:   Pagination + status/type filtering of orders for staff.
+#            No state mutations live here (see order_actions.py for that).
+#   DEPENDS: M-SHARED (enums.OrderStatus/OrderType), M-DATABASE (Session),
+#            core_api.services.order_history, core_api.deps.database,
+#            RBACMiddleware via rbac_matrix.ROUTE_MATRIX (auth enforced
+#            before handler dispatch).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, §6.1,
+#            INV-002, INV-010 (role isolation).
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   router                  - APIRouter("/api/v1/admin", tags=["admin-orders"])
+#   list_admin_orders       - GET /api/v1/admin/orders
+#   get_admin_order_detail  - GET /api/v1/admin/orders/{order_id}
+# END_MODULE_MAP
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -43,6 +64,14 @@ def _coerce_status(raw: str) -> OrderStatus | str:
         ) from exc
 
 
+# START_CONTRACT: list_admin_orders
+#   PURPOSE: Paginated staff feed of orders, filterable by status and type.
+#   INPUTS:  status (query, default "active"), type (query, OrderType|None),
+#            page, per_page, Session.
+#   OUTPUTS: 200 OrderListResponse; 422 invalid status filter.
+#   SIDE_EFFECTS: none (read-only DB query).
+#   LINKS:   PDD §4.5, §6.1, INV-002, INV-010, services.order_history.
+# END_CONTRACT: list_admin_orders
 @router.get("/orders", response_model=OrderListResponse)
 def list_admin_orders(
     status: str = Query("active"),
@@ -62,6 +91,13 @@ def list_admin_orders(
     )
 
 
+# START_CONTRACT: get_admin_order_detail
+#   PURPOSE: Single order view for staff (no ownership check; staff sees all).
+#   INPUTS:  order_id: UUID (path), Session.
+#   OUTPUTS: 200 OrderResponse; 404 order_not_found.
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §4.5, §6.1, INV-002, INV-010, services.order_history.
+# END_CONTRACT: get_admin_order_detail
 @router.get("/orders/{order_id}", response_model=OrderResponse)
 def get_admin_order_detail(
     order_id: uuid.UUID,

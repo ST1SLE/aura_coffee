@@ -1,3 +1,18 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Admin-only read/update for the singleton ShopSettings row that
+#            governs delivery geometry, working hours, loyalty %, prep timers.
+#   SCOPE:   get_settings (read), update_settings (replace mutable fields).
+#   DEPENDS: M-SHARED (ShopSettings model), M-DATABASE, schemas.shop_settings
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §7.1 Phase 6/3, INV-010
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   ShopSettingsNotSeededError - singleton row missing (seed not executed)
+#   get_settings               - load id=1 or raise
+#   update_settings            - overwrite mutable fields from payload
+# END_MODULE_MAP
 """Сервис admin-управления shop_settings (PDD §5.2, §6.1, §7.1 Phase 6 item 3).
 
 Singleton (CHECK id=1). Сервис только читает/обновляет существующую row,
@@ -12,10 +27,23 @@ from core_api.schemas.shop_settings import ShopSettingsUpdate
 from shared.models.shop_settings import ShopSettings
 
 
+# START_CONTRACT: ShopSettingsNotSeededError
+#   PURPOSE: Signal that the singleton shop_settings row id=1 is absent —
+#            indicates broken bootstrap (migration/seed not run).
+#   INPUTS:  message: str
+#   OUTPUTS: RuntimeError instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: ShopSettingsNotSeededError
 class ShopSettingsNotSeededError(RuntimeError):
     """Singleton-row shop_settings отсутствует (seed не запускался)."""
 
 
+# START_CONTRACT: get_settings
+#   PURPOSE: Load the singleton ShopSettings row (id=1).
+#   INPUTS:  db: Session
+#   OUTPUTS: ShopSettings ORM row.
+#   SIDE_EFFECTS: DB SELECT only; raises ShopSettingsNotSeededError if missing.
+# END_CONTRACT: get_settings
 def get_settings(db: Session) -> ShopSettings:
     row = db.get(ShopSettings, 1)
     if row is None:
@@ -23,6 +51,15 @@ def get_settings(db: Session) -> ShopSettings:
     return row
 
 
+# START_CONTRACT: update_settings
+#   PURPOSE: Overwrite mutable fields of ShopSettings (geometry, hours, loyalty %,
+#            prep & autoclose timers) from validated admin payload.
+#   INPUTS:  db: Session
+#            payload: ShopSettingsUpdate
+#   OUTPUTS: ShopSettings (updated, in-session)
+#   SIDE_EFFECTS: DB UPDATE id=1 + flush. Caller owns commit boundary.
+#   LINKS:   PDD §5.2, INV-010 (admin-only, enforced in router)
+# END_CONTRACT: update_settings
 def update_settings(db: Session, payload: ShopSettingsUpdate) -> ShopSettings:
     row = get_settings(db)
 

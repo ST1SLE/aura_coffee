@@ -1,3 +1,20 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `users` table — the root identity record
+#            for every customer account.
+#   SCOPE:   Holds non-PII identity fields only (id, phone_hash, status,
+#            timestamps); PII (raw phone, display name) lives in UserProfile
+#            per INV-013. Status drives the user lifecycle state machine.
+#   DEPENDS: M-SHARED enums (UserStatus); SQLAlchemy 2.x ORM; M-DATABASE Base.
+#   LINKS:   PDD §5.2 (users table), PDD §6.4 (user lifecycle),
+#            docs/development-plan.xml M-SHARED, INV-013.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   User - SQLAlchemy ORM class for the `users` table (no PII, INV-013)
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

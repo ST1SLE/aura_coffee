@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Repeat-order chain: replay an historical order back into the cart
+#            applying current pricing and stop-list filters per PDD §7.7.
+#            Skips deleted/archived/stop-listed items and unavailable sizes,
+#            drops unavailable modifiers; pure cart writes via CartService.
+#   SCOPE:   repeat_order entry-point + helper-only private utilities.
+#   DEPENDS: M-SHARED (Order, MenuItem, Modifier, SizeOption), M-DATABASE,
+#            services.cart, schemas.cart, schemas.order_history
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.7, INV-006, INV-013, INV-014
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderNotFoundError    - missing/foreign order id (INV-013, → 404)
+#   NoItemsAvailableError - 0 survivors after filtering (→ 422)
+#   repeat_order          - main repeat-to-cart orchestration
+# END_MODULE_MAP
 """Сервис repeat_order — повтор исторического заказа в корзину (PDD §7.7).
 
 Алгоритм Repeat Order Chain:
@@ -23,10 +41,25 @@ from shared.models.menu import MenuItem, Modifier, SizeOption
 from shared.models.order import Order
 
 
+# START_CONTRACT: OrderNotFoundError
+#   PURPOSE: Raised when the order id is missing or belongs to another user
+#            (no leak: same shape as missing). Router → HTTP 404.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+#   LINKS:   INV-013
+# END_CONTRACT: OrderNotFoundError
 class OrderNotFoundError(Exception):
     """Заказ не найден или принадлежит другому пользователю (→ HTTP 404)."""
 
 
+# START_CONTRACT: NoItemsAvailableError
+#   PURPOSE: Raised when none of the items survived availability filtering.
+#            Router → HTTP 422.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: NoItemsAvailableError
 class NoItemsAvailableError(Exception):
     """Ни одна позиция не прошла проверку доступности (→ HTTP 422)."""
 
@@ -41,6 +74,20 @@ def _modifier_id_from_snapshot_entry(entry: Any) -> int:
     return int(entry)
 
 
+# START_CONTRACT: repeat_order
+#   PURPOSE: Replay items from a historical order into the user's cart, using
+#            current DB prices and availability — fully server-trusted (INV-014).
+#            Reports skipped items by reason for client UX.
+#   INPUTS:  order_id: UUID
+#            user_id: UUID
+#            redis: redis_lib.Redis — cart backend
+#            db_session: Session
+#   OUTPUTS: RepeatOrderResult — added_to_cart count + skipped breakdown.
+#   SIDE_EFFECTS: DB SELECTs; Redis writes via CartService.add_item per survivor;
+#                 raises OrderNotFoundError (foreign/missing) and
+#                 NoItemsAvailableError (zero survivors).
+#   LINKS:   PDD §7.7, INV-006, INV-013, INV-014
+# END_CONTRACT: repeat_order
 def repeat_order(
     *,
     order_id: uuid.UUID,

@@ -1,5 +1,28 @@
 """ORM-модели меню: Category, MenuItem, SizeOption, Modifier, menu_item_modifiers."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declarations for the menu graph — Category, MenuItem,
+#            SizeOption, Modifier, plus the menu_item_modifiers M:N junction.
+#   SCOPE:   Pure schema. Repeat-Order Chain (PDD §7.7) and INV-014 require
+#            that order_items keep their own snapshot, so changes to menu
+#            rows must never mutate historical orders. Includes price
+#            non-negative CHECK constraints.
+#   DEPENDS: M-SHARED enums (CategoryType, SizeLabel); SQLAlchemy 2.x ORM;
+#            M-DATABASE Base.
+#   LINKS:   PDD §5.2 (menu tables), PDD §7.7 (Repeat Order Chain),
+#            INV-014, docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   menu_item_modifiers - SQLAlchemy Table for the M:N junction (no ORM class)
+#   Category            - SQLAlchemy ORM class for `categories`
+#   Modifier            - SQLAlchemy ORM class for `modifiers`
+#   SizeOption          - SQLAlchemy ORM class for `size_options`
+#   MenuItem            - SQLAlchemy ORM class for `menu_items`
+# END_MODULE_MAP
+
 from datetime import UTC, datetime
 
 import sqlalchemy as sa

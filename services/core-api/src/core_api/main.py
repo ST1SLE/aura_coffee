@@ -1,3 +1,19 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: FastAPI application entry point — wires routers, RBAC + CORS
+#            middleware, OpenAPI tags and the /health probe.
+#   SCOPE:   `app` ASGI instance + `health` route. No business logic.
+#   DEPENDS: M-CORE-API submodules (routers, middleware, settings); FastAPI.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.1 (boundaries),
+#            PDD §7 (workflows); INV-002 enforced via RBACMiddleware.
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   app    - FastAPI ASGI application with all routers + middleware mounted
+#   health - GET /health probe returning runtime mode info
+# END_MODULE_MAP
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -68,6 +84,14 @@ app.include_router(yandex_maps_router)
 app.include_router(courier_router)
 
 
+# START_CONTRACT: health
+#   PURPOSE: Liveness/readiness probe. Returns status + which YuKassa backend
+#            mode the deployment is configured to use.
+#   INPUTS:  none
+#   OUTPUTS: dict[str, str] — {"status": "ok", "yukassa_backend": <mode>}
+#   SIDE_EFFECTS: reads YUKASSA_BACKEND env var; no DB / Redis calls.
+#   LINKS:   PUBLIC_ROUTES entry in rbac_matrix.py; PDD §4.1
+# END_CONTRACT: health
 @app.get("/health")
 def health() -> dict[str, str]:
     # yukassa_backend читаем напрямую из env: core-api не импортирует

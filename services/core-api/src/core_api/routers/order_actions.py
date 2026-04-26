@@ -8,6 +8,29 @@
 """
 from __future__ import annotations
 
+# START_MODULE_CONTRACT
+#   PURPOSE: HTTP routes for staff/customer order actions —
+#            PATCH /api/v1/orders/{order_id}/status (BARISTA/COURIER/ADMIN)
+#            and POST /api/v1/orders/{order_id}/cancel (CUSTOMER own /
+#            ADMIN).
+#   SCOPE:   Order state-machine transitions (PDD §6.1) and cancellation
+#            flow (PDD §7.6). Ownership check for customer cancels (INV-013).
+#   DEPENDS: M-SHARED (models.Order), M-DATABASE,
+#            core_api.services.order_lifecycle, services.order_cancel,
+#            core_api.deps.{auth,database}.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §7.6,
+#            INV-002, INV-005 (cancellation idempotency), INV-010,
+#            INV-014 (order_items immutable), INV-016 (state transitions).
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   router               - APIRouter("/api/v1/orders", tags=["order-actions"])
+#   patch_order_status   - PATCH /api/v1/orders/{order_id}/status
+#   post_order_cancel    - POST  /api/v1/orders/{order_id}/cancel
+# END_MODULE_MAP
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -42,6 +65,16 @@ def _cancel_error_to_http(exc: OrderCancelError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"reason": exc.reason})
 
 
+# START_CONTRACT: patch_order_status
+#   PURPOSE: Drive an Order through its state machine (BARISTA/COURIER/
+#            ADMIN) per PDD §6.1.
+#   INPUTS:  order_id: UUID, body: OrderStatusUpdate, current_user, Session.
+#   OUTPUTS: 200 OrderResponse; 404 order_not_found;
+#            409 forbidden_transition / state conflict.
+#   SIDE_EFFECTS: DB update on orders.status (atomic, INV-016).
+#   LINKS:   PDD §6.1, INV-002, INV-010, INV-014, INV-016,
+#            services.order_lifecycle.
+# END_CONTRACT: patch_order_status
 @router.patch("/{order_id}/status", response_model=OrderResponse)
 def patch_order_status(
     order_id: uuid.UUID,
@@ -57,6 +90,17 @@ def patch_order_status(
     return updated
 
 
+# START_CONTRACT: post_order_cancel
+#   PURPOSE: Cancel an order (customer own / admin). Triggers refund +
+#            loyalty rollback + stop-list restore in service layer.
+#   INPUTS:  order_id: UUID, body: CancelOrderRequest, current_user, Session.
+#   OUTPUTS: 200 OrderResponse; 404 order_not_found;
+#            403 customer cancelling someone else's order; 409 state conflict.
+#   SIDE_EFFECTS: Atomic DB writes (orders, payment, loyalty), enqueue
+#                 of refund and SMS Celery tasks (INV-004, INV-016).
+#   LINKS:   PDD §6.1, §6.2, §7.6, INV-002, INV-004, INV-005, INV-010,
+#            INV-013, INV-016, services.order_cancel.
+# END_CONTRACT: post_order_cancel
 @router.post("/{order_id}/cancel", response_model=OrderResponse)
 def post_order_cancel(
     order_id: uuid.UUID,

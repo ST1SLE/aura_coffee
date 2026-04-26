@@ -1,3 +1,20 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Customer-scoped read-only loyalty queries — current balance and
+#            transaction history. Defence-in-depth: re-applies user_id filter
+#            even though router already enforces auth (INV-002, INV-010).
+#   SCOPE:   get_balance, list_transactions.
+#   DEPENDS: M-SHARED (LoyaltyAccount, LoyaltyTransaction), M-DATABASE,
+#            schemas.loyalty
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §3, §5.2, INV-002, INV-010
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   LoyaltyAccountMissingError - integrity issue: account row missing
+#   get_balance                - balance + lifetime_accrued
+#   list_transactions          - paginated DESC feed
+# END_MODULE_MAP
 """Customer-scoped read-only сервис лояльности (PDD §3, §5.2, §7.1 Phase 5).
 
 Фильтрация по user_id — defence-in-depth (INV-002, INV-010): сервис не
@@ -20,6 +37,13 @@ from shared.models.loyalty_account import LoyaltyAccount
 from shared.models.loyalty_transaction import LoyaltyTransaction
 
 
+# START_CONTRACT: LoyaltyAccountMissingError
+#   PURPOSE: Signal that loyalty_accounts row is absent for an active user —
+#            indicates a data-integrity incident; router maps to HTTP 500.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: LoyaltyAccountMissingError
 class LoyaltyAccountMissingError(Exception):
     """loyalty_accounts row отсутствует — data-integrity issue.
 
@@ -28,6 +52,14 @@ class LoyaltyAccountMissingError(Exception):
     """
 
 
+# START_CONTRACT: get_balance
+#   PURPOSE: Read current balance + lifetime accrual sum for a user.
+#   INPUTS:  user_id: UUID, db_session: Session
+#   OUTPUTS: LoyaltyBalanceResponse
+#   SIDE_EFFECTS: DB SELECT only; raises LoyaltyAccountMissingError if account
+#                 row missing.
+#   LINKS:   INV-003, INV-013
+# END_CONTRACT: get_balance
 def get_balance(
     *, user_id: uuid.UUID, db_session: Session
 ) -> LoyaltyBalanceResponse:
@@ -51,6 +83,13 @@ def get_balance(
     )
 
 
+# START_CONTRACT: list_transactions
+#   PURPOSE: Paginated DESC feed of loyalty transactions for one user.
+#   INPUTS:  user_id: UUID, page: int, per_page: int, db_session: Session
+#   OUTPUTS: LoyaltyTransactionListResponse
+#   SIDE_EFFECTS: DB SELECTs only.
+#   LINKS:   INV-002, INV-010, INV-013
+# END_CONTRACT: list_transactions
 def list_transactions(
     *,
     user_id: uuid.UUID,

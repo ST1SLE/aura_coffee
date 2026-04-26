@@ -1,3 +1,38 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Canonical string-valued enums for every domain state machine in the
+#            Aura Coffee system; values are the source of truth for INV-016
+#            exhaustive transitions and must match PDD §6.x verbatim.
+#   SCOPE:   Pure data types — no business logic, no IO. Imported by ORM models
+#            in shared.models and by services (core-api, payment-worker, sms-worker)
+#            wherever a status is read or written.
+#   DEPENDS: stdlib enum only.
+#   LINKS:   PDD §6.1 (OrderStatus), §6.2 (PaymentStatus, RefundStatus),
+#            §6.3 (DeliveryAssignmentStatus), §6.4 (OTPStatus, UserStatus),
+#            §3 (domain language for OrderType, StaffRole, CategoryType, etc.),
+#            docs/development-plan.xml M-SHARED, INV-016.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   UserStatus                 - lifecycle of a User account (PDD §6.4)
+#   OTPStatus                  - lifecycle of an OTP challenge (PDD §6.4)
+#   StaffRole                  - admin/barista/courier role for StaffAccount
+#   CategoryType               - menu category kind: drink/food/merch/modifier
+#   MenuItemAvailability       - menu item availability state
+#   SizeLabel                  - size label S/M/L for SizeOption
+#   OrderStatus                - lifecycle of an Order (PDD §6.1, INV-016)
+#   OrderType                  - pickup vs delivery order kind (PDD §3)
+#   PaymentStatus              - lifecycle of a Payment (PDD §6.2, INV-016)
+#   RefundStatus               - lifecycle of a Refund (PDD §6.2)
+#   NotificationChannel        - in_app or sms channel for Notification
+#   NotificationType           - kind of notification (order status / OTP)
+#   NotificationStatus         - delivery state of a Notification
+#   LoyaltyTransactionType     - kind of loyalty ledger entry (PDD §5.2)
+#   PromocodeDiscountType      - percent vs fixed_amount discount kind
+#   DeliveryAssignmentStatus   - lifecycle of a DeliveryAssignment (PDD §6.3, INV-016)
+# END_MODULE_MAP
+
 import enum
 
 

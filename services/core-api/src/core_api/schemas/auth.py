@@ -1,3 +1,22 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Request/response DTOs for customer SMS-OTP authentication.
+#   SCOPE:   Pydantic models for send-code, verify-code, refresh, token,
+#            generic error envelope.
+#   DEPENDS: pydantic v2.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.5 (auth state machine),
+#            INV-012 (rate-limiting), INV-013 (phone is PII — never echo back raw)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   SendCodeRequest    - body of POST /auth/send-code (phone)
+#   VerifyCodeRequest  - body of POST /auth/verify-code (phone, 6-digit code)
+#   RefreshRequest     - body of POST /auth/refresh (refresh_token)
+#   TokenResponse      - access/refresh JWT pair
+#   ErrorResponse      - generic 4xx body with optional retry/attempt hints
+# END_MODULE_MAP
+
 from pydantic import BaseModel, Field
 
 

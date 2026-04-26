@@ -6,6 +6,30 @@
 
 from __future__ import annotations
 
+# START_MODULE_CONTRACT
+#   PURPOSE: Yandex Maps proxy under /api/v1/maps — Suggest (no cache)
+#            + Geocoder (cached, low-precision filter). Owns Redis cache,
+#            daily rate counter and 80% quota-warn.
+#   SCOPE:   Two read-only endpoints. The router owns caching + rate
+#            counters; HTTP to Yandex and error classification live in
+#            services.yandex_maps. NOTE: this is the one endpoint allowed
+#            to make a synchronous external call (AGENTS.md, ≤500ms SLA).
+#   DEPENDS: Redis (cache + rate-counter), httpx (transitive),
+#            core_api.services.yandex_maps,
+#            core_api.deps.redis.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.3 address,
+#            §8.3 third-party SLA. INV-002 does not apply (public proxy
+#            for the customer SPA address picker).
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   router      - APIRouter("/api/v1/maps", tags=["maps"])
+#   suggest     - GET /api/v1/maps/suggest
+#   geocode     - GET /api/v1/maps/geocode
+# END_MODULE_MAP
+
 import hashlib
 import logging
 from datetime import UTC, datetime
@@ -75,6 +99,16 @@ _MAPS_UNAVAILABLE = {"reason": "maps_unavailable"}
 _LOW_PRECISION = {"reason": "low_precision"}
 
 
+# START_CONTRACT: suggest
+#   PURPOSE: Proxy Yandex Suggest — autocomplete query, no caching.
+#   INPUTS:  text: str (query, min_length=1), lang: str (default ru_RU),
+#            Redis client.
+#   OUTPUTS: 200 list[Suggestion]; 503 {"reason": "maps_unavailable"};
+#            500 yandex_upstream_error on 4xx upstream.
+#   SIDE_EFFECTS: Redis INCR of daily rate counter; one-shot WARNING log
+#                 when ≥80% of daily quota is reached.
+#   LINKS:   PDD §7.3, §8.3, services.yandex_maps.
+# END_CONTRACT: suggest
 @router.get("/suggest", response_model=None)
 def suggest(
     text: str = Query(..., min_length=1),
@@ -95,6 +129,17 @@ def suggest(
     return results
 
 
+# START_CONTRACT: geocode
+#   PURPOSE: Proxy Yandex Geocoder with 7-day Redis cache and a
+#            precision≥street filter (low_precision rejected).
+#   INPUTS:  text: str (query, min_length=1), Redis client.
+#   OUTPUTS: 200 GeocodeResult JSON; 422 {"reason": "low_precision"};
+#            503 {"reason": "maps_unavailable"}; 500 yandex_upstream_error.
+#   SIDE_EFFECTS: Redis read on cache hit; on miss — Redis SETEX of
+#                 serialized result and INCR of daily rate counter
+#                 (with 80% one-shot WARNING).
+#   LINKS:   PDD §7.3, §8.3, services.yandex_maps.
+# END_CONTRACT: geocode
 @router.get("/geocode", response_model=None)
 def geocode(
     text: str = Query(..., min_length=1),

@@ -1,3 +1,38 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Atomic Cart → Order checkout — orchestrates validators, pricing
+#            chain, and persistence of orders/order_items/payments/loyalty/
+#            promocode_usage in a single DB transaction. Drives Order initial
+#            state (CREATED or PAID for zero-total) per PDD §6.1.
+#   SCOPE:   create_order entry-point + injectable validator/enqueue stubs
+#            (patched by tests), pricing helpers (subtotal, promo, loyalty,
+#            delivery_fee, total, accrual), Redis cart read, snapshotting.
+#   DEPENDS: M-SHARED (Order, OrderItem, Payment, LoyaltyAccount/Transaction,
+#            Promocode/PromocodeUsage, ShopSettings, MenuItem), M-DATABASE,
+#            celery_app, services.delivery_addresses, services.validators
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §7.2, INV-002,
+#            INV-004, INV-006, INV-008, INV-009, INV-011, INV-013, INV-014, INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   EmptyCartError              - raised when Redis cart is missing or empty
+#   validate_stop_list          - INV-006 stub (test-patchable)
+#   validate_time_slot          - working-hours validator stub
+#   validate_delivery_address   - delegates to validators.delivery (Haversine)
+#   validate_min_delivery_amount- INV-009 stub (test-patchable)
+#   validate_promocode          - INV-011 stub (test-patchable)
+#   geocode_address             - yandex-maps stub (NotImplementedError here)
+#   load_saved_address          - ownership-checked DeliveryAddress lookup
+#   compute_subtotal            - server-side subtotal from current DB prices
+#   apply_promocode             - PERCENT/FIXED discount application
+#   apply_loyalty_points        - cap & subtract points
+#   compute_delivery_fee        - delivery fee resolver (stub here)
+#   compute_order_total         - max(0, subtotal-discount-points+fee)
+#   compute_estimated_accrual   - 5% loyalty accrual estimate
+#   enqueue_payment_task        - dispatch payment_worker.create_payment Celery task
+#   create_order                - main atomic checkout flow
+# END_MODULE_MAP
 """Cart → Order checkout service (PDD §7.1 item 1, §7.2, §6.1).
 
 Сервис конвертации корзины в заказ. Порядок шагов:
@@ -54,6 +89,13 @@ from shared.models import (
 from shared.models.menu import MenuItem, Modifier, SizeOption
 
 
+# START_CONTRACT: EmptyCartError
+#   PURPOSE: Raised when checkout reads an empty/missing Redis cart — router
+#            translates to HTTP 400.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+# END_CONTRACT: EmptyCartError
 class EmptyCartError(Exception):
     """Пустая корзина — отображается в HTTP 400."""
 
@@ -63,16 +105,44 @@ class EmptyCartError(Exception):
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: validate_stop_list
+#   PURPOSE: Reject checkout if any cart line references an unavailable
+#            (stop-listed/archived) menu item. Stub here; real impl in the
+#            validators capability. Tests patch this symbol on the module.
+#   INPUTS:  cart_items: list[dict] — raw Redis cart lines
+#            db_session: Session
+#   OUTPUTS: None
+#   SIDE_EFFECTS: none in the stub; raises validation error in real impl.
+#   LINKS:   PDD §7.1, INV-006
+# END_CONTRACT: validate_stop_list
 def validate_stop_list(cart_items: list[dict], db_session: Session) -> None:
     """Стаб: проверка stop-list — owned by `order-pricing-validation`."""
     return None
 
 
+# START_CONTRACT: validate_time_slot
+#   PURPOSE: Reject checkout outside shop working hours. Stub — overridden in
+#            validators capability or patched in tests.
+#   INPUTS:  requested_time: datetime | None
+#            shop_settings:  ShopSettings | None
+#   OUTPUTS: None
+#   SIDE_EFFECTS: none in the stub.
+#   LINKS:   PDD §7.5
+# END_CONTRACT: validate_time_slot
 def validate_time_slot(requested_time: datetime | None, shop_settings: Any = None) -> None:
     """Стаб: проверка рабочих часов — owned by `order-pricing-validation`."""
     return None
 
 
+# START_CONTRACT: validate_delivery_address
+#   PURPOSE: Server-side Haversine distance check against ShopSettings radius
+#            (INV-008). Delegates to validators.delivery so this module symbol
+#            stays test-patchable.
+#   INPUTS:  lat: float, lon: float, shop_settings: ShopSettings
+#   OUTPUTS: None
+#   SIDE_EFFECTS: raises validation error if outside radius.
+#   LINKS:   PDD §7.3, INV-008
+# END_CONTRACT: validate_delivery_address
 def validate_delivery_address(lat: float, lon: float, shop_settings: Any) -> None:
     """Серверная Haversine-проверка (INV-008).
 
@@ -86,11 +156,27 @@ def validate_delivery_address(lat: float, lon: float, shop_settings: Any) -> Non
     _validate(lat, lon, shop_settings)
 
 
+# START_CONTRACT: validate_min_delivery_amount
+#   PURPOSE: Reject delivery checkout below ShopSettings.min_delivery_amount.
+#            Stub here; real validator owned by order-pricing-validation.
+#   INPUTS:  subtotal: int, address: Any
+#   OUTPUTS: None
+#   SIDE_EFFECTS: none in stub.
+#   LINKS:   PDD §7.4, INV-009
+# END_CONTRACT: validate_min_delivery_amount
 def validate_min_delivery_amount(subtotal: int, address: Any) -> None:
     """Стаб: проверка минимальной суммы для доставки — owned by `order-pricing-validation`."""
     return None
 
 
+# START_CONTRACT: validate_promocode
+#   PURPOSE: Resolve a promocode by code with quota / time / per-user checks.
+#            Stub here; tests patch with a mock returning a Promocode-like obj.
+#   INPUTS:  code: str, user_id: UUID, db_session: Session
+#   OUTPUTS: Any (Promocode-like) | None
+#   SIDE_EFFECTS: none in stub.
+#   LINKS:   PDD §6.6, INV-011
+# END_CONTRACT: validate_promocode
 def validate_promocode(code: str, user_id: uuid.UUID, db_session: Session) -> Any:
     """Стаб: проверка промокода — owned by `order-pricing-validation`."""
     return None
@@ -101,6 +187,13 @@ def validate_promocode(code: str, user_id: uuid.UUID, db_session: Session) -> An
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: geocode_address
+#   PURPOSE: Inline-address geocoder shim — actual lookup is owned by the
+#            yandex-maps proxy. Saved-address path skips this.
+#   INPUTS:  address_text: str
+#   OUTPUTS: (lat, lon) tuple — never returned here.
+#   SIDE_EFFECTS: raises NotImplementedError in this module.
+# END_CONTRACT: geocode_address
 def geocode_address(address_text: str) -> tuple[float, float]:
     """Стаб: геокодинг (owned by `yandex-maps-proxy`).
 
@@ -109,6 +202,15 @@ def geocode_address(address_text: str) -> tuple[float, float]:
     raise NotImplementedError("geocode_address is owned by yandex-maps-proxy")
 
 
+# START_CONTRACT: load_saved_address
+#   PURPOSE: Fetch a DeliveryAddress by id with ownership filter — INV-013
+#            keeps cross-tenant probing impossible (foreign id → 404).
+#   INPUTS:  address_id: UUID, user_id: UUID, db_session: Session
+#   OUTPUTS: DeliveryAddress
+#   SIDE_EFFECTS: DB SELECT only; raises DeliveryAddressNotFound when
+#                 missing or owned by another user.
+#   LINKS:   PDD §7.3, INV-013
+# END_CONTRACT: load_saved_address
 def load_saved_address(
     address_id: uuid.UUID, user_id: uuid.UUID, db_session: Session
 ) -> DeliveryAddress:
@@ -145,6 +247,14 @@ def _build_snapshot_from_saved(addr: DeliveryAddress) -> dict:
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: compute_subtotal
+#   PURPOSE: Sum cart lines using current DB prices — INV-014 forbids trusting
+#            client-supplied prices, all monetary inputs come from menu rows.
+#   INPUTS:  cart_items: list[dict], db_session: Session
+#   OUTPUTS: int — subtotal in kopecks (≥ 0).
+#   SIDE_EFFECTS: DB SELECTs only.
+#   LINKS:   PDD §7.2, INV-014
+# END_CONTRACT: compute_subtotal
 def compute_subtotal(cart_items: list[dict], db_session: Session) -> int:
     """Сумма позиций корзины по актуальным ценам из БД (INV-014)."""
     total = 0
@@ -164,6 +274,13 @@ def compute_subtotal(cart_items: list[dict], db_session: Session) -> int:
     return total
 
 
+# START_CONTRACT: apply_promocode
+#   PURPOSE: Apply PERCENT or FIXED_AMOUNT discount; result capped at subtotal.
+#   INPUTS:  subtotal: int, promocode: Any | None
+#   OUTPUTS: (discount: int, amount_after: int)
+#   SIDE_EFFECTS: none (pure).
+#   LINKS:   PDD §7.2, INV-011
+# END_CONTRACT: apply_promocode
 def apply_promocode(subtotal: int, promocode: Any) -> tuple[int, int]:
     """Возвращает (discount, amount_after). При None промокоде — (0, subtotal)."""
     if promocode is None:
@@ -177,6 +294,14 @@ def apply_promocode(subtotal: int, promocode: Any) -> tuple[int, int]:
     return (discount, subtotal - discount)
 
 
+# START_CONTRACT: apply_loyalty_points
+#   PURPOSE: Cap points usage by min(requested, balance, amount); return the
+#            applied amount and the residual amount to charge.
+#   INPUTS:  amount: int, points_to_use: int, account: Any (LoyaltyAccount-like)
+#   OUTPUTS: (points_applied: int, amount_after: int)
+#   SIDE_EFFECTS: none (pure).
+#   LINKS:   PDD §7.2
+# END_CONTRACT: apply_loyalty_points
 def apply_loyalty_points(amount: int, points_to_use: int, account: Any) -> tuple[int, int]:
     """Возвращает (points_applied, amount_after)."""
     if points_to_use <= 0:
@@ -188,6 +313,14 @@ def apply_loyalty_points(amount: int, points_to_use: int, account: Any) -> tuple
     return (applied, amount - applied)
 
 
+# START_CONTRACT: compute_delivery_fee
+#   PURPOSE: Resolve delivery fee for the order. Stub here returns 0 — the real
+#            fee derivation lives in services.pricing / order-pricing-validation.
+#   INPUTS:  amount: int (subtotal-based), request: CreateOrderRequest
+#   OUTPUTS: int — delivery fee in kopecks.
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §7.4, INV-009
+# END_CONTRACT: compute_delivery_fee
 def compute_delivery_fee(amount: int, request: CreateOrderRequest) -> int:
     """Стаб: при доставке реальный расчёт лежит в `order-pricing-validation`."""
     if request.type != OrderType.DELIVERY:
@@ -195,6 +328,13 @@ def compute_delivery_fee(amount: int, request: CreateOrderRequest) -> int:
     return 0
 
 
+# START_CONTRACT: compute_order_total
+#   PURPOSE: Final amount = max(0, subtotal - discount - points_applied + fee).
+#   INPUTS:  subtotal, discount, points_applied, delivery_fee: int
+#   OUTPUTS: int — total in kopecks (≥ 0).
+#   SIDE_EFFECTS: none.
+#   LINKS:   PDD §7.2
+# END_CONTRACT: compute_order_total
 def compute_order_total(
     subtotal: int, discount: int, points_applied: int, delivery_fee: int
 ) -> int:
@@ -203,6 +343,14 @@ def compute_order_total(
     return max(total, 0)
 
 
+# START_CONTRACT: compute_estimated_accrual
+#   PURPOSE: Estimate loyalty accrual surfaced to the user pre-payment — 5% of
+#            order total. Real accrual fires at COMPLETED via order_lifecycle.
+#   INPUTS:  total: int, account: Any
+#   OUTPUTS: int — points (≥ 0).
+#   SIDE_EFFECTS: none.
+#   LINKS:   INV-003
+# END_CONTRACT: compute_estimated_accrual
 def compute_estimated_accrual(total: int, account: Any) -> int:
     """Оценочное начисление баллов — 5% от total (стаб для `loyalty-accrual`)."""
     return int(total) * 5 // 100
@@ -213,6 +361,14 @@ def compute_estimated_accrual(total: int, account: Any) -> int:
 # ---------------------------------------------------------------------------
 
 
+# START_CONTRACT: enqueue_payment_task
+#   PURPOSE: Hand the order off to payment_worker via Celery for YuKassa intent
+#            creation. Tests patch celery_app on the module.
+#   INPUTS:  order_id: UUID, amount: int (kopecks), idempotency_key: str
+#   OUTPUTS: None
+#   SIDE_EFFECTS: dispatch to Celery queue 'payments' — payment_worker.tasks.create_payment.
+#   LINKS:   PDD §6.2 (PaymentLifecycle)
+# END_CONTRACT: enqueue_payment_task
 def enqueue_payment_task(
     order_id: uuid.UUID, amount: int, idempotency_key: str
 ) -> None:
@@ -249,6 +405,25 @@ def _read_cart(redis_client: Any, user_id: uuid.UUID) -> list[dict]:
     return items
 
 
+# START_CONTRACT: create_order
+#   PURPOSE: Atomic checkout — read cart, run validators, compute pricing chain,
+#            persist Order/OrderItems/Payment plus optional LoyaltyTransaction
+#            and PromocodeUsage in one DB transaction, then dispatch payment
+#            task or clean Redis cart for zero-total flow.
+#   INPUTS:  user_id: UUID
+#            request: CreateOrderRequest — type/address/promocode/points
+#            redis_client: Any — Redis-like for cart read/cleanup
+#            db_session: Session
+#   OUTPUTS: OrderResponse — populated from persisted rows.
+#   SIDE_EFFECTS: DB INSERTs (orders, order_items per INV-014 immutability,
+#                 payments, loyalty_transactions, promocode_usages) + UPDATE of
+#                 promocodes.current_uses via conditional WHERE; commit; then
+#                 either Celery dispatch (paid path) or Redis DEL (zero-total).
+#                 Source state: n/a → CREATED (paid path) or PAID (zero-total).
+#                 Empty cart → EmptyCartError.
+#   LINKS:   PDD §6.1 (initial state), §7.1, §7.2, INV-002, INV-004, INV-006,
+#            INV-008, INV-009, INV-011, INV-013, INV-014, INV-016
+# END_CONTRACT: create_order
 def create_order(
     user_id: uuid.UUID,
     request: CreateOrderRequest,

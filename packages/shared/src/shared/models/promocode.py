@@ -1,5 +1,26 @@
 """Promocode — промокоды (PDD §5.2)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `promocodes` table — promotional code
+#            definitions (percent or fixed-amount discount).
+#   SCOPE:   Holds redemption rules: validity window, min order amount,
+#            global and per-user use caps, current_uses counter, is_active
+#            kill-switch. The code lifecycle is derived from these flags
+#            (active vs expired vs exhausted) rather than a stored enum,
+#            consistent with PDD §6 — service-layer validators must remain
+#            exhaustive (INV-016) when interpreting it.
+#   DEPENDS: M-SHARED enums (PromocodeDiscountType); SQLAlchemy 2.x ORM;
+#            M-DATABASE Base.
+#   LINKS:   PDD §5.2 (promocodes table), INV-016,
+#            docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   Promocode - SQLAlchemy ORM class for `promocodes`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

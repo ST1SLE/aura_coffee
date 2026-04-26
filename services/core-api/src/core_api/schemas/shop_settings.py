@@ -3,6 +3,24 @@
 ShopSettingsResponse — read-only snapshot singleton-row.
 ShopSettingsUpdate — full-snapshot body для PUT /api/v1/admin/settings.
 """
+# START_MODULE_CONTRACT
+#   PURPOSE: ShopSettings DTOs (read snapshot + full-snapshot update body)
+#            with cross-field invariants on working hours and delivery
+#            thresholds.
+#   SCOPE:   ShopSettingsResponse, WorkingHoursSlot, ShopSettingsUpdate.
+#   DEPENDS: pydantic v2.
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §6.1,
+#            §7.1 Phase 6 item 3, INV-010 (admin-only mutators)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   DAY_KEYS              - tuple of 7 day keys in working_hours
+#   ShopSettingsResponse  - GET /api/v1/admin/settings projection
+#   WorkingHoursSlot      - {open: HH:MM, close: HH:MM, open<close} validator
+#   ShopSettingsUpdate    - PUT /api/v1/admin/settings full-snapshot body
+# END_MODULE_MAP
 
 from __future__ import annotations
 

@@ -1,3 +1,19 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `loyalty_accounts` table — per-user
+#            current loyalty points balance (one row per user).
+#   SCOPE:   Snapshot balance only; the authoritative history lives in
+#            LoyaltyTransaction. Mutations to `balance` must be paired with a
+#            LoyaltyTransaction insert in the same DB transaction.
+#   DEPENDS: SQLAlchemy 2.x ORM; M-DATABASE Base; references users.id.
+#   LINKS:   PDD §5.2 (loyalty_accounts table), docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   LoyaltyAccount - SQLAlchemy ORM class for `loyalty_accounts`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

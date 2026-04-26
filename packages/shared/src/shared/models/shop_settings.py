@@ -1,5 +1,24 @@
 """ShopSettings — singleton-таблица с настройками магазина (PDD §5.2)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `shop_settings` table — singleton row
+#            (CHECK id = 1) holding shop-wide configuration: location,
+#            delivery economics, loyalty percent, prep/auto-close timers,
+#            working_hours JSONB.
+#   SCOPE:   Exactly one row at id=1 (enforced by ck_shop_settings_singleton).
+#            Read by core-api during pricing and delivery quoting; written
+#            only by admin endpoints. No PII.
+#   DEPENDS: SQLAlchemy 2.x ORM; M-DATABASE Base.
+#   LINKS:   PDD §5.2 (shop_settings table),
+#            docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   ShopSettings - SQLAlchemy ORM class for `shop_settings` (singleton, id=1)
+# END_MODULE_MAP
+
 from datetime import datetime
 
 import sqlalchemy as sa

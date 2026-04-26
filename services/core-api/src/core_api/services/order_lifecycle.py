@@ -1,3 +1,23 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Single entry point for Order state-machine transitions (PDD §6.1).
+#            Owns the allow-list, role gating (INV-010), DELIVERY-vs-PICKUP
+#            type guards, loyalty accrual on COMPLETED (INV-003), and creation
+#            of DeliveryAssignment on PAID→PREPARING for delivery orders.
+#   SCOPE:   transition_order (commits + notifies); transition_order_bridge
+#            (no-commit/no-notify variant for atomic cascades from delivery_assignment).
+#   DEPENDS: M-SHARED (Order, DeliveryAssignment, LoyaltyAccount/Transaction,
+#            ShopSettings, enums), M-DATABASE, services.order_notifications
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.3,
+#            INV-003, INV-010, INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderTransitionError       - reason-tagged transition error
+#   transition_order           - commits + dispatches notification
+#   transition_order_bridge    - no-commit variant for cascades
+# END_MODULE_MAP
 """Order state machine — сервисный слой (PDD §6.1, INV-003, INV-010, INV-016).
 
 `transition_order` — единственная точка входа для переходов статуса заказа.
@@ -33,6 +53,15 @@ from shared.models import (
 from core_api.services.order_notifications import send_order_notification
 
 
+# START_CONTRACT: OrderTransitionError
+#   PURPOSE: Raised on disallowed Order state transition or RBAC gate failure.
+#            .reason is one of: order_not_found, forbidden_transition,
+#            role_not_allowed, wrong_order_type_for_transition.
+#   INPUTS:  reason: str
+#   OUTPUTS: Exception with .reason
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §6.1, INV-010, INV-016
+# END_CONTRACT: OrderTransitionError
 class OrderTransitionError(Exception):
     """Доменная ошибка: переход недопустим по правилам §6.1 / §6 / INV-010."""
 
@@ -140,6 +169,24 @@ def _apply_transition(
     return order
 
 
+# START_CONTRACT: transition_order
+#   PURPOSE: Apply a single Order status transition: validates allow-list,
+#            role gate, type guard; mutates row; creates DeliveryAssignment on
+#            PAID→PREPARING (delivery); accrues loyalty on COMPLETED; commits;
+#            dispatches notification (skipped for system actor).
+#   INPUTS:  order_id: UUID
+#            new_status: OrderStatus — target state
+#            actor_role: str — customer/barista/courier/admin/system
+#            db_session: Session
+#   OUTPUTS: Order (refreshed)
+#   SIDE_EFFECTS: DB UPDATE on orders.status; conditional INSERT(s) on
+#                 delivery_assignments and loyalty_transactions; commit; Celery
+#                 dispatch via order_notifications.send_order_notification.
+#                 Source: any (validated against allow-list). Target: any in
+#                 PDD §6.1 except CREATED→{PAID,CANCELLED} which payment-webhook
+#                 owns. Forbidden src/target/role pairs raise OrderTransitionError.
+#   LINKS:   PDD §6.1, §6.3, INV-003, INV-004, INV-010, INV-016
+# END_CONTRACT: transition_order
 def transition_order(
     order_id: uuid.UUID,
     new_status: OrderStatus,
@@ -175,6 +222,18 @@ def transition_order(
     return order
 
 
+# START_CONTRACT: transition_order_bridge
+#   PURPOSE: Same allow-list / validation / side effects as transition_order
+#            but WITHOUT db.commit() and WITHOUT notification dispatch — used
+#            from delivery_assignment so assignment + order updates land in a
+#            single transaction (INV-004).
+#   INPUTS:  order_id: UUID, new_status: OrderStatus, actor_role: str,
+#            db_session: Session
+#   OUTPUTS: Order (in-session, not yet committed)
+#   SIDE_EFFECTS: DB UPDATE on orders.status; conditional inserts as above; NO
+#                 commit; NO notification dispatch — caller owns both.
+#   LINKS:   PDD §6.1, §6.3, INV-004, INV-016
+# END_CONTRACT: transition_order_bridge
 def transition_order_bridge(
     order_id: uuid.UUID,
     new_status: OrderStatus,

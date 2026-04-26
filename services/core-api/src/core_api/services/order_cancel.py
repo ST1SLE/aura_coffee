@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Atomic order cancellation chain (PDD §7.6) — restores promo quota
+#            and loyalty points, transitions Order to CANCELLED, cascade-cancels
+#            DeliveryAssignment, fires notification, dispatches refund task.
+#   SCOPE:   single entry-point cancel_order with inner private helpers.
+#   DEPENDS: M-SHARED (Order, Payment, Promocode, PromocodeUsage,
+#            LoyaltyAccount/Transaction), M-DATABASE, services.delivery_assignment,
+#            services.order_notifications, celery_app
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.3, §7.6,
+#            INV-004, INV-005, INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   OrderCancelError - reason-tagged cancellation error
+#   cancel_order     - orchestrate the §7.6 chain in a single transaction
+# END_MODULE_MAP
 """Цепочка отмены заказа (PDD §7.6, INV-004, INV-005).
 
 `cancel_order` выполняет все шаги в одной DB-транзакции. На любом исключении
@@ -42,6 +60,15 @@ from core_api.services.order_notifications import send_order_notification
 celery_app = _celery_mod.celery_app
 
 
+# START_CONTRACT: OrderCancelError
+#   PURPOSE: Domain error for the cancellation chain, with a machine-readable
+#            .reason: order_not_found / customer_cannot_cancel_in_this_status
+#            / not_cancellable_in_this_status.
+#   INPUTS:  reason: str
+#   OUTPUTS: Exception with .reason
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §7.6, INV-005
+# END_CONTRACT: OrderCancelError
 class OrderCancelError(Exception):
     """Доменная ошибка цепочки отмены (PDD §7.6)."""
 
@@ -103,6 +130,25 @@ def _enqueue_refund(order: Order, db: Session) -> None:
     )
 
 
+# START_CONTRACT: cancel_order
+#   PURPOSE: Atomically transition an order to CANCELLED with full financial
+#            unwind: restore promocode quota, refund loyalty points, set
+#            cancelled_by/cancelled_at, cascade-cancel DeliveryAssignment,
+#            send notification, dispatch refund Celery task, commit.
+#   INPUTS:  order_id: UUID
+#            cancelled_by: str — "customer" or "admin"
+#            reason: str | None — passed through to notification
+#            db_session: Session
+#   OUTPUTS: Order (status=CANCELLED, refreshed)
+#   SIDE_EFFECTS: DB UPDATE/INSERT/DELETE across promocodes, promocode_usages,
+#                 loyalty_accounts, loyalty_transactions, orders, delivery_assignments,
+#                 notifications — all in a single txn (INV-004); commit at end;
+#                 post-validation Celery dispatch of payment_worker.initiate_refund
+#                 when payment exists. Source: PAID/PREPARING/READY (admin) or
+#                 PAID (customer). Target: CANCELLED. Forbidden src/role pairs
+#                 raise OrderCancelError (INV-005, INV-016).
+#   LINKS:   PDD §6.1, §6.3, §6.6, §7.6, INV-004, INV-005, INV-011, INV-013, INV-016
+# END_CONTRACT: cancel_order
 def cancel_order(
     order_id: uuid.UUID,
     cancelled_by: str,

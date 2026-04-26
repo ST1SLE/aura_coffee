@@ -1,3 +1,23 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Celery task that delivers OTP authentication codes via SMS and
+#            advances the OTP lifecycle in Redis through CREATED → SENT or
+#            CREATED → FAILED (PDD §6.4). Worker MUST NOT generate or store
+#            the code itself — core-api owns Redis OTP state.
+#   SCOPE:   Owns `send_otp_sms` task. Selects transport at import time from
+#            settings.sms_backend (log/smsru). Retry policy: 3× exponential
+#            backoff (2s/8s/32s) per AGENTS.md and §7.8.
+#   DEPENDS: redis-py, cryptography, sms_worker.clients.{log,smsru},
+#            sms_worker.main (celery_app), sms_worker.settings
+#   LINKS:   docs/development-plan.xml M-SMS-WORKER, PDD §6.4 (OTP Lifecycle),
+#            PDD §7.8, INV-013 (PII isolation), INV-015 (secret handling)
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   send_otp_sms - Celery task: deliver OTP SMS and update Redis status
+# END_MODULE_MAP
+
 import json
 import logging
 
@@ -42,6 +62,23 @@ def _update_otp_status(r: redis.Redis, phone_hash: str, status: str) -> None:
         r.set(key, json.dumps(otp_data), ex=ttl)
 
 
+# START_CONTRACT: send_otp_sms
+#   PURPOSE: Deliver a 6-digit OTP code via SMS and drive the Redis OTP
+#            record from CREATED → SENT (success) or CREATED → FAILED
+#            (retries exhausted). Implements PDD §6.4 OTP Lifecycle from the
+#            worker side; core-api owns CREATED/VERIFIED/EXPIRED transitions.
+#   INPUTS:  self — Celery task binding (provides .request.retries, .max_retries)
+#            phone_hash: str — SHA-256 hex digest used as Redis key suffix
+#            encrypted_phone_hex: str — AES-256-GCM hex blob (nonce[:12] + ct)
+#            code: str — 6-digit OTP code (cleartext, NEVER log it)
+#   OUTPUTS: None
+#   SIDE_EFFECTS: Decrypts phone in-memory, calls SMS transport (log/smsru),
+#            opens a Redis connection to update otp:{phone_hash} status;
+#            may raise to trigger Celery retry. INV-013: only the first 8
+#            chars of phone_hash appear in logs — never phone or code.
+#   LINKS:   PDD §6.4 (OTP Lifecycle: CREATED → SENT/FAILED/EXPIRED/VERIFIED),
+#            PDD §7.8 (retry policy), INV-013, INV-015, INV-016
+# END_CONTRACT: send_otp_sms
 @celery_app.task(
     bind=True,
     max_retries=3,

@@ -1,5 +1,24 @@
 """Refund — возвраты через YuKassa (PDD §5.2, §6.2)."""
 
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `refunds` table — YuKassa refund linked
+#            to a Payment, with its own dispatch state machine.
+#   SCOPE:   Each refund references one payment_id (multiple partial refunds
+#            allowed). Status follows pending → succeeded | failed per
+#            PDD §6.2 / INV-016. yukassa_refund_id is UNIQUE so webhook
+#            replays are idempotent.
+#   DEPENDS: M-SHARED enums (RefundStatus); SQLAlchemy 2.x ORM; M-DATABASE
+#            Base; references payments.id.
+#   LINKS:   PDD §5.2 (refunds table), PDD §6.2 (refund state machine),
+#            INV-016, docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   Refund - SQLAlchemy ORM class for `refunds` (PDD §6.2, INV-016)
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

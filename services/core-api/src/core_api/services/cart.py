@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Customer cart service — Redis-backed line-storage with server-side
+#            stop-list validation, server-computed pricing (no client trust),
+#            line merge by deterministic line_id, optimistic-concurrency via
+#            Redis WATCH/MULTI.
+#   SCOPE:   add/update/delete/clear cart; hydrate response with current DB
+#            prices and availability flags for each line.
+#   DEPENDS: M-SHARED (MenuItem, Modifier, SizeOption, MenuItemAvailability),
+#            M-DATABASE, Redis, services.pricing, schemas.cart
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.3, INV-006, INV-014
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   CartValidationError - reason-tagged validation error (stop-list, ownership)
+#   CartService         - Redis-backed cart for one user; CRUD + hydration
+# END_MODULE_MAP
 """Сервис корзины: хранение в Redis с TTL, валидация стоп-листа (INV-006),
 серверный расчёт цен (INV-014), слияние одинаковых строк (design D5).
 """
@@ -24,6 +42,15 @@ from shared.enums import MenuItemAvailability
 from shared.models.menu import MenuItem, Modifier, SizeOption
 
 
+# START_CONTRACT: CartValidationError
+#   PURPOSE: Domain error for cart operations carrying a machine-readable reason
+#            ("not_found", "item_stop_list", "modifier_not_linked",
+#            "quantity_cap", "concurrent_modification", etc.).
+#   INPUTS:  reason: str
+#   OUTPUTS: Exception with .reason attribute.
+#   SIDE_EFFECTS: none
+#   LINKS:   INV-006 (stop-list), INV-014
+# END_CONTRACT: CartValidationError
 class CartValidationError(Exception):
     """Ошибка валидации корзины с опциональным reason-маркером."""
 
@@ -41,6 +68,18 @@ class _ResolvedItem:
     modifiers: list[Modifier]
 
 
+# START_CONTRACT: CartService
+#   PURPOSE: Redis-backed cart for a single user. Owns: line CRUD, server-side
+#            availability validation (stop-list, archived, modifier link),
+#            server-side pricing, deterministic line_id merge, TTL refresh.
+#   INPUTS:  session: Session — DB for catalog reads
+#            redis_client: redis.Redis — backend for cart blob
+#            user_id: Any — partition key (str/UUID)
+#            ttl_seconds: int — TTL refresh interval
+#   OUTPUTS: CartService instance.
+#   SIDE_EFFECTS: per method — see individual contracts.
+#   LINKS:   PDD §5.3, INV-006, INV-014
+# END_CONTRACT: CartService
 class CartService:
     """Управляет корзиной покупателя через Redis (key=cart:{user_id})."""
 
@@ -191,6 +230,13 @@ class CartService:
     # Публичные методы
     # ------------------------------------------------------------------
 
+    # START_CONTRACT: CartService.get
+    #   PURPOSE: Read current cart, hydrate each line with fresh DB prices and
+    #            availability snapshot, refresh TTL on access (design D1).
+    #   INPUTS:  none
+    #   OUTPUTS: CartResponse — items, subtotal, currency, expires_at.
+    #   SIDE_EFFECTS: Redis GET + SET (TTL refresh) + DB SELECTs for catalog.
+    # END_CONTRACT: CartService.get
     def get(self) -> CartResponse:
         """Возвращает текущую корзину с ценами из БД. Продлевает TTL."""
         payload = self._load()
@@ -227,6 +273,16 @@ class CartService:
             expires_at=expires_at,
         )
 
+    # START_CONTRACT: CartService.add_item
+    #   PURPOSE: Append a new line or merge into an existing line with the same
+    #            line_id (menu_item + size + modifiers). Caps quantity at 99.
+    #   INPUTS:  item: CartItemCreate
+    #   OUTPUTS: CartResponse (post-hydrate).
+    #   SIDE_EFFECTS: Redis WATCH/MULTI loop (up to 3 retries); DB SELECTs for
+    #                 validation. Raises CartValidationError on stop-list,
+    #                 quantity cap, or concurrent_modification.
+    #   LINKS:   INV-006, INV-014
+    # END_CONTRACT: CartService.add_item
     def add_item(self, item: CartItemCreate) -> CartResponse:
         """Добавляет позицию в корзину или увеличивает quantity при совпадении line_id."""
         resolved = self._validate_and_resolve(item)
@@ -292,6 +348,14 @@ class CartService:
 
         return self.get()
 
+    # START_CONTRACT: CartService.update_item
+    #   PURPOSE: Replace an existing line identified by line_id with new payload.
+    #   INPUTS:  line_id: str
+    #            item: CartItemCreate (full replacement)
+    #   OUTPUTS: CartResponse.
+    #   SIDE_EFFECTS: Redis WATCH/MULTI; DB validation; raises
+    #                 CartValidationError("not_found"/"concurrent_modification").
+    # END_CONTRACT: CartService.update_item
     def update_item(self, line_id: str, item: CartItemCreate) -> CartResponse:
         """Заменяет строку корзины по line_id новыми данными."""
         self._validate_and_resolve(item)
@@ -349,6 +413,14 @@ class CartService:
 
         return self.get()
 
+    # START_CONTRACT: CartService.update_item_quantity
+    #   PURPOSE: Quantity-only update for a line; re-validates availability.
+    #   INPUTS:  line_id: str
+    #            new_quantity: int
+    #   OUTPUTS: CartResponse.
+    #   SIDE_EFFECTS: Redis WATCH/MULTI; DB validation; raises
+    #                 CartValidationError on missing line, stop-list, race.
+    # END_CONTRACT: CartService.update_item_quantity
     def update_item_quantity(self, line_id: str, new_quantity: int) -> CartResponse:
         """Обновляет только количество строки корзины по line_id."""
         _MAX_RETRIES = 3
@@ -404,6 +476,14 @@ class CartService:
 
         return self.get()
 
+    # START_CONTRACT: CartService.delete_item
+    #   PURPOSE: Remove a single line by line_id; deletes the cart key entirely
+    #            when the last line is removed.
+    #   INPUTS:  line_id: str
+    #   OUTPUTS: CartResponse.
+    #   SIDE_EFFECTS: Redis WATCH/MULTI (SET or DEL); raises CartValidationError
+    #                 on missing line / race.
+    # END_CONTRACT: CartService.delete_item
     def delete_item(self, line_id: str) -> CartResponse:
         """Удаляет строку корзины по line_id."""
         _MAX_RETRIES = 3
@@ -451,6 +531,12 @@ class CartService:
 
         return self.get()
 
+    # START_CONTRACT: CartService.clear
+    #   PURPOSE: Drop the entire cart key (used post-checkout or on user action).
+    #   INPUTS:  none
+    #   OUTPUTS: CartResponse representing an empty cart.
+    #   SIDE_EFFECTS: Redis DEL on `cart:<user_id>`.
+    # END_CONTRACT: CartService.clear
     def clear(self) -> CartResponse:
         """Очищает корзину целиком."""
         self._redis.delete(self._key())

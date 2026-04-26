@@ -1,3 +1,21 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: ORM declaration of the `staff_accounts` table — internal logins
+#            for admins, baristas, and couriers.
+#   SCOPE:   Distinct from User (which is for customers). Stores login,
+#            password_hash, role enum, display_name, is_active flag, and
+#            timestamps. Couriers in this table are referenced by
+#            DeliveryAssignment.courier_id.
+#   DEPENDS: M-SHARED enums (StaffRole); SQLAlchemy 2.x ORM; M-DATABASE Base.
+#   LINKS:   PDD §5.2 (staff_accounts table),
+#            docs/development-plan.xml M-SHARED.
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   StaffAccount - SQLAlchemy ORM class for `staff_accounts`
+# END_MODULE_MAP
+
 import uuid
 from datetime import datetime
 

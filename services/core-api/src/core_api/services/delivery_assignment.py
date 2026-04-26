@@ -1,3 +1,27 @@
+# START_MODULE_CONTRACT
+#   PURPOSE: Delivery Assignment state machine driver — atomic transitions for
+#            the courier-facing lifecycle, with cascading bridge into the Order
+#            state machine to keep both aggregates consistent in one txn.
+#   SCOPE:   take/pickup/deliver/cancel transitions; available-for-courier feed.
+#            State machine: AWAITING_COURIER → COURIER_ASSIGNED → PICKED_UP →
+#            DELIVERED, plus CANCELLED branch.
+#   DEPENDS: M-SHARED (DeliveryAssignment, Order), M-DATABASE,
+#            services.order_lifecycle, services.order_notifications
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.3, INV-004, INV-010,
+#            INV-016
+#   ROLE:    RUNTIME
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   AssignmentTransitionError    - reason-tagged transition error
+#   AssignmentAlreadyTakenError  - race-loss specialization (409 already_taken)
+#   take_assignment              - AWAITING_COURIER → COURIER_ASSIGNED
+#   pickup_assignment            - COURIER_ASSIGNED → PICKED_UP + Order bridge
+#   deliver_assignment           - PICKED_UP → DELIVERED + Order bridge
+#   cancel_assignment_for_order  - cascade-CANCELLED no-commit helper
+#   list_available_for_courier   - feed for courier UI (AWAITING only)
+# END_MODULE_MAP
 r"""Delivery Assignment state machine — сервисный слой (PDD §6.3, INV-004, INV-010, INV-016).
 
 Управляет жизненным циклом `DeliveryAssignment`:
@@ -22,6 +46,15 @@ from core_api.services.order_lifecycle import transition_order_bridge
 from core_api.services.order_notifications import send_order_notification
 
 
+# START_CONTRACT: AssignmentTransitionError
+#   PURPOSE: Domain error for delivery-assignment transitions, carrying a
+#            machine-readable .reason ("forbidden_transition", "not_owner",
+#            "assignment_not_found", "order_not_ready", ...).
+#   INPUTS:  reason: str
+#   OUTPUTS: Exception with .reason
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §6.3, INV-016
+# END_CONTRACT: AssignmentTransitionError
 class AssignmentTransitionError(Exception):
     """Доменная ошибка Delivery Assignment: переход запрещён/нарушен invariant."""
 
@@ -30,6 +63,13 @@ class AssignmentTransitionError(Exception):
         self.reason = reason
 
 
+# START_CONTRACT: AssignmentAlreadyTakenError
+#   PURPOSE: Specialization of AssignmentTransitionError for the take_assignment
+#            race-loss case (other courier won) — router maps to HTTP 409.
+#   INPUTS:  reason: str (default "forbidden_transition")
+#   OUTPUTS: Exception with .reason
+#   SIDE_EFFECTS: none
+# END_CONTRACT: AssignmentAlreadyTakenError
 class AssignmentAlreadyTakenError(AssignmentTransitionError):
     """Race: другой курьер успел взять AWAITING-assignment первым (PDD §6.3).
 
@@ -46,6 +86,18 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+# START_CONTRACT: take_assignment
+#   PURPOSE: Atomic take of an AWAITING assignment via conditional UPDATE,
+#            preventing duplicate assignment under courier contention.
+#   INPUTS:  assignment_id: UUID
+#            courier_id: UUID
+#            db_session: Session
+#   OUTPUTS: DeliveryAssignment (refreshed)
+#   SIDE_EFFECTS: DB UPDATE assignments SET courier+status+assigned_at WHERE
+#                 status=AWAITING_COURIER + commit. Source: AWAITING_COURIER.
+#                 Target: COURIER_ASSIGNED. Race losers → AssignmentAlreadyTakenError.
+#   LINKS:   PDD §6.3, INV-004, INV-016
+# END_CONTRACT: take_assignment
 def take_assignment(
     assignment_id: uuid.UUID,
     courier_id: uuid.UUID,
@@ -92,6 +144,17 @@ def take_assignment(
     return db_session.get(DeliveryAssignment, assignment_id)
 
 
+# START_CONTRACT: pickup_assignment
+#   PURPOSE: COURIER_ASSIGNED → PICKED_UP plus cascade Order READY → IN_DELIVERY
+#            in the same transaction; emits SMS notification post-commit.
+#   INPUTS:  assignment_id: UUID, courier_id: UUID, db_session: Session
+#   OUTPUTS: DeliveryAssignment (refreshed)
+#   SIDE_EFFECTS: DB UPDATE assignment + bridge transition_order_bridge
+#                 (READY → IN_DELIVERY) + commit; post-commit Celery enqueue
+#                 of order notification. Source: COURIER_ASSIGNED.
+#                 Target: PICKED_UP. Order ownership enforced (INV-010).
+#   LINKS:   PDD §6.1, §6.3, INV-004, INV-010, INV-016
+# END_CONTRACT: pickup_assignment
 def pickup_assignment(
     assignment_id: uuid.UUID,
     courier_id: uuid.UUID,
@@ -136,6 +199,16 @@ def pickup_assignment(
     return assignment
 
 
+# START_CONTRACT: deliver_assignment
+#   PURPOSE: PICKED_UP → DELIVERED plus cascade Order IN_DELIVERY → COMPLETED;
+#            triggers loyalty accrual via _apply_transition (INV-003).
+#   INPUTS:  assignment_id: UUID, courier_id: UUID, db_session: Session
+#   OUTPUTS: DeliveryAssignment (refreshed)
+#   SIDE_EFFECTS: DB UPDATE assignment + bridge IN_DELIVERY → COMPLETED
+#                 + commit; post-commit notification dispatch. Source: PICKED_UP.
+#                 Target: DELIVERED.
+#   LINKS:   PDD §6.1, §6.3, INV-003, INV-004, INV-010, INV-016
+# END_CONTRACT: deliver_assignment
 def deliver_assignment(
     assignment_id: uuid.UUID,
     courier_id: uuid.UUID,
@@ -174,6 +247,15 @@ def deliver_assignment(
     return assignment
 
 
+# START_CONTRACT: cancel_assignment_for_order
+#   PURPOSE: Cascade-cancel a pending assignment when the parent order is being
+#            cancelled. No-op for terminal states; never commits (caller owns).
+#   INPUTS:  order_id: UUID, db_session: Session
+#   OUTPUTS: DeliveryAssignment | None — the cancelled row, or None.
+#   SIDE_EFFECTS: DB UPDATE on assignment row only; flush. Source: AWAITING_COURIER
+#                 or COURIER_ASSIGNED. Target: CANCELLED.
+#   LINKS:   PDD §6.3, INV-004
+# END_CONTRACT: cancel_assignment_for_order
 def cancel_assignment_for_order(
     order_id: uuid.UUID,
     db_session: Session,
@@ -204,6 +286,14 @@ def cancel_assignment_for_order(
     return assignment
 
 
+# START_CONTRACT: list_available_for_courier
+#   PURPOSE: Return AWAITING-COURIER assignments joined with their orders for
+#            the courier-side feed (id, order_id, total, requested_time, snapshot).
+#   INPUTS:  db_session: Session
+#   OUTPUTS: list[dict] — minimal projection per row.
+#   SIDE_EFFECTS: DB SELECT only.
+#   LINKS:   PDD §6.3, INV-010
+# END_CONTRACT: list_available_for_courier
 def list_available_for_courier(db_session: Session) -> list[dict]:
     """JOIN assignments (AWAITING_COURIER) × orders → view-строки.
 

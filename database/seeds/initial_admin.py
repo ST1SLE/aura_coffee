@@ -7,6 +7,26 @@
     python -m database.seeds.initial_admin
 """
 
+# START_MODULE_CONTRACT
+#   PURPOSE: One-shot seed that inserts the initial admin row into
+#            staff_accounts using ADMIN_LOGIN/ADMIN_PASSWORD from the
+#            environment. Idempotent — safe to run on every boot.
+#   SCOPE:   Invoked by the docker-compose db-seed service after db-migrate,
+#            and manually via `python -m database.seeds.initial_admin`.
+#   DEPENDS: M-SHARED (staff_accounts schema), alembic-applied migrations,
+#            sqlalchemy, bcrypt, stdlib (os, sys, uuid).
+#   LINKS:   docs/development-plan.xml M-DATABASE, PDD §5.2 (Tables/Users),
+#            INV-002 (auth — password hashed with bcrypt, never plaintext),
+#            database/AGENTS.md "Running the initial admin seed".
+#   ROLE:    SCRIPT
+#   MAP_MODE: LOCALS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   run - read ADMIN_LOGIN/ADMIN_PASSWORD env vars and upsert one staff_accounts
+#         row with role='admin' (ON CONFLICT (login) DO NOTHING).
+# END_MODULE_MAP
+
 from __future__ import annotations
 
 import os
@@ -17,6 +37,19 @@ import bcrypt
 from sqlalchemy import create_engine, text
 
 
+# START_CONTRACT: run
+#   PURPOSE: Insert (or no-op) a single admin row into staff_accounts. Bcrypt-
+#            hashes the password before INSERT — plaintext never touches DB.
+#   INPUTS:  database_url: str | None — explicit connection URL; falls back to
+#            os.environ["DATABASE_URL"] when None.
+#   OUTPUTS: None
+#   SIDE_EFFECTS: idempotent INSERT into staff_accounts with
+#                 ON CONFLICT (login) DO NOTHING. Raises RuntimeError if
+#                 DATABASE_URL, ADMIN_LOGIN, or ADMIN_PASSWORD is missing.
+#                 Engine is disposed in a finally block.
+#   LINKS:   PDD §5.2 (staff_accounts), INV-002 (auth), INV-014 (does not touch
+#            order_items at seed time).
+# END_CONTRACT: run
 def run(database_url: str | None = None) -> None:
     url = database_url or os.environ.get("DATABASE_URL")
     if not url:

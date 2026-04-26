@@ -1,4 +1,43 @@
 """Pydantic-схемы меню: Category, Modifier, SizeOption, MenuItem."""
+# START_MODULE_CONTRACT
+#   PURPOSE: Admin + public menu DTOs (categories, modifiers, sizes, items).
+#            Defines the price-kopeck type and the public menu projection
+#            served to non-authenticated clients.
+#   SCOPE:   Base/Create/Update/Response per entity, AvailabilityPatch,
+#            MenuItemModifierSet, public PublicCategory/PublicMenuItem/...
+#   DEPENDS: pydantic v2, M-SHARED (CategoryType, MenuItemAvailability, SizeLabel).
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.4 (menu state machine),
+#            INV-006 (stop-list server-side), INV-010 (admin-only mutators)
+#   ROLE:    TYPES
+#   MAP_MODE: EXPORTS
+# END_MODULE_CONTRACT
+#
+# START_MODULE_MAP
+#   PriceKopecks            - alias type Annotated[int, Field(ge=0)]
+#   CategoryBase            - shared category fields
+#   CategoryCreate          - POST body for /admin/menu/categories
+#   CategoryUpdate          - PUT body (partial) for /admin/menu/categories/{id}
+#   CategoryResponse        - read projection of Category
+#   ModifierBase            - shared modifier fields
+#   ModifierCreate          - POST body for /admin/menu/modifiers
+#   ModifierUpdate          - PUT body (partial)
+#   ModifierResponse        - read projection of Modifier
+#   SizeOptionBase          - shared size-option fields
+#   SizeOptionCreate        - POST body for /admin/menu/sizes
+#   SizeOptionUpdate        - PUT body (partial)
+#   SizeOptionResponse      - read projection of SizeOption
+#   MenuItemBase            - shared menu-item fields
+#   MenuItemCreate          - POST body for /admin/menu/items
+#   MenuItemUpdate          - PUT body (partial)
+#   MenuItemResponse        - admin projection w/ size_options + modifiers
+#   AvailabilityPatch       - PATCH body for stop-list toggle (extra=forbid)
+#   MenuItemModifierSet     - PUT body for setting an item's modifier list
+#   PublicMenuSizeOption    - public projection of SizeOption
+#   PublicMenuModifier      - public projection of Modifier
+#   PublicMenuItem          - public projection of MenuItem
+#   PublicCategory          - public projection of Category w/ items
+#   PublicMenuResponse      - GET /api/v1/menu top-level body
+# END_MODULE_MAP
 
 from __future__ import annotations
 
