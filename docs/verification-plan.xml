@@ -1,0 +1,194 @@
+<VerificationPlan VERSION="0.2.0">
+  <GlobalPolicy>
+    <log-format>[ModuleName][functionName][BLOCK_NAME] message</log-format>
+    <belief-state>BELIEF: hypothesis ACTUAL: observed STATUS: MATCH | MISMATCH (at PDD §6.x state-machine transitions)</belief-state>
+    <deterministic-first>true</deterministic-first>
+    <module-level-focus>Fast deterministic checks scoped to one module.</module-level-focus>
+    <wave-level-focus>Merged surfaces for the current feature batch.</wave-level-focus>
+    <phase-level-focus>Full backend pytest plus both frontend vitest suites.</phase-level-focus>
+    <autonomy-gate>Each module needs commands, scenarios, log markers, and wave/phase follow-up before long autonomous execution.</autonomy-gate>
+    <redaction>Never log JWT, OTP code, password hash, payment full PAN, raw webhook body. PII (phone, name, address) redacted by default per INV-013.</redaction>
+  </GlobalPolicy>
+
+  <CriticalFlows>
+    <VF-001 NAME="OrderHappyPath" USE_CASES="UC-Order-Place,UC-Payment" DATA_FLOW="DF-Order-Place,DF-Payment" PRIORITY="high">
+      <scenario>Customer places order, pays via YuKassa webhook, order moves to PAID, SMS confirmation sent.</scenario>
+      <expected-outcome>Order in PAID; Payment in SUCCEEDED; sms_worker.send invoked once; INV-004 atomicity preserved.</expected-outcome>
+      <required-signals>
+        <log-marker>[CoreApi][orders.create][BLOCK_TX_BEGIN]</log-marker>
+        <log-marker>[CoreApi][orders.create][BLOCK_STATE_TRANSITION] CREATED</log-marker>
+        <log-marker>[CoreApi][payment.webhook][BLOCK_WEBHOOK_VERIFY]</log-marker>
+        <log-marker>[PaymentWorker][process_webhook][BLOCK_TX_PAYMENT]</log-marker>
+        <log-marker>[PaymentWorker][process_webhook][BLOCK_STATE_TRANSITION] PAID</log-marker>
+        <trace-sequence>BLOCK_TX_BEGIN -> BLOCK_STATE_TRANSITION(CREATED) -> BLOCK_TX_COMMIT -> BLOCK_WEBHOOK_VERIFY -> BLOCK_TX_PAYMENT -> BLOCK_STATE_TRANSITION(PAID)</trace-sequence>
+      </required-signals>
+    </VF-001>
+    <VF-002 NAME="OtpLoginHappyPath" USE_CASES="UC-OTP-Login" DATA_FLOW="DF-OTP-Login" PRIORITY="high">
+      <scenario>Customer requests OTP, receives code, verifies, JWT issued, User ACTIVE.</scenario>
+      <expected-outcome>OtpCode VERIFIED; User ACTIVE; JWT issued; PII (phone) not in logs.</expected-outcome>
+      <required-signals>
+        <log-marker>[CoreApi][auth.otp_request][BLOCK_OTP_GEN]</log-marker>
+        <log-marker>[SmsWorker][send_otp][BLOCK_SMSRU_CALL]</log-marker>
+        <log-marker>[CoreApi][auth.otp_verify][BLOCK_AUTH_VERIFY]</log-marker>
+      </required-signals>
+    </VF-002>
+    <VF-003 NAME="DeliveryHappyPath" USE_CASES="UC-Delivery" DATA_FLOW="DF-Delivery" PRIORITY="high">
+      <scenario>Order PAID -> PREPARING -> READY -> IN_DELIVERY -> COMPLETED with courier assigned.</scenario>
+      <expected-outcome>All transitions logged with belief-state pairs at each PDD §6.1 / §6.3 boundary; INV-016 holds.</expected-outcome>
+      <required-signals>
+        <log-marker>[CoreApi][delivery.assign][BLOCK_STATE_TRANSITION] AWAITING_COURIER</log-marker>
+        <log-marker>[CoreApi][delivery.accept][BLOCK_STATE_TRANSITION] COURIER_ASSIGNED</log-marker>
+        <log-marker>[CoreApi][delivery.deliver][BLOCK_STATE_TRANSITION] DELIVERED</log-marker>
+      </required-signals>
+    </VF-003>
+  </CriticalFlows>
+
+  <ModuleVerification>
+    <V-M-SHARED MODULE="M-SHARED" PRIORITY="high">
+      <test-files>
+        <file>packages/shared/tests/test_enums_menu.py</file>
+        <file>packages/shared/tests/test_grace_logging.py (planned at CP6)</file>
+      </test-files>
+      <module-checks>
+        <check-1>cd packages/shared &amp;&amp; pytest tests/ -v</check-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">All enum values match PDD §6 state-machine definitions.</scenario-1>
+        <scenario-2 kind="success">grace.logging.belief() emits the canonical [Module][function][BLOCK_NAME] format.</scenario-2>
+      </scenarios>
+      <required-log-markers>
+        <marker-1>[Shared][belief][BLOCK_LDD_EMIT]</marker-1>
+      </required-log-markers>
+      <wave-follow-up>Validate that downstream modules import shared.grace.logging without circular dependency.</wave-follow-up>
+      <phase-follow-up>Run full backend pytest to confirm enum stability.</phase-follow-up>
+    </V-M-SHARED>
+
+    <V-M-DATABASE MODULE="M-DATABASE" PRIORITY="high">
+      <test-files>
+        <file>services/core-api/tests/conftest.py (uses _ensure_test_database fixture)</file>
+      </test-files>
+      <module-checks>
+        <check-1>docker compose exec core-api alembic check</check-1>
+        <check-2>docker compose exec core-api alembic upgrade head</check-2>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">All migrations apply cleanly to a fresh test DB.</scenario-1>
+        <scenario-2 kind="failure">No migration mutates order_items rows (INV-014).</scenario-2>
+      </scenarios>
+      <wave-follow-up>Re-run migrations on a snapshot of prod schema before merging schema changes.</wave-follow-up>
+    </V-M-DATABASE>
+
+    <V-M-CORE-API MODULE="M-CORE-API" PRIORITY="high">
+      <test-files>
+        <file>services/core-api/tests/ (recursive)</file>
+      </test-files>
+      <module-checks>
+        <check-1>docker compose exec core-api pytest services/core-api/tests/ -v</check-1>
+        <check-2>docker compose exec core-api ruff check services/core-api/src</check-2>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Each routed mutation enforces INV-002 (returns 401/403 for unauth/wrong role).</scenario-1>
+        <scenario-2 kind="success">Each atomic flow (payment + points + promo) preserves INV-004 — full rollback on any failure.</scenario-2>
+        <scenario-3 kind="failure">Audit/log tables receive no PII (INV-013).</scenario-3>
+        <scenario-4 kind="failure">No code path bypasses PDD §6.x explicit transitions (INV-016).</scenario-4>
+      </scenarios>
+      <required-log-markers>
+        <marker-1>[CoreApi][*][BLOCK_AUTH_VERIFY]</marker-1>
+        <marker-2>[CoreApi][*][BLOCK_TX_BEGIN]</marker-2>
+        <marker-3>[CoreApi][*][BLOCK_STATE_TRANSITION]</marker-3>
+      </required-log-markers>
+      <required-trace-assertions>
+        <assertion-1>Failed atomic flow must NOT emit BLOCK_TX_COMMIT after a BLOCK_STATE_TRANSITION.</assertion-1>
+        <assertion-2>Webhook handler must emit BLOCK_WEBHOOK_VERIFY before any DB write.</assertion-2>
+      </required-trace-assertions>
+      <wave-follow-up>Run smoke pytest on touched routers plus dependent services.</wave-follow-up>
+      <phase-follow-up>Full backend pytest plus frontend vitest end-to-end.</phase-follow-up>
+    </V-M-CORE-API>
+
+    <V-M-PAYMENT-WORKER MODULE="M-PAYMENT-WORKER" PRIORITY="high">
+      <test-files>
+        <file>services/payment-worker/tests/ (if present)</file>
+      </test-files>
+      <module-checks>
+        <check-1>docker compose exec payment-worker pytest services/payment-worker/tests/ -v</check-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">YuKassa webhook with valid signature transitions Payment to SUCCEEDED.</scenario-1>
+        <scenario-2 kind="failure">Invalid signature webhook is rejected without DB writes.</scenario-2>
+      </scenarios>
+      <required-log-markers>
+        <marker-1>[PaymentWorker][process_webhook][BLOCK_WEBHOOK_VERIFY]</marker-1>
+        <marker-2>[PaymentWorker][process_webhook][BLOCK_TX_PAYMENT]</marker-2>
+      </required-log-markers>
+    </V-M-PAYMENT-WORKER>
+
+    <V-M-SMS-WORKER MODULE="M-SMS-WORKER" PRIORITY="medium">
+      <test-files>
+        <file>services/sms-worker/tests/ (if present)</file>
+      </test-files>
+      <module-checks>
+        <check-1>docker compose exec sms-worker pytest services/sms-worker/tests/ -v</check-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">send_otp dispatches to SMS.ru and returns provider message_id.</scenario-1>
+        <scenario-2 kind="failure">Rate-limited or provider 5xx falls back to retry per Celery policy without raising past max attempts.</scenario-2>
+      </scenarios>
+      <required-log-markers>
+        <marker-1>[SmsWorker][send_otp][BLOCK_SMSRU_CALL]</marker-1>
+      </required-log-markers>
+    </V-M-SMS-WORKER>
+
+    <V-M-WEB-CUSTOMER MODULE="M-WEB-CUSTOMER" PRIORITY="medium">
+      <test-files>
+        <file>web/customer/src/**/*.test.ts (recursive)</file>
+      </test-files>
+      <module-checks>
+        <check-1>cd web/customer &amp;&amp; npm run test</check-1>
+        <check-2>cd web/customer &amp;&amp; npm run typecheck</check-2>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Cart state persists across page refresh.</scenario-1>
+        <scenario-2 kind="success">Checkout flow handles 4xx/5xx from core-api with retry UI.</scenario-2>
+      </scenarios>
+    </V-M-WEB-CUSTOMER>
+
+    <V-M-WEB-ADMIN MODULE="M-WEB-ADMIN" PRIORITY="medium">
+      <test-files>
+        <file>web/admin/src/**/*.test.ts (recursive)</file>
+      </test-files>
+      <module-checks>
+        <check-1>cd web/admin &amp;&amp; npm run test</check-1>
+        <check-2>cd web/admin &amp;&amp; npm run typecheck</check-2>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Role-gated routes redirect when JWT role mismatches.</scenario-1>
+        <scenario-2 kind="success">Orders feed updates on websocket/poll without losing scroll position.</scenario-2>
+      </scenarios>
+    </V-M-WEB-ADMIN>
+  </ModuleVerification>
+
+  <PhaseGates>
+    <Gate-Phase-Migration PHASE="Phase-Migration">
+      <goal>GRACE substrate adopted across all 7 modules; dev-workflow-kb retired; full backend + frontend test suites still green.</goal>
+      <commands>
+        <command-1>./scripts/up.sh</command-1>
+        <command-2>docker compose exec core-api pytest services/core-api/tests/ -v</command-2>
+        <command-3>cd web/customer &amp;&amp; npm run test</command-3>
+        <command-4>cd web/admin &amp;&amp; npm run test</command-4>
+      </commands>
+      <required-evidence>
+        <evidence-1>All Python public APIs have function contracts (CP3).</evidence-1>
+        <evidence-2>All TS exports have JSDoc contracts (CP4).</evidence-2>
+        <evidence-3>LDD logger wired across services (CP5).</evidence-3>
+        <evidence-4>Existing test suites green; new LDD fixtures available (CP6).</evidence-4>
+        <evidence-5>AGENTS / CLAUDE / README updated; grace-refresh shows artifacts in sync (CP7).</evidence-5>
+      </required-evidence>
+    </Gate-Phase-Migration>
+  </PhaseGates>
+
+  <FailurePackets>
+    <packet-template>
+      <expected-fields>scenario, contract-ref (M-x or V-M-x), expected-evidence, observed-evidence, first-divergent-block, suggested-next-action</expected-fields>
+    </packet-template>
+  </FailurePackets>
+</VerificationPlan>

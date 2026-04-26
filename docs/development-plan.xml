@@ -1,0 +1,223 @@
+<DevelopmentPlan VERSION="0.2.0">
+  <ArchitectureNotes>
+    <objective>GRACE-aware development protocol on a brownfield codebase. Substrate (in-source contracts + LDD logs + START/END markup) takes priority; classical 2-phase TDD is RETIRED. The PDD remains canonical for product intent.</objective>
+    <non-goal>Do NOT replicate PDD content here — that file is canonical. This XML governs the GRACE substrate only.</non-goal>
+    <non-goal>Do NOT add any feature without an entry in PDD §3 (domain language) and §6 (state machines if it transitions state).</non-goal>
+    <risk-1>INV-004 atomicity: payment + points + promo MUST be a single transaction. Verify in module contracts and verification.</risk-1>
+    <risk-2>INV-013 PII isolation: code reviewers must check no PII leaks into order_items or audit tables.</risk-2>
+    <risk-3>INV-016 state transitions: any new state-machine transition must update both PDD §6 and verification-plan markers.</risk-3>
+  </ArchitectureNotes>
+
+  <Modules>
+    <M-SHARED NAME="shared" TYPE="UTILITY" LAYER="0" ORDER="1" STATUS="implemented">
+      <contract>
+        <purpose>Domain enums plus GRACE LDD logger; zero runtime dependencies.</purpose>
+        <inputs><param name="—" type="—" /></inputs>
+        <outputs>
+          <param name="enums" type="module" />
+          <param name="grace.logging" type="module" />
+        </outputs>
+        <errors><error code="—" /></errors>
+      </contract>
+      <interface>
+        <export-enums PURPOSE="OrderStatus, PaymentStatus, DeliveryStatus, OtpStatus, UserStatus, PromoStatus" />
+        <export-grace.logging PURPOSE="LDD log helper with [Module][function][BLOCK_NAME] markers and belief-state pairs" />
+      </interface>
+      <depends>none</depends>
+      <target>
+        <source>packages/shared/src/shared/</source>
+        <tests>packages/shared/tests/</tests>
+      </target>
+      <observability>
+        <log-prefix>[Shared]</log-prefix>
+      </observability>
+      <verification-ref>V-M-SHARED</verification-ref>
+    </M-SHARED>
+
+    <M-DATABASE NAME="database" TYPE="DATA_LAYER" LAYER="1" ORDER="1" STATUS="implemented">
+      <contract>
+        <purpose>Alembic migrations and seed data. Schema changes go through MIGRATE tasks. INV-014 enforces immutable order_items.</purpose>
+        <outputs><param name="migrations" type="alembic-revision-files" /></outputs>
+      </contract>
+      <interface>
+        <export-migrations PURPOSE="Versioned schema migrations" />
+        <export-seeds PURPOSE="Seed scripts for menu, roles, shop settings" />
+      </interface>
+      <depends>M-SHARED</depends>
+      <target>
+        <source>database/</source>
+      </target>
+      <observability>
+        <log-prefix>[Database]</log-prefix>
+      </observability>
+      <verification-ref>V-M-DATABASE</verification-ref>
+    </M-DATABASE>
+
+    <M-CORE-API NAME="core-api" TYPE="ENTRY_POINT" LAYER="2" ORDER="1" STATUS="implemented">
+      <contract>
+        <purpose>FastAPI HTTP server — all state mutations, auth, RBAC, business logic. Single source of writes for all backend state. INV-002 enforces server-side auth on every mutation.</purpose>
+        <inputs><param name="HTTP request" type="JSON" /></inputs>
+        <outputs><param name="HTTP response" type="JSON" /></outputs>
+        <errors><error code="HTTPException" /></errors>
+      </contract>
+      <interface>
+        <export-routers PURPOSE="auth, menu, orders, payment, delivery, addresses, admin/*" />
+        <export-services PURPOSE="order_service, payment_service, delivery_service, notification, admin_users" />
+        <export-models PURPOSE="SQLAlchemy ORM (User, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
+        <export-schemas PURPOSE="Pydantic request/response schemas per router" />
+        <export-deps PURPOSE="FastAPI deps: get_current_user, require_role, get_db" />
+      </interface>
+      <depends>M-SHARED, M-DATABASE</depends>
+      <target>
+        <source>services/core-api/src/core_api/</source>
+        <tests>services/core-api/tests/</tests>
+      </target>
+      <observability>
+        <log-prefix>[CoreApi]</log-prefix>
+        <critical-block>BLOCK_AUTH_VERIFY, BLOCK_TX_BEGIN, BLOCK_TX_COMMIT, BLOCK_STATE_TRANSITION</critical-block>
+      </observability>
+      <verification-ref>V-M-CORE-API</verification-ref>
+      <notes>
+        <note-1>All endpoints enforce INV-002 via FastAPI Depends(require_role(...)).</note-1>
+        <note-2>Atomic flows (payment + points + promo) wrap in a single SQLAlchemy session per INV-004.</note-2>
+      </notes>
+    </M-CORE-API>
+
+    <M-PAYMENT-WORKER NAME="payment-worker" TYPE="INTEGRATION" LAYER="2" ORDER="2" STATUS="implemented">
+      <contract>
+        <purpose>Celery worker for YuKassa payment intent creation, webhook processing, refunds. Honors PDD §6.2 PaymentLifecycle transitions strictly (INV-016).</purpose>
+        <outputs><param name="payment state transitions" type="DB writes" /></outputs>
+      </contract>
+      <interface>
+        <export-tasks PURPOSE="create_payment_intent, process_webhook, refund" />
+      </interface>
+      <depends>M-SHARED, M-DATABASE</depends>
+      <target>
+        <source>services/payment-worker/src/</source>
+        <tests>services/payment-worker/tests/ (if present)</tests>
+      </target>
+      <observability>
+        <log-prefix>[PaymentWorker]</log-prefix>
+        <critical-block>BLOCK_YUKASSA_CALL, BLOCK_TX_PAYMENT, BLOCK_WEBHOOK_VERIFY</critical-block>
+      </observability>
+      <verification-ref>V-M-PAYMENT-WORKER</verification-ref>
+    </M-PAYMENT-WORKER>
+
+    <M-SMS-WORKER NAME="sms-worker" TYPE="INTEGRATION" LAYER="2" ORDER="3" STATUS="implemented">
+      <contract>
+        <purpose>Celery worker for SMS.ru OTP and order notifications. Honors PDD §6.4 OTP lifecycle.</purpose>
+      </contract>
+      <interface>
+        <export-tasks PURPOSE="send_otp, send_order_notification" />
+      </interface>
+      <depends>M-SHARED</depends>
+      <target>
+        <source>services/sms-worker/src/</source>
+      </target>
+      <observability>
+        <log-prefix>[SmsWorker]</log-prefix>
+        <critical-block>BLOCK_SMSRU_CALL, BLOCK_OTP_GEN</critical-block>
+      </observability>
+      <verification-ref>V-M-SMS-WORKER</verification-ref>
+    </M-SMS-WORKER>
+
+    <M-WEB-CUSTOMER NAME="web-customer" TYPE="UI_COMPONENT" LAYER="3" ORDER="1" STATUS="implemented">
+      <contract>
+        <purpose>Customer SPA — menu, cart, checkout, profile. Calls core-api via auto-generated OpenAPI client.</purpose>
+      </contract>
+      <interface>
+        <export-pages PURPOSE="Routed top-level pages" />
+        <export-features PURPOSE="Cart, checkout, profile, addresses, orders feature folders" />
+      </interface>
+      <depends>M-CORE-API</depends>
+      <target>
+        <source>web/customer/src/</source>
+        <tests>web/customer/src (Vitest .test.ts files)</tests>
+      </target>
+      <observability>
+        <log-prefix>[WebCustomer]</log-prefix>
+      </observability>
+      <verification-ref>V-M-WEB-CUSTOMER</verification-ref>
+    </M-WEB-CUSTOMER>
+
+    <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" LAYER="3" ORDER="2" STATUS="implemented">
+      <contract>
+        <purpose>Staff SPA — admin/barista/courier surfaces. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
+      </contract>
+      <interface>
+        <export-pages PURPOSE="Routed top-level pages by role" />
+        <export-features PURPOSE="Orders feed, kitchen, delivery, users, settings" />
+      </interface>
+      <depends>M-CORE-API</depends>
+      <target>
+        <source>web/admin/src/</source>
+      </target>
+      <observability>
+        <log-prefix>[WebAdmin]</log-prefix>
+      </observability>
+      <verification-ref>V-M-WEB-ADMIN</verification-ref>
+    </M-WEB-ADMIN>
+  </Modules>
+
+  <DataFlow>
+    <DF-Order-Place NAME="Order placement" TRIGGER="Customer submits checkout">
+      <step-1>web-customer POSTs /orders with cart payload</step-1>
+      <step-2>core-api validates auth (INV-002), validates menu items, computes total in kopecks</step-2>
+      <step-3>core-api opens DB transaction (INV-004): create Order(CREATED) + OrderItems(immutable) + Payment(PENDING)</step-3>
+      <step-4>core-api dispatches Celery task to payment-worker for YuKassa intent</step-4>
+      <step-5>core-api dispatches Celery task to sms-worker for confirmation SMS</step-5>
+      <step-6>response 201 with order_id and payment_url</step-6>
+      <evidence>[CoreApi][orders.create][BLOCK_TX_BEGIN], [BLOCK_STATE_TRANSITION] CREATED, [BLOCK_TX_COMMIT]; [PaymentWorker][create_intent][BLOCK_YUKASSA_CALL]</evidence>
+    </DF-Order-Place>
+
+    <DF-Payment NAME="Payment confirmation" TRIGGER="YuKassa webhook to /payment/webhook">
+      <step-1>core-api receives webhook, verifies signature (BLOCK_WEBHOOK_VERIFY)</step-1>
+      <step-2>core-api dispatches process_webhook task to payment-worker</step-2>
+      <step-3>payment-worker opens DB transaction: Payment SUCCEEDED + Order PAID + points credit (INV-004)</step-3>
+      <step-4>payment-worker dispatches sms-worker for "paid" notification</step-4>
+      <evidence>[CoreApi][payment.webhook][BLOCK_WEBHOOK_VERIFY]; [PaymentWorker][process_webhook][BLOCK_TX_PAYMENT], [BLOCK_STATE_TRANSITION] PAID</evidence>
+    </DF-Payment>
+
+    <DF-Delivery NAME="Delivery assignment to courier" TRIGGER="Order moves to READY (PDD §6.1)">
+      <step-1>Barista marks order READY in admin SPA</step-1>
+      <step-2>core-api transitions order; checks delivery vs pickup</step-2>
+      <step-3>For delivery: creates DeliveryAssignment(AWAITING_COURIER) per PDD §6.3</step-3>
+      <step-4>Courier accepts in admin SPA → COURIER_ASSIGNED → PICKED_UP → DELIVERED</step-4>
+      <evidence>[CoreApi][delivery.assign][BLOCK_STATE_TRANSITION] for each transition</evidence>
+    </DF-Delivery>
+
+    <DF-OTP-Login NAME="SMS OTP authentication" TRIGGER="Customer requests login">
+      <step-1>web-customer POSTs /auth/otp/request with phone</step-1>
+      <step-2>core-api creates OtpCode(CREATED) per PDD §6.4 (rate-limited)</step-2>
+      <step-3>core-api dispatches sms-worker send_otp task</step-3>
+      <step-4>Customer enters code; web-customer POSTs /auth/otp/verify</step-4>
+      <step-5>core-api verifies code, transitions OTP to VERIFIED, creates/updates User per §6.5, issues JWT</step-5>
+      <evidence>[CoreApi][auth.otp_request][BLOCK_OTP_GEN]; [SmsWorker][send_otp][BLOCK_SMSRU_CALL]; [CoreApi][auth.otp_verify][BLOCK_AUTH_VERIFY]</evidence>
+    </DF-OTP-Login>
+  </DataFlow>
+
+  <ImplementationOrder>
+    <Phase-Migration name="GRACE migration (active)" status="in-progress">
+      <goal>Adopt GRACE substrate (in-source contracts + LDD + markup) on the existing codebase; retire dev-workflow-kb process layer.</goal>
+      <step-CP1 module="ALL" status="in-progress" verification="—">Bootstrap docs/*.xml plus LDD logger</step-CP1>
+      <step-CP2 module="—" status="pending" verification="—">Mothball OpenSpec process layer</step-CP2>
+      <step-CP3 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER,M-SHARED,M-DATABASE" status="pending" verification="V-M-*">Add module + function contracts on Python public APIs</step-CP3>
+      <step-CP4 module="M-WEB-CUSTOMER,M-WEB-ADMIN" status="pending" verification="V-M-*">Add JSDoc-style contracts on TS exports</step-CP4>
+      <step-CP5 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER" status="pending" verification="—">Wire LDD logger across boundary functions</step-CP5>
+      <step-CP6 module="ALL" status="pending" verification="—">Add LDD test fixtures and convention header</step-CP6>
+      <step-CP7 module="ALL" status="pending" verification="—">Rewrite AGENTS.md, create CLAUDE.md, run grace-refresh</step-CP7>
+    </Phase-Migration>
+    <Phase-PostMigration name="Steady-state GRACE development" status="pending">
+      <goal>All future features use grace-plan → grace-execute → grace-verification flow; no more OpenSpec proposals or RED/GREEN cycles.</goal>
+    </Phase-PostMigration>
+  </ImplementationOrder>
+
+  <ExecutionPolicy>
+    <default-profile>balanced</default-profile>
+    <controller-owns>docs/development-plan.xml, docs/knowledge-graph.xml, docs/verification-plan.xml, docs/PRODUCT_DESIGN_DOCUMENT.md</controller-owns>
+    <worker-owns>Module source files and module-local tests inside the approved write scope. Workers may add contracts and LDD log markers freely; they may not add new state-machine transitions or INV-rule exceptions.</worker-owns>
+    <max-fix-attempts-per-step>2</max-fix-attempts-per-step>
+    <replan-trigger>Missing dependency, contradictory contract, suspected INV-rule violation, or PDD §6 state-machine transition not previously defined.</replan-trigger>
+    <checkpoint-requirement>Every step emits assumptions, commands run, log-marker evidence, and next action.</checkpoint-requirement>
+  </ExecutionPolicy>
+</DevelopmentPlan>

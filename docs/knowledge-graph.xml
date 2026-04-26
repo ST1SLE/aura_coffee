@@ -1,0 +1,96 @@
+<KnowledgeGraph>
+  <Project NAME="aura_coffee" VERSION="0.2.0">
+    <keywords>coffee-shop, ordering, payment, delivery, fastapi, react, monolith</keywords>
+    <annotation>Production web platform for a single-location coffee shop — online ordering with pickup and own-courier delivery.</annotation>
+
+    <M-CORE-API NAME="core-api" TYPE="ENTRY_POINT" STATUS="implemented">
+      <purpose>FastAPI HTTP server — business logic, CRUD, auth, all state mutations</purpose>
+      <path>services/core-api/src/core_api</path>
+      <depends>M-SHARED, M-DATABASE</depends>
+      <verification-ref>V-M-CORE-API</verification-ref>
+      <annotations>
+        <export-routers PURPOSE="HTTP route handlers (auth, menu, orders, payment, delivery, addresses, admin/*)" />
+        <export-services PURPOSE="Business logic services (order, payment, delivery, notification, admin_users)" />
+        <export-models PURPOSE="SQLAlchemy ORM models (User, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
+        <export-schemas PURPOSE="Pydantic request/response schemas per router" />
+        <export-deps PURPOSE="FastAPI dependency injection (get_current_user, require_role, get_db)" />
+      </annotations>
+    </M-CORE-API>
+
+    <M-PAYMENT-WORKER NAME="payment-worker" TYPE="INTEGRATION" STATUS="implemented">
+      <purpose>Celery worker — YuKassa payments, webhooks, refunds</purpose>
+      <path>services/payment-worker/src</path>
+      <depends>M-SHARED, M-DATABASE</depends>
+      <verification-ref>V-M-PAYMENT-WORKER</verification-ref>
+      <annotations>
+        <export-tasks PURPOSE="Celery tasks for payment intent creation, webhook processing, refunds" />
+      </annotations>
+    </M-PAYMENT-WORKER>
+
+    <M-SMS-WORKER NAME="sms-worker" TYPE="INTEGRATION" STATUS="implemented">
+      <purpose>Celery worker — SMS.ru OTP codes and order notifications</purpose>
+      <path>services/sms-worker/src</path>
+      <depends>M-SHARED</depends>
+      <verification-ref>V-M-SMS-WORKER</verification-ref>
+      <annotations>
+        <export-tasks PURPOSE="Celery tasks for OTP send and order status SMS" />
+      </annotations>
+    </M-SMS-WORKER>
+
+    <M-WEB-CUSTOMER NAME="web-customer" TYPE="UI_COMPONENT" STATUS="implemented">
+      <purpose>React SPA — customer-facing menu/cart/checkout/profile</purpose>
+      <path>web/customer/src</path>
+      <depends>M-CORE-API</depends>
+      <verification-ref>V-M-WEB-CUSTOMER</verification-ref>
+      <annotations>
+        <export-pages PURPOSE="Top-level routed pages (menu, cart, checkout, profile, orders)" />
+        <export-features PURPOSE="Feature-scoped components, hooks, and stores" />
+        <export-shared PURPOSE="Cross-feature components and utilities" />
+      </annotations>
+    </M-WEB-CUSTOMER>
+
+    <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" STATUS="implemented">
+      <purpose>React SPA — staff panel: admin, barista, courier views</purpose>
+      <path>web/admin/src</path>
+      <depends>M-CORE-API</depends>
+      <verification-ref>V-M-WEB-ADMIN</verification-ref>
+      <annotations>
+        <export-pages PURPOSE="Top-level routed pages (orders feed, kitchen, delivery, users, settings)" />
+        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier)" />
+      </annotations>
+    </M-WEB-ADMIN>
+
+    <M-SHARED NAME="shared" TYPE="UTILITY" STATUS="implemented">
+      <purpose>Shared Python package — domain enums, constants, validation, GRACE LDD logger</purpose>
+      <path>packages/shared/src/shared</path>
+      <depends>none</depends>
+      <verification-ref>V-M-SHARED</verification-ref>
+      <annotations>
+        <export-enums PURPOSE="Domain enums (OrderStatus, PaymentStatus, DeliveryStatus, OtpStatus, UserStatus, PromoStatus) per PDD §6" />
+        <export-grace PURPOSE="GRACE LDD logging helper (shared.grace.logging.GraceLogger)" />
+      </annotations>
+    </M-SHARED>
+
+    <M-DATABASE NAME="database" TYPE="DATA_LAYER" STATUS="implemented">
+      <purpose>Alembic migrations, seeds, schema</purpose>
+      <path>database</path>
+      <depends>M-SHARED</depends>
+      <verification-ref>V-M-DATABASE</verification-ref>
+      <annotations>
+        <export-migrations PURPOSE="Versioned Alembic schema migrations" />
+        <export-seeds PURPOSE="Seed data scripts for menu, roles, default shop settings" />
+      </annotations>
+    </M-DATABASE>
+
+    <CrossLink from="M-CORE-API" to="M-SHARED" relation="imports domain enums and pydantic helpers" />
+    <CrossLink from="M-CORE-API" to="M-DATABASE" relation="depends on schema and migrations applied at runtime" />
+    <CrossLink from="M-PAYMENT-WORKER" to="M-SHARED" relation="imports domain enums" />
+    <CrossLink from="M-PAYMENT-WORKER" to="M-DATABASE" relation="reads and writes order and payment tables" />
+    <CrossLink from="M-PAYMENT-WORKER" to="M-CORE-API" relation="receives webhook events forwarded by core-api" />
+    <CrossLink from="M-SMS-WORKER" to="M-SHARED" relation="imports domain enums" />
+    <CrossLink from="M-SMS-WORKER" to="M-CORE-API" relation="receives task dispatches via Celery from core-api" />
+    <CrossLink from="M-WEB-CUSTOMER" to="M-CORE-API" relation="HTTP client (auto-generated from OpenAPI)" />
+    <CrossLink from="M-WEB-ADMIN" to="M-CORE-API" relation="HTTP client (auto-generated from OpenAPI)" />
+    <CrossLink from="M-DATABASE" to="M-SHARED" relation="seed scripts use shared enums for valid initial values" />
+  </Project>
+</KnowledgeGraph>

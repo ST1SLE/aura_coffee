@@ -1,0 +1,104 @@
+<RequirementsAnalysis VERSION="0.2.0">
+  <Project>
+    <name>aura_coffee</name>
+    <annotation>Production web platform for a single-location coffee shop — online ordering with pickup and own-courier delivery.</annotation>
+    <keywords>coffee-shop, ordering, payment, delivery, fastapi, react, monolith, spec-driven</keywords>
+  </Project>
+
+  <CanonicalReferences>
+    <doc-PDD path="docs/PRODUCT_DESIGN_DOCUMENT.md" role="authoritative">
+      Authoritative product design document. All requirement detail, domain language, module boundaries, state machines, INV rules, and workflows live there. This XML is an INDEX, not a duplicate.
+    </doc-PDD>
+    <doc-AGENTS path="AGENTS.md" role="navigation">
+      Module map, INV-ID summary, dev workflow, environment quirks. Cross-cutting agent context.
+    </doc-AGENTS>
+  </CanonicalReferences>
+
+  <Actors>
+    <actor-Customer>End user placing orders via the customer SPA — browses menu, places orders, pays, optionally collects loyalty points.</actor-Customer>
+    <actor-Barista>Staff via the admin SPA — accepts orders, prepares them, marks them ready.</actor-Barista>
+    <actor-Courier>Staff via the admin SPA — accepts deliveries, picks up, delivers.</actor-Courier>
+    <actor-Admin>Staff via the admin SPA — manages users, menu, promocodes, shop settings.</actor-Admin>
+    <actor-PaymentProvider>YuKassa external payment service (webhooks back into core-api).</actor-PaymentProvider>
+    <actor-SmsProvider>SMS.ru external SMS service for OTP and order notifications.</actor-SmsProvider>
+    <actor-System>Celery workers — payment-worker and sms-worker — that process async jobs.</actor-System>
+  </Actors>
+
+  <UseCases>
+    <UC-Order-Place ref="PDD §7.1, §6.1">
+      <Actor>Customer</Actor>
+      <Action>Places an order through the customer SPA</Action>
+      <Goal>Order is created, payment intent issued, kitchen and customer notified</Goal>
+      <Preconditions>User authenticated; menu items in stock; valid delivery address or pickup time</Preconditions>
+      <AcceptanceCriteria>Order in CREATED; Payment in PENDING; SMS confirmation queued</AcceptanceCriteria>
+      <Priority>high</Priority>
+      <RelatedFlows>DF-Order-Place, DF-Payment</RelatedFlows>
+    </UC-Order-Place>
+    <UC-Payment ref="PDD §6.2">
+      <Actor>Customer, PaymentProvider</Actor>
+      <Action>Pays for the order via YuKassa; webhook confirms payment</Action>
+      <Goal>Payment SUCCEEDED, order moves to PAID</Goal>
+      <Preconditions>Order in CREATED with a valid payment intent</Preconditions>
+      <AcceptanceCriteria>Payment SUCCEEDED; Order PAID; INV-004 atomicity preserved</AcceptanceCriteria>
+      <Priority>high</Priority>
+      <RelatedFlows>DF-Payment</RelatedFlows>
+    </UC-Payment>
+    <UC-Delivery ref="PDD §6.3, §7.1">
+      <Actor>Courier, Customer</Actor>
+      <Action>Courier picks up paid order, delivers to customer's address</Action>
+      <Goal>Order in COMPLETED; customer notified</Goal>
+      <Preconditions>Order in READY; delivery address valid; courier on shift</Preconditions>
+      <AcceptanceCriteria>Order COMPLETED; SMS notification sent; delivery row in DELIVERED</AcceptanceCriteria>
+      <Priority>high</Priority>
+      <RelatedFlows>DF-Delivery</RelatedFlows>
+    </UC-Delivery>
+    <UC-OTP-Login ref="PDD §6.4, §6.5">
+      <Actor>Customer, SmsProvider</Actor>
+      <Action>Customer requests SMS OTP, enters code, becomes authenticated</Action>
+      <Goal>Customer session established (JWT issued)</Goal>
+      <Preconditions>Valid phone number; not rate-limited</Preconditions>
+      <AcceptanceCriteria>OTP VERIFIED; User ACTIVE; JWT issued; phone never appears in logs (INV-013)</AcceptanceCriteria>
+      <Priority>high</Priority>
+      <RelatedFlows>DF-OTP-Login</RelatedFlows>
+    </UC-OTP-Login>
+    <UC-Admin-Manage ref="PDD §7">
+      <Actor>Admin</Actor>
+      <Action>Manages users, menu, promocodes, shop settings via the admin SPA</Action>
+      <Goal>Operational state mutated under server-side RBAC</Goal>
+      <Preconditions>Admin role authenticated server-side (INV-002)</Preconditions>
+      <AcceptanceCriteria>State change persisted; audit visible</AcceptanceCriteria>
+      <Priority>medium</Priority>
+      <RelatedFlows>—</RelatedFlows>
+    </UC-Admin-Manage>
+  </UseCases>
+
+  <NonGoals>
+    <item-1>No multi-tenant support — single coffee shop, single location, single menu.</item-1>
+    <item-2>No third-party courier integrations — own-courier delivery only.</item-2>
+    <item-3>No marketplace, reseller, or B2B surfaces.</item-3>
+    <item-4>No background sync to external POS systems in v1.</item-4>
+    <item-5>No async SQLAlchemy — sync ORM is the deliberate choice for INV-004 transactional simplicity.</item-5>
+  </NonGoals>
+
+  <Constraints>
+    <inv-INV-002>All state-mutating operations MUST require server-side auth + RBAC. Client-side checks NOT sufficient. (PDD §2)</inv-INV-002>
+    <inv-INV-004>Points redemption + promo + payment creation MUST be one DB transaction. Partial state forbidden. (PDD §2)</inv-INV-004>
+    <inv-INV-013>PII (phone/name/addresses) stored separately from order data. Tables reference users by opaque UUID. Account deletion anonymizes. (PDD §2)</inv-INV-013>
+    <inv-INV-014>UPDATE/DELETE on order_items is FORBIDDEN — items are price/name snapshots at order time. (PDD §2)</inv-INV-014>
+    <inv-INV-015>Secrets only in env vars — never source/git/config. (PDD §2)</inv-INV-015>
+    <inv-INV-016>State-machine transitions are exhaustive per PDD §6. Any transition not listed is FORBIDDEN. (PDD §2)</inv-INV-016>
+  </Constraints>
+
+  <Risks>
+    <risk-1>Payment-webhook race vs. user-cancel — INV-004 atomicity must hold under concurrent writes.</risk-1>
+    <risk-2>Courier offline during in-progress delivery — order stuck in IN_DELIVERY (PDD §6.3).</risk-2>
+    <risk-3>SMS provider rate limits — OTP login becomes unavailable; customer cannot sign in (PDD §6.4).</risk-3>
+    <risk-4>CORS misconfiguration when running multiple worktrees — admin/customer SPAs rejected (see AGENTS.md env workarounds).</risk-4>
+    <risk-5>Bilingual content (RU+EN) drift between name_ru/name_en fields — UX degradation, not data loss.</risk-5>
+  </Risks>
+
+  <OpenQuestions>
+    <question-1>Do SMS-worker retries respect provider rate limits, or compound the rate-limit problem during outage?</question-1>
+    <question-2>Is "courier offline mid-delivery" recovery handled deterministically, or only via admin manual reassignment?</question-2>
+  </OpenQuestions>
+</RequirementsAnalysis>

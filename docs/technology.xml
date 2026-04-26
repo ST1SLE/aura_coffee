@@ -1,0 +1,82 @@
+<TechnologyStack VERSION="0.2.0">
+  <Runtime>Python 3.12 / Node 22 / PostgreSQL 16 / Redis 7</Runtime>
+  <Language>Python 3.12 (backend) / TypeScript 5.x (frontend)</Language>
+  <Framework>FastAPI / React 19</Framework>
+
+  <Dependencies>
+    <dep name="fastapi" version=">=0.115" purpose="HTTP framework for core-api" />
+    <dep name="pydantic" version=">=2.0,&lt;3.0" purpose="Data validation across all Python modules" />
+    <dep name="sqlalchemy" version=">=2.0,&lt;3.0" purpose="ORM (sync); used by core-api and shared" />
+    <dep name="alembic" version="latest" purpose="Schema migrations (database/)" />
+    <dep name="celery" version="latest" purpose="Async task queue for payment-worker and sms-worker" />
+    <dep name="redis" version="latest" purpose="Celery broker + cache + JWT denylist" />
+    <dep name="pyjwt" version="latest" purpose="JWT auth tokens" />
+    <dep name="httpx" version="latest" purpose="Outbound HTTP and pytest API testing" />
+    <dep name="react" version="19.x" purpose="SPA framework for web/customer and web/admin" />
+    <dep name="vite" version="latest" purpose="Frontend bundler and dev server" />
+    <dep name="tailwindcss" version="latest" purpose="Utility-first CSS for both SPAs" />
+    <dep name="shadcn-ui" version="latest" purpose="UI component primitives (built on Radix)" />
+    <dep name="react-i18next" version="latest" purpose="Bilingual RU+EN UX" />
+    <dep name="react-router" version="7.x" purpose="SPA routing" />
+  </Dependencies>
+
+  <VersionConstraints>
+    <constraint lib="python" min="3.12.0" max="3.13.x" reason="SQLAlchemy 2.0 sync APIs require 3.12+" />
+    <constraint lib="react" min="19.0.0" max="19.x" reason="App uses React 19 hooks and Suspense" />
+    <constraint lib="postgresql" min="16.0" reason="Schema relies on PG16 features" />
+  </VersionConstraints>
+
+  <Tooling>
+    <tool name="bundler" value="vite" version="latest" />
+    <tool name="linter-py" value="ruff" version=">=0.4" />
+    <tool name="test-runner-py" value="pytest" version=">=8.0" />
+    <tool name="test-runner-ts" value="vitest" version="latest" />
+    <tool name="orchestrator" value="docker compose" version="v2" />
+    <tool name="reverse-proxy" value="nginx" version="latest" />
+    <tool name="task-queue" value="celery" version="latest" />
+  </Tooling>
+
+  <PreferredAgentStack>
+    <preferred-runtime-library>fastapi (HTTP), sqlalchemy (sync ORM), celery (async)</preferred-runtime-library>
+    <preferred-test-library>pytest + httpx (backend), vitest (frontend)</preferred-test-library>
+    <preferred-observability-library>stdlib logging.getLogger + GRACE structured wrapper (shared.grace.logging)</preferred-observability-library>
+    <discouraged-surface reason="Project deliberately avoids async SQLAlchemy to keep transaction semantics simple per INV-004.">async sqlalchemy</discouraged-surface>
+    <discouraged-surface reason="No third-party delivery providers per non-goals.">third-party courier APIs</discouraged-surface>
+  </PreferredAgentStack>
+
+  <Testing>
+    <module-level>
+      <command>docker compose exec core-api pytest services/core-api/tests/path/ -v</command>
+      <focus>Fast deterministic unit and contract checks scoped to one module.</focus>
+    </module-level>
+    <wave-level>
+      <command>docker compose exec core-api pytest services/core-api/tests/ -v -k "feature_keyword"</command>
+      <focus>Merged surfaces touched by the current feature batch.</focus>
+    </wave-level>
+    <phase-level>
+      <command>docker compose exec core-api pytest services/core-api/tests/ -v &amp;&amp; cd web/customer &amp;&amp; npm run test &amp;&amp; cd ../admin &amp;&amp; npm run test</command>
+      <focus>Full backend plus both frontends.</focus>
+    </phase-level>
+    <mocking-policy>Prefer real DB (test database aura_coffee_test, auto-created via _ensure_test_database fixture) and real Redis container. Mock only YuKassa and SMS.ru external HTTP. See services/core-api/tests/conftest.py.</mocking-policy>
+  </Testing>
+
+  <Observability>
+    <logger>stdlib logging via logging.getLogger(__name__) wrapped by shared.grace.logging for LDD markers</logger>
+    <log-format>[ModuleName][functionName][BLOCK_NAME] message</log-format>
+    <required-fields>correlationId (request_id), actorId (user_id when present), eventType, status</required-fields>
+    <belief-state-fields>belief, actual, status (MATCH | MISMATCH) — emitted at PDD §6.x state-machine transitions</belief-state-fields>
+    <redaction>Never log JWT, OTP code, password hash, payment full PAN, raw webhook bodies. PII (phone, full name, address) redacted by default per INV-013.</redaction>
+  </Observability>
+
+  <AutonomyPolicy>
+    <default-execution-profile>balanced</default-execution-profile>
+    <max-fix-attempts-per-step>2</max-fix-attempts-per-step>
+    <replan-trigger>Missing dependency, contradictory contract, unclear external API surface (YuKassa, SMS.ru), or any suspected INV-002/004/013/014/015/016 violation.</replan-trigger>
+    <checkpoint-requirement>Every step emits assumptions, commands, evidence (log markers + test outcome), and next action.</checkpoint-requirement>
+  </AutonomyPolicy>
+
+  <DeliveryShape>
+    <shape>Same-origin monolith behind nginx — core-api (FastAPI) + web-customer (React SPA) + web-admin (React SPA) + 2 Celery workers + PostgreSQL + Redis. All deployed via docker compose. Single instance, single shop.</shape>
+    <local-entry-point>http://localhost:${NGINX_PORT}/ (default 8240)</local-entry-point>
+  </DeliveryShape>
+</TechnologyStack>
