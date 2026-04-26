@@ -197,18 +197,18 @@
   </DataFlow>
 
   <ImplementationOrder>
-    <Phase-Migration name="GRACE migration (active)" status="in-progress">
+    <Phase-Migration name="GRACE migration (complete)" status="done">
       <goal>Adopt GRACE substrate (in-source contracts + LDD + markup) on the existing codebase; retire dev-workflow-kb process layer.</goal>
-      <step-CP1 module="ALL" status="in-progress" verification="—">Bootstrap docs/*.xml plus LDD logger</step-CP1>
-      <step-CP2 module="—" status="pending" verification="—">Mothball OpenSpec process layer</step-CP2>
-      <step-CP3 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER,M-SHARED,M-DATABASE" status="pending" verification="V-M-*">Add module + function contracts on Python public APIs</step-CP3>
-      <step-CP4 module="M-WEB-CUSTOMER,M-WEB-ADMIN" status="pending" verification="V-M-*">Add JSDoc-style contracts on TS exports</step-CP4>
-      <step-CP5 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER" status="pending" verification="—">Wire LDD logger across boundary functions</step-CP5>
-      <step-CP6 module="ALL" status="pending" verification="—">Add LDD test fixtures and convention header</step-CP6>
-      <step-CP7 module="ALL" status="pending" verification="—">Rewrite AGENTS.md, create CLAUDE.md, run grace-refresh</step-CP7>
+      <step-CP1 module="ALL" status="done" verification="—" commit="7534d83">Bootstrap docs/*.xml plus LDD logger</step-CP1>
+      <step-CP2 module="—" status="done" verification="—" commit="c9933aa">Mothball OpenSpec process layer</step-CP2>
+      <step-CP3 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER,M-SHARED,M-DATABASE" status="done" verification="V-M-*" commit="dfa4bbc">Add module + function contracts on Python public APIs (113 files, 374 contracts)</step-CP3>
+      <step-CP4 module="M-WEB-CUSTOMER,M-WEB-ADMIN" status="done" verification="V-M-*" commit="c852386">Add JSDoc-style contracts on TS exports (121 files, 291 contracts)</step-CP4>
+      <step-CP5 module="M-CORE-API,M-PAYMENT-WORKER,M-SMS-WORKER" status="done" verification="—" commit="5763a95">Wire LDD logger across 8 boundary functions in 7 files</step-CP5>
+      <step-CP6 module="ALL" status="done" verification="—" commit="87879fc">Add LDD test fixtures (GraceLogCapture) and convention header</step-CP6>
+      <step-CP7 module="ALL" status="done" verification="—">Rewrite AGENTS.md (root + 7 module files), create CLAUDE.md, expand README.md, run grace-refresh</step-CP7>
     </Phase-Migration>
-    <Phase-PostMigration name="Steady-state GRACE development" status="pending">
-      <goal>All future features use grace-plan → grace-execute → grace-verification flow; no more OpenSpec proposals or RED/GREEN cycles.</goal>
+    <Phase-PostMigration name="Steady-state GRACE development" status="active">
+      <goal>All future features use grace-plan → grace-execute → grace-verification flow; no more OpenSpec proposals or RED/GREEN cycles. Existing pre-GRACE features keep their archived OpenSpec audit trail under openspec/.</goal>
     </Phase-PostMigration>
   </ImplementationOrder>
 

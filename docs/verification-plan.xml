@@ -47,7 +47,7 @@
     <V-M-SHARED MODULE="M-SHARED" PRIORITY="high">
       <test-files>
         <file>packages/shared/tests/test_enums_menu.py</file>
-        <file>packages/shared/tests/test_grace_logging.py (planned at CP6)</file>
+        <file>packages/shared/tests/test_grace_logging.py</file>
       </test-files>
       <module-checks>
         <check-1>cd packages/shared &amp;&amp; pytest tests/ -v</check-1>

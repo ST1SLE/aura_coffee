@@ -17,8 +17,8 @@ Migrating `aura_coffee` from dev-workflow-kb (PDD/OpenSpec/2-phase-TDD/orchestra
 | CP3 | completed | dfa4bbc | Python contract retrofit (113 files, 374 contracts) |
 | CP4 | completed | c852386 | TS contract retrofit (121 files, 291 contracts) |
 | CP5 | completed | 5763a95 | LDD logging across 8 functions, 7 files |
-| CP6 | in_progress | — | LDD test fixtures |
-| CP7 | pending | — | Docs finalization |
+| CP6 | completed | 87879fc | LDD test fixtures (11/11 tests pass) |
+| CP7 | completed | (this commit — see `git log -1`) | Docs finalization (AGENTS×8, CLAUDE.md, README, grace-refresh) |
 
 ## Decisions log
 
@@ -129,3 +129,21 @@ def test_x(grace_logs):
 ```
 
 Convention: tests that opt into LDD assertions carry a `# GRACE-LDD` header comment (e.g., the new `test_grace_logging.py`). Existing tests left untouched per CP6 scope.
+
+### CP7 (docs finalization) — in progress
+- **Root `AGENTS.md`:** Full rewrite. Kept tech-stack / module-map / INV constraints / state machines / SSL-broken workaround / general rules. Replaced "Development Methodology: TDD" + "Worktree Testing Workflow" + "Two-Change Model" + "Task Type Prefixes" + "REFACTOR Granularity" + "Frontend Exception" with a "Development Methodology: GRACE" section covering substrate, LDD, verification, workflow skill table, retained worktree utilities, and migration-history pointers to archive locations.
+- **Created `CLAUDE.md`** at project root (was absent). Brief agent-onboarding pointer at AGENTS.md, the six docs/*.xml artifacts, reading priority, decision rules (INV-002/004/013/016), and migration history.
+- **Updated `README.md`** from one line ("# aura_coffee") to a real intro: stack, quickstart, architecture, methodology pointer.
+- **Module AGENTS.md (7 surgical edits):** Replaced TDD/RED/GREEN lines with GRACE methodology pointers; cited the relevant verification-plan markers and INV rules per module. Mocks lines preserved on web/customer + web/admin.
+- **`grace-refresh` (targeted):** Reported 7/7 synced modules, no missing/orphaned/stale CrossLinks, no contract gaps. Two trivial drifts found and fixed inline:
+  - `verification-plan.xml` V-M-SHARED label "(planned at CP6)" → removed (file exists at `packages/shared/tests/test_grace_logging.py`).
+  - `development-plan.xml` Phase-Migration step statuses → all moved to `status="done"` with commit hashes; Phase-PostMigration → `status="active"`.
+
+### Final state
+- 7 commits on `dev` branch: 7534d83 → c9933aa → dfa4bbc → c852386 → 5763a95 → 87879fc → CP7-commit.
+- 113 Python files + 121 TS files carry GRACE contracts (374 + 291 = 665 contract blocks).
+- 8 boundary functions emit LDD markers; 11/11 GRACE smoke tests pass.
+- 9 AGENTS.md files plus 1 new CLAUDE.md plus the README all reflect GRACE.
+- 6 GRACE artifacts in docs/, 1 LDD logger module, 1 LDD test helper module.
+- Pre-GRACE artifacts preserved as audit trail (97 archived OpenSpec changes + 77 specs untouched in `openspec/`; phase plans, manual tests, opsx commands, openspec skills, orchestrate.sh + merge.sh in `docs/.archive/` and `scripts/.archived/`).
+- `--dangerously-skip-permissions` mode used; no remote pushes; all changes committed locally on `dev`. User can review via `git log main..HEAD` and revert any CP via `git revert <sha>` if needed.

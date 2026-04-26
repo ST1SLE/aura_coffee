@@ -49,7 +49,7 @@ _(to be updated as code is added)_
 - **Framework:** Alembic CLI
 - **Validation:** every migration MUST be verified with `alembic upgrade head` + `alembic downgrade -1` (or full downgrade)
 - **No unit tests** — migrations are validated by running them, not by pytest
-- **TDD:** MIGRATE → VERIFY pattern. Not split into red/green — migrations are in the GREEN change.
+- **Methodology:** GRACE substrate does not apply to Alembic version files (immutable historical snapshots). MIGRATE → VERIFY pattern remains: run `alembic upgrade head` and `alembic downgrade -1` to verify each new migration. Seed scripts in `database/seeds/*.py` carry GRACE contracts; migration version files do not.
 
 ### Test database contract
 

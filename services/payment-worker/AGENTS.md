@@ -41,7 +41,7 @@ _(to be updated as code is added)_
 - **Test files:** `tests/test_<module>.py` mirrors `src/payment_worker/<module>.py`
 - **Mocks:** mock YuKassa API responses, mock DB sessions for unit tests
 - **Idempotency:** every payment test MUST verify idempotency key is included
-- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+- **Methodology:** GRACE — verification via standard pytest plus optional LDD log assertions. Required log markers per `docs/verification-plan.xml` V-M-PAYMENT-WORKER (BLOCK_YUKASSA_CALL, BLOCK_WEBHOOK_VERIFY, BLOCK_TX_PAYMENT). Old RED/GREEN discipline retired.
 
 ## This Module MUST NOT
 

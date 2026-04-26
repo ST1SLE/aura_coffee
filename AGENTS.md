@@ -3,6 +3,7 @@
 Web platform for a local coffee shop — online ordering with pickup and own-courier delivery. Production system for a real coffee shop. Single location, single menu, no multitenancy.
 
 **Authoritative design doc:** `docs/PRODUCT_DESIGN_DOCUMENT.md`
+**GRACE artifacts:** `docs/{requirements,technology,development-plan,verification-plan,knowledge-graph,operational-packets}.xml`
 
 ## Tech Stack
 
@@ -11,19 +12,19 @@ Web platform for a local coffee shop — online ordering with pickup and own-cou
 - **API client:** Auto-generated from FastAPI OpenAPI spec
 - **Data:** PostgreSQL 16, Redis 7
 - **Infra:** Docker + Docker Compose, Nginx
-- **Testing:** pytest + httpx (backend), Vitest (frontend)
+- **Testing:** pytest + httpx (backend), Vitest (frontend); GRACE LDD log assertions via `shared.grace.testing.GraceLogCapture`
 
 ## Module Map
 
-| Directory | Module Tag | Purpose |
-|-----------|-----------|---------|
-| `services/core-api/` | `[core-api]` | FastAPI HTTP server — business logic, CRUD, auth, all state mutations |
-| `services/payment-worker/` | `[payment-worker]` | Celery worker — YuKassa payments, webhooks, refunds |
-| `services/sms-worker/` | `[sms-worker]` | Celery worker — SMS.ru OTP codes, order notifications |
-| `web/customer/` | `[web-customer]` | React SPA — customer-facing: menu, cart, checkout, profile |
-| `web/admin/` | `[web-admin]` | React SPA — staff panel: admin, barista, courier views |
-| `packages/shared/` | `[shared]` | Shared Python package — domain models, enums, constants, validation |
-| `database/` | `[database]` | Alembic migrations, seeds, schema |
+| Directory | Module Tag | GRACE ID | Purpose |
+|-----------|-----------|----------|---------|
+| `services/core-api/` | `[core-api]` | M-CORE-API | FastAPI HTTP server — business logic, CRUD, auth, all state mutations |
+| `services/payment-worker/` | `[payment-worker]` | M-PAYMENT-WORKER | Celery worker — YuKassa payments, webhooks, refunds |
+| `services/sms-worker/` | `[sms-worker]` | M-SMS-WORKER | Celery worker — SMS.ru OTP codes, order notifications |
+| `web/customer/` | `[web-customer]` | M-WEB-CUSTOMER | React SPA — customer-facing: menu, cart, checkout, profile |
+| `web/admin/` | `[web-admin]` | M-WEB-ADMIN | React SPA — staff panel: admin, barista, courier views |
+| `packages/shared/` | `[shared]` | M-SHARED | Shared Python package — domain enums, GRACE LDD logger, validation |
+| `database/` | `[database]` | M-DATABASE | Alembic migrations, seeds, schema |
 
 ## Cross-Cutting Constraints
 
@@ -47,95 +48,106 @@ All state machines are defined in PDD §6. Reference them by section:
 - §6.5 — User Account (PENDING_VERIFICATION → ACTIVE → BLOCKED → DELETED)
 - §6.6 — Promocode (DRAFT → ACTIVE → PAUSED → EXPIRED / EXHAUSTED)
 
-## Development Methodology: TDD
+## Development Methodology: GRACE
 
-This project follows Test-Driven Development for all backend code.
+This project uses **GRACE** (Graph-RAG Anchored Code Engineering). The full reference is the `grace:grace-explainer` skill plus the artifacts under `docs/`.
 
-### Worktree Testing Workflow
+### Substrate (in-source)
 
-Every worktree — new or existing — runs tests the same way, with zero manual setup beyond copying `.env.example`:
+Every public Python `def`/`class` and every public TypeScript export carries a paired contract. Mirror `packages/shared/src/shared/grace/logging.py`:
+
+```python
+# START_CONTRACT: function_name
+#   PURPOSE: One sentence.
+#   INPUTS:  param: Type — description
+#   OUTPUTS: ReturnType — description
+#   SIDE_EFFECTS: external state changes or "none"
+#   LINKS:   PDD §x, INV-y, related modules
+# END_CONTRACT: function_name
+def function_name(...) -> ...:
+    ...
+```
+
+Files also carry a top-level `# START_MODULE_CONTRACT` block (PURPOSE / SCOPE / DEPENDS / LINKS / ROLE / MAP_MODE) plus a `# START_MODULE_MAP` listing public exports. TypeScript files use `//` line comments with the same fields, placed AFTER the `import` block.
+
+Declarative files (Pydantic schemas, SQLAlchemy ORM models) use `MODULE_CONTRACT` and `MODULE_MAP` only — the class declaration itself is the contract. Per-class function contracts on those files are noise.
+
+See `docs/development-plan.xml` for the per-module contracts; the live knowledge graph is at `docs/knowledge-graph.xml`.
+
+### Log-Driven Development (LDD)
+
+State-machine transitions and atomic-transaction boundaries emit canonical log markers:
+
+```
+[CoreApi][orders.create][BLOCK_TX_BEGIN] user_id=...
+[CoreApi][orders.create][BLOCK_STATE_TRANSITION] BELIEF: CREATED ACTUAL: CREATED STATUS: MATCH order_id=...
+[CoreApi][orders.create][BLOCK_TX_COMMIT] order_id=...
+```
+
+Use `shared.grace.logging.get_grace_logger("ModuleLabel")` and call `.block(fn, blk, msg, **fields)` or `.belief(fn, blk, belief, actual, **fields)`. The required-log-markers per module live in `docs/verification-plan.xml`.
+
+**INV-013 redaction is mandatory:** never log raw phone, OTP code, JWT, password, or full PAN. Only opaque IDs (uuid, otp_id, payment_id, etc.).
+
+### Verification
+
+Tests opt into LDD assertions with the `grace_logs` pytest fixture (defined in `packages/shared/tests/conftest.py` and re-exposed in `services/core-api/tests/conftest.py`):
+
+```python
+# GRACE-LDD: this test asserts on log trajectory
+def test_x(grace_logs):
+    ...  # call code under test
+    grace_logs.assert_trajectory(
+        ("orders.create", "BLOCK_TX_BEGIN"),
+        ("orders.create", "BLOCK_STATE_TRANSITION"),
+        ("orders.create", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+```
+
+Existing pytest assertions are preserved — LDD is additive, not a replacement.
+
+### Workflow skills (from the `grace` plugin)
+
+| Skill | When |
+|-------|------|
+| `grace:grace-plan` | Designing a new module / phase / data flow before code |
+| `grace:grace-execute` | Sequential implementation with controller-managed packets |
+| `grace:grace-multiagent-execute` | Parallel implementation waves (use carefully) |
+| `grace:grace-verification` | Adding tests / log markers / scenarios |
+| `grace:grace-refactor` | Renaming / moving / splitting modules — keeps graph + contracts in sync |
+| `grace:grace-fix` | Debugging via graph navigation |
+| `grace:grace-refresh` | Sync GRACE artifacts with code after changes |
+| `grace:grace-status` | Health check + suggested next action |
+| `grace:grace-ask` | Architecture / implementation Q&A grounded in project artifacts |
+| `grace:grace-reviewer` | Pre-merge or phase-boundary integrity review |
+
+### Worktree dev workflow (utilities retained)
+
+The orchestrate.sh + merge.sh + phase-plan.yaml batching flow has been retired (archived under `docs/.archive/` and `scripts/.archived/`). Worktree port collision avoidance and the canonical nginx entry point are still in use:
 
 ```bash
-./scripts/setup-worktree-env.sh                                # writes .env with a collision-free port offset
-./scripts/up.sh                                                # brings the full stack up and prints the real host URLs
+./scripts/setup-worktree-env.sh      # writes .env with collision-free port offsets
+./scripts/up.sh                      # brings the full stack up, prints real host URLs
 docker compose exec core-api pytest services/core-api/tests/ -v
 ```
 
-`setup-worktree-env.sh` derives a deterministic starting offset from `sha1(worktree_path)`, probes the 6 candidate host ports against `127.0.0.1`, and bumps by +10 on collision until a free set is found (max 20 attempts). Idempotent — re-run it any time another stack comes up and collides. The plain `cp .env.example .env` still works for a single-worktree setup.
+**Canonical local entry point:** `http://localhost:${NGINX_PORT}/` (default 8240). **Ignore Vite log URLs** — they show container-internal ports, not host ports. Use the URLs `up.sh` prints.
 
-`up.sh` is a thin wrapper over `docker compose up -d` that reads `.env` after the stack is up and prints a banner with the actual host-side URLs: the canonical nginx entry point, plus direct customer / admin / core-api URLs. Extra args are forwarded verbatim (e.g. `./scripts/up.sh --build core-api`).
+### Migration history
 
-### Canonical local entry point: always nginx
+GRACE was adopted via a 7-checkpoint migration. See `MIGRATION_LOG.md` for the commit-by-commit trail. Pre-GRACE artifacts are preserved (audit trail) under:
 
-For browsing the site, use `http://localhost:${NGINX_PORT}/` — that is the canonical local entry point. The `.env.example` default is `NGINX_PORT=8240` (non-privileged), so `docker compose up` binds nginx without needing root.
-
-**IGNORE the Vite log URLs.** The `web-customer` and `web-admin` containers print lines like:
-
-```
-Local:   http://localhost:5173/
-```
-
-Those ports are the **container-internal** ports — they are NOT your host ports when you have bumped host ports per worktree (`WEB_CUSTOMER_PORT`, `WEB_ADMIN_PORT`). Following those URLs on the host produces "connection refused". Use the URLs printed by `./scripts/up.sh`, or open `http://localhost:${NGINX_PORT}/`.
-
-The test database `aura_coffee_test` is auto-created on first run by the `_ensure_test_database` fixture in `services/core-api/tests/conftest.py`. Migrations are schema-only — they run without any application env vars (no `ADMIN_LOGIN`, no `ADMIN_PASSWORD`). Seed data lives in `database/seeds/`. See `services/core-api/AGENTS.md` for fixture details and `database/AGENTS.md` for the migration/seed contract.
-
-### Running multiple worktrees at once
-
-Each worktree that brings up the docker stack binds host ports. Two worktrees cannot share the same host ports. All host bindings are templated in `docker-compose.yml` as `${VAR:-default}` so each worktree can override them in its own `.env` (which is git-ignored).
-
-The ports to override are listed at the bottom of `.env.example` under `# Host port bindings`:
-
-```
-POSTGRES_PORT, REDIS_PORT, CORE_API_PORT, WEB_CUSTOMER_PORT, WEB_ADMIN_PORT, NGINX_PORT
-```
-
-Convention: pick an offset per worktree and add it to every port. E.g. your second worktree uses offset `+10` → `5443 / 6389 / 8010 / 5183 / 5184 / 90`. Your third uses `+20`. Consistency keeps the math easy when you need to curl a specific service.
-
-Caveat: `CORS_ORIGINS` in `.env` hardcodes `5173,5174`. If you change `WEB_CUSTOMER_PORT` or `WEB_ADMIN_PORT` in a worktree, also update `CORS_ORIGINS` to match — otherwise browser requests to the admin/customer SPAs will be rejected.
-
-### The Two-Change Model
-
-Every backend feature is split into two sequential OpenSpec changes:
-
-| Change | Phase | Contains | End State |
-|--------|-------|----------|-----------|
-| `<name>-red` | RED | PREREQ + RED tasks | All tests exist and FAIL |
-| `<name>-green` | GREEN | GREEN + REFACTOR + MIGRATE + VERIFY | All tests PASS |
-
-Both changes land on the same feature branch, applied sequentially.
-The branch is only considered complete when the GREEN change passes.
-
-### Task Type Prefixes
-
-| Prefix | Meaning | TDD Phase |
-|--------|---------|-----------|
-| `RED` | Write failing test | Red |
-| `GREEN` | Write minimal code to pass test | Green |
-| `REFACTOR` | Clean up, no behavior change | Refactor |
-| `PREREQ` | Dependencies, config (no test) | Setup |
-| `MIGRATE` | Alembic migration | Green |
-| `VERIFY` | Run and confirm (migration, full suite) | Green |
-| `IMPL` | Frontend component (test follows) | Frontend |
-| `TEST` | Frontend test after implementation | Frontend |
-
-### REFACTOR Granularity
-
-- Group has ≥3 RED tests OR >50% RED density → one REFACTOR at end of group
-- Otherwise → REFACTOR after each GREEN
-
-### Frontend Exception
-
-Frontend modules (`[web-customer]`, `[web-admin]`) use lighter TDD:
-- **Logic** (hooks, utils, API clients, state management): RED → GREEN → REFACTOR
-- **UI** (components, pages): IMPL → TEST → REFACTOR
-- **Pure presentation**: tests optional
-- Frontend changes are NOT split into two changes.
+- `openspec/` — the original 97 archived spec changes + 77 capability specs
+- `docs/.archive/phase-plans/` — 10 archived `phase*-plan.yaml` files
+- `docs/.archive/manual-tests/` — 5 archived `phase*_manual_test_scenarios.md`
+- `docs/.archive/legacy-claude/` — old `opsx/*.md` slash commands and `openspec-*` skills
+- `scripts/.archived/` — `orchestrate.sh`, `merge.sh`, `phase-plan.example.yaml`
 
 ## Environment Workarounds
 
 ### Broken SSL in `/usr/local/bin/python3`
 
-`/usr/local/bin/python3` (3.12.2) was compiled without SSL support — the `_ssl` C extension is missing entirely. Any code that imports `ssl` (pytest via anyio, redis, httpx, pip/uv network requests) will crash with `ModuleNotFoundError: No module named '_ssl'`.
+`/usr/local/bin/python3` (3.12.2) was compiled without SSL support — the `_ssl` C extension is missing entirely. Any code that imports `ssl` (pytest via anyio, redis, httpx, pip/uv network requests) crashes with `ModuleNotFoundError: No module named '_ssl'`.
 
 **Working Python:** `/usr/bin/python3` (3.12.3) has full SSL support.
 
@@ -147,7 +159,7 @@ uv venv --python /usr/bin/python3
 python3 -m venv .venv   # only if /usr/bin/python3 is first in PATH
 ```
 
-If a venv already exists and tests fail with `_ssl` errors, delete and recreate it with the correct Python:
+If a venv already exists and tests fail with `_ssl` errors, delete and recreate it:
 
 ```bash
 rm -rf .venv
@@ -155,7 +167,7 @@ uv venv --python /usr/bin/python3
 uv pip install -e ".[dev]"
 ```
 
-**Note:** This does NOT affect Docker containers — they use their own Python. This only matters for host-side test runs and scripts.
+**Note:** This does NOT affect Docker containers — they use their own Python. Only matters for host-side test runs and scripts.
 
 ## General Rules
 
@@ -163,3 +175,4 @@ uv pip install -e ".[dev]"
 - All timestamps are UTC (`TIMESTAMPTZ`). Timezone conversion is frontend responsibility.
 - Bilingual: all user-facing text has RU + EN variants. DB fields: `name_ru`, `name_en`.
 - Domain language is strict — use terms from PDD §3. Inconsistent naming is a bug.
+- New code is GRACE-substrate from the start: contracts before functions, LDD markers at state transitions, paired START/END markup.

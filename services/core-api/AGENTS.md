@@ -44,7 +44,7 @@ _(to be updated as code is added)_
 - **Test files:** `tests/test_<module>.py` mirrors `src/core_api/<module>.py`
 - **Redis:** use `fakeredis` — no real Redis in tests
 - **Mocks:** mock external boundaries (Celery task dispatch, SMS API), NOT internal services
-- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+- **Methodology:** GRACE — verification via standard pytest plus optional LDD log assertions (`grace_logs` fixture in this module's `tests/conftest.py`). Required log markers per `docs/verification-plan.xml` V-M-CORE-API. Old RED/GREEN discipline retired; see root `AGENTS.md` and `MIGRATION_LOG.md`.
 
 ### Database fixtures
 

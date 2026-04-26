@@ -42,9 +42,9 @@ _(to be updated as code is added)_
 - **Framework:** Vitest + React Testing Library
 - **Runner:** `npm test` in `web/customer/`
 - **Test files:** colocated `<Component>.test.tsx` next to source
-- **TDD mode:** RED → GREEN → REFACTOR for logic (hooks, utils, API clients, state management). IMPL → TEST → REFACTOR for UI components and pages. Pure presentation components may omit tests.
-- **Mocks:** mock API calls, never mock React internals
-- **NOT split** into two changes — single change with lighter TDD.
+- **Methodology:** GRACE — verification via Vitest. Pure presentation components may still omit tests; logic-bearing exports (hooks, stores, API clients, complex pages) carry GRACE contracts and tests.
+- **Mocks:** mock API calls, never mock React internals.
+- Old RED/GREEN/IMPL/TEST distinctions retired; see root `AGENTS.md` and `MIGRATION_LOG.md`.
 
 ## This Module MUST NOT
 

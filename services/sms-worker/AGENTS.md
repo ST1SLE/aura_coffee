@@ -55,7 +55,7 @@ _(to be updated as code is added)_
 - **Runner:** `pytest services/sms-worker/tests/ -v`
 - **Test files:** `tests/test_<module>.py` mirrors `src/sms_worker/<module>.py`
 - **Mocks:** mock SMS.ru API responses, mock Redis for OTP status updates
-- **TDD:** full RED → GREEN → REFACTOR. Backend changes split into `-red` / `-green` changes.
+- **Methodology:** GRACE — verification via standard pytest plus optional LDD log assertions. Required log markers per `docs/verification-plan.xml` V-M-SMS-WORKER (BLOCK_SMSRU_CALL). INV-013 redaction is mandatory (no phone in logs). Old RED/GREEN discipline retired.
 
 ## This Module MUST NOT
 
