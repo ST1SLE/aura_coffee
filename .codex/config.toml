@@ -1,0 +1,5 @@
+# Repo-safe Codex defaults for Aura Coffee.
+# Personal model, auth, and machine-specific settings stay in ~/.codex/config.toml.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
