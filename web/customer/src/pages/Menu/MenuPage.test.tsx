@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -35,15 +41,41 @@ import type { PublicCategory, PublicMenuItem } from '@/api/menuTypes';
 
 function makeItem(id: number, name: string): PublicMenuItem {
   return {
-    id, category_id: 1, name, name_ru: name, name_en: name,
-    description: null, description_ru: null, description_en: null,
-    base_price: 30000, image_url: null, available: true, sort_order: 0,
-    size_options: [], modifiers: [],
+    id,
+    category_id: 1,
+    name,
+    name_ru: name,
+    name_en: name,
+    description: null,
+    description_ru: null,
+    description_en: null,
+    base_price: 30000,
+    image_url: null,
+    media_type: null,
+    media_url: null,
+    media_poster_url: null,
+    available: true,
+    sort_order: 0,
+    size_options: [],
+    modifiers: [],
   };
 }
 
-function makeCategory(id: number, name: string, sort_order: number, items: PublicMenuItem[] = []): PublicCategory {
-  return { id, type: 'drink', name, name_ru: name, name_en: name, sort_order, items };
+function makeCategory(
+  id: number,
+  name: string,
+  sort_order: number,
+  items: PublicMenuItem[] = [],
+): PublicCategory {
+  return {
+    id,
+    type: 'drink',
+    name,
+    name_ru: name,
+    name_en: name,
+    sort_order,
+    items,
+  };
 }
 
 function renderPage() {
@@ -63,9 +95,17 @@ beforeEach(() => {
 describe('MenuPage', () => {
   // Задача 3.1: категории рендерятся в порядке, возвращённом сервером (без клиентской сортировки)
   it('renders categories in server-returned order', async () => {
-    const cat1 = makeCategory(1, 'Напитки', 10, [makeItem(10, 'Лате'), makeItem(11, 'Капучино')]);
-    const cat2 = makeCategory(2, 'Еда', 20, [makeItem(12, 'Сэндвич'), makeItem(13, 'Круассан')]);
-    (menuApi.fetchPublicMenu as Mock).mockResolvedValue({ categories: [cat1, cat2] });
+    const cat1 = makeCategory(1, 'Напитки', 10, [
+      makeItem(10, 'Лате'),
+      makeItem(11, 'Капучино'),
+    ]);
+    const cat2 = makeCategory(2, 'Еда', 20, [
+      makeItem(12, 'Сэндвич'),
+      makeItem(13, 'Круассан'),
+    ]);
+    (menuApi.fetchPublicMenu as Mock).mockResolvedValue({
+      categories: [cat1, cat2],
+    });
 
     renderPage();
 

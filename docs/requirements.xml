@@ -34,6 +34,15 @@
       <Priority>high</Priority>
       <RelatedFlows>DF-Order-Place, DF-Payment</RelatedFlows>
     </UC-Order-Place>
+    <UC-Menu-Browse-Media ref="PDD §5.2">
+      <Actor>Customer</Actor>
+      <Action>Browses a media-led menu with owned/generated drink videos and poster fallbacks</Action>
+      <Goal>Customer can inspect drinks quickly before adding configured items to cart</Goal>
+      <Preconditions>Public menu has active categories and available menu items; media URLs may be absent for some items</Preconditions>
+      <AcceptanceCriteria>Menu renders with video when available, falls back to poster/image when unavailable or reduced-motion is requested, and does not affect pricing/order state</AcceptanceCriteria>
+      <Priority>medium</Priority>
+      <RelatedFlows>DF-Order-Place</RelatedFlows>
+    </UC-Menu-Browse-Media>
     <UC-Payment ref="PDD §6.2">
       <Actor>Customer, PaymentProvider</Actor>
       <Action>Pays for the order via YuKassa; webhook confirms payment</Action>

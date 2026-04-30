@@ -21,6 +21,7 @@ import { authenticatedFetch, ApiError } from './client';
 //   ApiError                 - re-export from ./client
 //   Availability             - 'available' | 'stop_list' | 'archived'
 //   CategoryType             - 'drink' | 'food' | 'merch' | 'modifier'
+//   MenuMediaType            - 'image' | 'video'
 //   SizeLabel                - 'S' | 'M' | 'L'
 //   CategoryResponse/...     - response/create/update DTOs (mirror Pydantic)
 //   SizeOptionResponse/...   - size DTOs
@@ -53,6 +54,8 @@ export { ApiError };
 export type Availability = 'available' | 'stop_list' | 'archived';
 
 export type CategoryType = 'drink' | 'food' | 'merch' | 'modifier';
+
+export type MenuMediaType = 'image' | 'video';
 
 export type SizeLabel = 'S' | 'M' | 'L';
 
@@ -146,6 +149,9 @@ export interface MenuItemResponse {
   description_en: string | null;
   base_price: number;
   image_url: string | null;
+  media_type: MenuMediaType | null;
+  media_url: string | null;
+  media_poster_url: string | null;
   available: boolean;
   archived: boolean;
   availability: Availability;
@@ -164,6 +170,9 @@ export interface MenuItemCreate {
   description_en?: string | null;
   base_price: number;
   image_url?: string | null;
+  media_type?: MenuMediaType | null;
+  media_url?: string | null;
+  media_poster_url?: string | null;
   available?: boolean;
   archived?: boolean;
   sort_order?: number;
@@ -177,6 +186,9 @@ export interface MenuItemUpdate {
   description_en?: string | null;
   base_price?: number;
   image_url?: string | null;
+  media_type?: MenuMediaType | null;
+  media_url?: string | null;
+  media_poster_url?: string | null;
   available?: boolean;
   archived?: boolean;
   sort_order?: number;
@@ -243,8 +255,9 @@ export const listCategories = (): Promise<CategoryResponse[]> =>
 //   SIDE_EFFECTS: POST; 403 if barista tries to call.
 //   LINKS:   INV-002.
 // END_CONTRACT: createCategory
-export const createCategory = (body: CategoryCreate): Promise<CategoryResponse> =>
-  post('/api/v1/admin/menu/categories', body);
+export const createCategory = (
+  body: CategoryCreate,
+): Promise<CategoryResponse> => post('/api/v1/admin/menu/categories', body);
 
 // START_CONTRACT: updateCategory
 //   PURPOSE: Update a category by id (admin only).
@@ -256,7 +269,8 @@ export const createCategory = (body: CategoryCreate): Promise<CategoryResponse> 
 export const updateCategory = (
   id: number,
   body: CategoryUpdate,
-): Promise<CategoryResponse> => put(`/api/v1/admin/menu/categories/${id}`, body);
+): Promise<CategoryResponse> =>
+  put(`/api/v1/admin/menu/categories/${id}`, body);
 
 // START_CONTRACT: deleteCategory
 //   PURPOSE: Delete a category (admin only). 409 if it still has items.
@@ -280,7 +294,8 @@ export const deleteCategory = (id: number): Promise<void> =>
 export const listItems = (params?: {
   categoryId?: number;
 }): Promise<MenuItemResponse[]> => {
-  const qs = params?.categoryId != null ? `?category_id=${params.categoryId}` : '';
+  const qs =
+    params?.categoryId != null ? `?category_id=${params.categoryId}` : '';
   return json(`/api/v1/admin/menu/items${qs}`);
 };
 
@@ -373,8 +388,9 @@ export const listModifiers = (): Promise<ModifierResponse[]> =>
 //   SIDE_EFFECTS: POST; 403/422.
 //   LINKS:   INV-002.
 // END_CONTRACT: createModifier
-export const createModifier = (body: ModifierCreate): Promise<ModifierResponse> =>
-  post('/api/v1/admin/menu/modifiers', body);
+export const createModifier = (
+  body: ModifierCreate,
+): Promise<ModifierResponse> => post('/api/v1/admin/menu/modifiers', body);
 
 // START_CONTRACT: updateModifier
 //   PURPOSE: Update a modifier (admin only).
@@ -421,8 +437,9 @@ export const setModifierAvailability = (
 //   SIDE_EFFECTS: POST; 409 on duplicate label.
 //   LINKS:   INV-002.
 // END_CONTRACT: createSize
-export const createSize = (body: SizeOptionCreate): Promise<SizeOptionResponse> =>
-  post('/api/v1/admin/menu/sizes', body);
+export const createSize = (
+  body: SizeOptionCreate,
+): Promise<SizeOptionResponse> => post('/api/v1/admin/menu/sizes', body);
 
 // START_CONTRACT: updateSize
 //   PURPOSE: Update a size option (admin only).

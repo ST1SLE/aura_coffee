@@ -12,6 +12,7 @@
 // START_MODULE_MAP
 //   CategoryType            - 'drink' | 'food' | 'merch' | 'modifier'
 //   MenuItemAvailability    - 'available' | 'stop_list' | 'archived'
+//   MenuMediaType           - 'image' | 'video'
 //   SizeLabel               - 'S' | 'M' | 'L'
 //   PublicMenuSizeOption    - one size variant for an item
 //   PublicMenuModifier      - one modifier (e.g. extra shot)
@@ -22,6 +23,7 @@
 
 export type CategoryType = 'drink' | 'food' | 'merch' | 'modifier';
 export type MenuItemAvailability = 'available' | 'stop_list' | 'archived';
+export type MenuMediaType = 'image' | 'video';
 export type SizeLabel = 'S' | 'M' | 'L';
 
 export interface PublicMenuSizeOption {
@@ -57,6 +59,9 @@ export interface PublicMenuItem {
   /** Базовая цена в копейках */
   base_price: number;
   image_url: string | null;
+  media_type: MenuMediaType | null;
+  media_url: string | null;
+  media_poster_url: string | null;
   available: boolean;
   sort_order: number;
   size_options: PublicMenuSizeOption[];

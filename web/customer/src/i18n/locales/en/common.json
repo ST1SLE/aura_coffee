@@ -140,6 +140,7 @@
   "menu": {
     "title": "Menu",
     "empty": "The menu is empty",
+    "categories": "Menu categories",
     "loading": "Loading menu...",
     "error": "Failed to load menu",
     "retry": "Try again",

@@ -16,12 +16,10 @@
 # END_MODULE_MAP
 """Сервисный слой для CRUD меню в админ-панели."""
 
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from fastapi import HTTPException, status
-
-from shared.models.menu import Category, MenuItem, Modifier, SizeOption
 from core_api.schemas.menu import (
     CategoryCreate,
     CategoryUpdate,
@@ -31,12 +29,28 @@ from core_api.schemas.menu import (
     ModifierUpdate,
     SizeOptionCreate,
     SizeOptionUpdate,
+    _validate_media_combination,
 )
+from shared.models.menu import Category, MenuItem, Modifier, SizeOption
 
 
 def _handle_integrity(exc: IntegrityError, detail: str) -> None:
     """Преобразование IntegrityError в HTTP 409."""
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
+
+
+def _validate_item_media_state(item: MenuItem) -> None:
+    try:
+        _validate_media_combination(
+            item.media_type,
+            item.media_url,
+            item.media_poster_url,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 # START_CONTRACT: MenuAdminService
@@ -121,7 +135,8 @@ class MenuAdminService:
     # ─────────────────────────────────────────────
 
     # START_CONTRACT: MenuAdminService.create_item
-    #   PURPOSE: INSERT a MenuItem row, validating that the category exists.
+    #   PURPOSE: INSERT a MenuItem row, validating that the category exists
+    #            and media fields form a public, non-secret local asset contract.
     #   INPUTS:  data: MenuItemCreate
     #   OUTPUTS: MenuItem (refreshed)
     #   SIDE_EFFECTS: DB INSERT + commit; missing category → HTTP 404; integrity → HTTP 409.
@@ -131,6 +146,7 @@ class MenuAdminService:
         if self.db.get(Category, data.category_id) is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="category not found")
         item = MenuItem(**data.model_dump())
+        _validate_item_media_state(item)
         self.db.add(item)
         try:
             self.db.commit()
@@ -141,7 +157,7 @@ class MenuAdminService:
         return item
 
     # START_CONTRACT: MenuAdminService.update_item
-    #   PURPOSE: PATCH a MenuItem row.
+    #   PURPOSE: PATCH a MenuItem row, rejecting malformed final media state.
     #   INPUTS:  item_id: int, data: MenuItemUpdate
     #   OUTPUTS: MenuItem (refreshed)
     #   SIDE_EFFECTS: DB UPDATE + commit; missing → HTTP 404.
@@ -152,6 +168,11 @@ class MenuAdminService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item not found")
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(item, field, value)
+        try:
+            _validate_item_media_state(item)
+        except HTTPException:
+            self.db.rollback()
+            raise
         self.db.commit()
         self.db.refresh(item)
         return item

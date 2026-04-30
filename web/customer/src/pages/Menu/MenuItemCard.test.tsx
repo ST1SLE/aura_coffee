@@ -13,18 +13,36 @@ import type { PublicMenuItem } from '@/api/menuTypes';
 
 function makeItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   return {
-    id: 1, category_id: 1,
-    name: 'Лате', name_ru: 'Лате', name_en: 'Latte',
-    description: null, description_ru: null, description_en: null,
-    base_price: 25000, image_url: null, available: true, sort_order: 0,
-    size_options: [], modifiers: [],
+    id: 1,
+    category_id: 1,
+    name: 'Лате',
+    name_ru: 'Лате',
+    name_en: 'Latte',
+    description: null,
+    description_ru: null,
+    description_en: null,
+    base_price: 25000,
+    image_url: null,
+    media_type: null,
+    media_url: null,
+    media_poster_url: null,
+    available: true,
+    sort_order: 0,
+    size_options: [],
+    modifiers: [],
     ...overrides,
   };
 }
 
 describe('MenuItemCard', () => {
   it('renders item.name verbatim', () => {
-    render(<MenuItemCard item={makeItem({ name: 'Капучино' })} lang="ru" onOpen={vi.fn()} />);
+    render(
+      <MenuItemCard
+        item={makeItem({ name: 'Капучино' })}
+        lang="ru"
+        onOpen={vi.fn()}
+      />,
+    );
     expect(screen.getByText('Капучино')).toBeDefined();
   });
 
@@ -38,14 +56,26 @@ describe('MenuItemCard', () => {
 
   it('clicking unavailable card (available=false) does not fire onOpen', () => {
     const onOpen = vi.fn();
-    render(<MenuItemCard item={makeItem({ available: false })} lang="ru" onOpen={onOpen} />);
+    render(
+      <MenuItemCard
+        item={makeItem({ available: false })}
+        lang="ru"
+        onOpen={onOpen}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button'));
     expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('unavailable badge renders for available=false', () => {
-    render(<MenuItemCard item={makeItem({ available: false })} lang="ru" onOpen={vi.fn()} />);
+    render(
+      <MenuItemCard
+        item={makeItem({ available: false })}
+        lang="ru"
+        onOpen={vi.fn()}
+      />,
+    );
     expect(screen.getByText('menu.unavailable')).toBeDefined();
   });
 });

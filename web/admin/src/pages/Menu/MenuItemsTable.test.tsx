@@ -14,6 +14,9 @@ const mockItem = {
   description_en: null,
   base_price: 35000,
   image_url: null,
+  media_type: null,
+  media_url: null,
+  media_poster_url: null,
   available: true,
   archived: false,
   availability: 'available' as const,
@@ -28,7 +31,10 @@ vi.mock('@/api/menu', () => ({
   setItemAvailability: vi.fn(),
   ApiError: class ApiError extends Error {
     status: number;
-    constructor(status: number, message: string) { super(message); this.status = status; }
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
   },
 }));
 

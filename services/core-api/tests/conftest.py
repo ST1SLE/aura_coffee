@@ -274,7 +274,7 @@ def _pg_db_override(_pg_ready) -> Generator[Any, None, None]:
 @pytest.fixture
 def seed_public_menu(_pg_db_override) -> Generator[PublicMenuSeed, None, None]:
     """Сидирует детерминированное меню в PostgreSQL и убирает данные после теста."""
-    from shared.enums import CategoryType, SizeLabel
+    from shared.enums import CategoryType, MenuMediaType, SizeLabel
     from shared.models.menu import Category, MenuItem, Modifier, SizeOption
 
     engine = _pg_db_override
@@ -339,6 +339,9 @@ def seed_public_menu(_pg_db_override) -> Generator[PublicMenuSeed, None, None]:
             available=True,
             archived=False,
             base_price=35000,
+            media_type=MenuMediaType.VIDEO,
+            media_url="/media/menu/latte/hero.mp4",
+            media_poster_url="/media/menu/latte/poster.webp",
         )
         item_d2 = MenuItem(
             category_id=cat_drink.id,
@@ -350,6 +353,7 @@ def seed_public_menu(_pg_db_override) -> Generator[PublicMenuSeed, None, None]:
             available=False,
             archived=False,
             base_price=25000,
+            image_url="/legacy/americano.webp",
         )
         item_d3 = MenuItem(
             category_id=cat_drink.id,

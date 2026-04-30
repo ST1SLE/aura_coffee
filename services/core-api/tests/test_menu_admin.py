@@ -1,7 +1,6 @@
 """RED: menu-admin CRUD and stop-list contract."""
 
 import inspect
-import re
 from pathlib import Path
 
 import pytest
@@ -242,10 +241,21 @@ def test_admin_creates_menu_item(
     migrated_db_session.add(cat)
     migrated_db_session.flush()
 
-    body = {"category_id": cat.id, "name_ru": "Латте", "name_en": "Latte", "base_price": 35000}
+    body = {
+        "category_id": cat.id,
+        "name_ru": "Латте",
+        "name_en": "Latte",
+        "base_price": 35000,
+        "media_type": "video",
+        "media_url": "/media/menu/latte/hero.mp4",
+        "media_poster_url": "/media/menu/latte/poster.webp",
+    }
     resp = db_client.post("/api/v1/admin/menu/items", json=body, headers=admin_headers)
     assert resp.status_code == 201, resp.text
     assert resp.json()["availability"] == "available"
+    assert resp.json()["media_type"] == "video"
+    assert resp.json()["media_url"] == "/media/menu/latte/hero.mp4"
+    assert resp.json()["media_poster_url"] == "/media/menu/latte/poster.webp"
 
 
 def test_admin_create_item_with_unknown_category_rejected(client: TestClient, admin_headers: dict) -> None:
@@ -253,6 +263,19 @@ def test_admin_create_item_with_unknown_category_rejected(client: TestClient, ad
     resp = client.post("/api/v1/admin/menu/items", json=body, headers=admin_headers)
     # 404 или 409 — зависит от реализации green; точный код зафиксировать после green
     assert resp.status_code in {404, 409}, resp.text
+
+
+def test_admin_create_item_rejects_video_without_poster(client: TestClient, admin_headers: dict) -> None:
+    body = {
+        "category_id": 1,
+        "name_ru": "Латте",
+        "name_en": "Latte",
+        "base_price": 35000,
+        "media_type": "video",
+        "media_url": "/media/menu/latte/hero.mp4",
+    }
+    resp = client.post("/api/v1/admin/menu/items", json=body, headers=admin_headers)
+    assert resp.status_code == 422, resp.text
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
@@ -271,6 +294,60 @@ def test_admin_updates_item_archives_it(
     resp = db_client.put(f"/api/v1/admin/menu/items/{item.id}", json={"archived": True}, headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["availability"] == "archived"
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_admin_updates_item_media_fields(
+    db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+) -> None:
+    from shared.models.menu import Category, MenuItem
+
+    cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+    migrated_db_session.add(cat)
+    migrated_db_session.flush()
+    item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+    migrated_db_session.add(item)
+    migrated_db_session.flush()
+
+    resp = db_client.put(
+        f"/api/v1/admin/menu/items/{item.id}",
+        json={
+            "media_type": "video",
+            "media_url": "/media/menu/latte/hero.mp4",
+            "media_poster_url": "/media/menu/latte/poster.webp",
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["media_type"] == "video"
+    assert body["media_url"] == "/media/menu/latte/hero.mp4"
+    assert body["media_poster_url"] == "/media/menu/latte/poster.webp"
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_admin_update_item_rejects_signed_or_external_media_url(
+    db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+) -> None:
+    from shared.models.menu import Category, MenuItem
+
+    cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+    migrated_db_session.add(cat)
+    migrated_db_session.flush()
+    item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+    migrated_db_session.add(item)
+    migrated_db_session.flush()
+
+    resp = db_client.put(
+        f"/api/v1/admin/menu/items/{item.id}",
+        json={
+            "media_type": "video",
+            "media_url": "https://storage.example/latte.mp4?token=secret",
+            "media_poster_url": "/media/menu/latte/poster.webp",
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422, resp.text
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
@@ -340,8 +417,9 @@ def test_admin_deletes_item(
     assert resp.status_code == 204
 
 
-def test_barista_lists_items_allowed(client: TestClient, barista_headers: dict) -> None:
-    resp = client.get("/api/v1/admin/menu/items", headers=barista_headers)
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_barista_lists_items_allowed(db_client: TestClient, barista_headers: dict) -> None:
+    resp = db_client.get("/api/v1/admin/menu/items", headers=barista_headers)
     assert resp.status_code == 200
 
 
@@ -612,8 +690,15 @@ def test_courier_blocked_from_item_availability(client: TestClient, courier_head
     assert resp.status_code == 403
 
 
-def test_item_availability_patch_404_on_missing_id(client: TestClient, admin_headers: dict) -> None:
-    resp = client.patch("/api/v1/admin/menu/items/999999/availability", json={"available": False}, headers=admin_headers)
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_item_availability_patch_404_on_missing_id(
+    db_client: TestClient, admin_headers: dict
+) -> None:
+    resp = db_client.patch(
+        "/api/v1/admin/menu/items/999999/availability",
+        json={"available": False},
+        headers=admin_headers,
+    )
     assert resp.status_code == 404
 
 
@@ -845,12 +930,13 @@ def test_openapi_menu_admin_tag_is_consistent(client: TestClient) -> None:
 # ─────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
 def test_admin_items_list_filters_by_category(
-    client: TestClient, admin_headers: dict, barista_headers: dict
+    db_client: TestClient, admin_headers: dict, barista_headers: dict
 ) -> None:
     """GET /admin/menu/items?category_id=<id> должен фильтровать по категории."""
     # (a) создаём две категории через API
-    cat_a_resp = client.post(
+    cat_a_resp = db_client.post(
         "/api/v1/admin/menu/categories",
         json={"type": "drink", "name_ru": "Категория А", "name_en": "Category A", "sort_order": 0, "is_visible": True},
         headers=admin_headers,
@@ -858,7 +944,7 @@ def test_admin_items_list_filters_by_category(
     assert cat_a_resp.status_code == 201, cat_a_resp.text
     cat_a_id = cat_a_resp.json()["id"]
 
-    cat_b_resp = client.post(
+    cat_b_resp = db_client.post(
         "/api/v1/admin/menu/categories",
         json={"type": "food", "name_ru": "Категория Б", "name_en": "Category B", "sort_order": 1, "is_visible": True},
         headers=admin_headers,
@@ -868,7 +954,7 @@ def test_admin_items_list_filters_by_category(
 
     # (b) создаём по два товара в каждой категории
     def _create_item(category_id: int, name_ru: str, name_en: str) -> int:
-        resp = client.post(
+        resp = db_client.post(
             "/api/v1/admin/menu/items",
             json={"category_id": category_id, "name_ru": name_ru, "name_en": name_en, "base_price": 25000},
             headers=admin_headers,
@@ -886,33 +972,33 @@ def test_admin_items_list_filters_by_category(
     all_ids = a_ids | b_ids
 
     # (c) без фильтра — возвращаются все четыре товара
-    resp_all = client.get("/api/v1/admin/menu/items", headers=admin_headers)
+    resp_all = db_client.get("/api/v1/admin/menu/items", headers=admin_headers)
     assert resp_all.status_code == 200, resp_all.text
     returned_ids = {item["id"] for item in resp_all.json()}
     assert all_ids.issubset(returned_ids), f"Ожидались все 4 товара, получили ids={returned_ids}"
 
     # (d) фильтр по категории А — только товары А, без товаров Б
-    resp_a = client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=admin_headers)
+    resp_a = db_client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=admin_headers)
     assert resp_a.status_code == 200, resp_a.text
     filtered_ids = {item["id"] for item in resp_a.json()}
     assert filtered_ids == a_ids, f"Ожидались только {a_ids}, получили {filtered_ids}"
     assert not filtered_ids & b_ids, "Товары категории Б не должны попадать в ответ"
 
     # (e) несуществующая категория → 404
-    resp_404 = client.get("/api/v1/admin/menu/items?category_id=999999", headers=admin_headers)
+    resp_404 = db_client.get("/api/v1/admin/menu/items?category_id=999999", headers=admin_headers)
     assert resp_404.status_code == 404, resp_404.text
     assert resp_404.json()["detail"] == "category not found"
 
     # (f) category_id=0 → 422
-    resp_zero = client.get("/api/v1/admin/menu/items?category_id=0", headers=admin_headers)
+    resp_zero = db_client.get("/api/v1/admin/menu/items?category_id=0", headers=admin_headers)
     assert resp_zero.status_code == 422, resp_zero.text
 
     # (g) category_id=abc → 422
-    resp_str = client.get("/api/v1/admin/menu/items?category_id=abc", headers=admin_headers)
+    resp_str = db_client.get("/api/v1/admin/menu/items?category_id=abc", headers=admin_headers)
     assert resp_str.status_code == 422, resp_str.text
 
     # (h) бариста тоже может фильтровать по категории
-    resp_barista = client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=barista_headers)
+    resp_barista = db_client.get(f"/api/v1/admin/menu/items?category_id={cat_a_id}", headers=barista_headers)
     assert resp_barista.status_code == 200, resp_barista.text
     assert {item["id"] for item in resp_barista.json()} == a_ids
 
@@ -922,12 +1008,13 @@ def test_admin_items_list_filters_by_category(
 # ─────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
 def test_admin_set_item_modifiers(
-    client: TestClient, admin_headers: dict, barista_headers: dict
+    db_client: TestClient, admin_headers: dict, barista_headers: dict
 ) -> None:
     """PUT /admin/menu/items/{id}/modifiers должен заменять набор модификаторов."""
     # (a) сидим одну категорию и один товар через admin API
-    cat_resp = client.post(
+    cat_resp = db_client.post(
         "/api/v1/admin/menu/categories",
         json={
             "type": "drink",
@@ -941,7 +1028,7 @@ def test_admin_set_item_modifiers(
     assert cat_resp.status_code == 201, cat_resp.text
     cat_id = cat_resp.json()["id"]
 
-    item_resp = client.post(
+    item_resp = db_client.post(
         "/api/v1/admin/menu/items",
         json={
             "category_id": cat_id,
@@ -956,7 +1043,7 @@ def test_admin_set_item_modifiers(
 
     # (b) сидим три модификатора
     def _create_mod(name_ru: str, name_en: str, price: int) -> int:
-        resp = client.post(
+        resp = db_client.post(
             "/api/v1/admin/menu/modifiers",
             json={"name_ru": name_ru, "name_en": name_en, "price": price, "sort_order": 0},
             headers=admin_headers,
@@ -971,41 +1058,41 @@ def test_admin_set_item_modifiers(
     url = f"/api/v1/admin/menu/items/{item_id}/modifiers"
 
     # (c) прикрепляем три модификатора → 200, полный набор
-    resp_c = client.put(url, json={"modifier_ids": [mod_a, mod_b, mod_c]}, headers=admin_headers)
+    resp_c = db_client.put(url, json={"modifier_ids": [mod_a, mod_b, mod_c]}, headers=admin_headers)
     assert resp_c.status_code == 200, resp_c.text
     body_c = resp_c.json()
     assert {m["id"] for m in body_c["modifiers"]} == {mod_a, mod_b, mod_c}
 
     # (d) заменяем на один mod_b → replacement, не union
-    resp_d = client.put(url, json={"modifier_ids": [mod_b]}, headers=admin_headers)
+    resp_d = db_client.put(url, json={"modifier_ids": [mod_b]}, headers=admin_headers)
     assert resp_d.status_code == 200, resp_d.text
     body_d = resp_d.json()
     assert len(body_d["modifiers"]) == 1
     assert body_d["modifiers"][0]["id"] == mod_b
 
     # (e) пустой список → отцепить все
-    resp_e = client.put(url, json={"modifier_ids": []}, headers=admin_headers)
+    resp_e = db_client.put(url, json={"modifier_ids": []}, headers=admin_headers)
     assert resp_e.status_code == 200, resp_e.text
     assert resp_e.json()["modifiers"] == []
 
     # Перед (f) восстановим набор [mod_a], чтобы проверить, что 422 не меняет состояние
-    resp_prep = client.put(url, json={"modifier_ids": [mod_a]}, headers=admin_headers)
+    resp_prep = db_client.put(url, json={"modifier_ids": [mod_a]}, headers=admin_headers)
     assert resp_prep.status_code == 200, resp_prep.text
-    before_f = client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
+    before_f = db_client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
     assert before_f.status_code == 200, before_f.text
     before_mods = {m["id"] for m in before_f.json()["modifiers"]}
     assert before_mods == {mod_a}
 
     # (f) неизвестный id → 422, detail упоминает 999999, состояние не меняется
-    resp_f = client.put(url, json={"modifier_ids": [mod_a, 999999]}, headers=admin_headers)
+    resp_f = db_client.put(url, json={"modifier_ids": [mod_a, 999999]}, headers=admin_headers)
     assert resp_f.status_code == 422, resp_f.text
     assert "999999" in str(resp_f.json().get("detail", "")), resp_f.text
-    after_f = client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
+    after_f = db_client.get(f"/api/v1/admin/menu/items/{item_id}", headers=admin_headers)
     assert after_f.status_code == 200, after_f.text
     assert {m["id"] for m in after_f.json()["modifiers"]} == before_mods
 
     # (g) неизвестный item_id → 404
-    resp_g = client.put(
+    resp_g = db_client.put(
         "/api/v1/admin/menu/items/999999/modifiers",
         json={"modifier_ids": [mod_a]},
         headers=admin_headers,
@@ -1013,7 +1100,7 @@ def test_admin_set_item_modifiers(
     assert resp_g.status_code == 404, resp_g.text
 
     # (h) дубликаты → дедуп, 200
-    resp_h = client.put(
+    resp_h = db_client.put(
         url,
         json={"modifier_ids": [mod_a, mod_a, mod_b]},
         headers=admin_headers,
@@ -1022,11 +1109,11 @@ def test_admin_set_item_modifiers(
     assert {m["id"] for m in resp_h.json()["modifiers"]} == {mod_a, mod_b}
 
     # (i) бариста → 403 вне зависимости от тела
-    resp_i_empty = client.put(url, json={"modifier_ids": []}, headers=barista_headers)
+    resp_i_empty = db_client.put(url, json={"modifier_ids": []}, headers=barista_headers)
     assert resp_i_empty.status_code == 403, resp_i_empty.text
-    resp_i_full = client.put(url, json={"modifier_ids": [mod_a]}, headers=barista_headers)
+    resp_i_full = db_client.put(url, json={"modifier_ids": [mod_a]}, headers=barista_headers)
     assert resp_i_full.status_code == 403, resp_i_full.text
 
     # (j) без Authorization → 401
-    resp_j = client.put(url, json={"modifier_ids": [mod_a]})
+    resp_j = db_client.put(url, json={"modifier_ids": [mod_a]})
     assert resp_j.status_code == 401, resp_j.text

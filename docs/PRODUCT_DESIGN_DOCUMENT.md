@@ -245,7 +245,7 @@ PostgreSQL — единственный источник истины. Redis —
 | Таблица | Назначение | Ключевые поля | Связи |
 |---------|-----------|---------------|-------|
 | `categories` | Категории меню | `id`, `type` (ENUM: drink/food/merch/modifier), `name_ru`, `name_en`, `sort_order`, `is_visible` | — |
-| `menu_items` | Позиции меню | `id`, `category_id` (FK), `name_ru`, `name_en`, `description_ru`, `description_en`, `base_price` (int, копейки), `image_url`, `available` (bool — стоп-лист), `archived` (bool), `sort_order` | N:1 с categories |
+| `menu_items` | Позиции меню | `id`, `category_id` (FK), `name_ru`, `name_en`, `description_ru`, `description_en`, `base_price` (int, копейки), `image_url` (legacy poster fallback), `media_type` (ENUM: image/video, nullable), `media_url`, `media_poster_url`, `available` (bool — стоп-лист), `archived` (bool), `sort_order` | N:1 с categories |
 | `size_options` | Размеры напитков | `id`, `menu_item_id` (FK), `label` (S/M/L), `price` (int, копейки), `available` | N:1 с menu_items |
 | `modifiers` | Модификаторы | `id`, `name_ru`, `name_en`, `price` (int, копейки), `available` | — |
 | `menu_item_modifiers` | Связь позиция ↔ модификатор | `menu_item_id` (FK), `modifier_id` (FK) | M:N junction |
@@ -253,6 +253,12 @@ PostgreSQL — единственный источник истины. Redis —
 **Примечания:**
 - Если у Menu Item есть Size Options — `base_price` игнорируется, цена берётся из выбранного Size Option.
 - `archived = true` скрывает позицию из меню навсегда (не стоп-лист). Используется когда позиция больше не продаётся, но на неё ссылаются старые Order Items.
+- Медиа позиции меню — презентационный слой. `media_type`, `media_url`, `media_poster_url` и legacy `image_url` НЕ участвуют в расчёте цены, доступности, корзины, платежа или Order Items snapshot.
+- Видео напитков используются как ключевая часть customer UX: короткие owned/generated ролики, muted, looped, playsInline, с poster/fallback изображением. Видео другой кофейной сети, чужие брендинговые материалы и неочищенные сторонние ассеты ЗАПРЕЩЕНЫ.
+- `media_url` может быть `NULL`. Если `media_type = video`, `media_poster_url` ОБЯЗАТЕЛЕН для первого кадра, reduced-motion fallback, ошибок загрузки и low-bandwidth режимов. Если новых media-полей нет, UI использует `image_url` как fallback.
+- В v1 медиа хранятся как local static assets, потому что генерируются один раз и меняются редко. В БД сохраняются только публичные static paths вида `/media/menu/{slug}/hero.mp4` и `/media/menu/{slug}/poster.webp`; бинарные upload/storage-потоки не входят в v1.
+- Admin menu editor ОБЯЗАН поддерживать редактирование `media_type`, `media_url`, `media_poster_url` и legacy `image_url`, но не загружает бинарные файлы. Подготовка/коммит/деплой generated assets — отдельный контентный шаг.
+- Медиа URL в публичном меню не являются секретами. Нельзя возвращать приватные signed URLs, токены доступа или внутренние storage credentials в public menu response (INV-015).
 
 #### Группа: Заказы
 

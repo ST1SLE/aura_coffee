@@ -11,7 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SizeOptionsEditor } from './SizeOptionsEditor';
 import { ModifiersPicker } from './ModifiersPicker';
-import type { MenuItemResponse, CategoryResponse, ModifierResponse } from '@/api/menu';
+import type {
+  MenuItemResponse,
+  CategoryResponse,
+  ModifierResponse,
+  MenuMediaType,
+} from '@/api/menu';
 import { createItem, updateItem, ApiError } from '@/api/menu';
 import { rublesToKopecks, kopecksToRublesStr, pickLang } from './utils';
 
@@ -33,6 +38,12 @@ import { rublesToKopecks, kopecksToRublesStr, pickLang } from './utils';
 //   MenuItemFormDialog - admin-only create/edit dialog with sizes + modifiers panel
 // END_MODULE_MAP
 
+const MEDIA_PATH_PREFIX = '/media/menu/';
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
+const VIDEO_EXTENSIONS = ['.mp4', '.webm'];
+
+type MediaTypeFormValue = '' | MenuMediaType;
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -52,6 +63,9 @@ interface FormState {
   price: string;
   sort_order: string;
   image_url: string;
+  media_type: MediaTypeFormValue;
+  media_url: string;
+  media_poster_url: string;
   archived: boolean;
 }
 
@@ -65,8 +79,29 @@ function makeForm(item?: MenuItemResponse | null): FormState {
     price: item ? kopecksToRublesStr(item.base_price) : '',
     sort_order: item ? String(item.sort_order) : '0',
     image_url: item?.image_url ?? '',
+    media_type: item?.media_type ?? '',
+    media_url: item?.media_url ?? '',
+    media_poster_url: item?.media_poster_url ?? '',
     archived: item?.archived ?? false,
   };
+}
+
+function isPublicMenuMediaPath(value: string): boolean {
+  const path = value.trim();
+  return (
+    path.startsWith(MEDIA_PATH_PREFIX) &&
+    !path.includes('?') &&
+    !path.includes('#') &&
+    !path.includes('://') &&
+    !path.startsWith('//') &&
+    !path.split('/').includes('..') &&
+    !/\s/.test(path)
+  );
+}
+
+function hasExtension(value: string, extensions: string[]): boolean {
+  const path = value.trim().toLowerCase();
+  return extensions.some((extension) => path.endsWith(extension));
 }
 
 // START_CONTRACT: MenuItemFormDialog
@@ -78,13 +113,25 @@ function makeForm(item?: MenuItemResponse | null): FormState {
 //   SIDE_EFFECTS: POST createItem / PUT updateItem; 422/401 surfaced via onError.
 //   LINKS:   INV-002 (admin scope server-enforced).
 // END_CONTRACT: MenuItemFormDialog
-export function MenuItemFormDialog({ open, onClose, categories, modifiers, item, onSaved, onError }: Props) {
+export function MenuItemFormDialog({
+  open,
+  onClose,
+  categories,
+  modifiers,
+  item,
+  onSaved,
+  onError,
+}: Props) {
   const { t, i18n } = useTranslation();
 
   // После успешного create переходим в режим edit текущего item
-  const [editItem, setEditItem] = useState<MenuItemResponse | null>(item ?? null);
+  const [editItem, setEditItem] = useState<MenuItemResponse | null>(
+    item ?? null,
+  );
   const [form, setForm] = useState<FormState>(() => makeForm(item));
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof FormState, string>>
+  >({});
   const [saving, setSaving] = useState(false);
   const [sizes, setSizes] = useState(item?.size_options ?? []);
   const [selectedModifierIds, setSelectedModifierIds] = useState<number[]>(
@@ -103,11 +150,49 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
 
   function validate(): boolean {
     const e: typeof errors = {};
-    if (!form.name_ru.trim()) e.name_ru = t('pages.menu.itemForm.validationNameRu');
-    if (!form.name_en.trim()) e.name_en = t('pages.menu.itemForm.validationNameEn');
+    if (!form.name_ru.trim())
+      e.name_ru = t('pages.menu.itemForm.validationNameRu');
+    if (!form.name_en.trim())
+      e.name_en = t('pages.menu.itemForm.validationNameEn');
     if (form.price === '' || parseFloat(form.price) < 0)
       e.price = t('pages.menu.itemForm.validationBasePrice');
-    if (!form.category_id) e.category_id = t('pages.menu.itemForm.validationCategory');
+    if (!form.category_id)
+      e.category_id = t('pages.menu.itemForm.validationCategory');
+    const mediaUrl = form.media_url.trim();
+    const mediaPosterUrl = form.media_poster_url.trim();
+    if (!form.media_type) {
+      if (mediaUrl || mediaPosterUrl) {
+        e.media_type = t('pages.menu.itemForm.validationMediaType');
+      }
+    } else {
+      if (!mediaUrl) {
+        e.media_url = t('pages.menu.itemForm.validationMediaUrlRequired');
+      } else if (!isPublicMenuMediaPath(mediaUrl)) {
+        e.media_url = t('pages.menu.itemForm.validationMediaPath');
+      } else if (
+        form.media_type === 'video' &&
+        !hasExtension(mediaUrl, VIDEO_EXTENSIONS)
+      ) {
+        e.media_url = t('pages.menu.itemForm.validationVideoPath');
+      } else if (
+        form.media_type === 'image' &&
+        !hasExtension(mediaUrl, IMAGE_EXTENSIONS)
+      ) {
+        e.media_url = t('pages.menu.itemForm.validationImagePath');
+      }
+
+      if (form.media_type === 'video') {
+        if (!mediaPosterUrl) {
+          e.media_poster_url = t(
+            'pages.menu.itemForm.validationPosterRequired',
+          );
+        } else if (!isPublicMenuMediaPath(mediaPosterUrl)) {
+          e.media_poster_url = t('pages.menu.itemForm.validationMediaPath');
+        } else if (!hasExtension(mediaPosterUrl, IMAGE_EXTENSIONS)) {
+          e.media_poster_url = t('pages.menu.itemForm.validationPosterPath');
+        }
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -126,11 +211,20 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
         base_price: rublesToKopecks(form.price),
         sort_order: parseInt(form.sort_order) || 0,
         image_url: form.image_url.trim() || null,
+        media_type: form.media_type || null,
+        media_url: form.media_type ? form.media_url.trim() || null : null,
+        media_poster_url:
+          form.media_type === 'video'
+            ? form.media_poster_url.trim() || null
+            : null,
       };
 
       let saved: MenuItemResponse;
       if (editItem) {
-        saved = await updateItem(editItem.id, { ...body, archived: form.archived });
+        saved = await updateItem(editItem.id, {
+          ...body,
+          archived: form.archived,
+        });
       } else {
         saved = await createItem(body);
         // после создания переходим в edit-режим чтобы можно было добавлять размеры
@@ -142,7 +236,8 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
-        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        const fields =
+          body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
         onError(t('pages.menu.itemForm.error422', { fields }));
       } else if (err instanceof ApiError && err.status === 401) {
         onError(t('common.sessionExpired'));
@@ -161,7 +256,9 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t('pages.menu.itemForm.titleEdit') : t('pages.menu.itemForm.titleCreate')}
+            {isEdit
+              ? t('pages.menu.itemForm.titleEdit')
+              : t('pages.menu.itemForm.titleCreate')}
           </DialogTitle>
         </DialogHeader>
 
@@ -169,58 +266,80 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
           {/* Название — два языка */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="item-name-ru">{t('pages.menu.itemForm.nameRu')}</Label>
+              <Label htmlFor="item-name-ru">
+                {t('pages.menu.itemForm.nameRu')}
+              </Label>
               <Input
                 id="item-name-ru"
                 value={form.name_ru}
                 onChange={(e) => setForm({ ...form, name_ru: e.target.value })}
                 required
               />
-              {errors.name_ru && <p className="text-xs text-destructive">{errors.name_ru}</p>}
+              {errors.name_ru && (
+                <p className="text-xs text-destructive">{errors.name_ru}</p>
+              )}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="item-name-en">{t('pages.menu.itemForm.nameEn')}</Label>
+              <Label htmlFor="item-name-en">
+                {t('pages.menu.itemForm.nameEn')}
+              </Label>
               <Input
                 id="item-name-en"
                 value={form.name_en}
                 onChange={(e) => setForm({ ...form, name_en: e.target.value })}
                 required
               />
-              {errors.name_en && <p className="text-xs text-destructive">{errors.name_en}</p>}
+              {errors.name_en && (
+                <p className="text-xs text-destructive">{errors.name_en}</p>
+              )}
             </div>
           </div>
 
           {/* Описание — два языка */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="item-desc-ru">{t('pages.menu.itemForm.descriptionRu')}</Label>
+              <Label htmlFor="item-desc-ru">
+                {t('pages.menu.itemForm.descriptionRu')}
+              </Label>
               <Input
                 id="item-desc-ru"
                 value={form.description_ru}
-                onChange={(e) => setForm({ ...form, description_ru: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description_ru: e.target.value })
+                }
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="item-desc-en">{t('pages.menu.itemForm.descriptionEn')}</Label>
+              <Label htmlFor="item-desc-en">
+                {t('pages.menu.itemForm.descriptionEn')}
+              </Label>
               <Input
                 id="item-desc-en"
                 value={form.description_en}
-                onChange={(e) => setForm({ ...form, description_en: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description_en: e.target.value })
+                }
               />
             </div>
           </div>
 
           {/* Категория */}
           <div className="space-y-1">
-            <Label htmlFor="item-cat">{t('pages.menu.itemForm.category')}</Label>
+            <Label htmlFor="item-cat">
+              {t('pages.menu.itemForm.category')}
+            </Label>
             <select
               id="item-cat"
               value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, category_id: e.target.value })
+              }
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               required
             >
-              <option value="">{t('pages.menu.itemForm.categoryPlaceholder')}</option>
+              <option value="">
+                {t('pages.menu.itemForm.categoryPlaceholder')}
+              </option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {pickLang(c.name_ru, c.name_en, i18n.language)}
@@ -245,12 +364,16 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
               placeholder={t('pages.menu.itemForm.pricePlaceholder')}
               required
             />
-            {errors.price && <p className="text-xs text-destructive">{errors.price}</p>}
+            {errors.price && (
+              <p className="text-xs text-destructive">{errors.price}</p>
+            )}
           </div>
 
           {/* Порядок сортировки */}
           <div className="space-y-1">
-            <Label htmlFor="item-sort">{t('pages.menu.itemForm.sortOrder')}</Label>
+            <Label htmlFor="item-sort">
+              {t('pages.menu.itemForm.sortOrder')}
+            </Label>
             <Input
               id="item-sort"
               type="number"
@@ -262,13 +385,92 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
 
           {/* URL изображения */}
           <div className="space-y-1">
-            <Label htmlFor="item-image">{t('pages.menu.itemForm.imageUrl')}</Label>
+            <Label htmlFor="item-image">
+              {t('pages.menu.itemForm.imageUrl')}
+            </Label>
             <Input
               id="item-image"
               value={form.image_url}
               onChange={(e) => setForm({ ...form, image_url: e.target.value })}
             />
           </div>
+
+          {/* Презентационные медиа */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="item-media-type">
+                {t('pages.menu.itemForm.mediaType')}
+              </Label>
+              <select
+                id="item-media-type"
+                value={form.media_type}
+                onChange={(e) => {
+                  const mediaType = e.target.value as MediaTypeFormValue;
+                  setForm((prev) => ({
+                    ...prev,
+                    media_type: mediaType,
+                    media_url: mediaType ? prev.media_url : '',
+                    media_poster_url:
+                      mediaType === 'video' ? prev.media_poster_url : '',
+                  }));
+                }}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">
+                  {t('pages.menu.itemForm.mediaTypeNone')}
+                </option>
+                <option value="image">
+                  {t('pages.menu.itemForm.mediaTypeImage')}
+                </option>
+                <option value="video">
+                  {t('pages.menu.itemForm.mediaTypeVideo')}
+                </option>
+              </select>
+              {errors.media_type && (
+                <p className="text-xs text-destructive">{errors.media_type}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="item-media-url">
+                {form.media_type === 'video'
+                  ? t('pages.menu.itemForm.videoPath')
+                  : t('pages.menu.itemForm.mediaUrl')}
+              </Label>
+              <Input
+                id="item-media-url"
+                value={form.media_url}
+                onChange={(e) =>
+                  setForm({ ...form, media_url: e.target.value })
+                }
+                placeholder="/media/menu/latte/hero.mp4"
+                disabled={!form.media_type}
+              />
+              {errors.media_url && (
+                <p className="text-xs text-destructive">{errors.media_url}</p>
+              )}
+            </div>
+          </div>
+
+          {form.media_type === 'video' && (
+            <div className="space-y-1">
+              <Label htmlFor="item-media-poster">
+                {t('pages.menu.itemForm.mediaPosterUrl')}
+              </Label>
+              <Input
+                id="item-media-poster"
+                value={form.media_poster_url}
+                onChange={(e) =>
+                  setForm({ ...form, media_poster_url: e.target.value })
+                }
+                placeholder="/media/menu/latte/poster.webp"
+              />
+              {errors.media_poster_url && (
+                <p className="text-xs text-destructive">
+                  {errors.media_poster_url}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Архив — только для edit */}
           {isEdit && (
@@ -277,10 +479,14 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
                 id="item-archived"
                 type="checkbox"
                 checked={form.archived}
-                onChange={(e) => setForm({ ...form, archived: e.target.checked })}
+                onChange={(e) =>
+                  setForm({ ...form, archived: e.target.checked })
+                }
                 className="h-4 w-4"
               />
-              <Label htmlFor="item-archived">{t('pages.menu.itemForm.archived')}</Label>
+              <Label htmlFor="item-archived">
+                {t('pages.menu.itemForm.archived')}
+              </Label>
             </div>
           )}
 
@@ -289,7 +495,9 @@ export function MenuItemFormDialog({ open, onClose, categories, modifiers, item,
               {t('pages.menu.itemForm.cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? t('pages.menu.itemForm.saving') : t('pages.menu.itemForm.save')}
+              {saving
+                ? t('pages.menu.itemForm.saving')
+                : t('pages.menu.itemForm.save')}
             </Button>
           </div>
         </form>

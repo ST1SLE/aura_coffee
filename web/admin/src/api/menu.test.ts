@@ -41,7 +41,16 @@ describe('api/menu', () => {
   }
 
   it('listCategories — GET /api/v1/admin/menu/categories', async () => {
-    const data = [{ id: 1, type: 'drink', name_ru: 'Кофе', name_en: 'Coffee', sort_order: 0, is_visible: true }];
+    const data = [
+      {
+        id: 1,
+        type: 'drink',
+        name_ru: 'Кофе',
+        name_en: 'Coffee',
+        sort_order: 0,
+        is_visible: true,
+      },
+    ];
     mockJson(data);
 
     const result = await listCategories();
@@ -148,8 +157,12 @@ describe('api/menu', () => {
       name_ru: 'Латте',
       name_en: 'Latte',
       base_price: 35000,
+      media_type: 'video',
+      media_url: '/media/menu/latte/hero.mp4',
+      media_poster_url: '/media/menu/latte/poster.webp',
     };
     expect(_good.base_price).toBe(35000);
+    expect(_good.media_type).toBe('video');
   });
 
   // ── 2.2 createItem отправляет билингвальный payload с base_price ─────────────
@@ -160,14 +173,35 @@ describe('api/menu', () => {
       name_ru: 'Латте',
       name_en: 'Latte',
       base_price: 35000,
+      media_type: 'video',
+      media_url: '/media/menu/latte/hero.mp4',
+      media_poster_url: '/media/menu/latte/poster.webp',
     };
-    mockJson({ id: 10, ...payload, available: true, archived: false, sort_order: 0, size_options: [], modifiers: [] }, 201);
+    mockJson(
+      {
+        id: 10,
+        ...payload,
+        available: true,
+        archived: false,
+        sort_order: 0,
+        size_options: [],
+        modifiers: [],
+      },
+      201,
+    );
 
     await createItem(payload);
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sent = JSON.parse(init.body as string);
-    expect(sent).toMatchObject({ name_ru: 'Латте', name_en: 'Latte', base_price: 35000 });
+    expect(sent).toMatchObject({
+      name_ru: 'Латте',
+      name_en: 'Latte',
+      base_price: 35000,
+      media_type: 'video',
+      media_url: '/media/menu/latte/hero.mp4',
+      media_poster_url: '/media/menu/latte/poster.webp',
+    });
     expect(sent).not.toHaveProperty('name');
     expect(sent).not.toHaveProperty('price_kopecks');
   });
@@ -179,21 +213,33 @@ describe('api/menu', () => {
     const _bad: ModifierCreate = { name: 'Ваниль', price_kopecks: 5000 };
     void _bad;
 
-    const _good: ModifierCreate = { name_ru: 'Ваниль', name_en: 'Vanilla', price: 5000 };
+    const _good: ModifierCreate = {
+      name_ru: 'Ваниль',
+      name_en: 'Vanilla',
+      price: 5000,
+    };
     expect(_good.price).toBe(5000);
   });
 
   // ── 3.2 createModifier отправляет билингвальный payload ─────────────────────
 
   test('createModifier POSTs bilingual payload', async () => {
-    const payload: ModifierCreate = { name_ru: 'Ваниль', name_en: 'Vanilla', price: 5000 };
+    const payload: ModifierCreate = {
+      name_ru: 'Ваниль',
+      name_en: 'Vanilla',
+      price: 5000,
+    };
     mockJson({ id: 3, ...payload, available: true, sort_order: 0 });
 
     await createModifier(payload);
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sent = JSON.parse(init.body as string);
-    expect(sent).toMatchObject({ name_ru: 'Ваниль', name_en: 'Vanilla', price: 5000 });
+    expect(sent).toMatchObject({
+      name_ru: 'Ваниль',
+      name_en: 'Vanilla',
+      price: 5000,
+    });
     expect(sent).not.toHaveProperty('name');
     expect(sent).not.toHaveProperty('price_kopecks');
   });
@@ -201,18 +247,32 @@ describe('api/menu', () => {
   // ── 4.1 SizeOptionCreate TS-контракт ────────────────────────────────────────
 
   test('SizeOptionCreate requires label: SizeLabel and price', () => {
-    // @ts-expect-error — старый литерал с volume_ml и price_kopecks не совместим
-    const _bad: SizeOptionCreate = { label: 'Small', volume_ml: 200, price_kopecks: 15000 };
+    const _bad: SizeOptionCreate = {
+      // @ts-expect-error — старый label не совместим с SizeLabel
+      label: 'Small',
+      volume_ml: 200,
+      price_kopecks: 15000,
+    };
     void _bad;
 
-    const _good: SizeOptionCreate = { menu_item_id: 1, label: 'S', price: 1500, available: true };
+    const _good: SizeOptionCreate = {
+      menu_item_id: 1,
+      label: 'S',
+      price: 1500,
+      available: true,
+    };
     expect(_good.label).toBe('S');
   });
 
   // ── 4.2 createSize отправляет enum label и price ─────────────────────────────
 
   test('createSize POSTs enum label and price', async () => {
-    const payload: SizeOptionCreate = { menu_item_id: 1, label: 'S', price: 1500, available: true };
+    const payload: SizeOptionCreate = {
+      menu_item_id: 1,
+      label: 'S',
+      price: 1500,
+      available: true,
+    };
     mockJson({ id: 5, ...payload });
 
     await createSize(payload);

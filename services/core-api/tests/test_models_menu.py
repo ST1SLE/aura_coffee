@@ -5,7 +5,6 @@
 """
 
 import pytest
-import sqlalchemy as sa
 from sqlalchemy import inspect as sa_inspect
 
 from tests.conftest import _TEST_DB_URL as TEST_DB_URL
@@ -38,7 +37,8 @@ def test_menu_item_model_declares_columns() -> None:
     required = {
         "id", "category_id", "name_ru", "name_en",
         "description_ru", "description_en", "base_price",
-        "image_url", "available", "archived", "sort_order",
+        "image_url", "media_type", "media_url", "media_poster_url",
+        "available", "archived", "sort_order",
         "created_at", "updated_at",
     }
     assert col_names >= required
@@ -51,6 +51,16 @@ def test_menu_item_model_declares_columns() -> None:
         if col.foreign_keys
     }
     assert "categories" in fk_tables
+
+
+def test_menu_item_model_media_fields_are_nullable() -> None:
+    from shared.models.menu import MenuItem
+
+    mapper = sa_inspect(MenuItem)
+    cols = {c.key: c for c in mapper.mapper.columns}
+    assert cols["media_type"].nullable is True
+    assert cols["media_url"].nullable is True
+    assert cols["media_poster_url"].nullable is True
 
 
 # ---------------------------------------------------------------------------

@@ -23,8 +23,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from core_api.schemas.menu import (
     PublicCategory,
-    PublicMenuModifier,
     PublicMenuItem,
+    PublicMenuModifier,
     PublicMenuResponse,
     PublicMenuSizeOption,
 )
@@ -83,6 +83,9 @@ def _map_item(item: MenuItem, language: Language, *, only_available: bool) -> Pu
         description_en=item.description_en,
         base_price=item.base_price,
         image_url=item.image_url,
+        media_type=item.media_type,
+        media_url=item.media_url,
+        media_poster_url=item.media_poster_url,
         available=item.available,
         sort_order=item.sort_order,
         size_options=[

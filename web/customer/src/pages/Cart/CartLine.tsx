@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Minus, Plus, X } from 'lucide-react';
 import type { CartItemResponse } from '@/api/cartTypes';
 import { formatPrice } from '@/lib/formatPrice';
 import { Button } from '@/components/ui/button';
@@ -40,36 +41,49 @@ interface Props {
 //                 INV-014 — prices/snapshot fields rendered as-is (no client math).
 //   LINKS:   PDD §5; consumed by Cart/CartPage.
 // END_CONTRACT: CartLine
-export function CartLine({ item, lang, onUpdateQuantity, onRemove, itemId }: Props) {
+export function CartLine({
+  item,
+  lang,
+  onUpdateQuantity,
+  onRemove,
+  itemId,
+}: Props) {
   const { t } = useTranslation();
   const locale = lang === 'ru' ? 'ru' : 'en';
-  const name = lang === 'ru' ? item.menu_item_snapshot.name_ru : item.menu_item_snapshot.name_en;
+  const name =
+    lang === 'ru'
+      ? item.menu_item_snapshot.name_ru
+      : item.menu_item_snapshot.name_en;
 
   const modifierNames = item.modifiers_snapshot
     .map((m) => (lang === 'ru' ? m.name_ru : m.name_en))
     .join(t('cart.modifierSeparator'));
 
   return (
-    <div className="flex flex-col gap-1 py-3 border-b last:border-b-0">
-      <div className="flex justify-between items-start">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium text-sm">{name}</span>
+          <span className="text-base font-semibold leading-tight">{name}</span>
           {item.size_snapshot && (
-            <span className="text-xs text-muted-foreground">{item.size_snapshot.label}</span>
+            <span className="text-xs text-muted-foreground">
+              {item.size_snapshot.label}
+            </span>
           )}
           {modifierNames && (
-            <span className="text-xs text-muted-foreground">{modifierNames}</span>
+            <span className="text-xs text-muted-foreground">
+              {modifierNames}
+            </span>
           )}
         </div>
         <button
           aria-label={t('cart.remove')}
           onClick={() => onRemove(itemId)}
-          className="text-muted-foreground hover:text-destructive text-sm ml-4"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
         >
-          ✕
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="flex items-center justify-between mt-1">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -81,9 +95,11 @@ export function CartLine({ item, lang, onUpdateQuantity, onRemove, itemId }: Pro
                 : onUpdateQuantity(itemId, item.quantity - 1)
             }
           >
-            −
+            <Minus className="h-4 w-4" aria-hidden="true" />
           </Button>
-          <span className="w-6 text-center text-sm">{item.quantity}</span>
+          <span className="w-7 text-center text-sm font-medium">
+            {item.quantity}
+          </span>
           <Button
             variant="outline"
             size="icon"
@@ -91,12 +107,16 @@ export function CartLine({ item, lang, onUpdateQuantity, onRemove, itemId }: Pro
             disabled={item.quantity >= 99}
             onClick={() => onUpdateQuantity(itemId, item.quantity + 1)}
           >
-            +
+            <Plus className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
         <div className="flex flex-col items-end text-sm">
-          <span className="text-muted-foreground">{formatPrice(item.unit_price, locale)} × {item.quantity}</span>
-          <span className="font-semibold">{formatPrice(item.line_total, locale)}</span>
+          <span className="text-muted-foreground">
+            {formatPrice(item.unit_price, locale)} × {item.quantity}
+          </span>
+          <span className="font-semibold text-primary">
+            {formatPrice(item.line_total, locale)}
+          </span>
         </div>
       </div>
     </div>

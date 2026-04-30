@@ -133,7 +133,9 @@ describe('CheckoutPage DELIVERY with saved', () => {
 
     // primary (savedA) предвыбран
     await waitFor(() => {
-      const primaryRadio = screen.getByDisplayValue('saved-1') as HTMLInputElement;
+      const primaryRadio = screen.getByDisplayValue(
+        'saved-1',
+      ) as HTMLInputElement;
       expect(primaryRadio.checked).toBe(true);
     });
   });
@@ -196,7 +198,9 @@ describe('CheckoutPage DELIVERY with new address', () => {
 
     const textboxes = screen.getAllByRole('textbox');
     fireEvent.change(textboxes[0], { target: { value: 'Адрес' } });
-    fireEvent.click(screen.getByLabelText(/сохранить для следующего|save for next/i));
+    fireEvent.click(
+      screen.getByLabelText(/сохранить для следующего|save for next/i),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
@@ -205,6 +209,36 @@ describe('CheckoutPage DELIVERY with new address', () => {
     const createOrderOrder = (createOrder as Mock).mock.invocationCallOrder[0];
     const createAddrOrder = (createAddress as Mock).mock.invocationCallOrder[0];
     expect(createAddrOrder).toBeGreaterThan(createOrderOrder);
+  });
+
+  it('saveForFuture address-save failure does not log raw address text', async () => {
+    (listAddresses as Mock).mockResolvedValue([]);
+    (createOrder as Mock).mockResolvedValue(order);
+    (createAddress as Mock).mockRejectedValue(new Error('Адрес'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      renderPage();
+
+      fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
+      await waitFor(() => expect(listAddresses).toHaveBeenCalled());
+
+      const textboxes = screen.getAllByRole('textbox');
+      fireEvent.change(textboxes[0], { target: { value: 'Адрес' } });
+      fireEvent.click(
+        screen.getByLabelText(/сохранить для следующего|save for next/i),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/orders/o1'),
+      );
+      expect(warn).toHaveBeenCalledWith('Failed to save address for future');
+      expect(warn.mock.calls.flat().join(' ')).not.toContain('Адрес');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('saveForFuture=false does NOT call createAddress', async () => {
@@ -246,6 +280,8 @@ describe('CheckoutPage 409 rendering', () => {
     });
     expect(mockNavigate).not.toHaveBeenCalled();
     // форма всё ещё видна
-    expect(screen.getByRole('button', { name: /оформить|place/i })).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: /оформить|place/i }),
+    ).not.toBeNull();
   });
 });

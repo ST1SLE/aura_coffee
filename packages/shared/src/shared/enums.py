@@ -20,6 +20,7 @@
 #   StaffRole                  - admin/barista/courier role for StaffAccount
 #   CategoryType               - menu category kind: drink/food/merch/modifier
 #   MenuItemAvailability       - menu item availability state
+#   MenuMediaType              - presentational menu media type: image/video
 #   SizeLabel                  - size label S/M/L for SizeOption
 #   OrderStatus                - lifecycle of an Order (PDD §6.1, INV-016)
 #   OrderType                  - pickup vs delivery order kind (PDD §3)
@@ -70,6 +71,11 @@ class MenuItemAvailability(str, enum.Enum):
     AVAILABLE = "available"
     STOP_LIST = "stop_list"
     ARCHIVED = "archived"
+
+
+class MenuMediaType(str, enum.Enum):
+    IMAGE = "image"
+    VIDEO = "video"
 
 
 class SizeLabel(str, enum.Enum):

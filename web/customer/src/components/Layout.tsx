@@ -1,15 +1,17 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Coffee, LogOut, ReceiptText, ShoppingBag, User } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/auth/useAuth';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: App shell — sticky header with logo + nav links + logout +
-//            LanguageSwitcher, the <main> outlet, and a mobile bottom nav.
+//   PURPOSE: Dark mobile-first app shell — sticky header with logo + nav links
+//            + logout + LanguageSwitcher, the <main> outlet, and a mobile
+//            bottom nav.
 //            Wraps all authenticated routes (see App.tsx).
 //   SCOPE:   Layout component.
-//   DEPENDS: react-router-dom (Outlet/Link/useNavigate), react-i18next,
-//            @/components/LanguageSwitcher, @/auth/useAuth.
+//   DEPENDS: react-router-dom (Outlet/Link/NavLink/useNavigate), react-i18next,
+//            lucide-react, @/components/LanguageSwitcher, @/auth/useAuth.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §4.4.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -38,60 +40,99 @@ export function Layout() {
     navigate('/login');
   };
 
+  const navItems = [
+    { to: '/', label: t('nav.menu'), icon: Coffee },
+    { to: '/cart', label: t('nav.cart'), icon: ShoppingBag },
+    { to: '/orders', label: t('nav.orders'), icon: ReceiptText },
+    { to: '/profile', label: t('nav.profile'), icon: User },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="text-lg font-bold text-brand-700">
-          {t('appTitle')}
-        </Link>
-
-        <div className="hidden md:flex items-center gap-4">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            {t('nav.menu')}
-          </Link>
-          <Link to="/cart" className="text-sm text-muted-foreground hover:text-foreground">
-            {t('nav.cart')}
-          </Link>
-          <Link to="/orders" className="text-sm text-muted-foreground hover:text-foreground">
-            {t('nav.orders')}
-          </Link>
-          <Link to="/profile" className="text-sm text-muted-foreground hover:text-foreground">
-            {t('nav.profile')}
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-muted-foreground hover:text-foreground"
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-base font-semibold tracking-normal text-foreground"
           >
-            {t('nav.logout')}
-          </button>
-          <LanguageSwitcher />
-        </div>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Coffee className="h-5 w-5" aria-hidden="true" />
+            </span>
+            {t('appTitle')}
+          </Link>
 
-        <div className="md:hidden">
-          <LanguageSwitcher />
+          <div className="hidden md:flex items-center gap-4">
+            {navItems.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  [
+                    'text-sm transition-colors',
+                    isActive
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  ].join(' ')
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {t('nav.logout')}
+            </button>
+            <LanguageSwitcher />
+          </div>
+
+          <div className="md:hidden">
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 p-4">
+      <main className="mx-auto w-full max-w-5xl flex-1 pb-24 md:pb-8">
         <Outlet />
       </main>
 
       <nav
-        className="border-t px-4 py-2 flex justify-around md:hidden"
-        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        className="fixed bottom-0 left-0 right-0 z-40 w-screen max-w-full overflow-hidden border-t border-border/80 bg-background/95 px-3 py-2 backdrop-blur md:hidden"
+        style={{
+          width: '100vw',
+          maxWidth: '100vw',
+          boxSizing: 'border-box',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        }}
       >
-        <Link to="/" className="flex flex-col items-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground">
-          {t('nav.menu')}
-        </Link>
-        <Link to="/cart" className="flex flex-col items-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground">
-          {t('nav.cart')}
-        </Link>
-        <Link to="/orders" className="flex flex-col items-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground">
-          {t('nav.orders')}
-        </Link>
-        <Link to="/profile" className="flex flex-col items-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground">
-          {t('nav.profile')}
-        </Link>
+        <div className="relative h-12">
+          {navItems.map(({ to, label, icon: Icon }, index) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              aria-label={label}
+              style={{
+                left: `${12.5 + index * 25}vw`,
+                minWidth: 0,
+                transform: 'translateX(-50%)',
+              }}
+              className={({ isActive }) =>
+                [
+                  'absolute top-0 flex h-12 w-12 items-center justify-center rounded-md transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                ].join(' ')
+              }
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   );

@@ -106,6 +106,27 @@ def test_x(grace_logs):
 
 Existing pytest assertions are preserved — LDD is additive, not a replacement.
 
+### GRACE verification gate
+
+Every implementation or fix packet MUST decide whether GRACE LDD assertions are required before it is marked done.
+
+LDD assertions are REQUIRED when a change touches any of:
+
+- PDD §6 state-machine transitions or transition guards.
+- Atomic transaction boundaries, payment/loyalty/promo/order creation flows, or rollback behavior.
+- Auth, role checks, customer identity, OTP, SMS, payment webhooks, or any PII/secrets/logging path.
+- Code that emits, changes, removes, or is expected to emit markers listed in `docs/verification-plan.xml`.
+
+Required LDD verification means:
+
+- Identify the required markers from `docs/verification-plan.xml` for the touched module/flow.
+- Add or update tests using `grace_logs` where available, or `shared.grace.testing.GraceLogCapture` directly when a module does not expose the fixture yet.
+- Assert marker order with `assert_trajectory(...)` for transaction/state-machine paths.
+- Assert `grace_logs.beliefs(status="MISMATCH") == []` for state-machine belief checks.
+- Assert INV-013 redaction for captured logs when touching auth/SMS/PII paths: no raw phone, OTP code, JWT, password, full PAN, API key, raw webhook body, or full address.
+
+If LDD assertions are not applicable, the packet final report MUST say why. A packet final report MUST list: markers asserted, redaction checks asserted, verification commands run, and any required markers intentionally left untested with a reason.
+
 ### Workflow skills (from the `grace` plugin)
 
 | Skill | When |
@@ -120,6 +141,10 @@ Existing pytest assertions are preserved — LDD is additive, not a replacement.
 | `grace:grace-status` | Health check + suggested next action |
 | `grace:grace-ask` | Architecture / implementation Q&A grounded in project artifacts |
 | `grace:grace-reviewer` | Pre-merge or phase-boundary integrity review |
+
+### Codex workflow note
+
+Codex agents may not have the Claude `grace` plugin installed. In Codex, use the repo-scoped `aura-grace` skill for the same GRACE workflow discipline: planning, implementation, verification, refactor, refresh, fix, review, and architecture Q&A grounded in `docs/*.xml` and the PDD.
 
 ### Worktree dev workflow (utilities retained)
 

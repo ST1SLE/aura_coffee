@@ -43,7 +43,7 @@ export function LoyaltyCard() {
   }, []);
 
   return (
-    <div className="rounded-md border p-4">
+    <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-2 text-sm font-medium text-muted-foreground">
         {t('pages.profile.loyaltyCard.title')}
       </div>
@@ -59,11 +59,11 @@ export function LoyaltyCard() {
           </span>
         </div>
       ) : (
-        <div className="h-8 w-20 animate-pulse rounded bg-muted" />
+        <div className="h-8 w-20 animate-pulse rounded-md bg-muted" />
       )}
       <Link
         to="/profile/loyalty"
-        className="mt-2 inline-block text-sm text-primary underline"
+        className="mt-3 inline-block text-sm text-primary underline"
       >
         {t('pages.profile.loyaltyCard.view_history')}
       </Link>

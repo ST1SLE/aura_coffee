@@ -17,18 +17,32 @@ import type { PublicMenuItem } from '@/api/menuTypes';
 
 function baseItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   return {
-    id: 1, category_id: 1,
-    name: 'Кофе', name_ru: 'Кофе', name_en: 'Coffee',
-    description: null, description_ru: null, description_en: null,
-    base_price: 15000, image_url: null, available: true, sort_order: 0,
-    size_options: [], modifiers: [],
+    id: 1,
+    category_id: 1,
+    name: 'Кофе',
+    name_ru: 'Кофе',
+    name_en: 'Coffee',
+    description: null,
+    description_ru: null,
+    description_en: null,
+    base_price: 15000,
+    image_url: null,
+    media_type: null,
+    media_url: null,
+    media_poster_url: null,
+    available: true,
+    sort_order: 0,
+    size_options: [],
+    modifiers: [],
     ...overrides,
   };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (useCartStore as unknown as Mock).mockReturnValue(vi.fn().mockResolvedValue(undefined));
+  (useCartStore as unknown as Mock).mockReturnValue(
+    vi.fn().mockResolvedValue(undefined),
+  );
 });
 
 describe('ItemDetail — price display', () => {
@@ -49,11 +63,16 @@ describe('ItemDetail — price display', () => {
 
   it('adding a modifier (price 5000) on top of size (15000) shows 200 ₽', () => {
     const item = baseItem({
-      size_options: [
-        { id: 1, label: 'M', price: 15000, available: true },
-      ],
+      size_options: [{ id: 1, label: 'M', price: 15000, available: true }],
       modifiers: [
-        { id: 10, name: 'Сироп', name_ru: 'Сироп', name_en: 'Syrup', price: 5000, available: true },
+        {
+          id: 10,
+          name: 'Сироп',
+          name_ru: 'Сироп',
+          name_en: 'Syrup',
+          price: 5000,
+          available: true,
+        },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={vi.fn()} />);
@@ -105,7 +124,14 @@ describe('ItemDetail — Add-to-Cart actions (task 6.8)', () => {
     const onClose = vi.fn();
     const item = baseItem({
       modifiers: [
-        { id: 5, name: 'Экстра', name_ru: 'Экстра', name_en: 'Extra', price: 3000, available: true },
+        {
+          id: 5,
+          name: 'Экстра',
+          name_ru: 'Экстра',
+          name_en: 'Extra',
+          price: 3000,
+          available: true,
+        },
       ],
     });
     render(<ItemDetail item={item} lang="ru" onClose={onClose} />);

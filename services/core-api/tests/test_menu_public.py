@@ -101,7 +101,7 @@ def test_public_menu_item_exposes_flat_and_raw_bilingual_fields() -> None:
         "id", "category_id",
         "name", "name_ru", "name_en",
         "description", "description_ru", "description_en",
-        "base_price", "image_url",
+        "base_price", "image_url", "media_type", "media_url", "media_poster_url",
         "available", "sort_order",
         "size_options", "modifiers",
     }
@@ -348,6 +348,26 @@ def test_null_description_projects_as_null(client, seed_public_menu) -> None:
     assert item["description"] is None
     assert item["description_ru"] is None
     assert item["description_en"] is None
+
+
+def test_public_menu_projects_media_fields_and_legacy_image_fallback(
+    client, seed_public_menu
+) -> None:
+    resp = client.get("/api/v1/menu")
+    assert resp.status_code == 200
+
+    video_item = _find_item(resp.json(), seed_public_menu.item_d1_id)
+    assert video_item is not None
+    assert video_item["media_type"] == "video"
+    assert video_item["media_url"] == "/media/menu/latte/hero.mp4"
+    assert video_item["media_poster_url"] == "/media/menu/latte/poster.webp"
+
+    legacy_item = _find_item(resp.json(), seed_public_menu.item_d2_id)
+    assert legacy_item is not None
+    assert legacy_item["image_url"] == "/legacy/americano.webp"
+    assert legacy_item["media_type"] is None
+    assert legacy_item["media_url"] is None
+    assert legacy_item["media_poster_url"] is None
 
 
 def test_modifier_name_is_projected_bilingually(client, seed_public_menu) -> None:

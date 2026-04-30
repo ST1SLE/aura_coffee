@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PublicMenuItem, PublicMenuSizeOption, PublicMenuModifier } from '@/api/menuTypes';
+import { X } from 'lucide-react';
+import type {
+  PublicMenuItem,
+  PublicMenuSizeOption,
+  PublicMenuModifier,
+} from '@/api/menuTypes';
 import { formatPrice } from '@/lib/formatPrice';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
+import { MenuMedia } from './MenuMedia';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Bottom-sheet modal that lets the user pick a size + modifiers for
@@ -11,8 +17,9 @@ import { useCartStore } from '@/store/cart';
 //            recomputes on add), and adds the configured item to the cart.
 //   SCOPE:   ItemDetail component.
 //   DEPENDS: react, react-i18next, @/api/menuTypes, @/lib/formatPrice,
-//            @/components/ui/button, @/store/cart.
-//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu / §5 cart.
+//            @/components/ui/button, @/store/cart, ./MenuMedia.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu / §5 cart,
+//            PDD §5.2 menu media.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
 // END_MODULE_CONTRACT
@@ -46,9 +53,14 @@ export function ItemDetail({ item, lang, onClose }: Props) {
   const [selectedSize, setSelectedSize] = useState<PublicMenuSizeOption | null>(
     availableSizes[0] ?? null,
   );
-  const [selectedModifiers, setSelectedModifiers] = useState<PublicMenuModifier[]>([]);
+  const [selectedModifiers, setSelectedModifiers] = useState<
+    PublicMenuModifier[]
+  >([]);
   const [busy, setBusy] = useState(false);
-  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toastMsg, setToastMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   const locale = lang === 'ru' ? 'ru' : 'en';
 
@@ -88,96 +100,132 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm md:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="w-full max-w-lg rounded-t-2xl bg-background p-5 space-y-4">
-        <div className="flex items-start justify-between">
-          <h2 className="text-lg font-semibold">{item.name}</h2>
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-lg border border-border bg-background shadow-2xl md:rounded-lg">
+        <div className="relative">
+          <MenuMedia
+            item={item}
+            alt={item.name}
+            className="h-72 w-full bg-secondary"
+          />
           <button
             aria-label="close"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground ml-4"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-md bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-secondary"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        {item.description && (
-          <p className="text-sm text-muted-foreground">{item.description}</p>
-        )}
-
-        {item.size_options.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">{t('menu.selectSize')}</p>
-            <div className="flex gap-2 flex-wrap">
-              {item.size_options.map((sz) => (
-                <button
-                  key={sz.id}
-                  disabled={!sz.available}
-                  aria-pressed={selectedSize?.id === sz.id}
-                  onClick={() => sz.available && setSelectedSize(sz)}
-                  className={[
-                    'rounded-full px-3 py-1 text-sm border',
-                    !sz.available && 'opacity-40 cursor-not-allowed',
-                    selectedSize?.id === sz.id
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-input hover:bg-accent',
-                  ].join(' ')}
-                >
-                  {sz.label} — {formatPrice(sz.price, locale)}
-                </button>
-              ))}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="space-y-5 pb-24">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold tracking-normal">
+                {item.name}
+              </h2>
+              {item.description && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {item.description}
+                </p>
+              )}
             </div>
-          </div>
-        )}
 
-        {item.modifiers.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">{t('menu.modifiers')}</p>
-            <div className="flex gap-2 flex-wrap">
-              {item.modifiers.map((mod) => {
-                const active = selectedModifiers.some((m) => m.id === mod.id);
-                return (
-                  <button
-                    key={mod.id}
-                    disabled={!mod.available}
-                    aria-pressed={active}
-                    onClick={() => mod.available && toggleModifier(mod)}
-                    className={[
-                      'rounded-full px-3 py-1 text-sm border',
-                      !mod.available && 'opacity-40 cursor-not-allowed',
-                      active
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-input hover:bg-accent',
-                    ].join(' ')}
-                  >
-                    {mod.name} +{formatPrice(mod.price, locale)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+            {item.size_options.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium">
+                  {t('menu.selectSize')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {item.size_options.map((sz) => (
+                    <button
+                      key={sz.id}
+                      disabled={!sz.available}
+                      aria-pressed={selectedSize?.id === sz.id}
+                      onClick={() => sz.available && setSelectedSize(sz)}
+                      className={[
+                        'min-h-10 rounded-md border px-3 text-sm transition-colors',
+                        !sz.available && 'opacity-40 cursor-not-allowed',
+                        selectedSize?.id === sz.id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-input bg-secondary text-foreground hover:bg-accent',
+                      ].join(' ')}
+                    >
+                      {sz.label} — {formatPrice(sz.price, locale)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <div className="flex items-center justify-between pt-2">
-          <span className="font-semibold text-lg">{formatPrice(currentPrice, locale)}</span>
-          <Button
-            onClick={handleAddToCart}
-            disabled={!canAdd || busy}
-          >
-            {t('menu.addToCart')}
-          </Button>
+            {item.modifiers.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium">
+                  {t('menu.modifiers')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {item.modifiers.map((mod) => {
+                    const active = selectedModifiers.some(
+                      (m) => m.id === mod.id,
+                    );
+                    return (
+                      <button
+                        key={mod.id}
+                        disabled={!mod.available}
+                        aria-pressed={active}
+                        onClick={() => mod.available && toggleModifier(mod)}
+                        className={[
+                          'min-h-10 rounded-md border px-3 text-sm transition-colors',
+                          !mod.available && 'opacity-40 cursor-not-allowed',
+                          active
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-secondary text-foreground hover:bg-accent',
+                        ].join(' ')}
+                      >
+                        {mod.name} +{formatPrice(mod.price, locale)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {toastMsg && (
+              <p
+                role="status"
+                className={
+                  toastMsg.type === 'success'
+                    ? 'text-sm text-primary'
+                    : 'text-sm text-destructive'
+                }
+              >
+                {toastMsg.text}
+              </p>
+            )}
+          </div>
         </div>
 
-        {toastMsg && (
-          <p
-            role="status"
-            className={toastMsg.type === 'success' ? 'text-sm text-green-600' : 'text-sm text-destructive'}
-          >
-            {toastMsg.text}
-          </p>
-        )}
+        <div
+          className="border-t border-border bg-background/95 px-5 py-3 backdrop-blur"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="grid gap-3 sm:flex sm:items-center sm:justify-between">
+            <span className="min-w-0 text-xl font-semibold">
+              {formatPrice(currentPrice, locale)}
+            </span>
+            <Button
+              onClick={handleAddToCart}
+              disabled={!canAdd || busy}
+              className="w-full shrink-0 px-4 sm:w-auto"
+              style={{ flexShrink: 0 }}
+            >
+              {t('menu.addToCart')}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

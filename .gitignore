@@ -26,3 +26,11 @@ __pycache__/
 # Worktrees (orchestrate.sh)
 .worktrees/
 .envrc
+
+# Agent local state
+.codex/local/
+.claude/
+*.db
+*.sqlite
+*.sqlite3
+.migration-staging/

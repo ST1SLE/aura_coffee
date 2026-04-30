@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from shared.enums import CategoryType, SizeLabel
+from shared.enums import CategoryType, MenuMediaType, SizeLabel
 from shared.models import Base
 
 # M:N junction table — объект Table, не mapped-класс
@@ -153,6 +153,12 @@ class MenuItem(Base):
         default=0,
     )
     image_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    media_type: Mapped[MenuMediaType | None] = mapped_column(
+        sa.Enum(MenuMediaType, name="menu_media_type", values_callable=lambda e: [i.value for i in e]),
+        nullable=True,
+    )
+    media_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    media_poster_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
     available: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=True)
     archived: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(sa.Integer(), nullable=False, default=0)

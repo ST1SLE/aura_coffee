@@ -34,3 +34,13 @@ def test_menu_item_availability_values() -> None:
         "STOP_LIST": "stop_list",
         "ARCHIVED": "archived",
     }
+
+
+def test_menu_media_type_values() -> None:
+    from shared.enums import MenuMediaType
+
+    members = {m.name: m.value for m in MenuMediaType}
+    assert members == {
+        "IMAGE": "image",
+        "VIDEO": "video",
+    }

@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LogOut, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/auth/useAuth';
-import {
-  getProfile,
-  updateProfile,
-  type ProfileData,
-} from '@/api/profile';
+import { getProfile, updateProfile, type ProfileData } from '@/api/profile';
 import { LoyaltyCard } from '@/pages/Profile/LoyaltyCard';
 
 // START_MODULE_CONTRACT
@@ -116,7 +113,7 @@ export function ProfilePage() {
 
   if (error && !profile) {
     return (
-      <div className="mx-auto max-w-md py-12 text-center">
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 text-center">
         <p className="text-destructive">{error}</p>
         <Button className="mt-4" onClick={fetchProfile}>
           {t('pages.profile.retry')}
@@ -126,25 +123,32 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <h1 className="text-2xl font-bold">{t('pages.profile.title')}</h1>
+    <div className="mx-auto max-w-2xl space-y-5 px-4 py-5 md:px-6">
+      <div className="space-y-1">
+        <h1 className="text-3xl font-semibold tracking-normal">
+          {t('pages.profile.title')}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {t('pages.profile.description')}
+        </p>
+      </div>
 
       {/* Телефон (только чтение) */}
-      <div>
+      <div className="rounded-lg border border-border bg-card p-4">
         <label className="text-sm font-medium text-muted-foreground">
           {t('pages.profile.phoneLabel')}
         </label>
-        <p className="mt-1 rounded-md border bg-muted px-3 py-2 text-sm">
+        <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
           {profile?.phone_masked}
         </p>
       </div>
 
       {/* Имя */}
-      <div>
+      <div className="rounded-lg border border-border bg-card p-4">
         <label className="text-sm font-medium text-muted-foreground">
           {t('pages.profile.nameLabel')}
         </label>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <input
             type="text"
             value={displayName}
@@ -153,7 +157,7 @@ export function ProfilePage() {
               setNameError(null);
             }}
             maxLength={100}
-            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 flex-1 rounded-md border border-input bg-secondary px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <Button
             onClick={handleSaveName}
@@ -162,24 +166,30 @@ export function ProfilePage() {
             {t('pages.profile.save')}
           </Button>
         </div>
-        {nameError && <p className="mt-1 text-sm text-destructive">{nameError}</p>}
+        {nameError && (
+          <p className="mt-2 text-sm text-destructive">{nameError}</p>
+        )}
       </div>
 
       {/* Язык */}
-      <div>
+      <div className="rounded-lg border border-border bg-card p-4">
         <label className="text-sm font-medium text-muted-foreground">
           {t('pages.profile.languageLabel')}
         </label>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <Button
-            variant={profile?.preferred_language === 'ru' ? 'default' : 'outline'}
+            variant={
+              profile?.preferred_language === 'ru' ? 'default' : 'outline'
+            }
             onClick={() => handleLanguageChange('ru')}
             disabled={saving || profile?.preferred_language === 'ru'}
           >
             Русский
           </Button>
           <Button
-            variant={profile?.preferred_language === 'en' ? 'default' : 'outline'}
+            variant={
+              profile?.preferred_language === 'en' ? 'default' : 'outline'
+            }
             onClick={() => handleLanguageChange('en')}
             disabled={saving || profile?.preferred_language === 'en'}
           >
@@ -190,19 +200,22 @@ export function ProfilePage() {
 
       <Link
         to="/profile/addresses"
-        className="block rounded-md border p-4 hover:bg-accent"
+        className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent"
       >
-        <div className="text-sm font-medium">
-          {t('pages.profile.addressesLink.title')}
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {t('pages.profile.addressesLink.subtitle')}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-primary">
+          <MapPin className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <div className="text-sm font-medium">
+            {t('pages.profile.addressesLink.title')}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {t('pages.profile.addressesLink.subtitle')}
+          </div>
         </div>
       </Link>
 
-      {error && profile && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
+      {error && profile && <p className="text-sm text-destructive">{error}</p>}
 
       <LoyaltyCard />
 
@@ -215,6 +228,7 @@ export function ProfilePage() {
           navigate('/login');
         }}
       >
+        <LogOut className="h-4 w-4" aria-hidden="true" />
         {t('pages.profile.logout')}
       </Button>
     </div>

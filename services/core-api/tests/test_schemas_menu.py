@@ -66,6 +66,57 @@ def test_menu_item_create_rejects_negative_price() -> None:
         )
 
 
+def test_menu_item_create_accepts_video_media_contract() -> None:
+    from core_api.schemas.menu import MenuItemCreate
+    from shared.enums import MenuMediaType
+
+    item = MenuItemCreate(
+        category_id=1,
+        name_ru="Латте",
+        name_en="Latte",
+        base_price=35000,
+        media_type="video",
+        media_url="/media/menu/latte/hero.mp4",
+        media_poster_url="/media/menu/latte/poster.webp",
+    )
+
+    assert item.media_type == MenuMediaType.VIDEO
+    assert item.media_url == "/media/menu/latte/hero.mp4"
+    assert item.media_poster_url == "/media/menu/latte/poster.webp"
+
+
+def test_menu_item_create_rejects_malformed_media_contracts() -> None:
+    from core_api.schemas.menu import MenuItemCreate
+
+    base = {
+        "category_id": 1,
+        "name_ru": "Латте",
+        "name_en": "Latte",
+        "base_price": 35000,
+    }
+
+    with pytest.raises(ValidationError):
+        MenuItemCreate(
+            **base,
+            media_type="video",
+            media_url="/media/menu/latte/hero.mp4",
+        )
+
+    with pytest.raises(ValidationError):
+        MenuItemCreate(
+            **base,
+            media_url="/media/menu/latte/hero.mp4",
+        )
+
+    with pytest.raises(ValidationError):
+        MenuItemCreate(
+            **base,
+            media_type="video",
+            media_url="https://storage.example/latte.mp4?token=secret",
+            media_poster_url="/media/menu/latte/poster.webp",
+        )
+
+
 # ---------------------------------------------------------------------------
 # 5.5 MenuItemResponse derives availability
 # ---------------------------------------------------------------------------
@@ -73,8 +124,8 @@ def test_menu_item_create_rejects_negative_price() -> None:
 def test_menu_item_response_derives_availability() -> None:
     from types import SimpleNamespace
 
-    from shared.enums import MenuItemAvailability
     from core_api.schemas.menu import MenuItemResponse
+    from shared.enums import MenuItemAvailability
 
     def make_item(**kwargs):
         defaults = {
@@ -86,6 +137,9 @@ def test_menu_item_response_derives_availability() -> None:
             "description_en": None,
             "base_price": 35000,
             "image_url": None,
+            "media_type": None,
+            "media_url": None,
+            "media_poster_url": None,
             "sort_order": 0,
             "created_at": None,
             "updated_at": None,
@@ -144,7 +198,7 @@ def test_modifier_schemas_exist() -> None:
 def test_menu_item_response_from_orm_roundtrip() -> None:
     from types import SimpleNamespace
 
-    from core_api.schemas.menu import MenuItemResponse, SizeOptionResponse, ModifierResponse
+    from core_api.schemas.menu import MenuItemResponse
 
     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
     modifier = SimpleNamespace(id=1, name_ru="Сироп", name_en="Syrup", price=5000, available=True, sort_order=0)
@@ -157,6 +211,9 @@ def test_menu_item_response_from_orm_roundtrip() -> None:
         description_en=None,
         base_price=35000,
         image_url=None,
+        media_type="video",
+        media_url="/media/menu/latte/hero.mp4",
+        media_poster_url="/media/menu/latte/poster.webp",
         available=True,
         archived=False,
         sort_order=0,
@@ -169,3 +226,6 @@ def test_menu_item_response_from_orm_roundtrip() -> None:
     resp = MenuItemResponse.model_validate(item)
     assert len(resp.size_options) == 1
     assert len(resp.modifiers) == 1
+    assert resp.media_type == "video"
+    assert resp.media_url == "/media/menu/latte/hero.mp4"
+    assert resp.media_poster_url == "/media/menu/latte/poster.webp"

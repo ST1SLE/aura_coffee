@@ -1,14 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import type { PublicMenuItem } from '@/api/menuTypes';
 import { formatPrice } from '@/lib/formatPrice';
+import { MenuMedia } from './MenuMedia';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Menu grid card — image, name, base price, "unavailable" badge.
+//   PURPOSE: Menu grid card — media, name, base price, "unavailable" badge.
 //            Pure presentation: dispatches one onOpen callback when the user
 //            clicks/keyboard-activates an available item.
 //   SCOPE:   MenuItemCard component.
-//   DEPENDS: react-i18next, @/api/menuTypes (PublicMenuItem), @/lib/formatPrice.
-//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu.
+//   DEPENDS: react-i18next, @/api/menuTypes (PublicMenuItem), @/lib/formatPrice,
+//            ./MenuMedia.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu / §5.2 media.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
 // END_MODULE_CONTRACT
@@ -37,25 +39,28 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
         if (!unavailable && (e.key === 'Enter' || e.key === ' ')) onOpen();
       }}
       className={[
-        'rounded-lg border p-3 flex flex-col gap-2 cursor-pointer select-none',
+        'group relative min-h-[17rem] overflow-hidden rounded-lg border border-border bg-card cursor-pointer select-none shadow-sm transition-transform',
         unavailable
           ? 'opacity-50 cursor-not-allowed pointer-events-none'
-          : 'hover:bg-accent',
+          : 'hover:-translate-y-0.5 hover:border-primary/60',
       ].join(' ')}
     >
-      {item.image_url && (
-        <img
-          src={item.image_url}
-          alt={item.name}
-          className="w-full h-24 object-cover rounded-md"
-        />
-      )}
-      <span className="text-sm font-medium leading-tight">{item.name}</span>
-      <span className="text-xs text-muted-foreground">
-        {formatPrice(item.base_price, lang === 'ru' ? 'ru' : 'en')}
-      </span>
+      <MenuMedia
+        item={item}
+        alt={item.name}
+        className="h-48 w-full bg-secondary"
+        controls={false}
+      />
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <span className="text-base font-semibold leading-tight">
+          {item.name}
+        </span>
+        <span className="mt-auto text-sm text-primary">
+          {formatPrice(item.base_price, lang === 'ru' ? 'ru' : 'en')}
+        </span>
+      </div>
       {unavailable && (
-        <span className="text-xs text-destructive font-medium">
+        <span className="absolute right-2 top-2 rounded-md bg-destructive px-2 py-1 text-xs font-medium text-destructive-foreground">
           {t('menu.unavailable')}
         </span>
       )}

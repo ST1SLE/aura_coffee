@@ -42,12 +42,22 @@ export function CartPage() {
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
   const locale = lang === 'ru' ? 'ru' : 'en';
 
-  const { status, items, subtotal, currency, refresh, updateQuantity, removeItem, clearCart } =
-    useCartStore();
+  const {
+    status,
+    items,
+    subtotal,
+    currency,
+    refresh,
+    updateQuantity,
+    removeItem,
+    clearCart,
+  } = useCartStore();
 
   const [, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   async function handleUpdate(itemId: string, qty: number) {
     setBusyId(itemId);
@@ -85,9 +95,9 @@ export function CartPage() {
 
   if (status === 'loading' || status === 'idle') {
     return (
-      <div className="p-4 space-y-3" data-testid="cart-loading">
+      <div className="space-y-4 px-4 py-5 md:px-6" data-testid="cart-loading">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-16 animate-pulse rounded bg-muted" />
+          <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
         ))}
       </div>
     );
@@ -95,16 +105,18 @@ export function CartPage() {
 
   if (status === 'error') {
     return (
-      <div className="p-4 flex flex-col items-center gap-4">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-destructive">{t('cart.error')}</p>
-        <Button variant="outline" onClick={refresh}>{t('cart.retry')}</Button>
+        <Button variant="outline" onClick={refresh}>
+          {t('cart.retry')}
+        </Button>
       </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="p-4 flex flex-col items-center gap-4 text-center">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-muted-foreground">{t('cart.empty')}</p>
         <Button asChild>
           <Link to="/menu">{t('cart.emptyCta')}</Link>
@@ -114,36 +126,49 @@ export function CartPage() {
   }
 
   return (
-    <div className="p-4 pb-24">
-      {expiredToast && (
-        <p role="status" className="mb-3 text-sm text-amber-600">
-          {t('cart.expired')}
-        </p>
-      )}
-
-      <div className="flex justify-end mb-3">
+    <div className="space-y-4 px-4 py-5 pb-36 md:px-6 md:pb-28">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-3xl font-semibold tracking-normal">
+          {t('cart.title')}
+        </h1>
         <Button variant="outline" size="sm" onClick={clearCart}>
           {t('cart.clearCart')}
         </Button>
       </div>
 
-      {items.map((item) => (
-        <CartLine
-          key={item.line_id}
-          itemId={item.line_id}
-          item={item}
-          lang={lang}
-          onUpdateQuantity={handleUpdate}
-          onRemove={handleRemove}
-        />
-      ))}
+      {expiredToast && (
+        <p
+          role="status"
+          className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary"
+        >
+          {t('cart.expired')}
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {items.map((item) => (
+          <CartLine
+            key={item.line_id}
+            itemId={item.line_id}
+            item={item}
+            lang={lang}
+            onUpdateQuantity={handleUpdate}
+            onRemove={handleRemove}
+          />
+        ))}
+      </div>
 
       {/* Закреплённая строка итого */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t px-4 py-3 flex justify-between items-center">
-        <span className="font-medium">{t('cart.subtotal')}</span>
-        <span className="font-bold text-lg">
-          {formatPrice(subtotal, locale)} {currency}
-        </span>
+      <div
+        className="fixed bottom-16 left-0 right-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:bottom-0"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+          <span className="font-medium">{t('cart.subtotal')}</span>
+          <span className="text-lg font-bold text-primary">
+            {formatPrice(subtotal, locale)} {currency}
+          </span>
+        </div>
       </div>
     </div>
   );
