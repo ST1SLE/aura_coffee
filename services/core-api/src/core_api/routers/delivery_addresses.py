@@ -63,7 +63,7 @@ def list_addresses(
 #            after delivery-radius validation.
 #   INPUTS:  payload: DeliveryAddressCreate, current_user, Session.
 #   OUTPUTS: 201 DeliveryAddressRead; 422 DeliveryRadiusError.
-#   SIDE_EFFECTS: DB insert into delivery_addresses.
+#   SIDE_EFFECTS: DB insert into delivery_addresses + commit.
 #   LINKS:   PDD §7.3, §7.4, INV-002, INV-013, services.delivery_addresses.
 # END_CONTRACT: create_address
 @router.post(
@@ -81,7 +81,9 @@ def create_address(
     except DeliveryRadiusError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
-        )
+        ) from exc
+    db.commit()
+    db.refresh(addr)
     return DeliveryAddressRead.model_validate(addr)
 
 
@@ -90,7 +92,7 @@ def create_address(
 #   INPUTS:  address_id: UUID, payload: DeliveryAddressUpdate, current_user,
 #            Session.
 #   OUTPUTS: 200 DeliveryAddressRead; 404 if not owned/not found.
-#   SIDE_EFFECTS: DB update on delivery_addresses row.
+#   SIDE_EFFECTS: DB update on delivery_addresses row + commit.
 #   LINKS:   PDD §3, §5.2, INV-002, INV-013, services.delivery_addresses.
 # END_CONTRACT: patch_address
 @router.patch("/{address_id}", response_model=DeliveryAddressRead)
@@ -104,10 +106,12 @@ def patch_address(
         addr = svc.update_for_user(
             db, current_user["user_id"], address_id, payload
         )
-    except svc.DeliveryAddressNotFound:
+    except svc.DeliveryAddressNotFound as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
-        )
+        ) from exc
+    db.commit()
+    db.refresh(addr)
     return DeliveryAddressRead.model_validate(addr)
 
 
@@ -115,7 +119,7 @@ def patch_address(
 #   PURPOSE: Soft/hard delete of an owned delivery address.
 #   INPUTS:  address_id: UUID, current_user, Session.
 #   OUTPUTS: 204 No Content; 404 if not owned/not found.
-#   SIDE_EFFECTS: DB delete on delivery_addresses row.
+#   SIDE_EFFECTS: DB delete on delivery_addresses row + commit.
 #   LINKS:   PDD §3, §5.2, INV-002, INV-013, services.delivery_addresses.
 # END_CONTRACT: delete_address
 @router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -126,8 +130,9 @@ def delete_address(
 ) -> Response:
     try:
         svc.delete_for_user(db, current_user["user_id"], address_id)
-    except svc.DeliveryAddressNotFound:
+    except svc.DeliveryAddressNotFound as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
-        )
+        ) from exc
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

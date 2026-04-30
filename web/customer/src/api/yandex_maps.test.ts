@@ -64,6 +64,14 @@ describe('suggest', () => {
     );
   });
 
+  it('signals MapsUnavailable on 5xx', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(asStatus(500));
+
+    await expect(suggest('Нев', 'ru_RU')).rejects.toBeInstanceOf(
+      MapsUnavailableError,
+    );
+  });
+
   it('signals MapsUnavailable on network error', async () => {
     (authenticatedFetch as Mock).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -87,7 +95,7 @@ describe('suggest', () => {
 describe('geocode', () => {
   it('defaults to lang=ru_RU', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(
-      asOk({ text: 'x', lat: 1, lon: 2 }),
+      asOk({ canonical_text: 'x', lat: 1, lon: 2, precision: 'exact' }),
     );
 
     await geocode('Невский 1');
@@ -99,12 +107,32 @@ describe('geocode', () => {
 
   it('passes explicit lang when provided', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(
-      asOk({ text: 'x', lat: 1, lon: 2 }),
+      asOk({ canonical_text: 'x', lat: 1, lon: 2, precision: 'exact' }),
     );
 
     await geocode('Nevskiy 1', 'en_US');
 
     const [url] = (authenticatedFetch as Mock).mock.calls[0];
     expect(url).toContain('lang=en_US');
+  });
+
+  it('returns canonical geocode payload from server', async () => {
+    const body = {
+      canonical_text: 'Россия, Москва, Невский 1',
+      lat: 55.75,
+      lon: 37.61,
+      precision: 'exact',
+    };
+    (authenticatedFetch as Mock).mockResolvedValue(asOk(body));
+
+    await expect(geocode('Невский 1')).resolves.toEqual(body);
+  });
+
+  it('signals MapsUnavailable on geocode 5xx', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(asStatus(500));
+
+    await expect(geocode('Невский 1')).rejects.toBeInstanceOf(
+      MapsUnavailableError,
+    );
   });
 });

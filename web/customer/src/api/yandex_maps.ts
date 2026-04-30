@@ -34,15 +34,17 @@ export interface SuggestResult {
 }
 
 export interface GeocodeResult {
-  text: string;
   lat: number;
   lon: number;
+  precision: string;
+  canonical_text: string;
 }
 
 // START_CONTRACT: MapsUnavailableError
 //   PURPOSE: Marker error class for "Yandex.Maps proxy is unavailable" (503,
-//            timeout, network). AddressAutocomplete catches this and switches
-//            to degraded plain-text input for the rest of the mount session.
+//            timeout, network, 5xx). AddressAutocomplete catches this and
+//            switches to degraded plain-text input for the rest of the mount
+//            session.
 //   INPUTS:  message?: string — defaults to 'Maps API unavailable'.
 //   OUTPUTS: MapsUnavailableError instance.
 //   SIDE_EFFECTS: none.
@@ -64,7 +66,7 @@ export class MapsUnavailableError extends Error {
 //            lang: MapsLang — 'ru_RU' | 'en_US' for language hint.
 //   OUTPUTS: Promise<SuggestResult[]> — possibly empty array.
 //   SIDE_EFFECTS: HTTP GET /api/v1/maps/suggest. Throws MapsUnavailableError on
-//                 503 / network failure; throws plain Error on other non-2xx.
+//                 5xx / network failure; throws plain Error on other non-2xx.
 //   LINKS:   PDD §8.3; AddressAutocomplete is the only caller.
 // END_CONTRACT: suggest
 export async function suggest(
@@ -78,7 +80,7 @@ export async function suggest(
   } catch {
     throw new MapsUnavailableError();
   }
-  if (res.status === 503) {
+  if (res.status >= 500) {
     throw new MapsUnavailableError();
   }
   if (!res.ok) {
@@ -95,7 +97,7 @@ export async function suggest(
 //   OUTPUTS: Promise<GeocodeResult | null> — null when server returns 404
 //            (address not found).
 //   SIDE_EFFECTS: HTTP GET /api/v1/maps/geocode; throws MapsUnavailableError on
-//                 503 / network; plain Error on other non-2xx.
+//                 5xx / network; plain Error on other non-2xx.
 //   LINKS:   PDD §8.3 geocode fallback.
 // END_CONTRACT: geocode
 export async function geocode(
@@ -109,7 +111,7 @@ export async function geocode(
   } catch {
     throw new MapsUnavailableError();
   }
-  if (res.status === 503) {
+  if (res.status >= 500) {
     throw new MapsUnavailableError();
   }
   if (res.status === 404) {

@@ -51,7 +51,9 @@ export interface AddressCreatePayload {
   comment: string | null;
 }
 
-export type AddressUpdatePayload = Partial<AddressCreatePayload> & {
+export type AddressUpdatePayload = Partial<
+  Omit<AddressCreatePayload, 'lat' | 'lon'>
+> & {
   is_default?: boolean;
 };
 
@@ -75,11 +77,16 @@ export class AddressApiError extends Error {
   }
 }
 
+function normalizeErrorDetail(detail: unknown): string | undefined {
+  if (typeof detail === 'string') return detail;
+  return undefined;
+}
+
 async function parseError(res: Response): Promise<AddressApiError> {
   let detail: string | undefined;
   try {
-    const body = (await res.json()) as { detail?: string };
-    detail = body?.detail;
+    const body = (await res.json()) as { detail?: unknown };
+    detail = normalizeErrorDetail(body?.detail);
   } catch {
     // body не JSON — оставляем detail undefined
   }
@@ -172,9 +179,7 @@ export async function deleteAddress(id: string): Promise<void> {
 // END_CONTRACT: setDefaultAddress
 // Устанавливает адрес основным. Сервер не имеет dedicated endpoint — используем
 // PATCH с флагом is_default=true (см. docs/phase4_manual_test_scenarios.md §5.2).
-export async function setDefaultAddress(
-  id: string,
-): Promise<AddressResponse> {
+export async function setDefaultAddress(id: string): Promise<AddressResponse> {
   const res = await authenticatedFetch(`/api/v1/profile/addresses/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

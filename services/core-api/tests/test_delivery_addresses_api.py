@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from core_api.main import app
 from core_api.services.auth import AuthService
@@ -167,6 +168,40 @@ def _saved_address(db_session: Any, user_id: uuid.UUID, **overrides: Any) -> Any
     db_session.add(row)
     db_session.flush()
     return row
+
+
+def _committed_addresses_user(engine: Any) -> tuple[uuid.UUID, dict[str, str]]:
+    """Creates and commits a customer in a standalone DB session."""
+    from shared.models import User, UserProfile
+
+    with Session(engine) as session:
+        user = User(phone_hash=uuid.uuid4().hex[:32])
+        session.add(user)
+        session.flush()
+        session.add(
+            UserProfile(
+                user_id=user.id,
+                phone=b"test-phone-bytes",
+                display_name="Test Customer",
+                preferred_language="ru",
+            )
+        )
+        _seed_shop_settings(session)
+        user_id = user.id
+        session.commit()
+
+    return user_id, _auth_header("customer", user_id)
+
+
+def _cleanup_committed_user(engine: Any, user_id: uuid.UUID) -> None:
+    from sqlalchemy import delete
+    from shared.models import DeliveryAddress, User, UserProfile
+
+    with Session(engine) as session:
+        session.execute(delete(DeliveryAddress).where(DeliveryAddress.user_id == user_id))
+        session.execute(delete(UserProfile).where(UserProfile.user_id == user_id))
+        session.execute(delete(User).where(User.id == user_id))
+        session.commit()
 
 
 # ===========================================================================
@@ -528,6 +563,33 @@ def test_create_address_with_is_default_true_persists_flag(db_client, db_session
     assert row.is_default is True
 
 
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_address_commits_visible_to_new_session(_pg_db_override) -> None:
+    engine = _pg_db_override
+    user_id, headers = _committed_addresses_user(engine)
+    try:
+        body = {
+            "label": "Работа",
+            "address_text": "Москва, ул. Льва Толстого, 16",
+            "lat": 55.733,
+            "lon": 37.588,
+        }
+        with _patch_jwt(), TestClient(app) as c:
+            resp = c.post("/api/v1/profile/addresses", json=body, headers=headers)
+        assert resp.status_code == 201, resp.text
+        row_id = uuid.UUID(resp.json()["id"])
+
+        from shared.models import DeliveryAddress
+
+        with Session(engine) as session:
+            row = session.get(DeliveryAddress, row_id)
+            assert row is not None
+            assert row.user_id == user_id
+            assert row.label == "Работа"
+    finally:
+        _cleanup_committed_user(engine, user_id)
+
+
 # ===========================================================================
 # 7. RED: PATCH update
 # ===========================================================================
@@ -672,6 +734,42 @@ def test_patch_returns_updated_body(db_client, db_session, _addresses_user) -> N
     assert resp.json()["label"] == "Новое"
 
 
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_patch_address_commits_visible_to_new_session(_pg_db_override) -> None:
+    engine = _pg_db_override
+    user_id, headers = _committed_addresses_user(engine)
+    try:
+        from shared.models import DeliveryAddress
+
+        with Session(engine) as session:
+            row = DeliveryAddress(
+                user_id=user_id,
+                label="Старое",
+                address_text="Москва, Тверская 1",
+                lat=55.7600,
+                lon=37.6200,
+            )
+            session.add(row)
+            session.commit()
+            row_id = row.id
+
+        with _patch_jwt(), TestClient(app) as c:
+            resp = c.patch(
+                f"/api/v1/profile/addresses/{row_id}",
+                json={"label": "Новое", "apartment": "42"},
+                headers=headers,
+            )
+        assert resp.status_code == 200, resp.text
+
+        with Session(engine) as session:
+            fresh = session.get(DeliveryAddress, row_id)
+            assert fresh is not None
+            assert fresh.label == "Новое"
+            assert fresh.apartment == "42"
+    finally:
+        _cleanup_committed_user(engine, user_id)
+
+
 # ===========================================================================
 # 8. RED: DELETE remove
 # ===========================================================================
@@ -692,6 +790,35 @@ def test_delete_own_address_returns_204(db_client, db_session, _addresses_user) 
     from shared.models import DeliveryAddress
 
     assert db_session.get(DeliveryAddress, row_id) is None
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_delete_address_commits_visible_to_new_session(_pg_db_override) -> None:
+    engine = _pg_db_override
+    user_id, headers = _committed_addresses_user(engine)
+    try:
+        from shared.models import DeliveryAddress
+
+        with Session(engine) as session:
+            row = DeliveryAddress(
+                user_id=user_id,
+                label="Удалить",
+                address_text="Москва, Тверская 1",
+                lat=55.7600,
+                lon=37.6200,
+            )
+            session.add(row)
+            session.commit()
+            row_id = row.id
+
+        with _patch_jwt(), TestClient(app) as c:
+            resp = c.delete(f"/api/v1/profile/addresses/{row_id}", headers=headers)
+        assert resp.status_code == 204, resp.text
+
+        with Session(engine) as session:
+            assert session.get(DeliveryAddress, row_id) is None
+    finally:
+        _cleanup_committed_user(engine, user_id)
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")

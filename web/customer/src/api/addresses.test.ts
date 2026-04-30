@@ -173,4 +173,38 @@ describe('errors', () => {
       expect(err.detail).toContain('вне зоны');
     }
   });
+
+  it('does not expose FastAPI validation-error objects as renderable detail', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asError(422, {
+        detail: [
+          {
+            type: 'float_type',
+            loc: ['body', 'lat'],
+            msg: 'Input should be a valid number',
+            input: null,
+          },
+        ],
+      }),
+    );
+
+    try {
+      await createAddress({
+        label: 'Дом',
+        address_text: 'ул. Пушкина 1',
+        lat: null,
+        lon: null,
+        apartment: null,
+        entrance: null,
+        floor: null,
+        comment: null,
+      });
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(AddressApiError);
+      const err = e as AddressApiError;
+      expect(err.status).toBe(422);
+      expect(err.detail).toBeUndefined();
+    }
+  });
 });

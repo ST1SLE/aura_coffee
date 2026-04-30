@@ -6,11 +6,17 @@ import {
   type AddressValue,
 } from '@/components/AddressAutocomplete/AddressAutocomplete';
 import {
+  geocode,
+  MapsUnavailableError,
+  type MapsLang,
+} from '@/api/yandex_maps';
+import {
   createAddress,
   updateAddress,
   AddressApiError,
   type AddressResponse,
   type AddressCreatePayload,
+  type AddressUpdatePayload,
 } from '@/api/addresses';
 
 // START_MODULE_CONTRACT
@@ -51,7 +57,7 @@ interface Props {
 // END_CONTRACT: AddressForm
 export function AddressForm({ initial, onSaved, onCancel }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
+  const lang: MapsLang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
 
   const [address, setAddress] = useState<AddressValue>({
     text: initial?.address_text ?? '',
@@ -80,27 +86,65 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
     return t('errors.delivery.generic');
   }
 
+  async function resolveCreateAddress(): Promise<AddressValue | null> {
+    if (address.lat !== null && address.lon !== null) {
+      return address;
+    }
+
+    try {
+      const resolved = await geocode(address.text, lang);
+      if (!resolved) {
+        setError(t('errors.delivery.geocodePrecision'));
+        return null;
+      }
+      return {
+        text: resolved.canonical_text || address.text,
+        lat: resolved.lat,
+        lon: resolved.lon,
+      };
+    } catch (err) {
+      setError(
+        err instanceof MapsUnavailableError
+          ? t('errors.delivery.mapsUnavailable')
+          : t('errors.delivery.geocodePrecision'),
+      );
+      return null;
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
-    setSubmitting(true);
     setError(null);
 
-    const payload: AddressCreatePayload = {
+    const sharedPayload: Omit<AddressCreatePayload, 'lat' | 'lon'> = {
       label: label.trim(),
       address_text: address.text,
-      lat: address.lat,
-      lon: address.lon,
       apartment: apartment.trim() || null,
       entrance: entrance.trim() || null,
       floor: floor.trim() || null,
       comment: comment.trim() || null,
     };
 
+    setSubmitting(true);
+
     try {
-      const saved = initial
-        ? await updateAddress(initial.id, payload)
-        : await createAddress(payload);
+      let saved: AddressResponse;
+      if (initial) {
+        const updatePayload: AddressUpdatePayload = sharedPayload;
+        saved = await updateAddress(initial.id, updatePayload);
+      } else {
+        const resolvedAddress = await resolveCreateAddress();
+        if (!resolvedAddress) {
+          return;
+        }
+        saved = await createAddress({
+          ...sharedPayload,
+          address_text: resolvedAddress.text,
+          lat: resolvedAddress.lat,
+          lon: resolvedAddress.lon,
+        });
+      }
       onSaved(saved);
     } catch (err) {
       setError(renderError(err));
