@@ -12,12 +12,10 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
 
 # ─────────────────────────────────────────────
 # Helpers (общие для нескольких тестов)
@@ -55,6 +53,15 @@ def _make_self(retries: int = 0, max_retries: int = 3) -> _FakeSelf:
 # ─────────────────────────────────────────────
 
 
+def test_production_worker_import_registers_notification_task() -> None:
+    """9.0 — production Celery app startup registers the task core-api enqueues."""
+    from sms_worker.main import celery_app
+
+    celery_app.loader.import_default_modules()
+
+    assert "sms_worker.send_order_notification_sms" in celery_app.tasks
+
+
 def test_task_is_registered_under_expected_name() -> None:
     """9.1 — Celery-задача зарегистрирована как 'sms_worker.send_order_notification_sms'."""
     from sms_worker.tasks.notification import send_order_notification_sms
@@ -67,8 +74,6 @@ def test_task_retry_configuration_matches_pdd_7_8() -> None:
     from sms_worker.tasks.notification import send_order_notification_sms
 
     assert send_order_notification_sms.max_retries == 3
-    # Celery-атрибуты передаются в декоратор; проверяем через options dict или attr
-    opts = getattr(send_order_notification_sms, "_get_messaging_options", None)
     # Универсальная проверка: читаем атрибуты напрямую
     assert send_order_notification_sms.default_retry_delay == 2
     assert getattr(send_order_notification_sms, "retry_backoff", None) is True
@@ -187,7 +192,7 @@ def test_intermediate_failure_raises_for_retry() -> None:
         patch.object(notif_module, "SessionLocal", return_value=fake_session),
     ):
         mock_settings.encryption_key = key.hex()
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             send_order_notification_sms.run.__wrapped__(
                 self_stub,
                 notification_id=notification_id,
@@ -257,19 +262,19 @@ def test_exhausted_retries_logs_error_with_notification_id(caplog) -> None:
 
     self_stub = _make_self(retries=3, max_retries=3)
 
-    with caplog.at_level(logging.ERROR):
-        with (
-            patch.object(notif_module, "_TRANSPORT", return_value=False),
-            patch.object(notif_module, "settings") as mock_settings,
-            patch.object(notif_module, "SessionLocal", return_value=fake_session),
-        ):
-            mock_settings.encryption_key = key.hex()
-            send_order_notification_sms.run.__wrapped__(
-                self_stub,
-                notification_id=notification_id,
-                encrypted_phone_hex=encrypted_hex,
-                message="Оплачен. Заказ №c0ffee11. Aura Coffee",
-            )
+    with (
+        caplog.at_level(logging.ERROR),
+        patch.object(notif_module, "_TRANSPORT", return_value=False),
+        patch.object(notif_module, "settings") as mock_settings,
+        patch.object(notif_module, "SessionLocal", return_value=fake_session),
+    ):
+        mock_settings.encryption_key = key.hex()
+        send_order_notification_sms.run.__wrapped__(
+            self_stub,
+            notification_id=notification_id,
+            encrypted_phone_hex=encrypted_hex,
+            message="Оплачен. Заказ №c0ffee11. Aura Coffee",
+        )
 
     # В логах ожидаем хотя бы префикс id (8 первых hex-символов)
     assert any("c0ffee11" in rec.getMessage() for rec in caplog.records)
@@ -296,18 +301,18 @@ def test_plaintext_phone_not_in_logs(caplog) -> None:
     fake_session.__enter__.return_value = fake_session
     fake_session.__exit__.return_value = False
 
-    with caplog.at_level(logging.DEBUG):
-        with (
-            patch.object(notif_module, "_TRANSPORT", return_value=True),
-            patch.object(notif_module, "settings") as mock_settings,
-            patch.object(notif_module, "SessionLocal", return_value=fake_session),
-        ):
-            mock_settings.encryption_key = key.hex()
-            send_order_notification_sms.run(
-                notification_id=notification_id,
-                encrypted_phone_hex=encrypted_hex,
-                message="Оплачен. Заказ №abcdef01. Aura Coffee",
-            )
+    with (
+        caplog.at_level(logging.DEBUG),
+        patch.object(notif_module, "_TRANSPORT", return_value=True),
+        patch.object(notif_module, "settings") as mock_settings,
+        patch.object(notif_module, "SessionLocal", return_value=fake_session),
+    ):
+        mock_settings.encryption_key = key.hex()
+        send_order_notification_sms.run(
+            notification_id=notification_id,
+            encrypted_phone_hex=encrypted_hex,
+            message="Оплачен. Заказ №abcdef01. Aura Coffee",
+        )
 
     # --- failure path
     self_stub = _make_self(retries=3, max_retries=3)
@@ -319,19 +324,19 @@ def test_plaintext_phone_not_in_logs(caplog) -> None:
     fake_session2.__enter__.return_value = fake_session2
     fake_session2.__exit__.return_value = False
 
-    with caplog.at_level(logging.DEBUG):
-        with (
-            patch.object(notif_module, "_TRANSPORT", return_value=False),
-            patch.object(notif_module, "settings") as mock_settings,
-            patch.object(notif_module, "SessionLocal", return_value=fake_session2),
-        ):
-            mock_settings.encryption_key = key.hex()
-            send_order_notification_sms.run.__wrapped__(
-                self_stub,
-                notification_id=notification_id,
-                encrypted_phone_hex=encrypted_hex,
-                message="Оплачен. Заказ №abcdef01. Aura Coffee",
-            )
+    with (
+        caplog.at_level(logging.DEBUG),
+        patch.object(notif_module, "_TRANSPORT", return_value=False),
+        patch.object(notif_module, "settings") as mock_settings,
+        patch.object(notif_module, "SessionLocal", return_value=fake_session2),
+    ):
+        mock_settings.encryption_key = key.hex()
+        send_order_notification_sms.run.__wrapped__(
+            self_stub,
+            notification_id=notification_id,
+            encrypted_phone_hex=encrypted_hex,
+            message="Оплачен. Заказ №abcdef01. Aura Coffee",
+        )
 
     for rec in caplog.records:
         assert phone not in rec.getMessage()
@@ -350,17 +355,17 @@ def test_missing_notification_row_logs_and_returns(caplog) -> None:
     fake_session.__enter__.return_value = fake_session
     fake_session.__exit__.return_value = False
 
-    with caplog.at_level(logging.WARNING):
-        with (
-            patch.object(notif_module, "settings") as mock_settings,
-            patch.object(notif_module, "SessionLocal", return_value=fake_session),
-        ):
-            mock_settings.encryption_key = key.hex()
-            # Не должно raise
-            send_order_notification_sms.run(
-                notification_id=uuid.uuid4(),
-                encrypted_phone_hex=encrypted_hex,
-                message="Оплачен. Заказ №abcdef01. Aura Coffee",
-            )
+    with (
+        caplog.at_level(logging.WARNING),
+        patch.object(notif_module, "settings") as mock_settings,
+        patch.object(notif_module, "SessionLocal", return_value=fake_session),
+    ):
+        mock_settings.encryption_key = key.hex()
+        # Не должно raise
+        send_order_notification_sms.run(
+            notification_id=uuid.uuid4(),
+            encrypted_phone_hex=encrypted_hex,
+            message="Оплачен. Заказ №abcdef01. Aura Coffee",
+        )
 
     assert any(rec.levelno == logging.WARNING for rec in caplog.records)

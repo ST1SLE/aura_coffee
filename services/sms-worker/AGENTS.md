@@ -36,14 +36,14 @@ The transport is selected by the `SMS_BACKEND` environment variable:
 
 | Value | Behaviour | When to use |
 |-------|-----------|-------------|
-| `log` (default) | Writes OTP codes to worker stdout at INFO level (`[SMS:log] to=… msg=…`). No HTTP calls. | Local dev, CI |
+| `log` (default) | Writes redacted delivery metadata to worker stdout at INFO level (`[SMS:log] ...`). No raw phone, OTP code, or SMS body. No HTTP calls. | Local dev, CI |
 | `smsru` | POSTs to `https://sms.ru/sms/send` with the configured `SMSRU_API_KEY`. | Staging, production |
 
-**Dev setup:** `.env.example` ships `SMS_BACKEND=log` with an empty `SMSRU_API_KEY`. `docker compose up` produces a working OTP login flow out of the box — read the code from `docker compose logs sms-worker`.
+**Dev setup:** `.env.example` ships `SMS_BACKEND=log` with an empty `SMSRU_API_KEY`. `docker compose up` produces a working OTP login flow out of the box. OTP codes are not printed to worker logs; use Redis/test tooling for local QA.
 
 **Production:** set `SMS_BACKEND=smsru` and provide a real api_id in `SMSRU_API_KEY` (INV-015). The worker **fails fast on startup** if `SMS_BACKEND=smsru` and `SMSRU_API_KEY` is empty or equals the placeholder — check the worker logs if it exits immediately.
 
-**Security note:** `SMS_BACKEND=log` writes 6-digit OTP codes to stdout. Never enable it in production.
+**Security note:** `SMS_BACKEND=log` must stay redacted. Never log raw phone numbers, OTP codes, or full SMS bodies.
 
 ## Key Files
 
