@@ -115,7 +115,7 @@ export function MenuMedia({
   item,
   alt,
   className = '',
-  controls = true,
+  controls = false,
 }: Props) {
   const reducedMotion = usePrefersReducedMotion();
   const [containerRef, shouldLoadVideo] = useLazyVideo();
@@ -157,8 +157,11 @@ export function MenuMedia({
           playsInline
           autoPlay
           controls={controls}
+          controlsList="nodownload noplaybackrate noremoteplayback"
+          disablePictureInPicture
           preload="metadata"
           onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
           onError={() => setVideoFailed(true)}
         />
       ) : (

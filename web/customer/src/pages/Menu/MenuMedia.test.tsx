@@ -61,7 +61,25 @@ describe('MenuMedia', () => {
     expect(video.muted).toBe(true);
     expect(video.loop).toBe(true);
     expect(video.playsInline).toBe(true);
+    expect(video.controls).toBe(false);
     expect(video.poster).toContain('/media/menu/latte/poster.webp');
+  });
+
+  it('can expose native controls only when explicitly requested', () => {
+    render(
+      <MenuMedia
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        alt="Latte"
+        controls
+      />,
+    );
+
+    const video = screen.getByLabelText('Latte') as HTMLVideoElement;
+    expect(video.controls).toBe(true);
   });
 
   it('uses poster fallback when reduced-motion is preferred', () => {
