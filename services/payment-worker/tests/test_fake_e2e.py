@@ -8,26 +8,27 @@ FakeYukassaClient, затем зовём yukassa_fake_callback как функц
 from __future__ import annotations
 
 import importlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 
 def _make_app_client(sqlite_engine, fake_redis):
-    with patch(
-        "payment_worker.webhook.get_engine",
-        return_value=sqlite_engine,
-        create=True,
-    ):
-        with patch(
+    with (
+        patch(
+            "payment_worker.webhook.get_engine",
+            return_value=sqlite_engine,
+            create=True,
+        ),
+        patch(
             "payment_worker.webhook.get_redis",
             return_value=fake_redis,
             create=True,
-        ):
-            from payment_worker.webhook import app
+        ),
+    ):
+        from payment_worker.webhook import app
 
-            return TestClient(app)
+        return TestClient(app)
 
 
 def _drive_fake(outcome: str, app_client: TestClient, payment_id: str) -> None:
@@ -101,12 +102,13 @@ def test_fake_success_drives_order_to_paid(
 
     fake_module = _reload_fake(monkeypatch, "success")
     client = fake_module.FakeYukassaClient()
-    resp = client.create_payment(
-        amount_kopecks=order.total,
-        idempotency_key="k1",
-        return_url="https://example.test/",
-        description="Order",
-    )
+    with patch.object(fake_module.yukassa_fake_callback, "apply_async", autospec=True):
+        resp = client.create_payment(
+            amount_kopecks=order.total,
+            idempotency_key="k1",
+            return_url="https://example.test/",
+            description="Order",
+        )
     # payment должен быть связан с yukassa_payment_id до webhook'а
     payment.status = PaymentStatus.AWAITING_CONFIRMATION
     payment.yukassa_payment_id = resp["payment_id"]
@@ -149,12 +151,13 @@ def test_fake_canceled_drives_order_to_cancelled(
 
     fake_module = _reload_fake(monkeypatch, "canceled")
     client = fake_module.FakeYukassaClient()
-    resp = client.create_payment(
-        amount_kopecks=order.total,
-        idempotency_key="k1",
-        return_url="https://example.test/",
-        description="Order",
-    )
+    with patch.object(fake_module.yukassa_fake_callback, "apply_async", autospec=True):
+        resp = client.create_payment(
+            amount_kopecks=order.total,
+            idempotency_key="k1",
+            return_url="https://example.test/",
+            description="Order",
+        )
     payment.status = PaymentStatus.AWAITING_CONFIRMATION
     payment.yukassa_payment_id = resp["payment_id"]
     db_session.commit()
