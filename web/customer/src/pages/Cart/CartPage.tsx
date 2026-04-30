@@ -47,7 +47,7 @@ export function CartPage() {
 
   const [, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [refresh]);
 
   async function handleUpdate(itemId: string, qty: number) {
     setBusyId(itemId);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,7 @@ export function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -66,11 +66,11 @@ export function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    void fetchProfile();
+  }, [fetchProfile]);
 
   const handleSaveName = async () => {
     if (!displayName.trim()) {

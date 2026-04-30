@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,7 +48,7 @@ export function AddressesPage() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
 
-  async function refetch() {
+  const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -59,11 +59,11 @@ export function AddressesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   useEffect(() => {
     void refetch();
-  }, []);
+  }, [refetch]);
 
   async function handleDelete(id: string) {
     if (!confirm(t('pages.addresses.confirmDelete'))) return;
