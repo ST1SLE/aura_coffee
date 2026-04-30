@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
 _JWT_SECRET = "test-secret"
 
 
@@ -40,11 +39,21 @@ def _auth(role: str, user_id: uuid.UUID | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {_make_token(role, user_id)}"}
 
 
+def _patch_jwt():
+    """Патч JWT-настроек для RBAC middleware."""
+    return patch("core_api.services.auth.settings", **{
+        "jwt_secret_key": _JWT_SECRET,
+        "jwt_algorithm": "HS256",
+        "access_token_ttl": 900,
+    })
+
+
 @pytest.fixture
-def client() -> TestClient:
+def client():
     from core_api.main import app
 
-    return TestClient(app)
+    with _patch_jwt(), TestClient(app) as c:
+        yield c
 
 
 # ---------------------------------------------------------------------------

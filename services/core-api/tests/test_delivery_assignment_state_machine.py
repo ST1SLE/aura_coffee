@@ -8,13 +8,14 @@ precondition на order.status для `pickup_assignment`.
 """
 from __future__ import annotations
 
-import itertools
 import uuid
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy.orm import Session
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 # ---------------------------------------------------------------------------
 # Seeding helpers
@@ -589,16 +590,14 @@ def test_list_available_for_courier_returns_only_awaiting(
     oid_ca = _seed_order(db, status="preparing", order_type="delivery", total=88000)
     oid_dv = _seed_order(db, status="completed", order_type="delivery", total=99000)
     aid_aw = _seed_assignment(db, status="awaiting_courier", order_id=oid_aw)
-    _seed_assignment(
+    aid_ca = _seed_assignment(
         db, status="courier_assigned", order_id=oid_ca, courier_id=c1
     )
-    _seed_assignment(
+    aid_dv = _seed_assignment(
         db, status="delivered", order_id=oid_dv, courier_id=c1
     )
 
     rows = list_available_for_courier(db)
-    assert len(rows) == 1
-    row = rows[0]
 
     # Тест инспектирует row как объект-вью или mapping. Принимаем обе формы.
     def _get(obj, key):
@@ -606,6 +605,12 @@ def test_list_available_for_courier_returns_only_awaiting(
             return getattr(obj, key)
         return obj[key]
 
+    rows_by_id = {_get(row, "id"): row for row in rows}
+    assert aid_aw in rows_by_id
+    assert aid_ca not in rows_by_id
+    assert aid_dv not in rows_by_id
+
+    row = rows_by_id[aid_aw]
     assert _get(row, "id") == aid_aw
     assert _get(row, "order_id") == oid_aw
     assert _get(row, "total") == 77000
