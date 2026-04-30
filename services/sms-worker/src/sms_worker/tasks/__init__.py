@@ -3,20 +3,23 @@
 #            OTP/notification tasks so Celery autodiscovery wires them onto
 #            the "sms" queue.
 #   SCOPE:   Defines the `health_check` task and re-exports `send_otp_sms`
-#            from sms_worker.tasks.otp. Notification task is autodiscovered
+#            from sms_worker.tasks.otp plus `send_order_notification_sms`
 #            from sms_worker.tasks.notification.
-#   DEPENDS: sms_worker.main (celery_app), sms_worker.tasks.otp
+#   DEPENDS: sms_worker.main (celery_app), sms_worker.tasks.otp,
+#            sms_worker.tasks.notification
 #   LINKS:   docs/development-plan.xml M-SMS-WORKER, PDD §6.4, PDD §7.8
 #   ROLE:    RUNTIME
 #   MAP_MODE: EXPORTS
 # END_MODULE_CONTRACT
 #
 # START_MODULE_MAP
-#   health_check  - Celery liveness task returning "ok"
-#   send_otp_sms  - re-export from sms_worker.tasks.otp (OTP delivery task)
+#   health_check                 - Celery liveness task returning "ok"
+#   send_otp_sms                 - re-export from sms_worker.tasks.otp
+#   send_order_notification_sms  - re-export from sms_worker.tasks.notification
 # END_MODULE_MAP
 
 from sms_worker.main import celery_app
+from sms_worker.tasks.notification import send_order_notification_sms  # noqa: F401
 from sms_worker.tasks.otp import send_otp_sms  # noqa: F401
 
 
