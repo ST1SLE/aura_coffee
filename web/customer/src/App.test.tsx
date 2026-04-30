@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@/i18n/config';
-import { AuthProvider } from '@/auth/AuthProvider';
 import { AuthContext } from '@/auth/AuthProvider';
 import type { AuthContextValue } from '@/auth/AuthProvider';
 import { ProtectedRoute } from '@/auth/ProtectedRoute';
