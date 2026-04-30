@@ -509,7 +509,7 @@ def cart_redis() -> Generator[fakeredis.FakeRedis, None, None]:
 
 
 @pytest.fixture
-def db_session() -> Generator[None, None, None]:
+def db_session(_ensure_test_database) -> Generator[Session, None, None]:
     """Функциональная сессия к реальному PostgreSQL с применёнными миграциями.
 
     Пропускается, если TEST_DATABASE_URL не указывает на Postgres.

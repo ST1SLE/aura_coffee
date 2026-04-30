@@ -33,8 +33,8 @@ def _make_token(role: str = "customer", user_id: uuid.UUID | None = None) -> str
         return svc.create_access_token(uid, role)
 
 
-def _auth(role: str = "customer") -> dict[str, str]:
-    return {"Authorization": f"Bearer {_make_token(role)}"}
+def _auth(role: str = "customer", user_id: uuid.UUID | None = None) -> dict[str, str]:
+    return {"Authorization": f"Bearer {_make_token(role, user_id)}"}
 
 
 def _patch_jwt():
@@ -189,9 +189,10 @@ def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
     db_session.flush()
 
     payload = {"menu_item_id": item.id, "quantity": 2}
+    headers = _auth("customer", uuid.uuid4())
     with _patch_jwt():
-        db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
-        resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+        db_client.post("/api/v1/cart/items", json=payload, headers=headers)
+        resp = db_client.post("/api/v1/cart/items", json=payload, headers=headers)
 
     assert resp.status_code in (200, 201)
     data = resp.json()
@@ -253,18 +254,19 @@ def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
     item = make_menu_item(db_session, base_price=15000)
     db_session.flush()
 
+    headers = _auth("customer", uuid.uuid4())
     with _patch_jwt():
         r = db_client.post(
             "/api/v1/cart/items",
             json={"menu_item_id": item.id, "quantity": 2},
-            headers=_auth("customer"),
+            headers=headers,
         )
         line_id = r.json()["items"][0]["line_id"]
 
         resp = db_client.patch(
             f"/api/v1/cart/items/{line_id}",
             json={"menu_item_id": item.id, "quantity": 4},
-            headers=_auth("customer"),
+            headers=headers,
         )
 
     assert resp.status_code == 200
@@ -301,12 +303,13 @@ def test_delete_cart_item_removes_line(db_client, db_session) -> None:
     item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
     db_session.flush()
 
+    headers = _auth("customer", uuid.uuid4())
     with _patch_jwt():
-        r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
-        db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+        r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=headers)
+        db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=headers)
         line_id = r1.json()["items"][0]["line_id"]
 
-        resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+        resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=headers)
 
     assert resp.status_code == 200
     data = resp.json()
@@ -320,10 +323,11 @@ def test_delete_cart_item_unknown_line_id_404(db_client, db_session) -> None:
 
     item = make_menu_item(db_session, base_price=15000)
     db_session.flush()
-    db_client.post("/api/v1/cart/items", json={"menu_item_id": item.id, "quantity": 1}, headers=_auth("customer"))
+    headers = _auth("customer", uuid.uuid4())
+    db_client.post("/api/v1/cart/items", json={"menu_item_id": item.id, "quantity": 1}, headers=headers)
 
     with _patch_jwt():
-        resp = db_client.delete("/api/v1/cart/items/deadbeefdeadbeef", headers=_auth("customer"))
+        resp = db_client.delete("/api/v1/cart/items/deadbeefdeadbeef", headers=headers)
 
     assert resp.status_code == 404
 
@@ -340,14 +344,15 @@ def test_delete_cart_clears_all(db_client, db_session) -> None:
     item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
     db_session.flush()
 
+    headers = _auth("customer", uuid.uuid4())
     with _patch_jwt():
-        db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
-        db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+        db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=headers)
+        db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=headers)
 
-        resp = db_client.delete("/api/v1/cart", headers=_auth("customer"))
+        resp = db_client.delete("/api/v1/cart", headers=headers)
         assert resp.status_code == 200
 
-        get_resp = db_client.get("/api/v1/cart", headers=_auth("customer"))
+        get_resp = db_client.get("/api/v1/cart", headers=headers)
 
     assert get_resp.json()["items"] == []
 
@@ -379,10 +384,8 @@ def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> N
     with (
         _patch_jwt(),
         patch("core_api.routers.cart.settings") as mock_s,
-        patch("core_api.services.cart.settings") as mock_s2,
     ):
         mock_s.cart_ttl_seconds = 60
-        mock_s2.cart_ttl_seconds = 60
 
         resp = db_client.post(
             "/api/v1/cart/items",

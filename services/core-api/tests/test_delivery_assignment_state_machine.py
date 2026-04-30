@@ -115,13 +115,8 @@ def _seed_assignment(
 
 
 @pytest.fixture
-def db() -> Session:
-    s = _fresh_session()
-    try:
-        yield s
-    finally:
-        s.rollback()
-        s.close()
+def db(db_session: Session) -> Session:
+    yield db_session
 
 
 @pytest.fixture
