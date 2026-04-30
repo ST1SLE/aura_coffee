@@ -176,21 +176,39 @@ def test_admin_deletes_empty_category(
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
 def test_admin_delete_referenced_category_returns_409(
-    db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    _pg_db_override, admin_headers: dict
 ) -> None:
+    from core_api.main import app
     from shared.models.menu import Category, MenuItem
 
-    cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
-    migrated_db_session.add(cat)
-    migrated_db_session.flush()
-    item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
-    migrated_db_session.add(item)
-    migrated_db_session.flush()
+    engine = _pg_db_override
+    with Session(engine) as session:
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        session.add(cat)
+        session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        session.add(item)
+        session.commit()
+        cat_id = cat.id
+        item_id = item.id
 
-    resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
-    assert resp.status_code == 409
-    migrated_db_session.expire_all()
-    assert migrated_db_session.get(Category, cat.id) is not None
+    try:
+        with TestClient(app) as client:
+            resp = client.delete(f"/api/v1/admin/menu/categories/{cat_id}", headers=admin_headers)
+
+        assert resp.status_code == 409
+        with Session(engine) as session:
+            assert session.get(Category, cat_id) is not None
+    finally:
+        with Session(engine) as session:
+            item = session.get(MenuItem, item_id)
+            if item is not None:
+                session.delete(item)
+                session.flush()
+            cat = session.get(Category, cat_id)
+            if cat is not None:
+                session.delete(cat)
+            session.commit()
 
 
 def test_barista_cannot_create_category(client: TestClient, barista_headers: dict) -> None:

@@ -317,13 +317,6 @@ def test_post_repeat_does_not_auto_checkout(db_client, db_session) -> None:
 # 4.14 — single-order detail не дублируется
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "GET /api/v1/orders/{order_id} принадлежит фиче order-checkout; "
-        "в этом worktree маршрут не регистрируется. XFAIL снимается при мерже."
-    ),
-)
 def test_single_order_detail_is_not_duplicated() -> None:
     """GET /api/v1/orders/{order_id} — ровно 1 маршрут (owner: order-checkout feature)."""
     matches = []

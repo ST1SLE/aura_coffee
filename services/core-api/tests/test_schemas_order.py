@@ -251,6 +251,7 @@ def test_shop_settings_response_round_trip() -> None:
         loyalty_percent=5,
         default_prep_time_minutes=15,
         estimated_delivery_time_minutes=30,
+        auto_close_minutes=10,
         working_hours={
             "mon": {"open": "08:00", "close": "22:00"},
             "tue": {"open": "08:00", "close": "22:00"},
@@ -272,4 +273,5 @@ def test_shop_settings_response_round_trip() -> None:
     assert resp.loyalty_percent == 5
     assert resp.default_prep_time_minutes == 15
     assert resp.estimated_delivery_time_minutes == 30
+    assert resp.auto_close_minutes == 10
     assert set(resp.working_hours.keys()) == {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}

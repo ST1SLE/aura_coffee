@@ -3,6 +3,7 @@
 import inspect
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from core_api.main import app
 
@@ -166,6 +167,13 @@ def test_get_menu_returns_200_for_anonymous_client(_pg_db_override) -> None:
 
 def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
     """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+    with _pg_db_override.begin() as conn:
+        conn.execute(text("DELETE FROM menu_item_modifiers"))
+        conn.execute(text("DELETE FROM size_options"))
+        conn.execute(text("DELETE FROM menu_items"))
+        conn.execute(text("DELETE FROM modifiers"))
+        conn.execute(text("DELETE FROM categories"))
+
     with TestClient(app) as c:
         resp = c.get("/api/v1/menu")
     assert resp.status_code == 200
