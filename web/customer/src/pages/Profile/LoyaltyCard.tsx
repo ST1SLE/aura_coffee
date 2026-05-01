@@ -43,7 +43,7 @@ export function LoyaltyCard() {
   }, []);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="aura-surface rounded-lg p-4">
       <div className="mb-2 text-sm font-medium text-muted-foreground">
         {t('pages.profile.loyaltyCard.title')}
       </div>
@@ -53,7 +53,9 @@ export function LoyaltyCard() {
         </p>
       ) : balance ? (
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold">{balance.balance}</span>
+          <span className="text-4xl font-bold text-primary">
+            {balance.balance}
+          </span>
           <span className="text-sm text-muted-foreground">
             {t('pages.profile.loyaltyCard.balance_suffix')}
           </span>

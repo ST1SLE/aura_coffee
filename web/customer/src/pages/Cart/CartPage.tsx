@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -96,8 +97,9 @@ export function CartPage() {
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="space-y-4 px-4 py-5 md:px-6" data-testid="cart-loading">
+        <div className="h-20 animate-pulse rounded-lg bg-muted/70" />
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
+          <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />
         ))}
       </div>
     );
@@ -116,21 +118,31 @@ export function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-muted-foreground">{t('cart.empty')}</p>
-        <Button asChild>
-          <Link to="/menu">{t('cart.emptyCta')}</Link>
-        </Button>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+        <div className="aura-surface flex w-full max-w-sm flex-col items-center gap-4 rounded-lg p-6">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-primary">
+            <ShoppingBag className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <p className="text-muted-foreground">{t('cart.empty')}</p>
+          <Button asChild>
+            <Link to="/menu">{t('cart.emptyCta')}</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 px-4 py-5 pb-36 md:px-6 md:pb-28">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-normal">
-          {t('cart.title')}
-        </h1>
+    <div className="space-y-4 px-4 py-5 pb-44 md:px-6 md:pb-32">
+      <div className="aura-surface flex items-center justify-between gap-3 rounded-lg p-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-normal">
+            {t('cart.title')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('pages.cart.description')}
+          </p>
+        </div>
         <Button variant="outline" size="sm" onClick={clearCart}>
           {t('cart.clearCart')}
         </Button>
@@ -158,16 +170,20 @@ export function CartPage() {
         ))}
       </div>
 
-      {/* Закреплённая строка итого */}
       <div
-        className="fixed bottom-16 left-0 right-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:bottom-0"
+        className="fixed bottom-20 left-0 right-0 z-30 px-4 py-3 md:bottom-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
-          <span className="font-medium">{t('cart.subtotal')}</span>
-          <span className="text-lg font-bold text-primary">
-            {formatPrice(subtotal, locale)} {currency}
-          </span>
+        <div className="aura-surface mx-auto grid w-full max-w-5xl gap-3 rounded-lg bg-background/95 p-3 backdrop-blur md:flex md:items-center md:justify-between">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-medium">{t('cart.subtotal')}</span>
+            <span className="text-xl font-bold text-primary">
+              {formatPrice(subtotal, locale)} {currency}
+            </span>
+          </div>
+          <Button asChild className="w-full md:w-auto">
+            <Link to="/checkout">{t('nav.checkout')}</Link>
+          </Button>
         </div>
       </div>
     </div>

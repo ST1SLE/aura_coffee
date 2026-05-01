@@ -1,8 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthProvider';
 import { ProtectedRoute } from '@/auth/ProtectedRoute';
 import { Layout } from '@/components/Layout';
-import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { VerifyPage } from '@/pages/VerifyPage';
 import { CartPage } from '@/pages/Cart/CartPage';
@@ -32,6 +31,8 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // START_CONTRACT: App
 //   PURPOSE: Mount the SPA's router and auth provider, declare the route tree.
+//            The authenticated index redirects to /menu so the app opens on
+//            the real ordering surface.
 //   INPUTS:  none.
 //   OUTPUTS: JSX — entire route tree rendered through react-router.
 //   SIDE_EFFECTS: registers BrowserRouter (history), creates AuthContext.
@@ -48,7 +49,7 @@ export function App() {
           <Route path="login/verify" element={<VerifyPage />} />
           <Route element={<Layout />}>
             <Route element={<ProtectedRoute />}>
-              <Route index element={<HomePage />} />
+              <Route index element={<Navigate to="/menu" replace />} />
               <Route path="menu" element={<MenuPage />} />
               <Route path="menu/:categoryId" element={<MenuPage />} />
               <Route path="cart" element={<CartPage />} />

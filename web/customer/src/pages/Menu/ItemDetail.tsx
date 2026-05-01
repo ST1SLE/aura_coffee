@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { ShoppingBag, X } from 'lucide-react';
 import type {
   PublicMenuItem,
   PublicMenuSizeOption,
@@ -100,29 +100,30 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm md:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-md md:items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-lg border border-border bg-background shadow-2xl md:rounded-lg">
+      <div className="flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-t-lg border border-white/10 bg-background shadow-2xl md:rounded-lg">
         <div className="relative">
           <MenuMedia
             item={item}
             alt={item.name}
-            className="h-72 w-full bg-secondary"
+            className="h-[22rem] w-full bg-secondary md:h-96"
           />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background to-transparent" />
           <button
             aria-label="close"
             onClick={onClose}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-md bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-secondary"
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-secondary"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="space-y-5 pb-24">
+          <div className="space-y-6 pb-24">
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold tracking-normal">
                 {item.name}
@@ -135,11 +136,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
             </div>
 
             {item.size_options.length > 0 && (
-              <div>
+              <div className="aura-surface-soft rounded-lg p-3">
                 <p className="mb-2 text-sm font-medium">
                   {t('menu.selectSize')}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {item.size_options.map((sz) => (
                     <button
                       key={sz.id}
@@ -147,11 +148,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                       aria-pressed={selectedSize?.id === sz.id}
                       onClick={() => sz.available && setSelectedSize(sz)}
                       className={[
-                        'min-h-10 rounded-md border px-3 text-sm transition-colors',
+                        'min-h-12 rounded-md border px-3 text-left text-sm font-medium transition-colors',
                         !sz.available && 'opacity-40 cursor-not-allowed',
                         selectedSize?.id === sz.id
                           ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-input bg-secondary text-foreground hover:bg-accent',
+                          : 'border-white/10 bg-background/75 text-foreground hover:bg-accent',
                       ].join(' ')}
                     >
                       {sz.label} — {formatPrice(sz.price, locale)}
@@ -162,11 +163,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
             )}
 
             {item.modifiers.length > 0 && (
-              <div>
+              <div className="aura-surface-soft rounded-lg p-3">
                 <p className="mb-2 text-sm font-medium">
                   {t('menu.modifiers')}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {item.modifiers.map((mod) => {
                     const active = selectedModifiers.some(
                       (m) => m.id === mod.id,
@@ -178,11 +179,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                         aria-pressed={active}
                         onClick={() => mod.available && toggleModifier(mod)}
                         className={[
-                          'min-h-10 rounded-md border px-3 text-sm transition-colors',
+                          'min-h-12 rounded-md border px-3 text-left text-sm font-medium transition-colors',
                           !mod.available && 'opacity-40 cursor-not-allowed',
                           active
                             ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-input bg-secondary text-foreground hover:bg-accent',
+                            : 'border-white/10 bg-background/75 text-foreground hover:bg-accent',
                         ].join(' ')}
                       >
                         {mod.name} +{formatPrice(mod.price, locale)}
@@ -209,11 +210,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
         </div>
 
         <div
-          className="border-t border-border bg-background/95 px-5 py-3 backdrop-blur"
+          className="border-t border-white/10 bg-background/95 px-5 py-3 backdrop-blur"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <div className="grid gap-3 sm:flex sm:items-center sm:justify-between">
-            <span className="min-w-0 text-xl font-semibold">
+            <span className="min-w-0 text-2xl font-semibold text-primary">
               {formatPrice(currentPrice, locale)}
             </span>
             <Button
@@ -222,6 +223,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
               className="w-full shrink-0 px-4 sm:w-auto"
               style={{ flexShrink: 0 }}
             >
+              <ShoppingBag className="h-4 w-4" aria-hidden="true" />
               {t('menu.addToCart')}
             </Button>
           </div>

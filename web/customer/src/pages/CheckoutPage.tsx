@@ -62,9 +62,9 @@ const emptyNew: Extract<DeliveryChoice, { kind: 'new' }> = {
 };
 
 const inputClassName =
-  'rounded-md border border-input bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+  'rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 const optionClassName =
-  'flex min-h-11 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm';
+  'flex min-h-12 items-center gap-3 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10';
 
 // START_CONTRACT: CheckoutPage
 //   PURPOSE: Render and orchestrate the checkout form — order type selector,
@@ -186,18 +186,20 @@ export function CheckoutPage() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto max-w-2xl space-y-5 px-4 py-5 md:px-6"
+      className="mx-auto max-w-3xl space-y-5 px-4 py-5 md:px-6"
     >
-      <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-normal">
-          {t('pages.checkout.title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t('pages.checkout.description')}
-        </p>
+      <div className="aura-surface rounded-lg p-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-normal">
+            {t('pages.checkout.title')}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t('pages.checkout.description')}
+          </p>
+        </div>
       </div>
 
-      <fieldset className="grid gap-2 sm:grid-cols-2">
+      <fieldset className="aura-surface-soft grid gap-2 rounded-lg p-3 sm:grid-cols-2">
         <legend className="sr-only">{t('pages.checkout.description')}</legend>
         <label className={optionClassName}>
           <input
@@ -222,7 +224,7 @@ export function CheckoutPage() {
       </fieldset>
 
       {orderType === 'DELIVERY' && (
-        <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+        <div className="aura-surface space-y-4 rounded-lg p-4">
           {saved.length > 0 && (
             <fieldset className="space-y-2">
               <label className={optionClassName}>
@@ -255,7 +257,7 @@ export function CheckoutPage() {
             <ul className="space-y-2">
               {saved.map((a) => (
                 <li key={a.id}>
-                  <label className="flex items-start gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
+                  <label className="flex items-start gap-3 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10">
                     <input
                       type="radio"
                       name="saved-address"
@@ -321,7 +323,7 @@ export function CheckoutPage() {
                   setChoice({ ...choice, comment: e.target.value })
                 }
                 rows={2}
-                className={`${inputClassName} w-full`}
+                className={`${inputClassName} w-full resize-none`}
               />
               <label className={optionClassName}>
                 <input
@@ -339,12 +341,15 @@ export function CheckoutPage() {
       )}
 
       {error && (
-        <p className="text-sm text-destructive" role="alert">
+        <p
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
-      <Button type="submit" disabled={submitting}>
+      <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
         {t('pages.checkout.submit')}
       </Button>
     </form>

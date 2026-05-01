@@ -60,9 +60,9 @@ export function CartLine({
     .join(t('cart.modifierSeparator'));
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <div className="aura-surface flex flex-col gap-4 rounded-lg p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-base font-semibold leading-tight">{name}</span>
           {item.size_snapshot && (
             <span className="text-xs text-muted-foreground">
@@ -78,17 +78,18 @@ export function CartLine({
         <button
           aria-label={t('cart.remove')}
           onClick={() => onRemove(itemId)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-full bg-secondary/70 p-1">
           <Button
             variant="outline"
             size="icon"
             aria-label={t('cart.decrement')}
+            className="h-8 w-8 rounded-full border-white/10 bg-background/70"
             onClick={() =>
               item.quantity <= 1
                 ? onRemove(itemId)
@@ -97,7 +98,7 @@ export function CartLine({
           >
             <Minus className="h-4 w-4" aria-hidden="true" />
           </Button>
-          <span className="w-7 text-center text-sm font-medium">
+          <span className="w-8 text-center text-sm font-semibold">
             {item.quantity}
           </span>
           <Button
@@ -105,6 +106,7 @@ export function CartLine({
             size="icon"
             aria-label={t('cart.increment')}
             disabled={item.quantity >= 99}
+            className="h-8 w-8 rounded-full border-white/10 bg-background/70"
             onClick={() => onUpdateQuantity(itemId, item.quantity + 1)}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />

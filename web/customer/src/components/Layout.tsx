@@ -41,7 +41,7 @@ export function Layout() {
   };
 
   const navItems = [
-    { to: '/', label: t('nav.menu'), icon: Coffee },
+    { to: '/menu', label: t('nav.menu'), icon: Coffee },
     { to: '/cart', label: t('nav.cart'), icon: ShoppingBag },
     { to: '/orders', label: t('nav.orders'), icon: ReceiptText },
     { to: '/profile', label: t('nav.profile'), icon: User },
@@ -49,39 +49,45 @@ export function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-background/90 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
           <Link
-            to="/"
-            className="flex items-center gap-2 text-base font-semibold tracking-normal text-foreground"
+            to="/menu"
+            className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-normal text-foreground"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(247,193,70,0.22)]">
               <Coffee className="h-5 w-5" aria-hidden="true" />
             </span>
-            {t('appTitle')}
+            <span className="min-w-0">
+              <span className="block truncate leading-tight">{t('appTitle')}</span>
+              <span className="block truncate text-xs font-normal text-muted-foreground">
+                {t('pages.home.description')}
+              </span>
+            </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-4">
-            {navItems.map(({ to, label }) => (
+          <div className="hidden items-center gap-2 md:flex">
+            {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
-                end={to === '/'}
+                end={to === '/menu'}
                 className={({ isActive }) =>
                   [
-                    'text-sm transition-colors',
+                    'inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
+                      ? 'bg-secondary text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground',
                   ].join(' ')
                 }
               >
+                <Icon className="h-4 w-4" aria-hidden="true" />
                 {label}
               </NavLink>
             ))}
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               {t('nav.logout')}
@@ -95,12 +101,12 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 pb-24 md:pb-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 pb-28 md:pb-10">
         <Outlet />
       </main>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 w-screen max-w-full overflow-hidden border-t border-border/80 bg-background/95 px-3 py-2 backdrop-blur md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 w-screen max-w-full overflow-hidden px-3 py-3 md:hidden"
         style={{
           width: '100vw',
           maxWidth: '100vw',
@@ -108,21 +114,21 @@ export function Layout() {
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
         }}
       >
-        <div className="relative h-12">
+        <div className="relative mx-auto h-14 max-w-sm rounded-full border border-white/10 bg-background/95 shadow-[0_-12px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl">
           {navItems.map(({ to, label, icon: Icon }, index) => (
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/menu'}
               aria-label={label}
               style={{
-                left: `${12.5 + index * 25}vw`,
+                left: `${12.5 + index * 25}%`,
                 minWidth: 0,
-                transform: 'translateX(-50%)',
+                transform: 'translate(-50%, -50%)',
               }}
               className={({ isActive }) =>
                 [
-                  'absolute top-0 flex h-12 w-12 items-center justify-center rounded-md transition-colors',
+                  'absolute top-1/2 flex h-11 w-11 items-center justify-center rounded-full transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
