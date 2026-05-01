@@ -62,6 +62,7 @@ describe('MenuMedia', () => {
     expect(video.loop).toBe(true);
     expect(video.playsInline).toBe(true);
     expect(video.controls).toBe(false);
+    expect(video.className).toContain('pointer-events-none');
     expect(video.poster).toContain('/media/menu/latte/poster.webp');
   });
 
@@ -80,6 +81,7 @@ describe('MenuMedia', () => {
 
     const video = screen.getByLabelText('Latte') as HTMLVideoElement;
     expect(video.controls).toBe(true);
+    expect(video.className).not.toContain('pointer-events-none');
   });
 
   it('uses poster fallback when reduced-motion is preferred', () => {

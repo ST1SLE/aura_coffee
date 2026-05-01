@@ -130,6 +130,12 @@ export function MenuMedia({
     !videoFailed;
 
   const imageSrc = fallbackImage(item);
+  const videoClassName = [
+    'h-full w-full object-cover',
+    controls ? '' : 'pointer-events-none',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   if (!canRenderVideo && (!imageSrc || imageFailed)) {
     return (
@@ -149,7 +155,7 @@ export function MenuMedia({
       {canRenderVideo ? (
         <video
           aria-label={alt}
-          className="h-full w-full object-cover"
+          className={videoClassName}
           src={shouldLoadVideo ? (item.media_url ?? undefined) : undefined}
           poster={item.media_poster_url ?? undefined}
           muted
@@ -160,7 +166,7 @@ export function MenuMedia({
           controlsList="nodownload noplaybackrate noremoteplayback"
           disablePictureInPicture
           preload="metadata"
-          onClick={(event) => event.stopPropagation()}
+          onClick={controls ? (event) => event.stopPropagation() : undefined}
           onContextMenu={(event) => event.preventDefault()}
           onError={() => setVideoFailed(true)}
         />

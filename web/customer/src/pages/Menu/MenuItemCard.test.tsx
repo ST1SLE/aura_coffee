@@ -54,6 +54,24 @@ describe('MenuItemCard', () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it('clicking video media opens the available card', () => {
+    const onOpen = vi.fn();
+    render(
+      <MenuItemCard
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        lang="ru"
+        onOpen={onOpen}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Лате'));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it('clicking unavailable card (available=false) does not fire onOpen', () => {
     const onOpen = vi.fn();
     render(
