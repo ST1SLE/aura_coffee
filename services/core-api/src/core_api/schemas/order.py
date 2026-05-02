@@ -1,7 +1,8 @@
 """Pydantic-схемы заказов (PDD §5.2, §6.1, §7.7)."""
 # START_MODULE_CONTRACT
-#   PURPOSE: Order DTOs covering create/read, status update, cancel and repeat.
-#            Holds the XOR validator for delivery vs. saved-address selection.
+#   PURPOSE: Order DTOs covering create/estimate/read, status update, cancel
+#            and repeat. Holds the XOR validator for delivery vs. saved-address
+#            selection.
 #   SCOPE:   Pydantic models + a model_validator on CreateOrderRequest.
 #   DEPENDS: pydantic v2, M-SHARED (OrderStatus, OrderType enums).
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §6.1 (order FSM),
@@ -14,6 +15,7 @@
 # START_MODULE_MAP
 #   DeliveryAddress       - inline delivery snapshot (text/lat/lon/details)
 #   CreateOrderRequest    - POST /api/v1/orders body w/ delivery XOR validator
+#   OrderEstimateResponse - server-owned checkout estimate response
 #   OrderItemResponse     - one line snapshot in OrderResponse (INV-014)
 #   OrderResponse         - full order projection (header + items)
 #   OrderListResponse     - paginated GET /api/v1/orders body
@@ -68,6 +70,20 @@ class CreateOrderRequest(BaseModel):
                     "or delivery_address_id (both or neither is invalid)."
                 )
         return self
+
+
+class OrderEstimateResponse(BaseModel):
+    subtotal: int
+    discount_amount: int
+    points_used: int
+    delivery_fee: int
+    total: int
+    estimated_accrual: int
+    estimated_ready_at: datetime | None = None
+    loyalty_balance: int
+    min_delivery_amount: int
+    free_delivery_threshold: int
+    free_delivery_remaining: int
 
 
 class OrderItemResponse(BaseModel):

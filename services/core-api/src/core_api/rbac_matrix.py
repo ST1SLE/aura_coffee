@@ -83,6 +83,7 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("DELETE", "/api/v1/cart/items/{line_id}"): {CUSTOMER},
     # Заказы — только CUSTOMER (INV-010: изоляция ролей, PDD §7.1 item 2)
     ("POST", "/api/v1/orders"):              {CUSTOMER},
+    ("POST", "/api/v1/orders/estimate"):     {CUSTOMER},
     ("GET",  "/api/v1/orders/{order_id}"):   {CUSTOMER},
     # ── Staff-действия над заказом (PDD §6.1, §7.6) ─────────────────────────
     ("PATCH", "/api/v1/orders/{order_id}/status"): {BARISTA, COURIER, ADMIN},

@@ -8,12 +8,13 @@ GET  /api/v1/orders/{order_id} — деталь заказа для polling conf
 from __future__ import annotations
 
 # START_MODULE_CONTRACT
-#   PURPOSE: HTTP routes for order creation and detail under /api/v1/orders
-#            (customer surface). Order placement is the single atomic flow
-#            of INV-004 (cart → inventory decrement + order + items +
-#            payment + points).
+#   PURPOSE: HTTP routes for order creation, read-only checkout estimate, and
+#            detail under /api/v1/orders (customer surface). Order placement is
+#            the single atomic flow of INV-004 (cart → inventory decrement +
+#            order + items + payment + points).
 #   SCOPE:   POST creates an order from the Redis cart and dispatches
-#            payment-worker / sms-worker tasks. GET returns own-order
+#            payment-worker / sms-worker tasks. POST /estimate returns
+#            server-owned checkout totals without writes. GET returns own-order
 #            detail for confirmation_url polling.
 #   DEPENDS: M-SHARED (models.Order, OrderItem, Payment), M-DATABASE,
 #            core_api.services.checkout, services.delivery_addresses,
@@ -29,8 +30,9 @@ from __future__ import annotations
 #
 # START_MODULE_MAP
 #   orders_router  - APIRouter("/api/v1/orders", tags=["orders"])
-#   post_order     - POST /api/v1/orders
-#   get_order      - GET  /api/v1/orders/{order_id}
+#   post_order          - POST /api/v1/orders
+#   post_order_estimate - POST /api/v1/orders/estimate
+#   get_order           - GET  /api/v1/orders/{order_id}
 # END_MODULE_MAP
 
 import uuid
@@ -44,6 +46,7 @@ from core_api.deps import redis as _redis_dep
 from core_api.deps.auth import get_current_user
 from core_api.schemas.order import (
     CreateOrderRequest,
+    OrderEstimateResponse,
     OrderItemResponse,
     OrderResponse,
 )
@@ -51,6 +54,7 @@ from core_api.services.checkout import (
     EmptyCartError,
     InventoryInsufficientError,
     create_order,
+    estimate_order,
 )
 from core_api.services.delivery_addresses import DeliveryAddressNotFound
 from shared.models import Order, OrderItem, Payment
@@ -128,6 +132,47 @@ def post_order(
         raise
     except Exception as exc:
         # Ошибки валидаторов (stop-list / delivery / promocode / time-slot) → 409
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+# START_CONTRACT: post_order_estimate
+#   PURPOSE: Return server-owned checkout totals for the current cart using the
+#            same validation/pricing path as order creation, but without
+#            mutating DB rows or dispatching side effects.
+#   INPUTS:  request: CreateOrderRequest (JSON), current_user, Session,
+#            Redis client.
+#   OUTPUTS: 200 OrderEstimateResponse; 400 empty cart; 404 unknown delivery
+#            address; 409 validator/pricing failure; 422 schema validation.
+#   SIDE_EFFECTS: Redis GET + DB SELECTs only. INV-013 — request may contain
+#                 delivery address PII; do not log raw values.
+#   LINKS:   PDD §7.2, §7.4, §7.5, INV-002, INV-004, INV-013, INV-014.
+# END_CONTRACT: post_order_estimate
+@orders_router.post("/estimate", response_model=OrderEstimateResponse)
+def post_order_estimate(
+    request: CreateOrderRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(_get_session),
+    redis_client=Depends(_get_redis),
+) -> OrderEstimateResponse:
+    """Предварительная серверная оценка заказа без записи заказа."""
+    try:
+        return estimate_order(
+            user_id=current_user["user_id"],
+            request=request,
+            redis_client=redis_client,
+            db_session=db,
+        )
+    except EmptyCartError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except DeliveryAddressNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
+        )
+    except InventoryInsufficientError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 

@@ -78,6 +78,7 @@
         <scenario-2 kind="failure">No migration mutates order_items rows (INV-014).</scenario-2>
         <scenario-3 kind="success">Menu media migration adds presentational media fields without changing order_items, orders, payments, loyalty, or delivery tables.</scenario-3>
         <scenario-4 kind="success">Menu inventory migration adds nullable inventory_quantity with a non-negative check and does not mutate order_items rows (INV-014).</scenario-4>
+        <scenario-5 kind="failure">Database rejects direct UPDATE/DELETE on order_items and prevents order deletion from cascading into immutable item snapshots (INV-014).</scenario-5>
       </scenarios>
       <wave-follow-up>Re-run migrations on a snapshot of prod schema before merging schema changes.</wave-follow-up>
     </V-M-DATABASE>

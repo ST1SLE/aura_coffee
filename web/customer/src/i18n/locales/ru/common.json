@@ -29,6 +29,25 @@
         "savedAddress": "Сохранённый адрес",
         "newAddress": "Новый адрес",
         "saveForFuture": "Сохранить для следующего заказа"
+      },
+      "promocode": "Промокод",
+      "points": "Баллы к списанию",
+      "time": {
+        "title": "Время получения",
+        "asap": "Как можно скорее",
+        "scheduled": "Ко времени"
+      },
+      "estimate": {
+        "title": "Итог заказа",
+        "refreshing": "Обновляем...",
+        "subtotal": "Сумма товаров",
+        "discount": "Скидка",
+        "pointsUsed": "Баллы",
+        "deliveryFee": "Доставка",
+        "total": "К оплате",
+        "accrual": "Будет начислено",
+        "readyAt": "Готовность",
+        "freeRemaining": "До бесплатной доставки осталось {{amount}}"
       }
     },
     "orders": {

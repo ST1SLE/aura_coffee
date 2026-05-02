@@ -553,6 +553,128 @@ def test_create_order_promocode_validator_uses_subtotal_before_persistence(
     assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
 
 
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_estimate_order_returns_server_totals_without_persistence(
+    cart_redis, db_session, _checkout_user
+) -> None:
+    """Estimate reuses server pricing but writes no order/payment/promo rows."""
+    from tests._factories.menu import make_menu_item
+    from tests._factories.promocodes import make_promocode
+
+    from core_api.schemas.order import CreateOrderRequest, DeliveryAddress
+    from core_api.services.checkout import estimate_order
+    from shared.enums import OrderType, PromocodeDiscountType
+    from shared.models import LoyaltyAccount, Order, Payment, PromocodeUsage
+
+    user_id, _ = _checkout_user
+    account = db_session.get(LoyaltyAccount, user_id)
+    account.balance = 30000
+    _upsert_shop_settings(
+        db_session,
+        min_delivery_amount=30000,
+        free_delivery_threshold=100000,
+        delivery_fee=7000,
+        loyalty_percent=10,
+    )
+    promo = make_promocode(
+        db_session,
+        code="ESTIMATE10",
+        is_active=True,
+        discount_type=PromocodeDiscountType.FIXED_AMOUNT,
+        discount_value=10000,
+    )
+    item = make_menu_item(db_session, base_price=80000)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+
+    estimate = estimate_order(
+        user_id,
+        CreateOrderRequest(
+            type=OrderType.DELIVERY,
+            delivery_address=DeliveryAddress(
+                text="Estimate Secret Address",
+                lat=55.7558,
+                lon=37.6173,
+            ),
+            promocode_code=promo.code,
+            points_to_use=25000,
+        ),
+        cart_redis,
+        db_session,
+    )
+
+    assert estimate.subtotal == 80000
+    assert estimate.discount_amount == 10000
+    assert estimate.points_used == 25000
+    assert estimate.delivery_fee == 7000
+    assert estimate.total == 52000
+    assert estimate.estimated_accrual == 4500
+    assert estimate.loyalty_balance == 30000
+    assert estimate.free_delivery_remaining == 20000
+    assert estimate.estimated_ready_at is not None
+
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert db_session.query(PromocodeUsage).count() == 0
+    db_session.refresh(promo)
+    db_session.refresh(account)
+    assert promo.current_uses == 0
+    assert account.balance == 30000
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_estimate_order_rejects_insufficient_inventory_without_decrement(
+    cart_redis, db_session, _checkout_user
+) -> None:
+    """Read-only estimate reports finite-stock failures without changing stock."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import InventoryInsufficientError, estimate_order
+    from shared.enums import OrderType
+
+    user_id, _ = _checkout_user
+    item = make_menu_item(db_session, base_price=20000, inventory_quantity=1)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 2,
+            }
+        ],
+    )
+
+    with pytest.raises(InventoryInsufficientError):
+        estimate_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    db_session.refresh(item)
+    assert item.inventory_quantity == 1
+
+
 # ---------------------------------------------------------------------------
 # 3. RED: сервис checkout — validator wiring (pickup)
 # ---------------------------------------------------------------------------

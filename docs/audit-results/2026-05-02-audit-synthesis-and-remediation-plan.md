@@ -339,9 +339,12 @@ Status:
 
 Release-significant items still open after the implemented waves and green full gate:
 
-1. Customer checkout input completeness remains open from the customer UX P1 list. Backend checkout supports `promocode_code`, `points_to_use`, and `requested_time`, but `web/customer/src/pages/CheckoutPage.tsx` still only submits pickup/delivery address data and has no server-owned estimate/free-delivery guidance. This is product completeness rather than a full-gate failure.
-2. DB-level `order_items` immutability remains open from business-logic P1-1. The ORM documents `order_items` as immutable, but `packages/shared/src/shared/models/order_item.py` and migration `0005_phase3_schema.py` still use `orders -> order_items ON DELETE CASCADE`, and there is no Postgres trigger/rule preventing direct `UPDATE` or `DELETE`.
-3. Browser E2E and tracked CI remain open from the verification audit. The local scripted gate is now green, but there is still no tracked CI workflow or Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
+1. Browser E2E and tracked CI remain open from the verification audit. The local scripted gate is now green, but there is still no tracked CI workflow or Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
+
+Additional release-readiness items completed after the green full gate:
+
+1. Customer checkout input completeness is now implemented: `web/customer/src/pages/CheckoutPage.tsx` sends `promocode_code`, `points_to_use`, and `requested_time`, and renders server-owned checkout estimates/free-delivery guidance from `POST /api/v1/orders/estimate`.
+2. DB-level `order_items` immutability is now enforced by migration `0011_order_items_immutability.py`: the `orders -> order_items` FK is `ON DELETE RESTRICT`, and Postgres triggers reject direct `UPDATE` and `DELETE` on `order_items`.
 
 Items that look downgraded to polish/backlog, not immediate release blockers:
 
@@ -370,9 +373,7 @@ Reason: these touch shared invariants, transaction boundaries, RBAC, PII, and LD
 
 ## Next Recommended Action
 
-Open one final release-readiness packet before calling the May 2 remediation ship-ready:
+Open one final release-readiness follow-up before calling the May 2 remediation ship-ready:
 
-1. Add DB-level `order_items` immutability and remove or neutralize the physical-delete cascade risk, with migration tests proving direct SQL `UPDATE`/`DELETE` fails.
-2. Complete the customer checkout P1 surface for promo code, points redemption, requested time, and server-owned estimate/free-delivery guidance.
-3. Add a small Playwright smoke or tracked CI follow-up if production release discipline requires an automated browser gate.
-4. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.
+1. Add a small Playwright smoke or tracked CI follow-up if production release discipline requires an automated browser gate.
+2. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.

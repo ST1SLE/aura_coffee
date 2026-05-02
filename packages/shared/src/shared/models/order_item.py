@@ -12,7 +12,8 @@ Chain: архивирование меню не должно ломать ист
 #            so that historic orders survive menu archiving (PDD §7.7 Repeat
 #            Order Chain). menu_item_id and size_option_id are deliberately
 #            plain integers — NOT foreign keys — to prevent referential
-#            cascades from rewriting history. Rows are insert-only (INV-014).
+#            cascades from rewriting history. Rows are insert-only (INV-014);
+#            database migration 0011 enforces this with UPDATE/DELETE triggers.
 #   DEPENDS: SQLAlchemy 2.x ORM; M-DATABASE Base; references orders.id only.
 #   LINKS:   PDD §5.2 (order_items table), PDD §7.7 (Repeat Order Chain),
 #            INV-014 (order_items immutability), docs/development-plan.xml M-SHARED.
@@ -41,7 +42,7 @@ class OrderItem(Base):
     )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        sa.ForeignKey("orders.id", ondelete="CASCADE"),
+        sa.ForeignKey("orders.id", ondelete="RESTRICT"),
         nullable=False,
     )
     # INV-014 + §7.7: ссылка, а НЕ FK — при архивировании меню история уцелеет

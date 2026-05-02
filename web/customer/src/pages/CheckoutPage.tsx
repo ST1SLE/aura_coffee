@@ -1,7 +1,8 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { formatPrice } from '@/lib/formatPrice';
 import {
   AddressAutocomplete,
   type AddressValue,
@@ -13,7 +14,11 @@ import {
 } from '@/api/addresses';
 import {
   createOrder,
+  estimateOrder,
   OrderApiError,
+  type CheckoutEstimateResponse,
+  type CheckoutOptions,
+  type CreateOrderPayload,
   type InlineDeliveryAddress,
 } from '@/api/orders';
 import {
@@ -24,13 +29,14 @@ import {
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Checkout route page — choose pickup vs delivery, pick a saved
-//            delivery address or enter a new one (with optional save), submit
-//            the order, render server-localized error detail on 409 (out-of-
-//            radius), and navigate to the order status page on success.
+//            delivery address or enter a new one (with optional save), collect
+//            promo/points/requested-time inputs, render server-owned estimate
+//            totals, submit the order, render server-localized error detail on
+//            409, and navigate to the order status page on success.
 //   SCOPE:   CheckoutPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/components/ui/button,
 //            @/components/AddressAutocomplete, @/api/addresses, @/api/orders,
-//            @/api/yandex_maps.
+//            @/api/yandex_maps, @/lib/formatPrice.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 checkout;
 //            INV-013 (raw address text + comment are PII, never logged);
 //            INV-014 (server returns order_items snapshot; UI does not recompute).
@@ -61,11 +67,6 @@ type ResolvedInlineDeliveryAddress = InlineDeliveryAddress & {
   lon: number;
 };
 
-type CheckoutPayload =
-  | { type: 'pickup' }
-  | { type: 'delivery'; delivery_address_id: string }
-  | { type: 'delivery'; delivery_address: ResolvedInlineDeliveryAddress };
-
 const emptyNew: Extract<DeliveryChoice, { kind: 'new' }> = {
   kind: 'new',
   address: { text: '', lat: null, lon: null },
@@ -81,15 +82,19 @@ const inputClassName =
 const optionClassName =
   'flex min-h-12 items-center gap-3 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10';
 
+type TimeMode = 'asap' | 'scheduled';
+
 // START_CONTRACT: CheckoutPage
 //   PURPOSE: Render and orchestrate the checkout form — order type selector,
-//            saved/new address picker, submit handler, and success redirect.
+//            saved/new address picker, promo/points/requested-time controls,
+//            server estimate, submit handler, and success redirect.
 //   INPUTS:  none.
 //   OUTPUTS: JSX — full form with pickup/delivery + saved/new address subforms.
 //   SIDE_EFFECTS: HTTP listAddresses() when DELIVERY is selected; HTTP
 //                 geocode() for typed inline delivery addresses without coords;
-//                 createOrder() on submit; HTTP createAddress() best-effort if
-//                 "save for future" is checked; navigate(`/orders/:id`) on success.
+//                 estimateOrder() for server-owned totals; createOrder() on
+//                 submit; HTTP createAddress() best-effort if "save for future"
+//                 is checked; navigate(`/orders/:id`) on success.
 //                 INV-013 — payload contains PII, do not log raw values.
 //                 INV-014 — order_items snapshot rendered server-side later.
 //   LINKS:   PDD §7; AddressForm shares the same renderError pattern.
@@ -102,6 +107,15 @@ export function CheckoutPage() {
   const [orderType, setOrderType] = useState<OrderType>('pickup');
   const [saved, setSaved] = useState<AddressResponse[]>([]);
   const [choice, setChoice] = useState<DeliveryChoice>(emptyNew);
+  const [promocodeCode, setPromocodeCode] = useState('');
+  const [pointsToUse, setPointsToUse] = useState('');
+  const [timeMode, setTimeMode] = useState<TimeMode>('asap');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [estimate, setEstimate] = useState<CheckoutEstimateResponse | null>(
+    null,
+  );
+  const [estimating, setEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,28 +181,126 @@ export function CheckoutPage() {
     };
   }
 
-  async function buildPayload(): Promise<CheckoutPayload | null> {
-    if (orderType === 'pickup') return { type: 'pickup' };
+  const renderError = useCallback(
+    (err: unknown): string => {
+      if (err instanceof OrderApiError) {
+        if (err.status === 409) {
+          return err.detail?.trim()
+            ? err.detail
+            : t('errors.delivery.outOfRadius');
+        }
+        return err.detail ?? t('errors.delivery.generic');
+      }
+      return t('errors.delivery.generic');
+    },
+    [t],
+  );
+
+  const checkoutOptions = useMemo<CheckoutOptions>(() => {
+    const options: CheckoutOptions = {};
+    const code = promocodeCode.trim().toUpperCase();
+    const parsedPoints = Number.parseInt(pointsToUse, 10);
+
+    if (code) options.promocode_code = code;
+    if (Number.isFinite(parsedPoints) && parsedPoints > 0) {
+      options.points_to_use = parsedPoints;
+    }
+    if (timeMode === 'scheduled' && scheduledTime) {
+      const requested = new Date(scheduledTime);
+      if (!Number.isNaN(requested.getTime())) {
+        options.requested_time = requested.toISOString();
+      }
+    }
+
+    return options;
+  }, [promocodeCode, pointsToUse, scheduledTime, timeMode]);
+
+  const estimatePayload = useMemo<CreateOrderPayload | null>(() => {
+    if (orderType === 'pickup') return { type: 'pickup', ...checkoutOptions };
     if (choice.kind === 'saved') {
-      return { type: 'delivery', delivery_address_id: choice.address_id };
+      return {
+        type: 'delivery',
+        delivery_address_id: choice.address_id,
+        ...checkoutOptions,
+      };
+    }
+
+    const text = choice.address.text.trim();
+    if (!text || choice.address.lat === null || choice.address.lon === null) {
+      return null;
+    }
+    return {
+      type: 'delivery',
+      delivery_address: {
+        text,
+        lat: choice.address.lat,
+        lon: choice.address.lon,
+        apartment: choice.apartment.trim() || null,
+        entrance: choice.entrance.trim() || null,
+        floor: choice.floor.trim() || null,
+        comment: choice.comment.trim() || null,
+      },
+      ...checkoutOptions,
+    };
+  }, [checkoutOptions, choice, orderType]);
+
+  useEffect(() => {
+    if (!estimatePayload) {
+      setEstimate(null);
+      setEstimateError(null);
+      setEstimating(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setEstimating(true);
+      estimateOrder(estimatePayload)
+        .then((next) => {
+          if (cancelled) return;
+          setEstimate(next);
+          setEstimateError(null);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setEstimate(null);
+          setEstimateError(renderError(err));
+        })
+        .finally(() => {
+          if (!cancelled) setEstimating(false);
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [estimatePayload, renderError]);
+
+  const formattedReadyAt = useMemo(() => {
+    if (!estimate?.estimated_ready_at) return null;
+    return new Intl.DateTimeFormat(i18n.language, {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    }).format(new Date(estimate.estimated_ready_at));
+  }, [estimate?.estimated_ready_at, i18n.language]);
+
+  async function buildPayload(): Promise<CreateOrderPayload | null> {
+    if (orderType === 'pickup') return { type: 'pickup', ...checkoutOptions };
+    if (choice.kind === 'saved') {
+      return {
+        type: 'delivery',
+        delivery_address_id: choice.address_id,
+        ...checkoutOptions,
+      };
     }
 
     const delivery_address = await resolveInlineAddress(choice);
     if (!delivery_address) return null;
 
-    return { type: 'delivery', delivery_address };
-  }
-
-  function renderError(err: unknown): string {
-    if (err instanceof OrderApiError) {
-      if (err.status === 409) {
-        return err.detail?.trim()
-          ? err.detail
-          : t('errors.delivery.outOfRadius');
-      }
-      return err.detail ?? t('errors.delivery.generic');
-    }
-    return t('errors.delivery.generic');
+    return { type: 'delivery', delivery_address, ...checkoutOptions };
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -214,16 +326,23 @@ export function CheckoutPage() {
         // label обязателен (server min_length=1, max_length=100); у checkout нет
         // отдельного поля — используем сам адрес, обрезанный до серверного лимита.
         try {
-          await createAddress({
-            label: address.text.slice(0, 100),
-            address_text: address.text,
-            lat: address.lat,
-            lon: address.lon,
-            apartment: address.apartment ?? null,
-            entrance: address.entrance ?? null,
-            floor: address.floor ?? null,
-            comment: address.comment ?? null,
-          });
+          if (
+            address.lat !== undefined &&
+            address.lat !== null &&
+            address.lon !== undefined &&
+            address.lon !== null
+          ) {
+            await createAddress({
+              label: address.text.slice(0, 100),
+              address_text: address.text,
+              lat: address.lat,
+              lon: address.lon,
+              apartment: address.apartment ?? null,
+              entrance: address.entrance ?? null,
+              floor: address.floor ?? null,
+              comment: address.comment ?? null,
+            });
+          }
         } catch {
           console.warn('Failed to save address for future');
         }
@@ -390,6 +509,134 @@ export function CheckoutPage() {
                 {t('pages.checkout.delivery.saveForFuture')}
               </label>
             </div>
+          )}
+        </div>
+      )}
+
+      <div className="aura-surface space-y-4 rounded-lg p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-sm">
+            <span className="text-muted-foreground">
+              {t('pages.checkout.promocode')}
+            </span>
+            <input
+              type="text"
+              value={promocodeCode}
+              onChange={(e) => setPromocodeCode(e.target.value)}
+              className={`${inputClassName} w-full uppercase`}
+              autoComplete="off"
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="text-muted-foreground">
+              {t('pages.checkout.points')}
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={pointsToUse}
+              onChange={(e) => setPointsToUse(e.target.value)}
+              className={`${inputClassName} w-full`}
+              inputMode="numeric"
+            />
+          </label>
+        </div>
+
+        <fieldset className="grid gap-2 sm:grid-cols-2">
+          <legend className="sr-only">{t('pages.checkout.time.title')}</legend>
+          <label className={optionClassName}>
+            <input
+              type="radio"
+              name="checkout-time"
+              value="asap"
+              checked={timeMode === 'asap'}
+              onChange={() => setTimeMode('asap')}
+            />
+            {t('pages.checkout.time.asap')}
+          </label>
+          <label className={optionClassName}>
+            <input
+              type="radio"
+              name="checkout-time"
+              value="scheduled"
+              checked={timeMode === 'scheduled'}
+              onChange={() => setTimeMode('scheduled')}
+            />
+            {t('pages.checkout.time.scheduled')}
+          </label>
+        </fieldset>
+
+        {timeMode === 'scheduled' && (
+          <input
+            type="datetime-local"
+            value={scheduledTime}
+            onChange={(e) => setScheduledTime(e.target.value)}
+            className={`${inputClassName} w-full`}
+          />
+        )}
+      </div>
+
+      {(estimate || estimating || estimateError) && (
+        <div className="aura-surface-soft rounded-lg p-4" aria-live="polite">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">
+              {t('pages.checkout.estimate.title')}
+            </h2>
+            {estimating && (
+              <span className="text-xs text-muted-foreground">
+                {t('pages.checkout.estimate.refreshing')}
+              </span>
+            )}
+          </div>
+
+          {estimateError && (
+            <p className="mt-2 text-sm text-destructive">{estimateError}</p>
+          )}
+
+          {estimate && (
+            <dl className="mt-3 grid gap-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt>{t('pages.checkout.estimate.subtotal')}</dt>
+                <dd>{formatPrice(estimate.subtotal, i18n.language)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>{t('pages.checkout.estimate.discount')}</dt>
+                <dd>{formatPrice(estimate.discount_amount, i18n.language)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>{t('pages.checkout.estimate.pointsUsed')}</dt>
+                <dd>{estimate.points_used}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>{t('pages.checkout.estimate.deliveryFee')}</dt>
+                <dd>{formatPrice(estimate.delivery_fee, i18n.language)}</dd>
+              </div>
+              <div className="flex justify-between gap-4 border-t border-white/10 pt-2 font-semibold">
+                <dt>{t('pages.checkout.estimate.total')}</dt>
+                <dd>{formatPrice(estimate.total, i18n.language)}</dd>
+              </div>
+              <div className="flex justify-between gap-4 text-muted-foreground">
+                <dt>{t('pages.checkout.estimate.accrual')}</dt>
+                <dd>{estimate.estimated_accrual}</dd>
+              </div>
+              {formattedReadyAt && (
+                <div className="flex justify-between gap-4 text-muted-foreground">
+                  <dt>{t('pages.checkout.estimate.readyAt')}</dt>
+                  <dd>{formattedReadyAt}</dd>
+                </div>
+              )}
+              {orderType === 'delivery' && estimate.free_delivery_remaining > 0 && (
+                <div className="text-muted-foreground">
+                  {t('pages.checkout.estimate.freeRemaining', {
+                    amount: formatPrice(
+                      estimate.free_delivery_remaining,
+                      i18n.language,
+                    ),
+                  })}
+                </div>
+              )}
+            </dl>
           )}
         </div>
       )}

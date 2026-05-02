@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 
 import pytest
 from alembic import command
@@ -245,11 +246,11 @@ def test_upgrade_creates_order_items_table(migrated_engine) -> None:
     mod_type = str(cols["modifiers_snapshot"]["type"]).upper()
     assert "JSON" in mod_type
 
-    # FK order_id → orders ON DELETE CASCADE
+    # FK order_id → orders ON DELETE RESTRICT (INV-014: no physical cascade)
     fks = _fks(migrated_engine, "order_items")
     order_fk = next((fk for fk in fks if fk["referred_table"] == "orders"), None)
     assert order_fk is not None
-    assert order_fk["options"].get("ondelete", "").upper() == "CASCADE"
+    assert order_fk["options"].get("ondelete", "").upper() == "RESTRICT"
 
     # menu_item_id и size_option_id — НЕ FK
     fk_cols: set[str] = set()
@@ -262,6 +263,87 @@ def test_upgrade_creates_order_items_table(migrated_engine) -> None:
     assert "size_option_id" not in fk_cols, (
         "order_items.size_option_id НЕ должен быть FK (Repeat Order Chain, INV-014)"
     )
+
+
+def _insert_order_item_snapshot(conn) -> tuple[str, str]:
+    user_id = str(uuid.uuid4())
+    conn.execute(
+        text(
+            """
+            INSERT INTO users (id, phone_hash, status)
+            VALUES (:user_id, :phone_hash, 'active')
+            """
+        ),
+        {"user_id": user_id, "phone_hash": uuid.uuid4().hex},
+    )
+    order_id = conn.execute(
+        text(
+            """
+            INSERT INTO orders (user_id, type, subtotal, total)
+            VALUES (:user_id, 'pickup', 15000, 15000)
+            RETURNING id
+            """
+        ),
+        {"user_id": user_id},
+    ).scalar_one()
+    item_id = conn.execute(
+        text(
+            """
+            INSERT INTO order_items (
+                order_id, menu_item_name_ru, menu_item_name_en, unit_price,
+                modifiers_snapshot, quantity, line_total
+            )
+            VALUES (
+                :order_id, 'Латте', 'Latte', 15000, '[]'::jsonb, 1, 15000
+            )
+            RETURNING id
+            """
+        ),
+        {"order_id": order_id},
+    ).scalar_one()
+    return str(order_id), str(item_id)
+
+
+def test_order_items_reject_direct_update(migrated_engine) -> None:
+    with migrated_engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            _, item_id = _insert_order_item_snapshot(conn)
+            with pytest.raises(Exception, match="order_items are immutable"):
+                conn.execute(
+                    text("UPDATE order_items SET quantity = 2 WHERE id = :item_id"),
+                    {"item_id": item_id},
+                )
+        finally:
+            trans.rollback()
+
+
+def test_order_items_reject_direct_delete(migrated_engine) -> None:
+    with migrated_engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            _, item_id = _insert_order_item_snapshot(conn)
+            with pytest.raises(Exception, match="order_items are immutable"):
+                conn.execute(
+                    text("DELETE FROM order_items WHERE id = :item_id"),
+                    {"item_id": item_id},
+                )
+        finally:
+            trans.rollback()
+
+
+def test_orders_do_not_cascade_delete_order_items(migrated_engine) -> None:
+    with migrated_engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            order_id, _ = _insert_order_item_snapshot(conn)
+            with pytest.raises(Exception):
+                conn.execute(
+                    text("DELETE FROM orders WHERE id = :order_id"),
+                    {"order_id": order_id},
+                )
+        finally:
+            trans.rollback()
 
 
 # ---------------------------------------------------------------------------

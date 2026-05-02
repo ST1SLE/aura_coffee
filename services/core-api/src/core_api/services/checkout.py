@@ -3,9 +3,10 @@
 #            chain, and persistence of orders/order_items/payments/loyalty/
 #            promocode_usage in a single DB transaction. Drives Order initial
 #            state (CREATED or PAID for zero-total) per PDD §6.1.
-#   SCOPE:   create_order entry-point + injectable validator/enqueue stubs
-#            (patched by tests), pricing helpers (subtotal, promo, loyalty,
-#            delivery_fee, total, accrual), Redis cart read, snapshotting.
+#   SCOPE:   create_order and estimate_order entry-points + injectable
+#            validator/enqueue stubs (patched by tests), pricing helpers
+#            (subtotal, promo, loyalty, delivery_fee, total, accrual), Redis
+#            cart read, snapshotting.
 #   DEPENDS: M-SHARED (Order, OrderItem, Payment, LoyaltyAccount/Transaction,
 #            Promocode/PromocodeUsage, ShopSettings, MenuItem), M-DATABASE,
 #            celery_app, services.delivery_addresses, services.validators
@@ -30,8 +31,9 @@
 #   apply_loyalty_points        - cap & subtract points
 #   compute_delivery_fee        - delivery fee resolver (stub here)
 #   compute_order_total         - max(0, subtotal-discount-points+fee)
-#   compute_estimated_accrual   - 5% loyalty accrual estimate
+#   compute_estimated_accrual   - ShopSettings-based loyalty accrual estimate
 #   enqueue_payment_task        - dispatch payment_worker.create_payment Celery task
+#   estimate_order              - read-only server-owned checkout estimate
 #   create_order                - main atomic checkout flow
 # END_MODULE_MAP
 """Cart → Order checkout service (PDD §7.1 item 1, §7.2, §6.1).
@@ -52,6 +54,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -61,6 +64,7 @@ from sqlalchemy.orm import Session
 from core_api import celery_app as _celery_mod
 from core_api.schemas.order import (
     CreateOrderRequest,
+    OrderEstimateResponse,
     OrderItemResponse,
     OrderResponse,
 )
@@ -503,6 +507,169 @@ def _decrement_finite_inventory(
         db_session.flush()
 
 
+def _validate_finite_inventory_available(
+    cart_items: list[dict],
+    db_session: Session,
+) -> None:
+    quantities = _aggregate_cart_quantities(cart_items)
+    if not quantities:
+        return
+
+    stmt = select(MenuItem).where(
+        MenuItem.id.in_(list(quantities)),
+        MenuItem.inventory_quantity.is_not(None),
+    )
+    finite_items = {
+        item.id: item
+        for item in db_session.execute(stmt).scalars().all()
+    }
+    for item_id, item in finite_items.items():
+        requested = quantities[item_id]
+        if item.inventory_quantity is not None and item.inventory_quantity < requested:
+            raise InventoryInsufficientError("inventory_insufficient")
+
+
+@dataclass(frozen=True)
+class _CheckoutQuote:
+    cart_items: list[dict]
+    shop_settings: ShopSettings
+    delivery_snapshot: dict[str, Any] | None
+    subtotal: int
+    discount: int
+    after_points: int
+    points_applied: int
+    delivery_fee: int
+    total: int
+    accrual: int
+    estimated_ready_at: datetime | None
+    promocode: Promocode | None
+    account: LoyaltyAccount | None
+
+
+def _build_checkout_quote(
+    user_id: uuid.UUID,
+    request: CreateOrderRequest,
+    redis_client: Any,
+    db_session: Session,
+) -> _CheckoutQuote:
+    cart_items = _read_cart(redis_client, user_id)
+
+    shop_settings = db_session.get(ShopSettings, 1)
+    if shop_settings is None:
+        raise RuntimeError("ShopSettings row id=1 is missing")
+
+    validate_stop_list(cart_items, db_session)
+    estimated_ready_at = validate_time_slot(
+        request.requested_time,
+        shop_settings,
+        request.type,
+    )
+    if not isinstance(estimated_ready_at, datetime):
+        estimated_ready_at = None
+
+    delivery_snapshot: dict[str, Any] | None = None
+    if request.type == OrderType.DELIVERY:
+        if request.delivery_address_id is not None:
+            # Saved-flow: ownership check + Haversine ВСЕГДА; geocoder НЕ вызывается.
+            saved_address = load_saved_address(
+                request.delivery_address_id, user_id, db_session
+            )
+            validate_delivery_address(
+                saved_address.lat, saved_address.lon, shop_settings
+            )
+            delivery_snapshot = _build_snapshot_from_saved(saved_address)
+        else:
+            inline = request.delivery_address
+            if inline is None:
+                raise ValueError("delivery_address is required for delivery")
+            validate_delivery_address(inline.lat, inline.lon, shop_settings)
+            delivery_snapshot = inline.model_dump(exclude_none=True)
+
+    # Pricing chain (§7.2). Subtotal must be known before delivery minimum
+    # and promocode validation, but these are still read-only checks before
+    # any order/payment/loyalty/promo writes.
+    subtotal = compute_subtotal(cart_items, db_session)
+    if request.type == OrderType.DELIVERY:
+        validate_min_delivery_amount(subtotal, shop_settings)
+
+    promocode = None
+    if request.promocode_code:
+        promocode = validate_promocode(
+            request.promocode_code,
+            user_id,
+            subtotal,
+            db_session,
+        )
+
+    discount, after_promo = apply_promocode(subtotal, promocode)
+    account = db_session.get(LoyaltyAccount, user_id)
+    points_applied, after_points = apply_loyalty_points(
+        after_promo, request.points_to_use, account
+    )
+    delivery_fee = compute_delivery_fee(subtotal, request, shop_settings)
+    total = compute_order_total(subtotal, discount, points_applied, delivery_fee)
+    accrual = compute_estimated_accrual(after_points, account, shop_settings)
+
+    return _CheckoutQuote(
+        cart_items=cart_items,
+        shop_settings=shop_settings,
+        delivery_snapshot=delivery_snapshot,
+        subtotal=subtotal,
+        discount=discount,
+        after_points=after_points,
+        points_applied=points_applied,
+        delivery_fee=delivery_fee,
+        total=total,
+        accrual=accrual,
+        estimated_ready_at=estimated_ready_at,
+        promocode=promocode,
+        account=account,
+    )
+
+
+# START_CONTRACT: estimate_order
+#   PURPOSE: Return a read-only, server-owned checkout estimate for the current
+#            Redis cart using the same validation and pricing chain as
+#            create_order, without writing orders/payments/loyalty/promo rows.
+#   INPUTS:  user_id: UUID
+#            request: CreateOrderRequest — type/address/promocode/points/time
+#            redis_client: Any — Redis-like cart read
+#            db_session: Session
+#   OUTPUTS: OrderEstimateResponse — totals, estimated_ready_at, loyalty balance
+#            and delivery free-threshold guidance.
+#   SIDE_EFFECTS: DB SELECTs and Redis GET only; no commits, no Celery, no logs
+#                 containing address/PII.
+#   LINKS:   PDD §7.2, §7.4, §7.5, INV-004, INV-013, INV-014
+# END_CONTRACT: estimate_order
+def estimate_order(
+    user_id: uuid.UUID,
+    request: CreateOrderRequest,
+    redis_client: Any,
+    db_session: Session,
+) -> OrderEstimateResponse:
+    quote = _build_checkout_quote(user_id, request, redis_client, db_session)
+    _validate_finite_inventory_available(quote.cart_items, db_session)
+    free_threshold = int(quote.shop_settings.free_delivery_threshold)
+    free_remaining = (
+        max(free_threshold - quote.subtotal, 0)
+        if request.type == OrderType.DELIVERY
+        else 0
+    )
+    return OrderEstimateResponse(
+        subtotal=quote.subtotal,
+        discount_amount=quote.discount,
+        points_used=quote.points_applied,
+        delivery_fee=quote.delivery_fee,
+        total=quote.total,
+        estimated_accrual=quote.accrual,
+        estimated_ready_at=quote.estimated_ready_at,
+        loyalty_balance=int(getattr(quote.account, "balance", 0) or 0),
+        min_delivery_amount=int(quote.shop_settings.min_delivery_amount),
+        free_delivery_threshold=free_threshold,
+        free_delivery_remaining=free_remaining,
+    )
+
+
 # START_CONTRACT: create_order
 #   PURPOSE: Atomic checkout — read cart, run validators, compute pricing chain,
 #            lock/decrement finite inventory, persist Order/OrderItems/Payment
@@ -533,94 +700,37 @@ def create_order(
 ) -> OrderResponse:
     """Конвертирует корзину в заказ. См. модуль-docstring."""
     _grace_log.block("orders.create", "BLOCK_TX_BEGIN", user_id=str(user_id))
-    # 1. Чтение корзины
-    cart_items = _read_cart(redis_client, user_id)
-
-    # 2. Валидаторы (ДО любых записей в БД, INV-004)
-    shop_settings = db_session.get(ShopSettings, 1)
-    if shop_settings is None:
-        raise RuntimeError("ShopSettings row id=1 is missing")
-
-    validate_stop_list(cart_items, db_session)
-    estimated_ready_at = validate_time_slot(
-        request.requested_time,
-        shop_settings,
-        request.type,
-    )
-    if not isinstance(estimated_ready_at, datetime):
-        estimated_ready_at = None
-
-    saved_address: DeliveryAddress | None = None
-    delivery_snapshot: dict[str, Any] | None = None
-    if request.type == OrderType.DELIVERY:
-        if request.delivery_address_id is not None:
-            # Saved-flow: ownership check + Haversine ВСЕГДА; geocoder НЕ вызывается.
-            saved_address = load_saved_address(
-                request.delivery_address_id, user_id, db_session
-            )
-            validate_delivery_address(
-                saved_address.lat, saved_address.lon, shop_settings
-            )
-            delivery_snapshot = _build_snapshot_from_saved(saved_address)
-        else:
-            inline = request.delivery_address
-            validate_delivery_address(inline.lat, inline.lon, shop_settings)
-            delivery_snapshot = inline.model_dump(exclude_none=True)
-
-    # 3. Pricing chain (§7.2). Subtotal must be known before delivery minimum
-    # and promocode validation, but these are still read-only checks before
-    # any order/payment/loyalty/promo writes.
-    subtotal = compute_subtotal(cart_items, db_session)
-    if request.type == OrderType.DELIVERY:
-        validate_min_delivery_amount(subtotal, shop_settings)
-
-    promocode = None
-    if request.promocode_code:
-        promocode = validate_promocode(
-            request.promocode_code,
-            user_id,
-            subtotal,
-            db_session,
-        )
-
-    discount, after_promo = apply_promocode(subtotal, promocode)
-    account = db_session.get(LoyaltyAccount, user_id)
-    points_applied, after_points = apply_loyalty_points(
-        after_promo, request.points_to_use, account
-    )
-    delivery_fee = compute_delivery_fee(subtotal, request, shop_settings)
-    total = compute_order_total(subtotal, discount, points_applied, delivery_fee)
-    accrual = compute_estimated_accrual(after_points, account, shop_settings)
+    quote = _build_checkout_quote(user_id, request, redis_client, db_session)
 
     # 4. Атомарные записи (single logical transaction, INV-004)
     inventory_quantities, finite_inventory = _lock_finite_inventory_rows(
-        cart_items, db_session
+        quote.cart_items, db_session
     )
     _decrement_finite_inventory(inventory_quantities, finite_inventory, db_session)
 
     idempotency_key = str(uuid.uuid4())
-    order_status = OrderStatus.PAID if total == 0 else OrderStatus.CREATED
+    order_status = OrderStatus.PAID if quote.total == 0 else OrderStatus.CREATED
 
     order = Order(
         user_id=user_id,
         status=order_status,
         type=request.type,
         requested_time=request.requested_time,
-        estimated_ready_at=estimated_ready_at,
-        delivery_address_snapshot=delivery_snapshot,
-        subtotal=subtotal,
-        discount_amount=discount,
-        points_used=points_applied,
-        delivery_fee=delivery_fee,
-        total=total,
-        estimated_accrual=accrual,
-        promocode_id=(promocode.id if promocode is not None else None),
+        estimated_ready_at=quote.estimated_ready_at,
+        delivery_address_snapshot=quote.delivery_snapshot,
+        subtotal=quote.subtotal,
+        discount_amount=quote.discount,
+        points_used=quote.points_applied,
+        delivery_fee=quote.delivery_fee,
+        total=quote.total,
+        estimated_accrual=quote.accrual,
+        promocode_id=(quote.promocode.id if quote.promocode is not None else None),
     )
     db_session.add(order)
     db_session.flush()
 
     # OrderItems: снимки из БД, не из Redis (INV-014)
-    for line in cart_items:
+    for line in quote.cart_items:
         menu_item = db_session.get(MenuItem, line["menu_item_id"])
         if menu_item is None:
             continue
@@ -667,31 +777,33 @@ def create_order(
         )
 
     # Payment (idempotency_key генерируется до Celery enqueue)
-    payment_status = PaymentStatus.SUCCEEDED if total == 0 else PaymentStatus.PENDING
+    payment_status = (
+        PaymentStatus.SUCCEEDED if quote.total == 0 else PaymentStatus.PENDING
+    )
     db_session.add(
         Payment(
             order_id=order.id,
-            amount=total,
+            amount=quote.total,
             status=payment_status,
             idempotency_key=idempotency_key,
         )
     )
 
     # LoyaltyTransaction (только если баллы реально применены)
-    if points_applied > 0 and account is not None:
+    if quote.points_applied > 0 and quote.account is not None:
         tx_type = (
             LoyaltyTransactionType.REDEMPTION
-            if total == 0
+            if quote.total == 0
             else LoyaltyTransactionType.RESERVATION
         )
-        new_balance = int(account.balance or 0) - int(points_applied)
-        account.balance = new_balance
+        new_balance = int(quote.account.balance or 0) - int(quote.points_applied)
+        quote.account.balance = new_balance
         db_session.add(
             LoyaltyTransaction(
                 user_id=user_id,
                 order_id=order.id,
                 type=tx_type,
-                amount=-int(points_applied),
+                amount=-int(quote.points_applied),
                 balance_after=new_balance,
             )
         )
@@ -701,7 +813,7 @@ def create_order(
     # может ли счётчик быть увеличен. На rowcount==0 (проиграли гонку)
     # поднимаем ту же PromocodeValidationError, что и pre-check валидатор —
     # клиент видит одинаковый 422.
-    if promocode is not None:
+    if quote.promocode is not None:
         from core_api.services.validators.exceptions import (
             PromocodeValidationError,
         )
@@ -709,7 +821,7 @@ def create_order(
         result = db_session.execute(
             update(Promocode)
             .where(
-                Promocode.id == promocode.id,
+                Promocode.id == quote.promocode.id,
                 or_(
                     Promocode.max_uses.is_(None),
                     Promocode.current_uses < Promocode.max_uses,
@@ -721,7 +833,7 @@ def create_order(
             raise PromocodeValidationError("Global quota exhausted")
         db_session.add(
             PromocodeUsage(
-                promocode_id=promocode.id,
+                promocode_id=quote.promocode.id,
                 user_id=user_id,
                 order_id=order.id,
             )
@@ -739,9 +851,9 @@ def create_order(
     _grace_log.block("orders.create", "BLOCK_TX_COMMIT", order_id=str(order.id))
 
     # 5. Post-commit побочные эффекты
-    if total > 0:
+    if quote.total > 0:
         enqueue_payment_task(
-            order_id=order.id, amount=total, idempotency_key=idempotency_key
+            order_id=order.id, amount=quote.total, idempotency_key=idempotency_key
         )
     else:
         try:
@@ -764,12 +876,12 @@ def create_order(
         status=order.status,
         type=order.type,
         items=items_resp,
-        subtotal=subtotal,
-        discount_amount=discount,
-        points_used=points_applied,
-        delivery_fee=delivery_fee,
-        total=total,
-        estimated_accrual=accrual,
+        subtotal=quote.subtotal,
+        discount_amount=quote.discount,
+        points_used=quote.points_applied,
+        delivery_fee=quote.delivery_fee,
+        total=quote.total,
+        estimated_accrual=quote.accrual,
         confirmation_url=confirmation_url,
         requested_time=order.requested_time,
         estimated_ready_at=order.estimated_ready_at,

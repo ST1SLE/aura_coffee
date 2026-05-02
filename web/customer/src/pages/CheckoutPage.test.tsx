@@ -18,6 +18,7 @@ vi.mock('@/api/orders', async () => {
   return {
     ...actual,
     createOrder: vi.fn(),
+    estimateOrder: vi.fn(),
   };
 });
 
@@ -43,7 +44,7 @@ vi.mock('@/api/yandex_maps', async () => {
   };
 });
 
-import { createOrder, OrderApiError } from '@/api/orders';
+import { createOrder, estimateOrder, OrderApiError } from '@/api/orders';
 import {
   listAddresses,
   createAddress,
@@ -64,6 +65,20 @@ const order = {
   total: 0,
   estimated_accrual: 0,
   created_at: 'now',
+};
+
+const estimate = {
+  subtotal: 50000,
+  discount_amount: 5000,
+  points_used: 10000,
+  delivery_fee: 7000,
+  total: 42000,
+  estimated_accrual: 3500,
+  estimated_ready_at: '2026-05-02T12:00:00Z',
+  loyalty_balance: 15000,
+  min_delivery_amount: 30000,
+  free_delivery_threshold: 100000,
+  free_delivery_remaining: 50000,
 };
 
 function renderPage() {
@@ -101,6 +116,7 @@ const savedB: AddressResponse = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (estimateOrder as Mock).mockResolvedValue(estimate);
   (geocode as Mock).mockImplementation((text: string) =>
     Promise.resolve({
       canonical_text: text,
@@ -124,6 +140,47 @@ describe('CheckoutPage default pickup', () => {
     });
     expect(createOrder).toHaveBeenCalledWith({ type: 'pickup' });
     expect(mockNavigate).toHaveBeenCalledWith('/orders/o1');
+  });
+
+  it('sends promo, points, requested_time and renders server estimate', async () => {
+    (createOrder as Mock).mockResolvedValue(order);
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/промокод|promo code/i), {
+      target: { value: 'aura10' },
+    });
+    fireEvent.change(screen.getByLabelText(/баллы|points/i), {
+      target: { value: '10000' },
+    });
+    fireEvent.click(screen.getByLabelText(/ко времени|schedule/i));
+    fireEvent.change(screen.getByDisplayValue(''), {
+      target: { value: '2026-05-02T15:00' },
+    });
+
+    await waitFor(() => {
+      expect(estimateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'pickup',
+          promocode_code: 'AURA10',
+          points_to_use: 10000,
+          requested_time: expect.any(String),
+        }),
+      );
+    });
+    expect(screen.getByText(/итог заказа|order total/i)).toBeTruthy();
+    expect(screen.getByText(/к оплате|to pay/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+    await waitFor(() => expect(createOrder).toHaveBeenCalled());
+    expect(createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'pickup',
+        promocode_code: 'AURA10',
+        points_to_use: 10000,
+        requested_time: expect.any(String),
+      }),
+    );
   });
 });
 

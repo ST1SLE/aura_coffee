@@ -9,6 +9,7 @@ import { authenticatedFetch } from './client';
 import {
   cancelOrder,
   createOrder,
+  estimateOrder,
   getOrder,
   listOrders,
   OrderApiError,
@@ -41,6 +42,20 @@ const orderResp = {
   total: 0,
   estimated_accrual: 0,
   created_at: '2026-04-20T00:00:00Z',
+};
+
+const estimateResp = {
+  subtotal: 50000,
+  discount_amount: 5000,
+  points_used: 10000,
+  delivery_fee: 7000,
+  total: 42000,
+  estimated_accrual: 3500,
+  estimated_ready_at: '2026-05-02T12:00:00Z',
+  loyalty_balance: 15000,
+  min_delivery_amount: 30000,
+  free_delivery_threshold: 100000,
+  free_delivery_remaining: 50000,
 };
 
 beforeEach(() => {
@@ -122,6 +137,39 @@ describe('createOrder errors', () => {
       expect(err.status).toBe(409);
       expect(err.detail).toContain('вне зоны');
     }
+  });
+});
+
+describe('estimateOrder', () => {
+  it('POSTs to /api/v1/orders/estimate with checkout options', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(asOk(estimateResp, 200));
+
+    const result = await estimateOrder({
+      type: 'pickup',
+      promocode_code: 'AURA10',
+      points_to_use: 10000,
+      requested_time: '2026-05-02T12:00:00Z',
+    });
+
+    const [url, opts] = (authenticatedFetch as Mock).mock.calls[0];
+    expect(url).toBe('/api/v1/orders/estimate');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({
+      type: 'pickup',
+      promocode_code: 'AURA10',
+      points_to_use: 10000,
+      requested_time: '2026-05-02T12:00:00Z',
+    });
+    expect(result.total).toBe(42000);
+  });
+
+  it('rejects invalid estimate payload shape', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(asOk({ total: 1 }, 200));
+
+    await expect(estimateOrder({ type: 'pickup' })).rejects.toMatchObject({
+      status: 500,
+      detail: 'Invalid checkout estimate payload',
+    });
   });
 });
 

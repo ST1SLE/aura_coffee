@@ -134,6 +134,17 @@ def test_orders_router_exposes_post(client) -> None:
     assert "post" in paths.get("/api/v1/orders", {}), "POST /api/v1/orders отсутствует"
 
 
+def test_orders_router_exposes_estimate(client) -> None:
+    """POST /api/v1/orders/estimate должен присутствовать в /openapi.json."""
+    with _patch_jwt():
+        resp = client.get("/openapi.json")
+    assert resp.status_code == 200
+    paths = resp.json()["paths"]
+    assert "post" in paths.get("/api/v1/orders/estimate", {}), (
+        "POST /api/v1/orders/estimate отсутствует"
+    )
+
+
 def test_post_orders_requires_auth(client) -> None:
     """POST /api/v1/orders без Authorization → 401."""
     with _patch_jwt():
@@ -141,10 +152,28 @@ def test_post_orders_requires_auth(client) -> None:
     assert resp.status_code == 401
 
 
+def test_post_order_estimate_requires_auth(client) -> None:
+    """POST /api/v1/orders/estimate без Authorization → 401."""
+    with _patch_jwt():
+        resp = client.post("/api/v1/orders/estimate", json={"type": "pickup"})
+    assert resp.status_code == 401
+
+
 def test_post_orders_forbidden_for_staff(client) -> None:
     """POST /api/v1/orders с ролью barista → 403."""
     with _patch_jwt():
         resp = client.post("/api/v1/orders", json={"type": "pickup"}, headers=_auth("barista"))
+    assert resp.status_code == 403
+
+
+def test_post_order_estimate_forbidden_for_staff(client) -> None:
+    """POST /api/v1/orders/estimate с ролью barista → 403."""
+    with _patch_jwt():
+        resp = client.post(
+            "/api/v1/orders/estimate",
+            json={"type": "pickup"},
+            headers=_auth("barista"),
+        )
     assert resp.status_code == 403
 
 
@@ -157,6 +186,43 @@ def test_post_orders_forbidden_for_admin_and_courier(client) -> None:
         )
     assert r_admin.status_code == 403
     assert r_courier.status_code == 403
+
+
+def test_post_order_estimate_returns_server_totals(client) -> None:
+    """Estimate route delegates to checkout service and returns its totals."""
+    from core_api.schemas.order import OrderEstimateResponse
+
+    with (
+        _patch_jwt(),
+        patch(
+            "core_api.routers.orders.estimate_order",
+            return_value=OrderEstimateResponse(
+                subtotal=10000,
+                discount_amount=1000,
+                points_used=2000,
+                delivery_fee=5000,
+                total=12000,
+                estimated_accrual=700,
+                estimated_ready_at=None,
+                loyalty_balance=3000,
+                min_delivery_amount=0,
+                free_delivery_threshold=50000,
+                free_delivery_remaining=40000,
+            ),
+        ) as estimate_mock,
+    ):
+        resp = client.post(
+            "/api/v1/orders/estimate",
+            json={"type": "pickup", "points_to_use": 2000},
+            headers=_auth("customer"),
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["subtotal"] == 10000
+    assert body["total"] == 12000
+    assert body["free_delivery_remaining"] == 40000
+    estimate_mock.assert_called_once()
 
 
 def test_post_orders_empty_cart_returns_400(client, cart_redis) -> None:

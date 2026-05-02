@@ -82,6 +82,14 @@ _CART_ROUTES = [
     ("DELETE", "/api/v1/cart/items/{line_id}"),
 ]
 
+_ORDER_CUSTOMER_ROUTES = [
+    ("POST", "/api/v1/orders"),
+    ("POST", "/api/v1/orders/estimate"),
+    ("GET", "/api/v1/orders/{order_id}"),
+    ("GET", "/api/v1/orders"),
+    ("POST", "/api/v1/orders/{order_id}/repeat"),
+]
+
 
 class TestCartRbac:
     """9.1 Каждый маршрут корзины должен быть в ROUTE_MATRIX с ролью CUSTOMER."""
@@ -104,6 +112,22 @@ class TestCartRbac:
         from core_api.rbac_matrix import PUBLIC_ROUTES
 
         for method, pattern in _CART_ROUTES:
+            assert (method, pattern) not in PUBLIC_ROUTES, (
+                f"Маршрут ({method}, {pattern!r}) не должен быть в PUBLIC_ROUTES"
+            )
+
+
+class TestOrderCustomerRbac:
+    def test_customer_order_routes_are_in_route_matrix(self) -> None:
+        from core_api.rbac_matrix import CUSTOMER, PUBLIC_ROUTES, ROUTE_MATRIX
+
+        for method, pattern in _ORDER_CUSTOMER_ROUTES:
+            assert (method, pattern) in ROUTE_MATRIX, (
+                f"Маршрут ({method}, {pattern!r}) отсутствует в ROUTE_MATRIX"
+            )
+            assert ROUTE_MATRIX[(method, pattern)] == {CUSTOMER}, (
+                f"Маршрут ({method}, {pattern!r}) должен разрешать только CUSTOMER"
+            )
             assert (method, pattern) not in PUBLIC_ROUTES, (
                 f"Маршрут ({method}, {pattern!r}) не должен быть в PUBLIC_ROUTES"
             )

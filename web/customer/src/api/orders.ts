@@ -2,13 +2,14 @@ import { authenticatedFetch } from './client';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Orders REST client — checkout creation, customer order detail,
-//            history, cancellation, and repeat-order handoff. Defines a
+//            history, checkout estimate, cancellation, and repeat-order handoff. Defines a
 //            discriminated union for the request payload so pickup vs delivery
 //            (saved-address vs inline-address) is enforced statically.
 //   SCOPE:   OrderType, OrderStatus, InlineDeliveryAddress, CreateOrderPayload,
-//            OrderItemResponse, OrderResponse, OrderListResponse,
-//            RepeatOrderResult, OrderApiError, createOrder, getOrder,
-//            listOrders, cancelOrder, repeatOrder.
+//            CheckoutOptions, CheckoutEstimateResponse, OrderItemResponse,
+//            OrderResponse, OrderListResponse, RepeatOrderResult, OrderApiError,
+//            createOrder, estimateOrder, getOrder, listOrders, cancelOrder,
+//            repeatOrder.
 //   DEPENDS: M-CORE-API (HTTP /api/v1/orders), ./client (authenticatedFetch).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 checkout;
 //            INV-014 (order_items rendered from server snapshots).
@@ -19,7 +20,9 @@ import { authenticatedFetch } from './client';
 // START_MODULE_MAP
 //   OrderType                - 'pickup' | 'delivery'
 //   InlineDeliveryAddress    - shape for new (unsaved) delivery address
+//   CheckoutOptions          - promo/points/requested-time fields shared by create/estimate
 //   CreateOrderPayload       - discriminated union (pickup | delivery+id | delivery+inline)
+//   CheckoutEstimateResponse - server-owned checkout totals and delivery guidance
 //   OrderStatus              - PDD §6.1 customer-visible order states
 //   OrderItemResponse        - immutable server snapshot for one order line
 //   OrderResponse            - server response with totals, status, confirmation_url
@@ -27,6 +30,7 @@ import { authenticatedFetch } from './client';
 //   RepeatOrderResult        - POST /orders/{id}/repeat result
 //   OrderApiError            - Error subclass with status + detail (409 = out-of-radius)
 //   createOrder              - POST /orders, returns OrderResponse
+//   estimateOrder            - POST /orders/estimate, returns server-owned totals
 //   getOrder                 - GET /orders/{id}, returns detail for polling/status
 //   listOrders               - GET /orders?page&per_page, returns history
 //   cancelOrder              - POST /orders/{id}/cancel, returns updated detail
@@ -53,12 +57,32 @@ export interface InlineDeliveryAddress {
   comment?: string | null;
 }
 
+export interface CheckoutOptions {
+  promocode_code?: string;
+  points_to_use?: number;
+  requested_time?: string;
+}
+
 // Дискриминированный union — TypeScript гарантирует XOR:
 // либо сохранённый (delivery_address_id), либо новый inline (delivery_address).
 export type CreateOrderPayload =
-  | { type: 'pickup' }
-  | { type: 'delivery'; delivery_address_id: string }
-  | { type: 'delivery'; delivery_address: InlineDeliveryAddress };
+  | ({ type: 'pickup' } & CheckoutOptions)
+  | ({ type: 'delivery'; delivery_address_id: string } & CheckoutOptions)
+  | ({ type: 'delivery'; delivery_address: InlineDeliveryAddress } & CheckoutOptions);
+
+export interface CheckoutEstimateResponse {
+  subtotal: number;
+  discount_amount: number;
+  points_used: number;
+  delivery_fee: number;
+  total: number;
+  estimated_accrual: number;
+  estimated_ready_at?: string | null;
+  loyalty_balance: number;
+  min_delivery_amount: number;
+  free_delivery_threshold: number;
+  free_delivery_remaining: number;
+}
 
 export interface OrderItemResponse {
   id?: string;
@@ -171,6 +195,24 @@ function assertOrderList(body: unknown): asserts body is OrderListResponse {
   }
 }
 
+function assertEstimate(body: unknown): asserts body is CheckoutEstimateResponse {
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    typeof (body as CheckoutEstimateResponse).subtotal !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).discount_amount !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).points_used !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).delivery_fee !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).total !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).estimated_accrual !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).loyalty_balance !== 'number' ||
+    typeof (body as CheckoutEstimateResponse).free_delivery_remaining !==
+      'number'
+  ) {
+    throw new OrderApiError(500, 'Invalid checkout estimate payload');
+  }
+}
+
 // START_CONTRACT: createOrder
 //   PURPOSE: Submit a checkout payload — pickup or delivery (saved or inline).
 //   INPUTS:  payload: CreateOrderPayload — discriminated union; TypeScript
@@ -194,6 +236,33 @@ export async function createOrder(
   if (!res.ok) throw await parseError(res);
   const body = await res.json();
   assertOrder(body);
+  return body;
+}
+
+// START_CONTRACT: estimateOrder
+//   PURPOSE: Fetch server-owned checkout totals for the current cart and
+//            selected checkout options without creating an order.
+//   INPUTS:  payload: CreateOrderPayload — same shape as createOrder so the
+//            backend validates promo, points, requested_time, and delivery
+//            address ownership/radius consistently.
+//   OUTPUTS: Promise<CheckoutEstimateResponse> — totals/free-delivery guidance
+//            rendered by CheckoutPage.
+//   SIDE_EFFECTS: HTTP POST /api/v1/orders/estimate (authenticated). Throws
+//                 OrderApiError. INV-013 — payload may contain address PII; UI
+//                 must not log raw payload. Money values are display-only.
+//   LINKS:   PDD §7.2, §7.4, §7.5; CheckoutPage renders the response as-is.
+// END_CONTRACT: estimateOrder
+export async function estimateOrder(
+  payload: CreateOrderPayload,
+): Promise<CheckoutEstimateResponse> {
+  const res = await authenticatedFetch('/api/v1/orders/estimate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw await parseError(res);
+  const body = await res.json();
+  assertEstimate(body);
   return body;
 }
 
