@@ -3,7 +3,7 @@
 #            rows for every PDD §6.1 transition and enqueues SMS jobs for the
 #            subset that requires phone delivery.
 #   SCOPE:   resolve_notification_text matrix; build_sms_body; resolve_display_text;
-#            send_order_notification (write IN_APP + optional Celery dispatch).
+#            send_order_notification (write IN_APP + optional post-commit Celery dispatch).
 #   DEPENDS: M-SHARED (Notification, Order, UserProfile, enums), M-DATABASE,
 #            celery (sms-worker boundary)
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §7.8, §8.2,
@@ -17,13 +17,13 @@
 #   resolve_notification_text      - lookup §6.1 matrix
 #   build_sms_body                 - format SMS body (≤70 chars)
 #   resolve_display_text           - choose RU/EN per profile preference
-#   send_order_notification        - write IN_APP + enqueue SMS (boundary)
+#   send_order_notification        - write IN_APP + defer SMS enqueue (boundary)
 #   send_order_notification_sms    - Celery stub (real impl in sms-worker)
 # END_MODULE_MAP
 """Сервис уведомлений о статусах заказа (PDD §6.1 / §7.8 / §8.2).
 
 Создаёт строки `notifications` для каждого перехода статуса заказа из §6.1,
-а для SMS-обязательных статусов дополнительно публикует Celery-задачу
+а для SMS-обязательных статусов после commit публикует Celery-задачу
 `sms_worker.send_order_notification_sms` в очередь sms-worker.
 
 INV-013: телефон передаётся в очередь только в зашифрованном hex-виде.
@@ -38,6 +38,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from celery import Celery
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from core_api.settings import settings
@@ -66,6 +67,8 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+_AFTER_COMMIT_KEY = "core_api_notification_after_commit"
+_AFTER_COMMIT_REGISTERED_KEY = "core_api_notification_after_commit_registered"
 
 
 # ─────────────────────────────────────────────
@@ -113,6 +116,25 @@ def resolve_display_text(notification: Notification, preferred_language: str) ->
     return notification.message_ru
 
 
+def _defer_after_commit(db_session: Session, callback) -> None:
+    callbacks = db_session.info.setdefault(_AFTER_COMMIT_KEY, [])
+    callbacks.append(callback)
+    if db_session.info.get(_AFTER_COMMIT_REGISTERED_KEY):
+        return
+
+    @event.listens_for(db_session, "after_commit")
+    def _run_after_commit(session: Session) -> None:
+        pending = session.info.pop(_AFTER_COMMIT_KEY, [])
+        for fn in pending:
+            fn()
+
+    @event.listens_for(db_session, "after_rollback")
+    def _clear_after_rollback(session: Session) -> None:
+        session.info.pop(_AFTER_COMMIT_KEY, None)
+
+    db_session.info[_AFTER_COMMIT_REGISTERED_KEY] = True
+
+
 # ─────────────────────────────────────────────
 # Основная функция-сервис
 # ─────────────────────────────────────────────
@@ -128,9 +150,9 @@ def resolve_display_text(notification: Notification, preferred_language: str) ->
 #            db_session: Session — caller owns transaction commit
 #            cancelled_by: "customer" | "admin" | None — required for CANCELLED
 #   OUTPUTS: None
-#   SIDE_EFFECTS: DB INSERT(s) on notifications; Celery dispatch to queue 'sms'
-#                 for status types in the matrix; ValueError on unknown
-#                 transitions (INV-016) or missing UserProfile/Order.
+#   SIDE_EFFECTS: DB INSERT(s) on notifications; post-commit Celery dispatch
+#                 to queue 'sms' for status types in the matrix; ValueError on
+#                 unknown transitions (INV-016) or missing UserProfile/Order.
 #   LINKS:   PDD §6.1, §7.8, §8.2, INV-013, INV-016
 # END_CONTRACT: send_order_notification
 def send_order_notification(
@@ -210,11 +232,17 @@ def send_order_notification(
     assert text.sms_status_ru is not None  # гарантировано requires_sms=True
     message = build_sms_body(text.sms_status_ru, short_id)
 
-    try:
-        send_order_notification_sms.delay(sms_row.id, encrypted_hex, message)
-    except Exception:  # broker недоступен, но порядок заказа не должен падать.
-        logger.exception(
-            "Failed to enqueue SMS notification %s for order %s",
-            str(sms_row.id)[:8],
-            str(order_id)[:8],
-        )
+    sms_row_id = sms_row.id
+    sms_task = send_order_notification_sms
+
+    def _enqueue_sms() -> None:
+        try:
+            sms_task.delay(sms_row_id, encrypted_hex, message)
+        except Exception:  # broker недоступен, но порядок заказа не должен падать.
+            logger.exception(
+                "Failed to enqueue SMS notification %s for order %s",
+                str(sms_row_id)[:8],
+                str(order_id)[:8],
+            )
+
+    _defer_after_commit(db_session, _enqueue_sms)

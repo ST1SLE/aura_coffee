@@ -59,6 +59,8 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import event
+from sqlalchemy.orm import Session
 
 from payment_worker.db import get_engine, session_scope  # noqa: F401  (patch target)
 from payment_worker.main import celery_app
@@ -73,14 +75,14 @@ _grace_log = get_grace_logger("PaymentWorker")
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy.orm import Session
-
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
 _EVENT_TTL_SECONDS = 86_400
 _ORDER_SMS_TASK = "sms_worker.send_order_notification_sms"
+_AFTER_COMMIT_KEY = "payment_worker_notification_after_commit"
+_AFTER_COMMIT_REGISTERED_KEY = "payment_worker_notification_after_commit_registered"
 
 
 # START_CONTRACT: health
@@ -237,6 +239,25 @@ def _encrypted_phone_hex(profile_phone: bytes | bytearray | str) -> str:
     return profile_phone
 
 
+def _defer_after_commit(session: Session, callback) -> None:
+    callbacks = session.info.setdefault(_AFTER_COMMIT_KEY, [])
+    callbacks.append(callback)
+    if session.info.get(_AFTER_COMMIT_REGISTERED_KEY):
+        return
+
+    @event.listens_for(session, "after_commit")
+    def _run_after_commit(committed_session: Session) -> None:
+        pending = committed_session.info.pop(_AFTER_COMMIT_KEY, [])
+        for fn in pending:
+            fn()
+
+    @event.listens_for(session, "after_rollback")
+    def _clear_after_rollback(rolled_back_session: Session) -> None:
+        rolled_back_session.info.pop(_AFTER_COMMIT_KEY, None)
+
+    session.info[_AFTER_COMMIT_REGISTERED_KEY] = True
+
+
 def _send_order_notification(
     session: Session,
     order: Any,
@@ -244,7 +265,7 @@ def _send_order_notification(
     *,
     cancelled_by: str | None = None,
 ) -> None:
-    """Write canonical order notification rows and enqueue SMS when required."""
+    """Write canonical order notification rows and enqueue SMS after commit."""
     from shared.models.notification import Notification
     from shared.models.user_profile import UserProfile
 
@@ -289,21 +310,25 @@ def _send_order_notification(
     session.flush()
 
     assert text.sms_status_ru is not None
-    try:
-        celery_app.send_task(
-            _ORDER_SMS_TASK,
-            args=[
-                str(sms_row.id),
-                _encrypted_phone_hex(profile.phone),
-                build_sms_body(text.sms_status_ru, short_id),
-            ],
-            queue="sms",
-        )
-    except Exception:
-        logger.exception(
-            "failed to enqueue order SMS notification",
-            extra={"notification_id": str(sms_row.id)[:8], "order_id": short_id},
-        )
+    sms_row_id = str(sms_row.id)
+    encrypted_phone = _encrypted_phone_hex(profile.phone)
+    message = build_sms_body(text.sms_status_ru, short_id)
+    send_task = celery_app.send_task
+
+    def _enqueue_sms() -> None:
+        try:
+            send_task(
+                _ORDER_SMS_TASK,
+                args=[sms_row_id, encrypted_phone, message],
+                queue="sms",
+            )
+        except Exception:
+            logger.exception(
+                "failed to enqueue order SMS notification",
+                extra={"notification_id": sms_row_id[:8], "order_id": short_id},
+            )
+
+    _defer_after_commit(session, _enqueue_sms)
 
 
 def _restore_inventory(session: Session, order: Any) -> None:
@@ -792,7 +817,7 @@ def dispatch_event(
 #   SIDE_EFFECTS: DB writes (orders, payments, loyalty_transactions,
 #                 menu_items, promocodes, notifications) via dispatch_event; Redis
 #                 SET on `yukassa:event:*`; Redis DELETE on `cart:{user_id}`
-#                 for payment.succeeded; potentially dispatches downstream
+#                 for payment.succeeded; post-commit dispatch of downstream
 #                 notifications consumed by sms-worker. Drives the PDD §6.2
 #                 Payment lifecycle transitions handled by dispatch_event.
 #   LINKS:   PDD §4.2, §7.9, §6.2, INV-004 (atomic), INV-016 (explicit

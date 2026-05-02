@@ -281,12 +281,15 @@ def test_exhausted_retries_logs_error_with_notification_id(caplog) -> None:
 
 
 def test_plaintext_phone_not_in_logs(caplog) -> None:
-    """10.6 (INV-013) — открытый телефон НЕ попадает в логи на успехе и на провале."""
+    """10.6 (INV-013) — sensitive SMS data never appears in task logs."""
     from sms_worker.tasks import notification as notif_module
     from sms_worker.tasks.notification import send_order_notification_sms
 
     key = os.urandom(32)
     phone = "+79991234567"
+    message = "Оплачен. Заказ №abcdef01. Aura Coffee"
+    jwt = "eyJhbGciOiJIUzI1NiJ9.secret.payload"
+    api_key = "smsru_live_api_key_secret"
     encrypted_hex = _encrypt_phone_hex(phone, key)
     notification_id = uuid.uuid4()
 
@@ -308,10 +311,11 @@ def test_plaintext_phone_not_in_logs(caplog) -> None:
         patch.object(notif_module, "SessionLocal", return_value=fake_session),
     ):
         mock_settings.encryption_key = key.hex()
+        mock_settings.smsru_api_key = api_key
         send_order_notification_sms.run(
             notification_id=notification_id,
             encrypted_phone_hex=encrypted_hex,
-            message="Оплачен. Заказ №abcdef01. Aura Coffee",
+            message=message,
         )
 
     # --- failure path
@@ -331,15 +335,19 @@ def test_plaintext_phone_not_in_logs(caplog) -> None:
         patch.object(notif_module, "SessionLocal", return_value=fake_session2),
     ):
         mock_settings.encryption_key = key.hex()
+        mock_settings.smsru_api_key = api_key
         send_order_notification_sms.run.__wrapped__(
             self_stub,
             notification_id=notification_id,
             encrypted_phone_hex=encrypted_hex,
-            message="Оплачен. Заказ №abcdef01. Aura Coffee",
+            message=message,
         )
 
+    forbidden = (phone, message, jwt, api_key)
     for rec in caplog.records:
-        assert phone not in rec.getMessage()
+        line = rec.getMessage()
+        for sensitive in forbidden:
+            assert sensitive not in line
 
 
 def test_missing_notification_row_logs_and_returns(caplog) -> None:

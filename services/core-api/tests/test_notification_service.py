@@ -368,6 +368,8 @@ def test_sms_required_cases_enqueue_celery_task(
             cancelled_by=cancelled_by,
         )
 
+    assert mock_task.delay.call_count == 0
+    db_session.commit()
     assert mock_task.delay.call_count == 1
     args, kwargs = mock_task.delay.call_args
     # Разрешаем либо позиционные, либо именованные аргументы
@@ -450,6 +452,8 @@ def test_legacy_lifecycle_wrapper_uses_canonical_notification_service(db_session
         NotificationChannel.IN_APP,
         NotificationChannel.SMS,
     }
+    assert mock_task.delay.call_count == 0
+    db_session.commit()
     assert mock_task.delay.call_count == 1
     flat_args = list(mock_task.delay.call_args.args) + list(
         mock_task.delay.call_args.kwargs.values()
@@ -474,6 +478,8 @@ def test_plaintext_phone_never_passed_to_task(db_session) -> None:
             db_session=db_session,
         )
 
+    assert mock_task.delay.call_count == 0
+    db_session.commit()
     args, kwargs = mock_task.delay.call_args
     all_args = list(args) + list(kwargs.values())
     for a in all_args:
@@ -483,8 +489,8 @@ def test_plaintext_phone_never_passed_to_task(db_session) -> None:
     assert any(isinstance(a, str) and re.fullmatch(r"[0-9a-f]+", a) for a in all_args)
 
 
-def test_sms_row_committed_before_dispatch(db_session) -> None:
-    """4.8 — SMS-строка видна в БД на момент вызова .delay()."""
+def test_sms_row_dispatched_only_after_commit(db_session) -> None:
+    """4.8 — SMS enqueue waits until commit, then sees the SMS row."""
     from core_api.services.notification import send_order_notification
     from shared.models.notification import Notification
 
@@ -494,14 +500,8 @@ def test_sms_row_committed_before_dispatch(db_session) -> None:
     captured: dict = {}
 
     def _side_effect(*args, **kwargs):
-        # в момент вызова строка должна существовать
         ids = [a for a in list(args) + list(kwargs.values()) if isinstance(a, uuid.UUID)]
         captured["ids"] = ids
-        captured["rows_at_dispatch"] = (
-            db_session.query(Notification)
-            .filter(Notification.channel == NotificationChannel.SMS)
-            .all()
-        )
 
     mock_task = MagicMock()
     mock_task.delay.side_effect = _side_effect
@@ -514,8 +514,16 @@ def test_sms_row_committed_before_dispatch(db_session) -> None:
             db_session=db_session,
         )
 
-    assert captured["rows_at_dispatch"], "SMS row must exist at dispatch time"
-    row_ids = {r.id for r in captured["rows_at_dispatch"]}
+    mock_task.delay.assert_not_called()
+    db_session.commit()
+    mock_task.delay.assert_called_once()
+    sms_rows = (
+        db_session.query(Notification)
+        .filter(Notification.channel == NotificationChannel.SMS)
+        .all()
+    )
+    assert sms_rows, "SMS row must exist after commit-time dispatch"
+    row_ids = {r.id for r in sms_rows}
     assert any(nid in row_ids for nid in captured["ids"])
 
 
@@ -542,6 +550,8 @@ def test_short_id_is_first_8_hex_chars_of_uuid(db_session) -> None:
             db_session=db_session,
         )
 
+    mock_task.delay.assert_not_called()
+    db_session.commit()
     n = (
         db_session.query(Notification)
         .filter(Notification.order_id == order.id, Notification.channel == NotificationChannel.IN_APP)

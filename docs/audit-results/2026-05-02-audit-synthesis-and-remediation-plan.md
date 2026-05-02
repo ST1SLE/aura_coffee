@@ -218,6 +218,15 @@ Required LDD:
 - LDD assertions for any touched order/payment/delivery transitions.
 - SMS redaction checks for phone, OTP/code-like content, JWT/API key, and message body.
 
+Status:
+
+- The canonical notification boundary is `core_api.services.notification` plus shared pure text helpers in `packages/shared/src/shared/notifications.py`; the legacy `core_api.services.order_notifications` import path now delegates to that boundary, and payment webhook code uses the same shared matrix and registered `sms_worker.send_order_notification_sms` task name.
+- Added post-commit SMS enqueue semantics for Wave 4: core-api notification SMS dispatch and payment-worker webhook SMS dispatch now register SQLAlchemy `after_commit` callbacks and clear pending callbacks on rollback, so broker side effects cannot publish for rolled-back notification rows.
+- Focused core-api verification passed: `docker compose exec -T core-api pytest services/core-api/tests/test_notification_service.py services/core-api/tests/test_order_lifecycle.py services/core-api/tests/test_order_cancel.py services/core-api/tests/test_delivery_assignment_state_machine.py -q` (`138` tests).
+- Focused payment-worker verification passed: `docker compose exec -T payment-worker pytest services/payment-worker/tests/test_webhook.py -q` (`22` tests).
+- Focused sms-worker verification passed: `docker compose exec -T sms-worker pytest services/sms-worker/tests/test_notification_task.py services/sms-worker/tests/test_otp_task_log_backend.py -q` (`13` tests).
+- LDD/redaction gate: core order lifecycle/cancel/delivery tests asserted their touched transition markers with no mismatched beliefs; payment webhook tests asserted `process_webhook` `BLOCK_TX_PAYMENT` and `BLOCK_STATE_TRANSITION` trajectories; SMS-worker tests assert notification and OTP logs do not expose raw phone, OTP/code-like message bodies, JWT-shaped values, API keys, or plaintext SMS bodies.
+
 ## Production-Hardening Waves
 
 ### Wave 5 - Auth, Session, and OTP Security
