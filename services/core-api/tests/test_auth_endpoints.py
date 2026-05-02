@@ -7,6 +7,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from core_api.routers.auth import send_code
@@ -67,6 +68,37 @@ class TestSendCode:
 
         grace_logs.assert_trajectory(("auth.otp_request", "BLOCK_OTP_GEN"))
         assert grace_logs.beliefs(status="MISMATCH") == []
+        captured = "\n".join(grace_logs.lines)
+        assert phone not in captured
+        assert expected_hash not in captured
+        assert "123456" not in captured
+
+    # GRACE-LDD: rate-limit denial must not mint a second OTP or enqueue SMS.
+    def test_atomic_rate_limit_blocks_second_send_code(self, r, grace_logs) -> None:
+        phone = "+79991234567"
+        expected_hash = hash_phone(phone)
+        db = MagicMock()
+
+        with (
+            patch("core_api.routers.auth.UserService") as user_service_cls,
+            patch("core_api.services.otp.secrets.randbelow", return_value=123456),
+            patch("celery.Celery") as celery_cls,
+        ):
+            user_service = user_service_cls.return_value
+            user_service.get_user_status.return_value = None
+            user_service.get_or_create_user.return_value = MagicMock()
+
+            first = send_code(SendCodeRequest(phone=phone), db=db, r=r)
+            with pytest.raises(HTTPException) as exc_info:
+                send_code(SendCodeRequest(phone=phone), db=db, r=r)
+
+        assert first == {"message": "OTP sent"}
+        assert exc_info.value.status_code == 429
+        celery_cls.return_value.send_task.assert_called_once()
+        user_service.get_or_create_user.assert_called_once()
+
+        grace_logs.assert_trajectory(("auth.otp_request", "BLOCK_OTP_GEN"))
+        assert len(grace_logs.blocks(fn="auth.otp_request", blk="BLOCK_OTP_GEN")) == 1
         captured = "\n".join(grace_logs.lines)
         assert phone not in captured
         assert expected_hash not in captured

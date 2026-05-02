@@ -81,7 +81,7 @@ def send_code(
 
     otp_svc = OTPService(r)
 
-    rate_check = otp_svc.check_rate_limit(phone_hash)
+    rate_check = otp_svc.reserve_rate_limit(phone_hash)
     if not rate_check.allowed:
         raise HTTPException(
             status_code=429,
@@ -90,7 +90,6 @@ def send_code(
         )
 
     user_svc.get_or_create_user(phone, phone_hash)
-    otp_svc.increment_rate_limits(phone_hash)
     code = otp_svc.create_otp(phone_hash)
 
     # Отправка SMS через sms-worker (Celery send_task — без прямого импорта)

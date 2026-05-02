@@ -71,6 +71,29 @@ redis.call('SET', key, cjson.encode(otp), 'KEEPTTL')
 return cjson.encode({result = "wrong_code", attempts = otp.attempts, max = tonumber(ARGV[2])})
 """
 
+_RATE_LIMIT_LUA = """
+for i = 1, #KEYS do
+    local count = redis.call('GET', KEYS[i])
+    local limit = tonumber(ARGV[i])
+    if count and tonumber(count) >= limit then
+        local ttl = redis.call('TTL', KEYS[i])
+        if ttl < 1 then
+            ttl = 1
+        end
+        return cjson.encode({allowed = false, retry_after = ttl})
+    end
+end
+
+for i = 1, #KEYS do
+    local current = redis.call('INCR', KEYS[i])
+    if current == 1 then
+        redis.call('EXPIRE', KEYS[i], tonumber(ARGV[#KEYS + i]))
+    end
+end
+
+return cjson.encode({allowed = true})
+"""
+
 
 # START_CONTRACT: VerifyResult
 #   PURPOSE: Discriminator for OTP verification outcomes — returned by the
@@ -125,12 +148,38 @@ class OTPService:
     def __init__(self, redis_client: redis.Redis) -> None:
         self._redis = redis_client
         self._verify_script = self._redis.register_script(_VERIFY_LUA)
+        self._rate_limit_script = self._redis.register_script(_RATE_LIMIT_LUA)
 
     def _otp_key(self, phone_hash: str) -> str:
         return f"otp:{phone_hash}"
 
     def _rate_key(self, phone_hash: str, window: str) -> str:
         return f"sms_rate:{phone_hash}:{window}"
+
+    def _rate_limit_keys_and_args(self, phone_hash: str) -> tuple[list[str], list[str]]:
+        keys = [self._rate_key(phone_hash, window) for window in RATE_LIMITS]
+        limits = [str(limit) for limit, _ttl in RATE_LIMITS.values()]
+        ttls = [str(ttl) for _limit, ttl in RATE_LIMITS.values()]
+        return keys, limits + ttls
+
+    # START_CONTRACT: OTPService.reserve_rate_limit
+    #   PURPOSE: Atomically check and reserve per-minute/hour/day OTP SMS quota
+    #            so concurrent send-code requests cannot all pass the read step.
+    #   INPUTS:  phone_hash: str
+    #   OUTPUTS: RateLimitResult
+    #   SIDE_EFFECTS: Redis Lua script increments all OTP rate counters and sets
+    #                 TTLs only when every window is still below its limit.
+    #   LINKS:   INV-012
+    # END_CONTRACT: OTPService.reserve_rate_limit
+    def reserve_rate_limit(self, phone_hash: str) -> RateLimitResult:
+        """Атомарная проверка + резервирование rate-limit квоты."""
+        keys, args = self._rate_limit_keys_and_args(phone_hash)
+        raw = self._rate_limit_script(keys=keys, args=args)
+        data = json.loads(raw)
+        return RateLimitResult(
+            allowed=bool(data["allowed"]),
+            retry_after=data.get("retry_after"),
+        )
 
     # START_CONTRACT: OTPService.check_rate_limit
     #   PURPOSE: Probe per-minute / per-hour / per-day OTP counters and report

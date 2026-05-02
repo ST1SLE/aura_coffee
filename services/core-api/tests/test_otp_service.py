@@ -1,7 +1,6 @@
 import json
 
 import fakeredis
-import pytest
 
 from core_api.services.otp import OTPService, VerifyResult
 from shared.enums import OTPStatus
@@ -91,6 +90,34 @@ class TestRateLimit:
     def test_allowed(self, otp_svc: OTPService) -> None:
         result = otp_svc.check_rate_limit("ph_rl")
         assert result.allowed is True
+
+    def test_reserve_allows_first_request_and_blocks_second(
+        self, otp_svc: OTPService, r: fakeredis.FakeRedis
+    ) -> None:
+        first = otp_svc.reserve_rate_limit("ph_atomic")
+        second = otp_svc.reserve_rate_limit("ph_atomic")
+
+        assert first.allowed is True
+        assert second.allowed is False
+        assert second.retry_after is not None
+        assert second.retry_after > 0
+        assert int(r.get("sms_rate:ph_atomic:min")) == 1
+        assert int(r.get("sms_rate:ph_atomic:hour")) == 1
+        assert int(r.get("sms_rate:ph_atomic:day")) == 1
+
+    def test_reserve_does_not_increment_when_later_window_is_exhausted(
+        self, otp_svc: OTPService, r: fakeredis.FakeRedis
+    ) -> None:
+        r.set("sms_rate:ph_atomic_block:min", "0", ex=60)
+        r.set("sms_rate:ph_atomic_block:hour", "5", ex=3600)
+        r.set("sms_rate:ph_atomic_block:day", "5", ex=86400)
+
+        result = otp_svc.reserve_rate_limit("ph_atomic_block")
+
+        assert result.allowed is False
+        assert int(r.get("sms_rate:ph_atomic_block:min")) == 0
+        assert int(r.get("sms_rate:ph_atomic_block:hour")) == 5
+        assert int(r.get("sms_rate:ph_atomic_block:day")) == 5
 
     def test_per_minute_exceeded(self, otp_svc: OTPService) -> None:
         otp_svc.increment_rate_limits("ph_rl2")
