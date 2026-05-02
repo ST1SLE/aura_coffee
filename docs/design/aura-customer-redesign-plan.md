@@ -394,6 +394,54 @@ Verification:
   `rgb(238, 232, 221)` and card overlays as warm milk-white instead of pure
   white.
 
+### Packet 9 - Stronger Non-White Surface Correction
+
+Status: complete
+
+Files:
+
+- `web/customer/src/index.css`
+- `web/customer/src/pages/Menu/ItemDetail.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+Follow-up screenshots still read the main cards and item-detail controls as
+white because Packet 8 left primary surfaces at `96%` lightness. This packet
+makes the color shift visible rather than barely perceptible.
+
+Steps:
+
+1. Lower page canvas from `38 32% 90%` to `38 24% 84%`.
+2. Lower card/popover surfaces from `42 56% 96%` to `39 40% 90%`.
+3. Lower nested surfaces and placeholder fills into a biscuit range.
+4. Lower border/input color so form fields and order cards remain legible on the
+   warmer surfaces.
+5. Make the item-detail modal panel use `bg-card` and `from-card` so the modal
+   is a milk surface rather than the page canvas.
+
+Acceptance:
+
+- no large customer surface should read as white-white in browser screenshots
+- body/canvas, cards, and nested panels have visibly separate warm-neutral
+  values
+- menu, item detail, checkout, and order detail remain readable
+- no API, cart, order, checkout, auth, pricing, or persistence behavior changes
+
+Verification:
+
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/pages/OrderDetailPage.test.tsx src/pages/CheckoutPage.test.tsx src/components/Layout.test.tsx`
+- `cd web/customer && npm run build`
+- `./scripts/up.sh`
+- Playwright browser pass against `http://localhost:240/` with authenticated QA
+  customer state; captured `/menu`, item-detail viewport, `/checkout`, and
+  `/orders/:orderId` screenshots under
+  `/tmp/aura-customer-neutral-stronger-screenshots`.
+- Browser computed color check confirmed body `rgb(224, 217, 204)`, cards/modal
+  panel `rgb(240, 233, 219)`, and nested panels `rgb(218, 207, 190)`.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -433,7 +481,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-8 complete.
+Packet status: Packets 0-9 complete.
 
 Safety double-check:
 
@@ -471,6 +519,7 @@ Verification commands run:
   responses.
 - Playwright browser overflow/screenshot checks listed under Packet 7.
 - Playwright warm-neutral screenshot checks listed under Packet 8.
+- Playwright stronger non-white screenshot checks listed under Packet 9.
 
 Residual test cleanup:
 

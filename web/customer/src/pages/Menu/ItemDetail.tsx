@@ -112,14 +112,14 @@ export function ItemDetail({ item, lang, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-t-lg border border-border/80 bg-background shadow-[0_24px_70px_rgba(58,46,37,0.22)] md:rounded-lg">
+      <div className="flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-t-lg border border-border/80 bg-card shadow-[0_24px_70px_rgba(58,46,37,0.22)] md:rounded-lg">
         <div className="relative">
           <MenuMedia
             item={item}
             alt={item.name}
             className="h-[22rem] w-full bg-secondary md:h-96"
           />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card to-transparent" />
           <button
             aria-label="close"
             onClick={onClose}
