@@ -3,7 +3,11 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import i18n from '@/i18n/config';
 import { OrderDetailDialog } from './OrderDetailDialog';
-import type { OrderResponse, OrderStatus, OrderType } from '@/api/admin-orders';
+import type {
+  OrderStatus,
+  OrderType,
+  StaffOrderDetailResponse,
+} from '@/api/admin-orders';
 import type { StaffRole } from '@/lib/auth';
 
 // Mock useCurrentRole — тест перезаписывает роль перед каждым блоком.
@@ -16,7 +20,9 @@ vi.mock('@/lib/auth', async () => {
   };
 });
 
-function makeOrder(overrides: Partial<OrderResponse> = {}): OrderResponse {
+function makeOrder(
+  overrides: Partial<StaffOrderDetailResponse> = {},
+): StaffOrderDetailResponse {
   return {
     id: overrides.id ?? 'order-uuid-1',
     user_id: overrides.user_id ?? 'user-uuid-1',
@@ -28,6 +34,8 @@ function makeOrder(overrides: Partial<OrderResponse> = {}): OrderResponse {
     total: overrides.total ?? 30000,
     created_at: overrides.created_at ?? '2026-04-20T10:00:00Z',
     items: overrides.items ?? [],
+    customer_display_name: overrides.customer_display_name ?? null,
+    customer_contact_phone: overrides.customer_contact_phone ?? null,
   };
 }
 
@@ -80,9 +88,28 @@ describe('OrderDetailDialog', () => {
     expect(screen.getByText(/^300,00\s*₽$/)).toBeInTheDocument();
   });
 
-  // ── 5.3 omits PII keys ─────────────────────────────────────────────────────
+  // ── 5.3 staff contact detail ────────────────────────────────────────────────
 
-  test('does not render PII field labels (display_name / address / points_used)', () => {
+  test('renders contact phone as a tel link when staff detail includes it', () => {
+    const order = makeOrder({
+      customer_display_name: 'Михаил',
+      customer_contact_phone: '+79991234567',
+    });
+    render(
+      <OrderDetailDialog
+        order={order}
+        open={true}
+        onClose={vi.fn()}
+        onAction={vi.fn()}
+      />,
+    );
+    const link = screen.getByTestId('order-contact-phone');
+    expect(screen.getByText('Михаил')).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', 'tel:+79991234567');
+    expect(link).toHaveTextContent('+79991234567');
+  });
+
+  test('keeps unrelated PII fields out of the order detail surface', () => {
     const order = makeOrder();
     render(
       <OrderDetailDialog
@@ -92,10 +119,9 @@ describe('OrderDetailDialog', () => {
         onAction={vi.fn()}
       />,
     );
-    expect(i18n.exists('pages.orders.detail.display_name')).toBe(false);
+    expect(screen.getByTestId('order-contact-phone-empty')).toBeInTheDocument();
     expect(i18n.exists('pages.orders.detail.address')).toBe(false);
     expect(i18n.exists('pages.orders.detail.points_used')).toBe(false);
-    expect(screen.queryByText(/display.?name/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/адрес/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/points/i)).not.toBeInTheDocument();
   });

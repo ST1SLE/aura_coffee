@@ -16,7 +16,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core_api.main import app
+from core_api.settings import settings
+from core_api.utils.crypto import encrypt_phone
 from shared.enums import OrderStatus, OrderType
+from shared.models.user_profile import UserProfile
 from tests._factories.orders import make_user, seed_orders_across_statuses
 
 
@@ -192,7 +195,8 @@ def test_list_orders_for_staff_active_orders_by_created_at_desc(db_session) -> N
         db_session=db_session,
     )
 
-    returned_ids = [row.id for row in result.orders]
+    seeded_ids = set(ids_asc)
+    returned_ids = [row.id for row in result.orders if row.id in seeded_ids]
     assert returned_ids == list(reversed(ids_asc)), "ожидалось DESC по created_at"
 
 
@@ -234,7 +238,8 @@ def test_list_orders_for_staff_finalized_orders_by_updated_at_desc(db_session) -
         db_session=db_session,
     )
 
-    returned_ids = [row.id for row in result.orders]
+    seeded_ids = set(ids_by_created_asc)
+    returned_ids = [row.id for row in result.orders if row.id in seeded_ids]
     # Самый свежий updated_at — у первого по created_at (idx=0).
     assert returned_ids == list(ids_by_created_asc), "ожидалось DESC по updated_at"
 
@@ -301,6 +306,97 @@ def test_list_orders_for_staff_sees_all_users(db_session) -> None:
     assert result.total_count == 5
     user_ids = {row.user_id for row in result.orders}
     assert user_ids == {user_a.id, user_b.id}
+
+
+def test_get_order_for_staff_includes_contact_projection(db_session, grace_logs) -> None:
+    """2.9 — staff detail gets transient phone/display_name without logging PII."""
+    from core_api.services.order_history import get_order_for_staff
+
+    raw_phone = "+79991234567"
+    user = make_user(db_session)
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            phone=encrypt_phone(raw_phone, bytes.fromhex(settings.encryption_key)),
+            display_name="Михаил",
+            preferred_language="ru",
+        )
+    )
+    db_session.commit()
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={(OrderStatus.PREPARING, OrderType.PICKUP): 1},
+    )
+    order_id = seed.order_ids_by_bucket[(OrderStatus.PREPARING, OrderType.PICKUP)][0]
+
+    result = get_order_for_staff(order_id=order_id, db_session=db_session)
+
+    assert result.customer_display_name == "Михаил"
+    assert result.customer_contact_phone == raw_phone
+    assert raw_phone not in "\n".join(grace_logs.lines)
+
+
+def test_get_order_for_staff_omits_contact_after_final_state(db_session) -> None:
+    """2.10 — operational contact disappears once the order is finalized."""
+    from core_api.services.order_history import get_order_for_staff
+
+    raw_phone = "+79991234567"
+    user = make_user(db_session)
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            phone=encrypt_phone(raw_phone, bytes.fromhex(settings.encryption_key)),
+            display_name="Михаил",
+            preferred_language="ru",
+        )
+    )
+    db_session.commit()
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={(OrderStatus.CANCELLED, OrderType.PICKUP): 1},
+    )
+    order_id = seed.order_ids_by_bucket[(OrderStatus.CANCELLED, OrderType.PICKUP)][0]
+
+    result = get_order_for_staff(order_id=order_id, db_session=db_session)
+
+    assert result.customer_display_name is None
+    assert result.customer_contact_phone is None
+
+
+def test_list_orders_for_staff_does_not_expose_contact_projection(db_session) -> None:
+    """2.11 — staff lists stay PII-minimized; phone appears only in detail."""
+    from core_api.services.order_history import list_orders_for_staff
+
+    raw_phone = "+79991234567"
+    user = make_user(db_session)
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            phone=encrypt_phone(raw_phone, bytes.fromhex(settings.encryption_key)),
+            display_name="Михаил",
+            preferred_language="ru",
+        )
+    )
+    db_session.commit()
+    seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={(OrderStatus.PREPARING, OrderType.PICKUP): 1},
+    )
+
+    result = list_orders_for_staff(
+        status_filter="active",
+        type_filter=None,
+        page=1,
+        per_page=50,
+        db_session=db_session,
+    )
+
+    dumped = result.model_dump()
+    assert "customer_contact_phone" not in dumped["orders"][0]
+    assert "customer_display_name" not in dumped["orders"][0]
 
 
 # ===========================================================================
@@ -455,3 +551,50 @@ def test_admin_orders_list_sees_multiple_users_orders(
     assert body["total_count"] == 5
     user_ids = {row["user_id"] for row in body["orders"]}
     assert user_ids == {str(user_a.id), str(user_b.id)}
+
+
+def test_admin_order_detail_exposes_contact_to_barista_only(
+    admin_feed_client,
+    barista_headers,
+    customer_headers,
+    courier_headers,
+    db_session,
+    grace_logs,
+) -> None:
+    """4.10 — detail exposes contact to staff roles only and does not log phone."""
+    raw_phone = "+79991234567"
+    user = make_user(db_session)
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            phone=encrypt_phone(raw_phone, bytes.fromhex(settings.encryption_key)),
+            display_name="Михаил",
+            preferred_language="ru",
+        )
+    )
+    db_session.commit()
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={(OrderStatus.PREPARING, OrderType.PICKUP): 1},
+    )
+    order_id = seed.order_ids_by_bucket[(OrderStatus.PREPARING, OrderType.PICKUP)][0]
+
+    response = admin_feed_client.get(
+        f"/api/v1/admin/orders/{order_id}", headers=barista_headers
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["customer_display_name"] == "Михаил"
+    assert body["customer_contact_phone"] == raw_phone
+
+    customer_response = admin_feed_client.get(
+        f"/api/v1/admin/orders/{order_id}", headers=customer_headers
+    )
+    courier_response = admin_feed_client.get(
+        f"/api/v1/admin/orders/{order_id}", headers=courier_headers
+    )
+    assert customer_response.status_code == 403
+    assert courier_response.status_code == 403
+    assert raw_phone not in "\n".join(grace_logs.lines)

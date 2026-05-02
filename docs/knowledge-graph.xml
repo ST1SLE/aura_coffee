@@ -10,9 +10,9 @@
       <verification-ref>V-M-CORE-API</verification-ref>
       <annotations>
         <export-routers PURPOSE="HTTP route handlers (auth, menu, orders, payment, delivery, addresses, admin/*)" />
-        <export-services PURPOSE="Business logic services (order, payment, delivery, notification, admin_users, finite inventory enforcement)" />
-        <export-models PURPOSE="SQLAlchemy ORM models (User, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
-        <export-schemas PURPOSE="Pydantic request/response schemas per router, including public menu media fields" />
+        <export-services PURPOSE="Business logic services (order, payment, delivery, notification, admin_users, finite inventory enforcement, staff order contact projection)" />
+        <export-models PURPOSE="SQLAlchemy ORM models (User, UserProfile, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
+        <export-schemas PURPOSE="Pydantic request/response schemas per router, including public menu media fields and staff order contact detail" />
         <export-deps PURPOSE="FastAPI dependency injection (get_current_user, require_role, get_db)" />
       </annotations>
     </M-CORE-API>
@@ -50,13 +50,13 @@
     </M-WEB-CUSTOMER>
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" STATUS="implemented">
-      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing, finite inventory controls</purpose>
+      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing, finite inventory controls, order contact detail</purpose>
       <path>web/admin/src</path>
       <depends>M-CORE-API</depends>
       <verification-ref>V-M-WEB-ADMIN</verification-ref>
       <annotations>
         <export-pages PURPOSE="Top-level routed pages (orders feed, kitchen, delivery, users, settings)" />
-        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields and inventory controls" />
+        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields, inventory controls, and staff-only order contact affordance" />
       </annotations>
     </M-WEB-ADMIN>
 

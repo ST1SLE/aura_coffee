@@ -14,6 +14,7 @@ import type {
   OrderType,
   AdminOrderStatusFilter,
   OrderListResponse,
+  StaffOrderDetailResponse,
 } from '@/api/admin-orders';
 import { OrdersTable } from './OrdersTable';
 import { OrderDetailDialog } from './OrderDetailDialog';
@@ -22,7 +23,7 @@ import { OrderDetailDialog } from './OrderDetailDialog';
 //   PURPOSE: Admin/barista orders feed — status filter tabs (incl. 'active'
 //            aggregate), type filter, paginated list, polling on 'active' tab
 //            (paused when document.hidden), and an OrderDetailDialog for
-//            inspecting and transitioning orders.
+//            inspecting, contacting, and transitioning orders.
 //   SCOPE:   Mounted at /orders under the admin/barista layout. Visible to both
 //            roles; the dialog hides destructive controls for non-admin roles.
 //   DEPENDS: react, react-router-dom, react-i18next, ui primitives,
@@ -30,6 +31,7 @@ import { OrderDetailDialog } from './OrderDetailDialog';
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
 //            AGENTS.md (real-time feed within 5s — implemented as 10s polling),
 //            INV-002 (server enforces role on every transition),
+//            INV-013 (contact phone appears only after staff detail fetch),
 //            INV-014 (order_items shown carry snapshot names),
 //            INV-016 (state-machine transitions triggered from the detail dialog).
 //   ROLE:    RUNTIME
@@ -109,7 +111,7 @@ export function OrdersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<StaffOrderDetailResponse | null>(null);
 
   // Последний reload-call должен выигрывать гонку с запоздалым предыдущим.
   const reqSeq = useRef(0);

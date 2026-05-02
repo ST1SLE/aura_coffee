@@ -1,7 +1,7 @@
 """Маршруты staff-feed заказов (admin-orders-api, PDD §4.5, INV-010).
 
 GET /api/v1/admin/orders               → OrderListResponse
-GET /api/v1/admin/orders/{order_id}    → OrderResponse
+GET /api/v1/admin/orders/{order_id}    → StaffOrderDetailResponse
 
 RBAC: только {ADMIN, BARISTA}, прописано в rbac_matrix.ROUTE_MATRIX.
 401/403 обрабатывает RBACMiddleware — здесь явных auth-deps нет.
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 # START_MODULE_CONTRACT
 #   PURPOSE: HTTP routes for the staff orders feed under /api/v1/admin/orders
-#            — list and detail. Read-only views for ADMIN/BARISTA.
+#            — list and detail. Detail includes staff-only customer contact.
 #   SCOPE:   Pagination + status/type filtering of orders for staff.
 #            No state mutations live here (see order_actions.py for that).
 #   DEPENDS: M-SHARED (enums.OrderStatus/OrderType), M-DATABASE (Session),
@@ -18,7 +18,7 @@ from __future__ import annotations
 #            RBACMiddleware via rbac_matrix.ROUTE_MATRIX (auth enforced
 #            before handler dispatch).
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, §6.1,
-#            INV-002, INV-010 (role isolation).
+#            INV-002, INV-010 (role isolation), INV-013 (PII contact projection).
 #   ROLE:    RUNTIME
 #   MAP_MODE: EXPORTS
 # END_MODULE_CONTRACT
@@ -35,7 +35,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core_api.deps import database as _db_dep
-from core_api.schemas.order_history import OrderListResponse, OrderResponse
+from core_api.schemas.order_history import (
+    OrderListResponse,
+    StaffOrderDetailResponse,
+)
 from core_api.services.order_history import (
     OrderNotFoundForStaffError,
     get_order_for_staff,
@@ -92,17 +95,19 @@ def list_admin_orders(
 
 
 # START_CONTRACT: get_admin_order_detail
-#   PURPOSE: Single order view for staff (no ownership check; staff sees all).
+#   PURPOSE: Single order view for staff (no ownership check; staff sees all)
+#            with transient customer contact fields for operational calls.
 #   INPUTS:  order_id: UUID (path), Session.
-#   OUTPUTS: 200 OrderResponse; 404 order_not_found.
+#   OUTPUTS: 200 StaffOrderDetailResponse; 404 order_not_found.
 #   SIDE_EFFECTS: none.
-#   LINKS:   PDD §4.5, §6.1, INV-002, INV-010, services.order_history.
+#   LINKS:   PDD §4.5, §6.1, §7.10, INV-002, INV-010, INV-013,
+#            services.order_history.
 # END_CONTRACT: get_admin_order_detail
-@router.get("/orders/{order_id}", response_model=OrderResponse)
+@router.get("/orders/{order_id}", response_model=StaffOrderDetailResponse)
 def get_admin_order_detail(
     order_id: uuid.UUID,
     db: Session = Depends(_get_session),
-) -> OrderResponse:
+) -> StaffOrderDetailResponse:
     """Одиночный заказ для staff — без ownership-check."""
     try:
         return get_order_for_staff(order_id=order_id, db_session=db)

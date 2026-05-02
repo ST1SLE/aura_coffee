@@ -81,6 +81,10 @@
       "detail": {
         "title": "Заказ",
         "user_id": "Клиент (ID)",
+        "customer": "Клиент",
+        "customer_unknown": "Без имени",
+        "contact_phone": "Телефон",
+        "contact_unavailable": "Недоступен",
         "items": "Позиции",
         "subtotal": "Сумма позиций",
         "discount": "Скидка",

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Phone } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,19 +16,20 @@ import {
   cancelAdminOrder,
   ApiError,
 } from '@/api/admin-orders';
-import type { OrderResponse, OrderStatus } from '@/api/admin-orders';
+import type { OrderStatus, StaffOrderDetailResponse } from '@/api/admin-orders';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Modal dialog showing full order detail (items, totals, user link)
-//            and exposing role-gated state-machine actions — Accept (paid→
-//            preparing), Mark Ready (preparing→ready), Hand Out (ready→completed
-//            for pickup), Cancel (admin only).
+//   PURPOSE: Modal dialog showing full order detail (items, totals, customer
+//            contact), and exposing role-gated state-machine actions — Accept
+//            (paid→preparing), Mark Ready (preparing→ready), Hand Out
+//            (ready→completed for pickup), Cancel (admin only).
 //   SCOPE:   Mounted by OrdersPage with the currently selected order.
 //   DEPENDS: react, react-i18next, ui primitives, @/lib/auth (useCurrentRole),
-//            @/api/admin-orders, ./StatusBadge.
+//            lucide-react, @/api/admin-orders, ./StatusBadge.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
 //            INV-002 (server enforces role on every transition; client merely
 //            decides which buttons to render),
+//            INV-013 (customer_contact_phone is detail-only staff PII),
 //            INV-014 (item names rendered from snapshot fields),
 //            INV-016 (each button triggers an INV-016 state-machine transition).
 //   ROLE:    RUNTIME
@@ -54,7 +56,7 @@ function shortId(id: string): string {
 }
 
 interface OrderDetailDialogProps {
-  order: OrderResponse | null;
+  order: StaffOrderDetailResponse | null;
   open: boolean;
   onClose: () => void;
   onAction: () => void;
@@ -62,7 +64,7 @@ interface OrderDetailDialogProps {
 }
 
 interface StaffActionsProps {
-  order: OrderResponse;
+  order: StaffOrderDetailResponse;
   onTransition: (next: OrderStatus) => Promise<void>;
   onCancelClick: () => void;
   inFlight: boolean;
@@ -143,6 +145,7 @@ function StaffActions({ order, onTransition, onCancelClick, inFlight }: StaffAct
 //            decide which buttons to render.
 //   LINKS:   INV-002 (server is the security boundary; this component only
 //            controls UX visibility of buttons),
+//            INV-013 (renders contact phone only from staff detail projection),
 //            INV-014 (rendered item names come from snapshot fields),
 //            INV-016 (each button is a state-machine transition trigger).
 // END_CONTRACT: OrderDetailDialog
@@ -257,8 +260,44 @@ export function OrderDetailDialog({
             </div>
           </section>
 
-          <section className="text-xs text-muted-foreground">
-            {t('pages.orders.detail.user_id')}: <span className="font-mono">{shortId(order.user_id)}</span>
+          <section className="rounded-md border p-3 text-sm space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">
+                {t('pages.orders.detail.customer')}
+              </span>
+              <span className="text-right">
+                {order.customer_display_name ?? t('pages.orders.detail.customer_unknown')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">
+                {t('pages.orders.detail.contact_phone')}
+              </span>
+              {order.customer_contact_phone ? (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={`tel:${order.customer_contact_phone}`}
+                    data-testid="order-contact-phone"
+                  >
+                    <Phone aria-hidden="true" />
+                    <span>{order.customer_contact_phone}</span>
+                  </a>
+                </Button>
+              ) : (
+                <span
+                  className="text-muted-foreground"
+                  data-testid="order-contact-phone-empty"
+                >
+                  {t('pages.orders.detail.contact_unavailable')}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted-foreground">
+                {t('pages.orders.detail.user_id')}
+              </span>
+              <span className="font-mono">{shortId(order.user_id)}</span>
+            </div>
           </section>
 
           <StaffActions

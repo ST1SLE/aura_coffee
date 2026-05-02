@@ -81,6 +81,10 @@
       "detail": {
         "title": "Order",
         "user_id": "Customer (ID)",
+        "customer": "Customer",
+        "customer_unknown": "No name",
+        "contact_phone": "Phone",
+        "contact_unavailable": "Unavailable",
         "items": "Items",
         "subtotal": "Subtotal",
         "discount": "Discount",

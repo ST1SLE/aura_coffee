@@ -1,11 +1,13 @@
 """Pydantic-схемы истории заказов и repeat-order (PDD §7.7)."""
 # START_MODULE_CONTRACT
-#   PURPOSE: DTOs for the customer order-history feed and repeat-order result.
-#            Models expose immutable order_item snapshots (INV-014) and accept
-#            both attribute and subscript access for fallback test patterns.
+#   PURPOSE: DTOs for the customer order-history feed, staff order detail, and
+#            repeat-order result. Models expose immutable order_item snapshots
+#            (INV-014) and accept both attribute and subscript access for
+#            fallback test patterns.
 #   SCOPE:   Pydantic models + private _SubscriptMixin for getitem support.
 #   DEPENDS: pydantic v2.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.7,
+#            INV-013 (staff contact phone is a read-only detail projection),
 #            INV-014 (order_items are immutable snapshots)
 #   ROLE:    TYPES
 #   MAP_MODE: EXPORTS
@@ -15,6 +17,7 @@
 #   OrderItemResponse         - one historical order line (immutable snapshot)
 #   OrderResponse             - order header + items
 #   OrderListResponse         - paginated GET /api/v1/orders body
+#   StaffOrderDetailResponse  - staff-only detail projection with customer contact
 #   RepeatOrderSkippedEntry   - one skipped entry from repeat-order
 #   RepeatOrderResult         - POST /orders/{id}/repeat response
 # END_MODULE_MAP
@@ -81,6 +84,13 @@ class OrderListResponse(_SubscriptMixin, BaseModel):
     total_count: int
     page: int
     per_page: int
+
+
+class StaffOrderDetailResponse(OrderResponse):
+    """Staff-only detail projection with transient contact fields (INV-013)."""
+
+    customer_display_name: str | None = None
+    customer_contact_phone: str | None = None
 
 
 class RepeatOrderSkippedEntry(_SubscriptMixin, BaseModel):

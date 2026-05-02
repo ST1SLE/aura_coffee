@@ -1,18 +1,21 @@
 // Типы зеркалят Pydantic-схемы из services/core-api/src/core_api/schemas/order_history.py
-// (admin-orders-api) и schemas/order.py (staff-transitions + cancel).
+// (admin-orders-api: list + staff contact detail) и schemas/order.py
+// (staff-transitions + cancel).
 // Клиент — тонкий, без state-machine: UI решает какую кнопку показать,
 // сервер решает легитимность перехода (INV-016).
 
 import { authenticatedFetch, ApiError } from './client';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Typed client for admin-only order endpoints — list/get/transition/cancel.
+//   PURPOSE: Typed client for admin-only order endpoints — list/get detail with
+//            contact projection/transition/cancel.
 //   SCOPE:   Wraps /api/v1/admin/orders/* and /api/v1/orders/{id}/{status,cancel};
 //            UI decides which button to show, server enforces transition legality.
 //   DEPENDS: ./client (authenticatedFetch, ApiError); mirrors core-api Pydantic schemas.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
 //            INV-002 (admin scope enforced server-side), INV-014 (order_items
-//            include menu_item_name snapshot for historical fidelity),
+//            include menu_item_name snapshot for historical fidelity), INV-013
+//            (contact phone only on staff detail payload),
 //            INV-016 (state-machine transitions).
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -24,7 +27,8 @@ import { authenticatedFetch, ApiError } from './client';
 //   OrderType                 - 'pickup' | 'delivery'
 //   AdminOrderStatusFilter    - server statuses + 'active' aggregate + 'all'
 //   OrderItemResponse         - one line of an order, name snapshot per INV-014
-//   OrderResponse             - full order shape returned by GET endpoints
+//   OrderResponse             - order list/customer-history base shape
+//   StaffOrderDetailResponse  - admin detail shape with customer contact fields
 //   OrderListResponse         - paginated list shape
 //   ListAdminOrdersParams     - query params for listAdminOrders
 //   listAdminOrders           - GET /api/v1/admin/orders
@@ -82,6 +86,11 @@ export interface OrderResponse {
   items: OrderItemResponse[];
 }
 
+export interface StaffOrderDetailResponse extends OrderResponse {
+  customer_display_name: string | null;
+  customer_contact_phone: string | null;
+}
+
 export interface OrderListResponse {
   orders: OrderResponse[];
   total_count: number;
@@ -136,11 +145,11 @@ export const listAdminOrders = (
 // START_CONTRACT: getAdminOrder
 //   PURPOSE: Fetch single order by id (used to refresh after a transition).
 //   INPUTS:  orderId: string — UUID of the order
-//   OUTPUTS: Promise<OrderResponse>
+//   OUTPUTS: Promise<StaffOrderDetailResponse>
 //   SIDE_EFFECTS: GET request; throws ApiError (404 → not found).
-//   LINKS:   INV-002, PDD §6.1.
+//   LINKS:   INV-002, INV-013, PDD §6.1, §7.10.
 // END_CONTRACT: getAdminOrder
-export const getAdminOrder = (orderId: string): Promise<OrderResponse> =>
+export const getAdminOrder = (orderId: string): Promise<StaffOrderDetailResponse> =>
   json(`/api/v1/admin/orders/${orderId}`);
 
 // START_CONTRACT: updateOrderStatus

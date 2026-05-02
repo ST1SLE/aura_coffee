@@ -82,6 +82,7 @@
         <note-2>Atomic flows (payment + points + promo) wrap in a single SQLAlchemy session per INV-004.</note-2>
         <note-3>Public menu media fields are presentational; they do not affect pricing, availability, cart validation, order creation, inventory, or state transitions.</note-3>
         <note-4>Finite inventory is PostgreSQL-backed on menu_items.inventory_quantity. Cart checks are UX/server validation; checkout owns atomic row locking and decrement inside orders.create.</note-4>
+        <note-5>Staff order detail may decrypt user_profiles.phone transiently for ADMIN/BARISTA customer contact. The projection is not stored on orders/order_items and must not be logged.</note-5>
       </notes>
     </M-CORE-API>
 
@@ -147,11 +148,11 @@
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" LAYER="3" ORDER="2" STATUS="implemented">
       <contract>
-        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing and operational finite-inventory updates. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
+        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing, operational finite-inventory updates, and staff-only order contact affordances. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
       </contract>
       <interface>
         <export-pages PURPOSE="Routed top-level pages by role" />
-        <export-features PURPOSE="Orders feed, kitchen, delivery, users, settings, menu media path editing" />
+        <export-features PURPOSE="Orders feed, kitchen, delivery, users, settings, menu media path editing, order contact detail" />
       </interface>
       <depends>M-CORE-API</depends>
       <target>
@@ -163,6 +164,7 @@
       <verification-ref>V-M-WEB-ADMIN</verification-ref>
       <notes>
         <note-1>Admin menu media controls store public local static asset paths only; binary upload/storage is outside v1.</note-1>
+        <note-2>Order contact phone is rendered only from staff order detail and only for operational contact; user/order lists remain PII-minimized.</note-2>
       </notes>
     </M-WEB-ADMIN>
   </Modules>
