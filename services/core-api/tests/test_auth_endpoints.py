@@ -8,11 +8,12 @@ from unittest.mock import MagicMock, patch
 import uuid
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 
 from core_api.deps.auth import get_current_user
+from core_api.routers.auth import logout as logout_route
 from core_api.routers.auth import refresh as refresh_route
 from core_api.routers.auth import send_code, verify_code
 from core_api.schemas.auth import RefreshRequest, SendCodeRequest, VerifyCodeRequest
@@ -22,6 +23,13 @@ from core_api.services.user import UserInfo
 from core_api.utils.crypto import hash_phone
 from shared.enums import OTPStatus, UserStatus
 from shared.models.user import User
+
+
+def _request_with_cookie(name: str | None = None, value: str | None = None) -> Request:
+    headers: list[tuple[bytes, bytes]] = []
+    if name is not None and value is not None:
+        headers.append((b"cookie", f"{name}={value}".encode()))
+    return Request({"type": "http", "headers": headers})
 
 
 @pytest.fixture
@@ -145,6 +153,7 @@ class TestVerifyCode:
             with pytest.raises(HTTPException) as exc_info:
                 verify_code(
                     VerifyCodeRequest(phone=phone, code=code),
+                    response=Response(),
                     db=MagicMock(),
                     r=r,
                 )
@@ -159,6 +168,49 @@ class TestVerifyCode:
         assert phone not in captured
         assert phone_hash not in captured
         assert code not in captured
+
+    # GRACE-LDD: successful OTP verify issues refresh as HttpOnly cookie.
+    def test_success_sets_http_only_refresh_cookie(self, r, grace_logs) -> None:
+        phone = "+79991234567"
+        phone_hash = hash_phone(phone)
+        user_id = uuid.uuid4()
+        otp_svc = OTPService(r)
+        code = otp_svc.create_otp(phone_hash)
+        otp_svc.update_otp_status(phone_hash, OTPStatus.SENT)
+        response = Response()
+
+        with patch("core_api.routers.auth.UserService") as user_service_cls:
+            user_service = user_service_cls.return_value
+            user_service.get_or_create_user.return_value = UserInfo(
+                user_id=user_id,
+                status=UserStatus.ACTIVE,
+                is_new=False,
+            )
+
+            result = verify_code(
+                VerifyCodeRequest(phone=phone, code=code),
+                response=response,
+                db=MagicMock(),
+                r=r,
+            )
+
+        cookie = response.headers["set-cookie"]
+        assert result.access_token
+        assert result.refresh_token
+        assert "aura_customer_refresh_token=" in cookie
+        assert "HttpOnly" in cookie
+        assert "SameSite=strict" in cookie
+        assert "Path=/api/v1/auth" in cookie
+
+        grace_logs.assert_trajectory(
+            ("auth.otp_request", "BLOCK_OTP_GEN"),
+            ("auth.otp_verify", "BLOCK_AUTH_VERIFY"),
+        )
+        captured = "\n".join(grace_logs.lines)
+        assert phone not in captured
+        assert phone_hash not in captured
+        assert code not in captured
+        assert result.refresh_token not in captured
 
 
 class TestRefresh:
@@ -185,10 +237,64 @@ class TestRefresh:
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            refresh_route(RefreshRequest(refresh_token=pair.refresh_token), r=r, db=db)
+            refresh_route(
+                request=_request_with_cookie(),
+                response=Response(),
+                body=RefreshRequest(refresh_token=pair.refresh_token),
+                r=r,
+                db=db,
+            )
 
         assert exc_info.value.status_code == 401
         assert r.get(f"session:{pair.refresh_token}") is None
+
+    def test_refresh_uses_http_only_cookie_and_rotates_cookie(self, r) -> None:
+        user_id = uuid.uuid4()
+        auth_svc = AuthService(r)
+        pair = auth_svc.issue_tokens(user_id)
+        db = MagicMock()
+        db.get.return_value = User(
+            id=user_id,
+            phone_hash="d" * 64,
+            status=UserStatus.ACTIVE,
+        )
+        response = Response()
+
+        result = refresh_route(
+            request=_request_with_cookie(
+                "aura_customer_refresh_token",
+                pair.refresh_token,
+            ),
+            response=response,
+            body=None,
+            r=r,
+            db=db,
+        )
+
+        assert result.access_token
+        assert result.refresh_token != pair.refresh_token
+        assert r.get(f"session:{pair.refresh_token}") is None
+        assert r.get(f"session:{result.refresh_token}") is not None
+        cookie = response.headers["set-cookie"]
+        assert f"aura_customer_refresh_token={result.refresh_token}" in cookie
+        assert "HttpOnly" in cookie
+
+    def test_refresh_without_body_or_cookie_rejects_and_clears_cookie(self, r) -> None:
+        response = Response()
+
+        with pytest.raises(HTTPException) as exc_info:
+            refresh_route(
+                request=_request_with_cookie(),
+                response=response,
+                body=None,
+                r=r,
+                db=MagicMock(),
+            )
+
+        assert exc_info.value.status_code == 401
+        cookie = response.headers["set-cookie"]
+        assert "aura_customer_refresh_token=" in cookie
+        assert "Max-Age=0" in cookie
 
 
 class TestAccessTokenStatus:
@@ -220,3 +326,26 @@ class TestLogout:
             json={"refresh_token": "test"},
         )
         assert response.status_code in (401, 403)
+
+    def test_logout_revokes_cookie_refresh_and_clears_cookie(self, r) -> None:
+        user_id = uuid.uuid4()
+        auth_svc = AuthService(r)
+        pair = auth_svc.issue_tokens(user_id)
+        response = Response()
+
+        result = logout_route(
+            request=_request_with_cookie(
+                "aura_customer_refresh_token",
+                pair.refresh_token,
+            ),
+            response=response,
+            body=None,
+            current_user={"sub": str(user_id), "role": "customer"},
+            r=r,
+        )
+
+        assert result == {"message": "Logged out"}
+        assert r.get(f"session:{pair.refresh_token}") is None
+        cookie = response.headers["set-cookie"]
+        assert "aura_customer_refresh_token=" in cookie
+        assert "Max-Age=0" in cookie

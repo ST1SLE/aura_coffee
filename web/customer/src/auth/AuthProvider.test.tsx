@@ -19,6 +19,10 @@ vi.mock('@/api/auth', () => ({
 
 import * as authApi from '@/api/auth';
 
+function jwtFor(sub: string): string {
+  return `h.${btoa(JSON.stringify({ sub, role: 'customer' }))}.s`;
+}
+
 function TestConsumer() {
   const { isAuthenticated, isLoading, user, login, verifyCode, logout } = useAuth();
   return (
@@ -34,7 +38,18 @@ function TestConsumer() {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   localStorage.clear();
+  vi.mocked(authApi.sendCode).mockResolvedValue({ message: 'OTP sent' });
+  vi.mocked(authApi.verifyCode).mockResolvedValue({
+    accessToken: 'test-access',
+    refreshToken: 'test-refresh',
+    user: { id: 'u1', role: 'customer' },
+  });
+  vi.mocked(authApi.refreshTokens).mockRejectedValue(
+    new Error('no refresh cookie'),
+  );
+  vi.mocked(authApi.logout).mockResolvedValue(undefined);
 });
 
 describe('AuthProvider', () => {
@@ -48,6 +63,27 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
     });
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
+    expect(authApi.refreshTokens).toHaveBeenCalledWith();
+  });
+
+  it('silent refresh uses cookie-backed session without localStorage token', async () => {
+    vi.mocked(authApi.refreshTokens).mockResolvedValueOnce({
+      accessToken: jwtFor('u-cookie'),
+      refreshToken: 'legacy-response-field',
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+    expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    expect(screen.getByTestId('user').textContent).toBe('u-cookie');
+    expect(localStorage.getItem('aura_refresh_token')).toBeNull();
   });
 
   it('login + verify sets user', async () => {
@@ -93,9 +129,9 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
   });
 
-  // Просроченный refresh token — очистка состояния
-  it('expired refresh token clears state', async () => {
-    localStorage.setItem('aura_refresh_token', 'expired-token');
+  // Старый localStorage refresh token больше не используется и очищается.
+  it('legacy localStorage refresh token is ignored and cleared on refresh failure', async () => {
+    localStorage.setItem('aura_refresh_token', 'legacy-refresh-token');
     vi.mocked(authApi.refreshTokens).mockRejectedValueOnce(new Error('token expired'));
 
     render(
@@ -109,5 +145,6 @@ describe('AuthProvider', () => {
     });
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
     expect(localStorage.getItem('aura_refresh_token')).toBeNull();
+    expect(authApi.refreshTokens).toHaveBeenCalledWith();
   });
 });

@@ -2,9 +2,9 @@ import { clearRole, setRole } from '@/lib/auth';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Thin HTTP client wrapper for the staff SPA — manages staff JWT
-//            access/refresh tokens in localStorage, attaches Bearer auth,
-//            rotates refresh tokens on 401, revokes refresh on logout, and
-//            centralizes typed error wrapping.
+//            access token in localStorage, keeps refresh tokens in HttpOnly
+//            cookies, attaches Bearer auth, rotates refresh cookies on 401,
+//            revokes refresh on logout, and centralizes typed error wrapping.
 //   SCOPE:   All admin/barista/courier API calls go through authenticatedFetch;
 //            staffLogin/staffRefresh/logout are the auth surfaces here.
 //   DEPENDS: @/lib/auth (clearRole, setRole), browser fetch + localStorage
@@ -18,9 +18,9 @@ import { clearRole, setRole } from '@/lib/auth';
 // START_MODULE_MAP
 //   getAccessToken      - read access token from localStorage
 //   setAccessToken      - persist access token to localStorage
-//   getRefreshToken     - read refresh token from localStorage
-//   setRefreshToken     - persist refresh token to localStorage
-//   clearAuthTokens     - remove both staff tokens
+//   getRefreshToken     - legacy API, always returns null for browser safety
+//   setRefreshToken     - legacy API, clears old localStorage refresh tokens
+//   clearAuthTokens     - remove staff access token + legacy refresh token
 //   clearAccessToken    - remove access token from localStorage
 //   logout              - revoke refresh token, clear token + role, navigate login
 //   ApiError            - error class wrapping HTTP status + parsed body
@@ -34,7 +34,8 @@ const REFRESH_STORAGE_KEY = 'refreshToken';
 // START_CONTRACT: StaffAuthTokens
 //   PURPOSE: Typed token pair and role returned by staff login/refresh endpoints.
 //   INPUTS:  access_token: string — short-lived staff JWT access token
-//            refresh_token: string — rotating staff refresh token
+//            refresh_token: string — legacy response field; browser stores the
+//                 actual refresh token only as an HttpOnly cookie
 //            role: string — canonical staff role from core-api
 //   OUTPUTS: TypeScript interface.
 //   SIDE_EFFECTS: none.
@@ -67,23 +68,26 @@ export function setAccessToken(token: string): void {
 }
 
 // START_CONTRACT: getRefreshToken
-//   PURPOSE: Read the staff refresh token persisted after login/refresh.
+//   PURPOSE: Legacy compatibility hook; refresh tokens now live in HttpOnly
+//            cookies and are intentionally unreadable to JavaScript.
 //   INPUTS:  none
-//   OUTPUTS: string | null — token or null if absent.
-//   SIDE_EFFECTS: reads localStorage.
+//   OUTPUTS: null.
+//   SIDE_EFFECTS: none.
 // END_CONTRACT: getRefreshToken
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_STORAGE_KEY);
+  return null;
 }
 
 // START_CONTRACT: setRefreshToken
-//   PURPOSE: Persist refresh token returned by /staff/auth/login or /refresh.
+//   PURPOSE: Legacy compatibility hook; never persists refresh tokens and
+//            removes any old localStorage refresh token if called.
 //   INPUTS:  token: string
 //   OUTPUTS: void
-//   SIDE_EFFECTS: writes localStorage.
+//   SIDE_EFFECTS: localStorage write (deletes legacy key).
 // END_CONTRACT: setRefreshToken
 export function setRefreshToken(token: string): void {
-  localStorage.setItem(REFRESH_STORAGE_KEY, token);
+  void token;
+  localStorage.removeItem(REFRESH_STORAGE_KEY);
 }
 
 // START_CONTRACT: clearAccessToken
@@ -97,7 +101,8 @@ export function clearAccessToken(): void {
 }
 
 // START_CONTRACT: clearAuthTokens
-//   PURPOSE: Remove both staff JWT tokens from localStorage.
+//   PURPOSE: Remove the staff access token and any legacy refresh token from
+//            localStorage.
 //   INPUTS:  none
 //   OUTPUTS: void
 //   SIDE_EFFECTS: writes localStorage.
@@ -114,41 +119,32 @@ function persistStaffAuth(result: StaffAuthTokens): void {
 }
 
 // START_CONTRACT: logout
-//   PURPOSE: Revoke the staff refresh token when present, then clear local token
-//            + role hint and navigate to /admin/login (full page reload to drop
-//            any in-memory React state). Local cleanup happens even if the
-//            network revoke fails.
+//   PURPOSE: Revoke the staff refresh cookie when possible, then clear local
+//            access token + role hint and navigate to /admin/login (full page
+//            reload to drop any in-memory React state). Local cleanup happens
+//            even if the network revoke fails.
 //   INPUTS:  none
 //   OUTPUTS: Promise<void>
-//   SIDE_EFFECTS: POST /staff/auth/logout when tokens exist; localStorage writes;
-//                 window.location.assign navigation.
+//   SIDE_EFFECTS: POST /staff/auth/refresh and/or /logout when a cookie exists;
+//                 localStorage writes; window.location.assign navigation.
 //   LINKS:   INV-002 (server enforces auth; client cleanup is UX).
 // END_CONTRACT: logout
 export async function logout(): Promise<void> {
-  const refreshToken = getRefreshToken();
   const accessToken = getAccessToken();
 
   try {
-    if (refreshToken) {
-      const tokenPair = accessToken
-        ? { access_token: accessToken, refresh_token: refreshToken }
-        : await refreshStaffSession();
-
-      if (tokenPair) {
-        const response = await revokeStaffRefresh(
-          tokenPair.access_token,
-          tokenPair.refresh_token,
-        );
-
-        if (response.status === 401) {
-          const refreshed = await refreshStaffSession();
-          if (refreshed !== null) {
-            await revokeStaffRefresh(
-              refreshed.access_token,
-              refreshed.refresh_token,
-            );
-          }
+    if (accessToken) {
+      const response = await revokeStaffRefresh(accessToken);
+      if (response.status === 401) {
+        const refreshed = await refreshStaffSession();
+        if (refreshed !== null) {
+          await revokeStaffRefresh(refreshed.access_token);
         }
+      }
+    } else {
+      const refreshed = await refreshStaffSession();
+      if (refreshed !== null) {
+        await revokeStaffRefresh(refreshed.access_token);
       }
     }
   } catch {
@@ -204,7 +200,6 @@ function redirectToLogin(): void {
 
 async function revokeStaffRefresh(
   accessToken: string,
-  refreshToken: string,
 ): Promise<Response> {
   return fetch(`${BASE_URL}/api/v1/staff/auth/logout`, {
     method: 'POST',
@@ -212,18 +207,17 @@ async function revokeStaffRefresh(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    credentials: 'include',
+    body: JSON.stringify({}),
   });
 }
 
 async function refreshStaffSession(): Promise<StaffAuthTokens | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
-
   const response = await fetch(`${BASE_URL}/api/v1/staff/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    credentials: 'include',
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) return null;
@@ -253,13 +247,14 @@ function mergeAuthHeaders(
 // START_CONTRACT: authenticatedFetch
 //   PURPOSE: fetch wrapper that injects Bearer token and centralizes 401
 //            handling — first tries refresh-token rotation, retries the original
-//            request once with the new access token, and only then clears state
-//            and redirects to /admin/login with returnUrl.
+//            request once with the new access token from the HttpOnly refresh
+//            cookie, and only then clears state and redirects to /admin/login
+//            with returnUrl.
 //   INPUTS:  path: string — absolute API path (e.g. "/api/v1/admin/orders")
 //            init: RequestInit — optional fetch init; auth headers merged in.
 //   OUTPUTS: Promise<Response> — non-OK responses throw ApiError instead.
 //   SIDE_EFFECTS: network request; may POST /staff/auth/refresh, write rotated
-//                 tokens/role, or clear local state + redirect on failed refresh.
+//                 access token/role, or clear local state + redirect on failed refresh.
 //   LINKS:   INV-002 (server enforces auth; client refresh is UX continuity);
 //            api/client.ts is the only path through which staff API requests should flow.
 // END_CONTRACT: authenticatedFetch
@@ -319,9 +314,11 @@ export async function authenticatedFetch(
 //            (separate from customer SMS-OTP flow) and return rotated staff tokens + role.
 //   INPUTS:  login: string, password: string
 //   OUTPUTS: Promise<StaffAuthTokens> — access/refresh tokens and canonical role.
-//   SIDE_EFFECTS: unauthenticated POST; throws ApiError on non-2xx (401 means bad creds).
-//   LINKS:   INV-002 (server is source of truth for role); LoginPage stores both
-//            token and role into localStorage for client-side route gating.
+//   SIDE_EFFECTS: unauthenticated POST; server sets HttpOnly refresh cookie;
+//                 throws ApiError on non-2xx (401 means bad creds).
+//   LINKS:   INV-002 (server is source of truth for role); LoginPage stores the
+//            access token and role hint for client-side route gating while the
+//            refresh token stays in the HttpOnly cookie.
 // END_CONTRACT: staffLogin
 export async function staffLogin(
   login: string,
@@ -330,6 +327,7 @@ export async function staffLogin(
   const response = await fetch(`${BASE_URL}/api/v1/staff/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ login, password }),
   });
   if (!response.ok) {

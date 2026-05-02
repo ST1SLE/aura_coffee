@@ -13,14 +13,13 @@ import { LoginPage } from './LoginPage';
 import * as client from '@/api/client';
 import * as auth from '@/lib/auth';
 
-// Мок модуля client — staffLogin и token setters
+// Мок модуля client — staffLogin и access-token setter
 vi.mock('@/api/client', async (importOriginal) => {
   const original = await importOriginal<typeof client>();
   return {
     ...original,
     staffLogin: vi.fn(),
     setAccessToken: vi.fn(),
-    setRefreshToken: vi.fn(),
   };
 });
 
@@ -80,8 +79,8 @@ describe('LoginPage', () => {
     expect((submitBtn as HTMLButtonElement).disabled).toBe(false);
   });
 
-  // c) Успешный логин: staffLogin вызван, токены сохранены, навигация на /
-  it('при успешном логине вызывает staffLogin, сохраняет токены и переходит на /', async () => {
+  // c) Успешный логин: staffLogin вызван, access token сохранён, навигация на /
+  it('при успешном логине вызывает staffLogin, сохраняет access token и переходит на /', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok123',
       refresh_token: 'ref123',
@@ -104,7 +103,7 @@ describe('LoginPage', () => {
       );
     });
     expect(vi.mocked(client.setAccessToken)).toHaveBeenCalledWith('tok123');
-    expect(vi.mocked(client.setRefreshToken)).toHaveBeenCalledWith('ref123');
+    expect(localStorage.getItem('refreshToken')).toBeNull();
     await waitFor(() => {
       expect(screen.getByText('dashboard')).toBeDefined();
     });
@@ -132,8 +131,8 @@ describe('LoginPage', () => {
     });
   });
 
-  // e) ApiError(401): показывает инлайн-ошибку, token setters НЕ вызываются
-  it('при ApiError(401) показывает invalidCredentials и не сохраняет токены', async () => {
+  // e) ApiError(401): показывает инлайн-ошибку, access token НЕ сохраняется
+  it('при ApiError(401) показывает invalidCredentials и не сохраняет access token', async () => {
     vi.mocked(client.staffLogin).mockRejectedValueOnce(
       new client.ApiError(401, null, 'HTTP 401: /api/v1/staff/auth/login'),
     );
@@ -152,7 +151,6 @@ describe('LoginPage', () => {
     });
     expect(screen.getByRole('alert').textContent).toMatch(/неверный логин/i);
     expect(vi.mocked(client.setAccessToken)).not.toHaveBeenCalled();
-    expect(vi.mocked(client.setRefreshToken)).not.toHaveBeenCalled();
   });
 
   // g) Успешный логин курьера: редирект на /courier

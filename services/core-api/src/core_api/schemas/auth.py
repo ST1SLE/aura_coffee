@@ -12,7 +12,7 @@
 # START_MODULE_MAP
 #   SendCodeRequest    - body of POST /auth/send-code (phone)
 #   VerifyCodeRequest  - body of POST /auth/verify-code (phone, 6-digit code)
-#   RefreshRequest     - body of POST /auth/refresh (refresh_token)
+#   RefreshRequest     - optional body fallback for POST /auth/refresh/logout
 #   TokenResponse      - access/refresh JWT pair
 #   ErrorResponse      - generic 4xx body with optional retry/attempt hints
 # END_MODULE_MAP
@@ -30,7 +30,7 @@ class VerifyCodeRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class TokenResponse(BaseModel):

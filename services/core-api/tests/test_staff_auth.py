@@ -79,6 +79,11 @@ class TestStaffLogin:
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
         assert data["role"] == "admin"
+        cookie = response.headers["set-cookie"]
+        assert "aura_staff_refresh_token=" in cookie
+        assert "HttpOnly" in cookie
+        assert "SameSite=strict" in cookie
+        assert "Path=/api/v1/staff/auth" in cookie
 
     def test_wrong_password(self, client: TestClient) -> None:
         staff = _make_staff_account(password="correct_pass")
@@ -233,6 +238,37 @@ class TestStaffRefresh:
         assert "access_token" in data
         assert "refresh_token" in data
         mock_redis.delete.assert_called_once()
+        assert "aura_staff_refresh_token=" in response.headers["set-cookie"]
+
+    def test_valid_refresh_from_http_only_cookie(self, client: TestClient) -> None:
+        staff_id = uuid.uuid4()
+        session_data = json.dumps({
+            "staff_id": str(staff_id),
+            "role": "barista",
+            "issued_at": "2026-01-01T00:00:00+00:00",
+        })
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = session_data.encode()
+        mock_db = MagicMock()
+        staff = _make_staff_account(role_value="barista")
+        staff.id = staff_id
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+
+        with _override_deps(mock_db, mock_redis):
+            response = client.post(
+                "/api/v1/staff/auth/refresh",
+                json={},
+                cookies={"aura_staff_refresh_token": "cookie-token"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        mock_redis.delete.assert_called_once()
+        cookie = response.headers["set-cookie"]
+        assert "aura_staff_refresh_token=" in cookie
+        assert "HttpOnly" in cookie
 
     def test_inactive_staff_refresh_revokes_sessions(self) -> None:
         staff_id = uuid.uuid4()
@@ -328,6 +364,37 @@ class TestStaffLogout:
             )
         assert response.status_code == 200
         assert response.json()["detail"] == "Logged out"
+        assert "aura_staff_refresh_token=" in response.headers["set-cookie"]
+        assert "Max-Age=0" in response.headers["set-cookie"]
+
+    def test_logout_uses_cookie_refresh_and_clears_cookie(
+        self, client: TestClient
+    ) -> None:
+        from core_api.settings import settings
+
+        token_payload = {
+            "sub": str(uuid.uuid4()),
+            "role": "admin",
+        }
+        access_token = jwt.encode(
+            token_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        )
+        mock_redis = MagicMock()
+        mock_db = MagicMock()
+
+        with _override_deps(mock_db, mock_redis):
+            response = client.post(
+                "/api/v1/staff/auth/logout",
+                json={},
+                cookies={"aura_staff_refresh_token": "cookie-token"},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+
+        assert response.status_code == 200
+        mock_redis.delete.assert_called_with("staff_refresh:cookie-token")
+        cookie = response.headers["set-cookie"]
+        assert "aura_staff_refresh_token=" in cookie
+        assert "Max-Age=0" in cookie
 
     def test_unauthenticated(self, client: TestClient) -> None:
         mock_db = MagicMock()

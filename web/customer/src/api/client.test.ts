@@ -8,9 +8,7 @@ import * as authApi from './auth';
 
 vi.mock('@/auth/token', () => ({
   getAccessToken: vi.fn(),
-  getRefreshToken: vi.fn(),
   setAccessToken: vi.fn(),
-  setRefreshToken: vi.fn(),
   clearAllTokens: vi.fn(),
 }));
 
@@ -81,7 +79,6 @@ describe('authenticatedFetch', () => {
 
   it('refreshes and retries on 401', async () => {
     (tokenModule.getAccessToken as Mock).mockReturnValue('expired-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue('rt-valid');
     (authApi.refreshTokens as Mock).mockResolvedValue({
       accessToken: 'new-access',
       refreshToken: 'new-refresh',
@@ -94,20 +91,19 @@ describe('authenticatedFetch', () => {
     const res = await authenticatedFetch('/api/v1/profile');
 
     expect(res.status).toBe(200);
-    expect(authApi.refreshTokens).toHaveBeenCalledWith('rt-valid');
+    expect(authApi.refreshTokens).toHaveBeenCalledWith();
     expect(tokenModule.setAccessToken).toHaveBeenCalledWith('new-access');
-    expect(tokenModule.setRefreshToken).toHaveBeenCalledWith('new-refresh');
 
     const retryHeaders = mockFetch.mock.calls[1][1].headers as Headers;
     expect(retryHeaders.get('Authorization')).toBe('Bearer new-access');
   });
 
-  it('calls failure handler and returns 401 when no refresh token', async () => {
+  it('calls failure handler and returns 401 when cookie refresh fails', async () => {
     const failHandler = vi.fn();
     registerAuthFailureHandler(failHandler);
 
     (tokenModule.getAccessToken as Mock).mockReturnValue('expired-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue(null);
+    (authApi.refreshTokens as Mock).mockRejectedValue(new Error('no cookie'));
     mockFetch.mockResolvedValue(jsonResponse(401));
 
     const res = await authenticatedFetch('/api/v1/profile');
@@ -116,6 +112,7 @@ describe('authenticatedFetch', () => {
     expect(tokenModule.clearAllTokens).toHaveBeenCalled();
     expect(failHandler).toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(authApi.refreshTokens).toHaveBeenCalledWith();
   });
 
   it('calls failure handler when refresh fails', async () => {
@@ -123,7 +120,6 @@ describe('authenticatedFetch', () => {
     registerAuthFailureHandler(failHandler);
 
     (tokenModule.getAccessToken as Mock).mockReturnValue('expired-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue('rt-expired');
     (authApi.refreshTokens as Mock).mockRejectedValue(new Error('invalid'));
     mockFetch.mockResolvedValue(jsonResponse(401));
 
@@ -137,7 +133,7 @@ describe('authenticatedFetch', () => {
 
   it('clears tokens even without registered handler', async () => {
     (tokenModule.getAccessToken as Mock).mockReturnValue('expired-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue(null);
+    (authApi.refreshTokens as Mock).mockRejectedValue(new Error('no cookie'));
     mockFetch.mockResolvedValue(jsonResponse(401));
 
     await authenticatedFetch('/api/v1/profile');
@@ -147,7 +143,6 @@ describe('authenticatedFetch', () => {
 
   it('deduplicates concurrent refresh calls', async () => {
     (tokenModule.getAccessToken as Mock).mockReturnValue('expired-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue('rt-valid');
 
     let resolveRefresh!: (v: unknown) => void;
     (authApi.refreshTokens as Mock).mockReturnValue(

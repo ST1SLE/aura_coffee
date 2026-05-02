@@ -4,8 +4,6 @@ import type { AuthUser } from '@/api/types';
 import * as authApi from '@/api/auth';
 import {
   setAccessToken,
-  setRefreshToken,
-  getRefreshToken,
   clearAllTokens,
 } from './token';
 import { registerAuthFailureHandler } from '@/api/client';
@@ -19,8 +17,8 @@ import { registerAuthFailureHandler } from '@/api/client';
 //   SCOPE:   AuthContext (context object), AuthContextValue (interface),
 //            AuthProvider (component).
 //   DEPENDS: react, @/api/types (AuthUser), @/api/auth (sendCode/verifyCode/
-//            refreshTokens/logout), ./token (in-memory access + localStorage
-//            refresh), @/api/client (registerAuthFailureHandler).
+//            refreshTokens/logout), ./token (in-memory access + legacy refresh
+//            cleanup), @/api/client (registerAuthFailureHandler).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6 OTP flow;
 //            INV-002 (client-side role check is UX, server enforces).
 //   ROLE:    RUNTIME
@@ -56,13 +54,13 @@ function parseUserFromJwt(token: string): AuthUser {
 
 // START_CONTRACT: AuthProvider
 //   PURPOSE: Top-level auth context provider. On mount tries one silent refresh
-//            using the localStorage refresh token; exposes login/verifyCode/
+//            using the HttpOnly refresh cookie; exposes login/verifyCode/
 //            logout actions that talk to api/auth and update both token storage
 //            and React state.
 //   INPUTS:  { children: ReactNode } — subtree to render.
 //   OUTPUTS: JSX — AuthContext.Provider wrapping children with the live value.
 //   SIDE_EFFECTS: registers auth-failure handler on api/client; reads/writes
-//                 access (in-memory) and refresh (localStorage) tokens; HTTP
+//                 access (in-memory) and legacy refresh localStorage cleanup; HTTP
 //                 calls via api/auth (sendCode, verifyCode, refreshTokens,
 //                 logout); decodes JWT client-side for AuthUser hydration
 //                 (INV-002 — server is the authority).
@@ -85,17 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refreshAttempted.current) return;
     refreshAttempted.current = true;
 
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      setIsLoading(false);
-      return;
-    }
-
     authApi
-      .refreshTokens(refreshToken)
+      .refreshTokens()
       .then((tokens) => {
         setAccessToken(tokens.accessToken);
-        setRefreshToken(tokens.refreshToken);
         setUser(parseUserFromJwt(tokens.accessToken));
       })
       .catch(() => {
@@ -113,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyCode = useCallback(async (phone: string, code: string) => {
     const result = await authApi.verifyCode(phone, code);
     setAccessToken(result.accessToken);
-    setRefreshToken(result.refreshToken);
     setUser(result.user);
   }, []);
 

@@ -23,7 +23,7 @@
 # END_MODULE_MAP
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from core_api.deps.auth import get_current_user
@@ -44,6 +44,48 @@ from core_api.utils.phone import normalize_phone
 from shared.enums import UserStatus
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+_CUSTOMER_REFRESH_COOKIE = "aura_customer_refresh_token"
+_CUSTOMER_REFRESH_COOKIE_PATH = "/api/v1/auth"
+
+
+def _refresh_cookie_secure() -> bool:
+    from core_api.settings import settings
+
+    return settings.aura_env.strip().lower() != "dev"
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    from core_api.settings import settings
+
+    response.set_cookie(
+        key=_CUSTOMER_REFRESH_COOKIE,
+        value=refresh_token,
+        max_age=settings.refresh_token_ttl,
+        httponly=True,
+        secure=_refresh_cookie_secure(),
+        samesite="strict",
+        path=_CUSTOMER_REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=_CUSTOMER_REFRESH_COOKIE,
+        path=_CUSTOMER_REFRESH_COOKIE_PATH,
+        secure=_refresh_cookie_secure(),
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def _refresh_token_from_request(
+    request: Request,
+    body: RefreshRequest | None,
+) -> str | None:
+    return request.cookies.get(_CUSTOMER_REFRESH_COOKIE) or (
+        body.refresh_token if body is not None else None
+    )
 
 
 # START_CONTRACT: send_code
@@ -128,6 +170,7 @@ def send_code(
 )
 def verify_code(
     body: VerifyCodeRequest,
+    response: Response,
     db: Session = Depends(get_db),
     r: redis.Redis = Depends(get_redis),
 ) -> TokenResponse:
@@ -167,6 +210,7 @@ def verify_code(
 
     auth_svc = AuthService(r)
     tokens = auth_svc.issue_tokens(user_info.user_id)
+    _set_refresh_cookie(response, tokens.refresh_token)
 
     return TokenResponse(
         access_token=tokens.access_token,
@@ -187,16 +231,25 @@ def verify_code(
     responses={401: {"model": ErrorResponse}},
 )
 def refresh(
-    body: RefreshRequest,
+    request: Request,
+    response: Response,
+    body: RefreshRequest | None = None,
     r: redis.Redis = Depends(get_redis),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    auth_svc = AuthService(r)
-    tokens = auth_svc.refresh_tokens(body.refresh_token, db=db)
-
-    if tokens is None:
+    refresh_token = _refresh_token_from_request(request, body)
+    if not refresh_token:
+        _clear_refresh_cookie(response)
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
+    auth_svc = AuthService(r)
+    tokens = auth_svc.refresh_tokens(refresh_token, db=db)
+
+    if tokens is None:
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    _set_refresh_cookie(response, tokens.refresh_token)
     return TokenResponse(
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
@@ -213,10 +266,15 @@ def refresh(
 # END_CONTRACT: logout
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(
-    body: RefreshRequest,
+    request: Request,
+    response: Response,
+    body: RefreshRequest | None = None,
     current_user: dict = Depends(get_current_user),
     r: redis.Redis = Depends(get_redis),
 ) -> dict:
     auth_svc = AuthService(r)
-    auth_svc.logout(body.refresh_token)
+    refresh_token = _refresh_token_from_request(request, body)
+    if refresh_token:
+        auth_svc.logout(refresh_token)
+    _clear_refresh_cookie(response)
     return {"message": "Logged out"}

@@ -1,6 +1,6 @@
 import type { SendCodeResponse, VerifyCodeResponse, AuthTokens } from './types';
 import { AuthError } from './types';
-import { getAccessToken, getRefreshToken } from '@/auth/token';
+import { getAccessToken, setAccessToken } from '@/auth/token';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Customer-facing OTP auth API client — talks to /api/v1/auth/*
@@ -9,7 +9,7 @@ import { getAccessToken, getRefreshToken } from '@/auth/token';
 //   SCOPE:   sendCode, verifyCode, refreshTokens, logout. Re-exports AuthError
 //            and the auth DTO types so consumers import a single module.
 //   DEPENDS: M-CORE-API (HTTP /api/v1/auth/*), ./types (AuthError, DTOs),
-//            @/auth/token (access/refresh storage for logout body).
+//            @/auth/token (in-memory access token for logout auth header).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6 OTP state machine.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -18,8 +18,8 @@ import { getAccessToken, getRefreshToken } from '@/auth/token';
 // START_MODULE_MAP
 //   sendCode       - POST /auth/send-code, returns confirmation message
 //   verifyCode     - POST /auth/verify-code, returns tokens + parsed AuthUser
-//   refreshTokens  - POST /auth/refresh, returns new AuthTokens
-//   logout         - POST /auth/logout (best-effort; ignores network errors)
+//   refreshTokens  - POST /auth/refresh using HttpOnly refresh cookie
+//   logout         - POST /auth/logout using HttpOnly refresh cookie
 //   AuthError      - re-export of ./types AuthError
 // END_MODULE_MAP
 
@@ -91,12 +91,14 @@ export async function sendCode(phone: string): Promise<SendCodeResponse> {
 //   PURPOSE: Submit OTP code, receive access/refresh tokens and parsed user.
 //   INPUTS:  phone: string — same E.164 phone used in sendCode (INV-013)
 //            code: string  — 6-digit OTP from SMS
-//   OUTPUTS: Promise<VerifyCodeResponse> — { accessToken, refreshToken, user }.
+//   OUTPUTS: Promise<VerifyCodeResponse> — access token, optional legacy
+//            refreshToken field, and parsed user.
 //   SIDE_EFFECTS: HTTP POST /api/v1/auth/verify-code; throws AuthError for
 //                 INVALID_CODE (401), CODE_EXPIRED (410), CODE_NOT_DELIVERED (409),
-//                 RATE_LIMITED (429), NETWORK_ERROR. Also decodes the JWT payload
-//                 client-side to extract user.id/role (INV-002 — server is the
-//                 authority; this is convenience only).
+//                 RATE_LIMITED (429), NETWORK_ERROR. Server also sets an
+//                 HttpOnly SameSite refresh cookie. Decodes the JWT payload
+//                 client-side to extract user.id/role (INV-002 — server is
+//                 authoritative; this is convenience only).
 //   LINKS:   PDD §6.2 verify-code state.
 // END_CONTRACT: verifyCode
 export async function verifyCode(
@@ -108,6 +110,7 @@ export async function verifyCode(
     res = await fetch(`${API_BASE}/verify-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ phone, code }),
     });
   } catch {
@@ -127,23 +130,29 @@ export async function verifyCode(
 }
 
 // START_CONTRACT: refreshTokens
-//   PURPOSE: Exchange a refresh token for a fresh access/refresh pair.
-//   INPUTS:  refreshToken: string — current refresh token from localStorage
-//   OUTPUTS: Promise<AuthTokens> — new accessToken + refreshToken.
-//   SIDE_EFFECTS: HTTP POST /api/v1/auth/refresh; throws AuthError on non-2xx
-//                 (NETWORK_ERROR for fetch failure, UNKNOWN_ERROR for 4xx/5xx).
+//   PURPOSE: Exchange the HttpOnly refresh cookie for a fresh access token and
+//            rotated refresh cookie; optional argument is a legacy fallback for
+//            non-browser callers.
+//   INPUTS:  refreshToken?: string — optional legacy refresh token fallback.
+//   OUTPUTS: Promise<AuthTokens> — new accessToken + legacy refreshToken field.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/refresh with credentials; throws
+//                 AuthError on non-2xx (NETWORK_ERROR for fetch failure,
+//                 UNKNOWN_ERROR for 4xx/5xx).
 //   LINKS:   PDD §6 token refresh; called both by api/client.ts (single-flight
 //            on 401) and AuthProvider mount-time silent refresh.
 // END_CONTRACT: refreshTokens
 export async function refreshTokens(
-  refreshToken: string,
+  refreshToken?: string | null,
 ): Promise<AuthTokens> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: 'include',
+      body: JSON.stringify(
+        refreshToken ? { refresh_token: refreshToken } : {},
+      ),
     });
   } catch {
     throw new AuthError('NETWORK_ERROR', 'Network error');
@@ -159,29 +168,44 @@ export async function refreshTokens(
 }
 
 // START_CONTRACT: logout
-//   PURPOSE: Tell the server to invalidate the current refresh token. Best-effort:
+//   PURPOSE: Tell the server to invalidate the current refresh cookie. Best-effort:
 //            network errors are swallowed because the client also clears its
 //            local state regardless (see AuthProvider.logout).
-//   INPUTS:  none (reads access + refresh from @/auth/token).
+//   INPUTS:  none (reads access token from @/auth/token).
 //   OUTPUTS: Promise<void> — always resolves.
-//   SIDE_EFFECTS: HTTP POST /api/v1/auth/logout (best-effort); never throws.
+//   SIDE_EFFECTS: HTTP POST /api/v1/auth/logout (best-effort); if access is
+//                 expired, may POST /api/v1/auth/refresh once and retry logout.
+//                 Never throws.
 //   LINKS:   PDD §6 sign-out.
 // END_CONTRACT: logout
 export async function logout(): Promise<void> {
-  const accessToken = getAccessToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  let accessToken = getAccessToken();
+
+  async function revokeCurrentCookie(token: string | null): Promise<Response> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(`${API_BASE}/logout`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({}),
+    });
   }
 
   try {
-    await fetch(`${API_BASE}/logout`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ refresh_token: getRefreshToken() }),
-    });
+    const first = await revokeCurrentCookie(accessToken);
+    if (first.status !== 401) {
+      return;
+    }
+
+    const tokens = await refreshTokens();
+    accessToken = tokens.accessToken;
+    setAccessToken(accessToken);
+    await revokeCurrentCookie(accessToken);
   } catch {
     // Игнорируем ошибки сети при logout — токены очистятся на клиенте
   }

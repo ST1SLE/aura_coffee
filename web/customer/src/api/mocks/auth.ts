@@ -34,8 +34,9 @@ export async function verifyCode(
 }
 
 export async function refreshTokens(
-  _refreshToken: string,
+  refreshToken?: string | null,
 ): Promise<AuthTokens> {
+  void refreshToken;
   await delay(MOCK_DELAY);
 
   mockRefreshToken = crypto.randomUUID();

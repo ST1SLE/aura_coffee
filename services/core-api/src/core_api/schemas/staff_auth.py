@@ -12,8 +12,8 @@
 # START_MODULE_MAP
 #   StaffLoginRequest    - POST /staff/auth/login body (login, password)
 #   StaffTokenResponse   - JWT pair + role
-#   StaffRefreshRequest  - POST /staff/auth/refresh body
-#   StaffLogoutRequest   - POST /staff/auth/logout body
+#   StaffRefreshRequest  - optional body fallback for POST /staff/auth/refresh
+#   StaffLogoutRequest   - optional body fallback for POST /staff/auth/logout
 # END_MODULE_MAP
 
 from pydantic import BaseModel, Field
@@ -32,8 +32,8 @@ class StaffTokenResponse(BaseModel):
 
 
 class StaffRefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class StaffLogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None

@@ -3,7 +3,6 @@ import * as tokenModule from '@/auth/token';
 
 vi.mock('@/auth/token', () => ({
   getAccessToken: vi.fn(),
-  getRefreshToken: vi.fn(),
   setAccessToken: vi.fn(),
   setRefreshToken: vi.fn(),
   clearAccessToken: vi.fn(),
@@ -28,9 +27,8 @@ beforeEach(() => {
 });
 
 describe('logout', () => {
-  it('sends refresh_token in request body', async () => {
+  it('uses the HttpOnly refresh cookie and Authorization header', async () => {
     (tokenModule.getAccessToken as Mock).mockReturnValue('access-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue('refresh-tok');
     mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
 
     const { logout } = await import('./auth');
@@ -40,31 +38,90 @@ describe('logout', () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toBe('/api/v1/auth/logout');
     expect(opts.method).toBe('POST');
+    expect(opts.credentials).toBe('include');
     expect(opts.headers['Authorization']).toBe('Bearer access-tok');
 
     const body = JSON.parse(opts.body);
-    expect(body.refresh_token).toBe('refresh-tok');
+    expect(body).toEqual({});
   });
 
-  it('sends null refresh_token when none stored', async () => {
-    (tokenModule.getAccessToken as Mock).mockReturnValue('access-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue(null);
+  it('omits Authorization header when no access token is present', async () => {
+    (tokenModule.getAccessToken as Mock).mockReturnValue(null);
     mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
 
     const { logout } = await import('./auth');
     await logout();
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.refresh_token).toBeNull();
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.headers['Authorization']).toBeUndefined();
+    expect(opts.credentials).toBe('include');
   });
 
   it('ignores network errors silently', async () => {
     (tokenModule.getAccessToken as Mock).mockReturnValue('access-tok');
-    (tokenModule.getRefreshToken as Mock).mockReturnValue('refresh-tok');
     mockFetch.mockRejectedValue(new TypeError('Failed to fetch'));
 
     const { logout } = await import('./auth');
     await expect(logout()).resolves.toBeUndefined();
+  });
+
+  it('refreshes once and retries logout when access token is expired', async () => {
+    (tokenModule.getAccessToken as Mock).mockReturnValue('expired-access');
+    mockFetch
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          access_token: 'fresh-access',
+          refresh_token: 'legacy-response-field',
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const { logout } = await import('./auth');
+    await logout();
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/auth/logout');
+    expect(mockFetch.mock.calls[1][0]).toBe('/api/v1/auth/refresh');
+    expect(mockFetch.mock.calls[2][0]).toBe('/api/v1/auth/logout');
+    expect(tokenModule.setAccessToken).toHaveBeenCalledWith('fresh-access');
+    expect(
+      mockFetch.mock.calls[2][1].headers['Authorization'],
+    ).toBe('Bearer fresh-access');
+  });
+});
+
+describe('refreshTokens', () => {
+  it('refreshes with credentials and no readable refresh token by default', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse(200, {
+        access_token: 'access-new',
+        refresh_token: 'legacy-response-field',
+      }),
+    );
+
+    const { refreshTokens } = await import('./auth');
+    const tokens = await refreshTokens();
+
+    expect(tokens.accessToken).toBe('access-new');
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.credentials).toBe('include');
+    expect(JSON.parse(opts.body)).toEqual({});
+  });
+
+  it('keeps body fallback for non-browser callers', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse(200, {
+        access_token: 'access-new',
+        refresh_token: 'legacy-response-field',
+      }),
+    );
+
+    const { refreshTokens } = await import('./auth');
+    await refreshTokens('legacy-refresh');
+
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(JSON.parse(opts.body)).toEqual({ refresh_token: 'legacy-refresh' });
   });
 });
 

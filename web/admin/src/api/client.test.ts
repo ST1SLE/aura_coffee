@@ -121,9 +121,8 @@ describe('authenticatedFetch', () => {
     expect(err.status).toBe(401);
   });
 
-  it('401 на защищённом маршруте с refreshToken: refreshes, retries once, stores rotated pair', async () => {
+  it('401 на защищённом маршруте: refreshes from cookie, retries once, stores access token', async () => {
     localStorage.setItem('accessToken', 'expired-token');
-    localStorage.setItem('refreshToken', 'refresh-old');
     localStorage.setItem('staffRole', 'barista');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -156,22 +155,20 @@ describe('authenticatedFetch', () => {
       RequestInit,
     ];
     expect(refreshUrl).toBe('/api/v1/staff/auth/refresh');
-    expect(JSON.parse(refreshInit.body as string)).toEqual({
-      refresh_token: 'refresh-old',
-    });
+    expect(refreshInit.credentials).toBe('include');
+    expect(JSON.parse(refreshInit.body as string)).toEqual({});
     const [, retryInit] = fetchMock.mock.calls[2] as [string, RequestInit];
     expect((retryInit.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer access-new',
     );
     expect(localStorage.getItem('accessToken')).toBe('access-new');
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-new');
+    expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBe('admin');
     expect(assignMock).not.toHaveBeenCalled();
   });
 
   it('401 после refresh retry: очищает обе пары токенов и редиректит', async () => {
     localStorage.setItem('accessToken', 'expired-token');
-    localStorage.setItem('refreshToken', 'refresh-old');
     localStorage.setItem('staffRole', 'admin');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -214,7 +211,6 @@ describe('authenticatedFetch', () => {
 
   it('401 и сетевой сбой refresh: очищает токены и редиректит', async () => {
     localStorage.setItem('accessToken', 'expired-token');
-    localStorage.setItem('refreshToken', 'refresh-old');
     localStorage.setItem('staffRole', 'admin');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -313,9 +309,10 @@ describe('token helpers', () => {
     expect(getAccessToken()).toBe('my-token');
   });
 
-  it('setRefreshToken / getRefreshToken: round-trip', () => {
+  it('setRefreshToken / getRefreshToken: never exposes browser refresh tokens', () => {
     setRefreshToken('my-refresh');
-    expect(getRefreshToken()).toBe('my-refresh');
+    expect(getRefreshToken()).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBeNull();
   });
 
   it('clearAccessToken: удаляет токен', () => {
@@ -351,7 +348,7 @@ describe('logout', () => {
     vi.unstubAllGlobals();
   });
 
-  it('очищает токен и вызывает window.location.assign("/admin/login")', async () => {
+  it('revokes cookie session, clears token, and navigates to /admin/login', async () => {
     setAccessToken('tok');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -359,12 +356,14 @@ describe('logout', () => {
       search: '',
       assign: assignMock,
     });
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
 
     await logout();
 
     expect(getAccessToken()).toBeNull();
     expect(assignMock).toHaveBeenCalledWith('/admin/login');
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/staff/auth/logout');
   });
 
   it('очищает accessToken, refreshToken и staffRole', async () => {
@@ -384,7 +383,8 @@ describe('logout', () => {
     expect((init.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer tok',
     );
-    expect(JSON.parse(init.body as string)).toEqual({ refresh_token: 'ref' });
+    expect(init.credentials).toBe('include');
+    expect(JSON.parse(init.body as string)).toEqual({});
   });
 
   it('очищает локальную сессию даже если backend logout падает', async () => {
@@ -428,9 +428,8 @@ describe('logout', () => {
       RequestInit,
     ];
     expect(refreshUrl).toBe('/api/v1/staff/auth/refresh');
-    expect(JSON.parse(refreshInit.body as string)).toEqual({
-      refresh_token: 'refresh-old',
-    });
+    expect(refreshInit.credentials).toBe('include');
+    expect(JSON.parse(refreshInit.body as string)).toEqual({});
     const [logoutUrl, logoutInit] = fetchMock.mock.calls[2] as [
       string,
       RequestInit,
@@ -439,15 +438,14 @@ describe('logout', () => {
     expect(
       (logoutInit.headers as Record<string, string>)['Authorization'],
     ).toBe('Bearer access-new');
-    expect(JSON.parse(logoutInit.body as string)).toEqual({
-      refresh_token: 'refresh-new',
-    });
+    expect(logoutInit.credentials).toBe('include');
+    expect(JSON.parse(logoutInit.body as string)).toEqual({});
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
   });
 
-  it('refreshes then revokes when only refresh token remains locally', async () => {
+  it('refreshes then revokes when only the refresh cookie remains', async () => {
     setRefreshToken('refresh-old');
     localStorage.setItem('staffRole', 'admin');
     vi.stubGlobal('location', { pathname: '/', search: '', assign: vi.fn() });
@@ -467,8 +465,13 @@ describe('logout', () => {
     await logout();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [refreshUrl] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [refreshUrl, refreshInit] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     expect(refreshUrl).toBe('/api/v1/staff/auth/refresh');
+    expect(refreshInit.credentials).toBe('include');
+    expect(JSON.parse(refreshInit.body as string)).toEqual({});
     const [logoutUrl, logoutInit] = fetchMock.mock.calls[1] as [
       string,
       RequestInit,
@@ -477,9 +480,8 @@ describe('logout', () => {
     expect(
       (logoutInit.headers as Record<string, string>)['Authorization'],
     ).toBe('Bearer access-new');
-    expect(JSON.parse(logoutInit.body as string)).toEqual({
-      refresh_token: 'refresh-new',
-    });
+    expect(logoutInit.credentials).toBe('include');
+    expect(JSON.parse(logoutInit.body as string)).toEqual({});
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -523,6 +525,7 @@ describe('staffLogin', () => {
     expect(result.access_token).toBe('tok');
     expect(result.refresh_token).toBe('ref');
     expect(result.role).toBe('admin');
+    expect(fetchMock.mock.calls[0][1].credentials).toBe('include');
   });
 
   it('401 от staffLogin: бросает ApiError(401), НЕ вызывает window.location.assign', async () => {

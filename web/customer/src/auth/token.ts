@@ -1,11 +1,8 @@
 // START_MODULE_CONTRACT
 //   PURPOSE: Token storage — access token kept only in module-scope memory
-//            (cleared on full reload), refresh token persisted in localStorage
-//            so the AuthProvider can do a silent refresh on app boot.
-//            Note: AGENTS.md "must not store auth tokens in localStorage" applies
-//            to the access token (kept in memory here); the refresh token is
-//            still persisted for the silent-refresh UX. Long-term this should
-//            move to httpOnly cookies (PDD §6).
+//            (cleared on full reload). Refresh tokens are server-set HttpOnly
+//            cookies; this module only clears the legacy localStorage key left
+//            by older builds.
 //   SCOPE:   accessor and mutator functions for both tokens.
 //   DEPENDS: browser localStorage only.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6 token storage.
@@ -17,9 +14,9 @@
 //   getAccessToken     - read in-memory access token (or null)
 //   setAccessToken     - store in-memory access token
 //   clearAccessToken   - reset in-memory access token to null
-//   getRefreshToken    - read refresh token from localStorage
-//   setRefreshToken    - persist refresh token in localStorage
-//   clearRefreshToken  - remove refresh token from localStorage
+//   getRefreshToken    - legacy API, always returns null for browser safety
+//   setRefreshToken    - legacy API, clears any old localStorage value
+//   clearRefreshToken  - remove old refresh token from localStorage
 //   clearAllTokens     - clear both access and refresh
 // END_MODULE_MAP
 
@@ -58,28 +55,30 @@ export function clearAccessToken(): void {
 }
 
 // START_CONTRACT: getRefreshToken
-//   PURPOSE: Read the refresh token from localStorage.
+//   PURPOSE: Legacy compatibility hook; refresh tokens now live in HttpOnly
+//            cookies and are intentionally unreadable to JavaScript.
 //   INPUTS:  none.
-//   OUTPUTS: string | null.
-//   SIDE_EFFECTS: localStorage read.
+//   OUTPUTS: null.
+//   SIDE_EFFECTS: none.
 // END_CONTRACT: getRefreshToken
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  return null;
 }
 
 // START_CONTRACT: setRefreshToken
-//   PURPOSE: Persist the refresh token in localStorage so AuthProvider can
-//            silent-refresh on next app boot.
+//   PURPOSE: Legacy compatibility hook; never persists refresh tokens and
+//            removes any old localStorage token if called by stale paths.
 //   INPUTS:  token: string.
 //   OUTPUTS: void.
-//   SIDE_EFFECTS: localStorage write.
+//   SIDE_EFFECTS: localStorage write (deletes legacy key).
 // END_CONTRACT: setRefreshToken
 export function setRefreshToken(token: string): void {
-  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  void token;
+  clearRefreshToken();
 }
 
 // START_CONTRACT: clearRefreshToken
-//   PURPOSE: Remove the refresh token from localStorage.
+//   PURPOSE: Remove the legacy refresh token from localStorage.
 //   INPUTS:  none.
 //   OUTPUTS: void.
 //   SIDE_EFFECTS: localStorage write.
@@ -89,11 +88,11 @@ export function clearRefreshToken(): void {
 }
 
 // START_CONTRACT: clearAllTokens
-//   PURPOSE: Drop both access and refresh tokens — used on logout and on
-//            refresh failure.
+//   PURPOSE: Drop the access token and clear any legacy refresh token — used on
+//            logout and on refresh failure.
 //   INPUTS:  none.
 //   OUTPUTS: void.
-//   SIDE_EFFECTS: clears module-scope access token + localStorage refresh.
+//   SIDE_EFFECTS: clears module-scope access token + legacy localStorage refresh.
 // END_CONTRACT: clearAllTokens
 export function clearAllTokens(): void {
   clearAccessToken();

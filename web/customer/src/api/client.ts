@@ -1,8 +1,6 @@
 import {
   getAccessToken,
-  getRefreshToken,
   setAccessToken,
-  setRefreshToken,
   clearAllTokens,
 } from '@/auth/token';
 import { refreshTokens } from './auth';
@@ -14,8 +12,8 @@ import { refreshTokens } from './auth';
 //   SCOPE:   apiRequest<T>, authenticatedFetch, ApiError class, and the
 //            registerAuthFailureHandler hook. All other M-WEB-CUSTOMER API
 //            modules call through here so token refresh logic stays in one place.
-//   DEPENDS: M-CORE-API (HTTP), @/auth/token (in-memory access + localStorage refresh),
-//            ./auth (refreshTokens for 401 retry).
+//   DEPENDS: M-CORE-API (HTTP), @/auth/token (in-memory access token),
+//            ./auth (cookie-backed refreshTokens for 401 retry).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6 token refresh.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -47,15 +45,9 @@ let refreshPromise: Promise<string> | null = null;
 function doRefresh(): Promise<string> {
   if (refreshPromise) return refreshPromise;
 
-  const rt = getRefreshToken();
-  if (!rt) {
-    return Promise.reject(new Error('No refresh token'));
-  }
-
-  refreshPromise = refreshTokens(rt)
+  refreshPromise = refreshTokens()
     .then((tokens) => {
       setAccessToken(tokens.accessToken);
-      setRefreshToken(tokens.refreshToken);
       return tokens.accessToken;
     })
     .finally(() => {
@@ -112,14 +104,15 @@ export async function apiRequest<T>(url: string, opts?: RequestInit): Promise<T>
 // START_CONTRACT: authenticatedFetch
 //   PURPOSE: Like fetch() but injects the in-memory access token as Bearer and,
 //            on a single 401, single-flight refreshes via refreshTokens() and
-//            retries once. On refresh failure clears tokens and fires the
+//            retries once. Refresh uses the HttpOnly refresh cookie. On
+//            refresh failure clears tokens and fires the
 //            registered auth-failure handler.
 //   INPUTS:  input: RequestInfo | URL — fetch target
 //            init?: RequestInit       — fetch options (headers merged with Bearer)
 //   OUTPUTS: Promise<Response> — original response on success, retried response
 //            after refresh, or original 401 response if refresh failed.
-//   SIDE_EFFECTS: HTTP I/O; may setAccessToken/setRefreshToken on refresh; may
-//                 call clearAllTokens() and the auth-failure handler.
+//   SIDE_EFFECTS: HTTP I/O; may setAccessToken on refresh; may call
+//                 clearAllTokens() and the auth-failure handler.
 //   LINKS:   PDD §6 token refresh; INV-002 (auth enforcement is server-side).
 // END_CONTRACT: authenticatedFetch
 export async function authenticatedFetch(

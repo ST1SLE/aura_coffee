@@ -21,7 +21,7 @@
 # END_MODULE_MAP
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from core_api.deps.auth import get_current_user
@@ -36,6 +36,48 @@ from core_api.schemas.staff_auth import (
 from core_api.services.staff_auth import StaffAuthService, StaffLoginRateLimited
 
 router = APIRouter(prefix="/api/v1/staff/auth", tags=["staff-auth"])
+
+_STAFF_REFRESH_COOKIE = "aura_staff_refresh_token"
+_STAFF_REFRESH_COOKIE_PATH = "/api/v1/staff/auth"
+
+
+def _refresh_cookie_secure() -> bool:
+    from core_api.settings import settings
+
+    return settings.aura_env.strip().lower() != "dev"
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    from core_api.settings import settings
+
+    response.set_cookie(
+        key=_STAFF_REFRESH_COOKIE,
+        value=refresh_token,
+        max_age=settings.refresh_token_ttl,
+        httponly=True,
+        secure=_refresh_cookie_secure(),
+        samesite="strict",
+        path=_STAFF_REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=_STAFF_REFRESH_COOKIE,
+        path=_STAFF_REFRESH_COOKIE_PATH,
+        secure=_refresh_cookie_secure(),
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def _refresh_token_from_request(
+    request: Request,
+    body: StaffRefreshRequest | StaffLogoutRequest | None,
+) -> str | None:
+    return request.cookies.get(_STAFF_REFRESH_COOKIE) or (
+        body.refresh_token if body is not None else None
+    )
 
 
 # START_CONTRACT: login
@@ -54,6 +96,7 @@ router = APIRouter(prefix="/api/v1/staff/auth", tags=["staff-auth"])
 def login(
     body: StaffLoginRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     r: redis.Redis = Depends(get_redis),
 ) -> StaffTokenResponse:
@@ -74,6 +117,7 @@ def login(
             detail="Invalid credentials",
         )
 
+    _set_refresh_cookie(response, result.refresh_token)
     return StaffTokenResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
@@ -94,19 +138,31 @@ def login(
     status_code=status.HTTP_200_OK,
 )
 def refresh(
-    body: StaffRefreshRequest,
+    request: Request,
+    response: Response,
+    body: StaffRefreshRequest | None = None,
     db: Session = Depends(get_db),
     r: redis.Redis = Depends(get_redis),
 ) -> StaffTokenResponse:
-    svc = StaffAuthService(db, r)
-    result = svc.refresh_tokens(body.refresh_token)
-
-    if result is None:
+    refresh_token = _refresh_token_from_request(request, body)
+    if not refresh_token:
+        _clear_refresh_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
 
+    svc = StaffAuthService(db, r)
+    result = svc.refresh_tokens(refresh_token)
+
+    if result is None:
+        _clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    _set_refresh_cookie(response, result.refresh_token)
     return StaffTokenResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
@@ -126,11 +182,16 @@ def refresh(
     status_code=status.HTTP_200_OK,
 )
 def logout(
-    body: StaffLogoutRequest,
+    request: Request,
+    response: Response,
+    body: StaffLogoutRequest | None = None,
     current_user: dict = Depends(get_current_user),
     r: redis.Redis = Depends(get_redis),
     db: Session = Depends(get_db),
 ) -> dict:
     svc = StaffAuthService(db, r)
-    svc.logout(body.refresh_token)
+    refresh_token = _refresh_token_from_request(request, body)
+    if refresh_token:
+        svc.logout(refresh_token)
+    _clear_refresh_cookie(response)
     return {"detail": "Logged out"}
