@@ -3,7 +3,8 @@
 #            password verification, JWT access + opaque refresh tokens with
 #            Redis storage and indexed revocation. Tokens carry role for
 #            INV-002 / INV-010 enforcement.
-#   SCOPE:   authenticate, refresh_tokens, revoke_staff_sessions, logout.
+#   SCOPE:   authenticate with failed-login throttling, refresh_tokens,
+#            revoke_staff_sessions, logout.
 #   DEPENDS: M-SHARED (StaffAccount), M-DATABASE, Redis, PyJWT, bcrypt
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, INV-002, INV-010, INV-013
 #   ROLE:    RUNTIME
@@ -11,9 +12,11 @@
 # END_MODULE_CONTRACT
 #
 # START_MODULE_MAP
-#   StaffTokenPair    - dataclass (access_token, refresh_token, role)
-#   StaffAuthService  - login + token issuance + refresh rotation + revocation + logout
+#   StaffTokenPair        - dataclass (access_token, refresh_token, role)
+#   StaffLoginRateLimited - failed-login throttle signal carrying retry_after
+#   StaffAuthService      - login + token issuance + refresh rotation + revocation + logout
 # END_MODULE_MAP
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass
@@ -26,6 +29,14 @@ from sqlalchemy.orm import Session
 
 from core_api.settings import settings
 from shared.models.staff_account import StaffAccount
+from shared.grace.logging import get_grace_logger
+
+_grace_log = get_grace_logger("CoreApi")
+
+STAFF_LOGIN_RATE_LIMITS = {
+    "login": (5, 900),
+    "ip": (30, 900),
+}
 
 
 # START_CONTRACT: StaffTokenPair
@@ -39,6 +50,20 @@ class StaffTokenPair:
     access_token: str
     refresh_token: str
     role: str
+
+
+# START_CONTRACT: StaffLoginRateLimited
+#   PURPOSE: Domain error for staff-login brute-force throttling; router maps
+#            it to HTTP 429 with Retry-After.
+#   INPUTS:  retry_after: int — seconds until the next allowed attempt.
+#   OUTPUTS: Exception with .retry_after.
+#   SIDE_EFFECTS: none
+#   LINKS:   INV-002, INV-013
+# END_CONTRACT: StaffLoginRateLimited
+class StaffLoginRateLimited(Exception):
+    def __init__(self, retry_after: int) -> None:
+        super().__init__("staff_login_rate_limited")
+        self.retry_after = retry_after
 
 
 # START_CONTRACT: StaffAuthService
@@ -60,6 +85,69 @@ class StaffAuthService:
 
     def _sessions_index_key(self, staff_id: uuid.UUID) -> str:
         return f"staff_sessions:{staff_id}"
+
+    def _login_rate_key(self, kind: str, raw_value: str) -> str:
+        normalized = raw_value.strip().lower()
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
+        return f"staff_login_rate:{kind}:{digest}"
+
+    def _login_rate_dimensions(
+        self, login: str, source_ip: str | None
+    ) -> list[tuple[str, int, int]]:
+        dimensions = [
+            (
+                self._login_rate_key("login", login),
+                *STAFF_LOGIN_RATE_LIMITS["login"],
+            )
+        ]
+        if source_ip:
+            dimensions.append(
+                (
+                    self._login_rate_key("ip", source_ip),
+                    *STAFF_LOGIN_RATE_LIMITS["ip"],
+                )
+            )
+        return dimensions
+
+    def _current_login_retry_after(
+        self, login: str, source_ip: str | None
+    ) -> int | None:
+        retry_after = 0
+        for key, limit, _ttl in self._login_rate_dimensions(login, source_ip):
+            raw = self._redis.get(key)
+            if raw is None:
+                continue
+            try:
+                count = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if count >= limit:
+                try:
+                    ttl = int(self._redis.ttl(key))
+                except (TypeError, ValueError):
+                    ttl = 1
+                retry_after = max(retry_after, max(ttl, 1))
+        return retry_after or None
+
+    def _record_failed_login(self, login: str, source_ip: str | None) -> None:
+        pipe = self._redis.pipeline()
+        for key, _limit, ttl in self._login_rate_dimensions(login, source_ip):
+            pipe.incr(key)
+            pipe.expire(key, ttl, nx=True)
+        pipe.execute()
+
+    def _clear_failed_login_counters(
+        self, login: str, source_ip: str | None
+    ) -> None:
+        del source_ip
+        self._redis.delete(self._login_rate_key("login", login))
+
+    def _log_login_attempt(self, *, outcome: str) -> None:
+        _grace_log.block(
+            "staff.auth_login",
+            "BLOCK_AUTH_VERIFY",
+            outcome=outcome,
+        )
 
     def _remember_refresh_token(
         self,
@@ -98,23 +186,41 @@ class StaffAuthService:
     #                 a Redis SET on `staff_refresh:<uuid>`.
     #   LINKS:   INV-002, INV-013 (no PII in tokens)
     # END_CONTRACT: StaffAuthService.authenticate
-    def authenticate(self, login: str, password: str) -> StaffTokenPair | None:
+    def authenticate(
+        self,
+        login: str,
+        password: str,
+        source_ip: str | None = None,
+    ) -> StaffTokenPair | None:
         """Аутентификация по логину/паролю. Возвращает токены или None."""
+        retry_after = self._current_login_retry_after(login, source_ip)
+        if retry_after is not None:
+            self._log_login_attempt(outcome="rate_limited")
+            raise StaffLoginRateLimited(retry_after)
+
         staff = (
             self._db.query(StaffAccount)
             .filter(StaffAccount.login == login)
             .first()
         )
         if staff is None:
+            self._record_failed_login(login, source_ip)
+            self._log_login_attempt(outcome="invalid_credentials")
             return None
         if not staff.is_active:
+            self._record_failed_login(login, source_ip)
+            self._log_login_attempt(outcome="invalid_credentials")
             return None
         if not bcrypt.checkpw(
             password.encode("utf-8"),
             staff.password_hash.encode("utf-8"),
         ):
+            self._record_failed_login(login, source_ip)
+            self._log_login_attempt(outcome="invalid_credentials")
             return None
 
+        self._clear_failed_login_counters(login, source_ip)
+        self._log_login_attempt(outcome="success")
         return self._issue_tokens(staff.id, staff.role.value)
 
     # START_CONTRACT: StaffAuthService.refresh_tokens

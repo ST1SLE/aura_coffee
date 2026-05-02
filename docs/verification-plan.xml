@@ -98,6 +98,7 @@
         <scenario-5 kind="success">Public menu response exposes media_type/media_url/media_poster_url with legacy image_url fallback and no secrets or signed storage credentials (INV-015).</scenario-5>
         <scenario-6 kind="success">Checkout enforces finite menu inventory with row locking and atomic decrement inside orders.create; insufficient inventory emits no commit.</scenario-6>
         <scenario-7 kind="success">Staff order detail exposes customer contact phone only to ADMIN/BARISTA, keeps customer/courier routes blocked, and emits no raw phone in captured logs.</scenario-7>
+        <scenario-8 kind="failure">Staff login throttles repeated invalid credentials by login and source IP, emits BLOCK_AUTH_VERIFY, and logs no password/JWT/refresh token.</scenario-8>
       </scenarios>
       <required-log-markers>
         <marker-1>[CoreApi][*][BLOCK_AUTH_VERIFY]</marker-1>

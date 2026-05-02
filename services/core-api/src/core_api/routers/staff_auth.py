@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: HTTP routes for staff (admin/barista/courier) login/refresh/
 #            logout under /api/v1/staff/auth — login/password authentication
-#            (no SMS OTP; that path is customer-only).
+#            with brute-force throttling (no SMS OTP; that path is customer-only).
 #   SCOPE:   Authenticate staff credentials, issue/rotate JWT pairs,
 #            revoke refresh tokens on logout.
 #   DEPENDS: M-DATABASE (Session), Redis,
@@ -21,7 +21,7 @@
 # END_MODULE_MAP
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from core_api.deps.auth import get_current_user
@@ -33,7 +33,7 @@ from core_api.schemas.staff_auth import (
     StaffRefreshRequest,
     StaffTokenResponse,
 )
-from core_api.services.staff_auth import StaffAuthService
+from core_api.services.staff_auth import StaffAuthService, StaffLoginRateLimited
 
 router = APIRouter(prefix="/api/v1/staff/auth", tags=["staff-auth"])
 
@@ -42,8 +42,8 @@ router = APIRouter(prefix="/api/v1/staff/auth", tags=["staff-auth"])
 #   PURPOSE: Authenticate staff credentials and issue access + refresh
 #            tokens carrying the staff role.
 #   INPUTS:  body: StaffLoginRequest (login, password), Session, Redis client.
-#   OUTPUTS: 200 StaffTokenResponse; 401 invalid credentials.
-#   SIDE_EFFECTS: Redis write — refresh token stored.
+#   OUTPUTS: 200 StaffTokenResponse; 401 invalid credentials; 429 throttled.
+#   SIDE_EFFECTS: Redis writes — failed-login counters or refresh token stored.
 #   LINKS:   PDD §8.1, INV-002, INV-010, INV-013, services.staff_auth.
 # END_CONTRACT: login
 @router.post(
@@ -53,11 +53,20 @@ router = APIRouter(prefix="/api/v1/staff/auth", tags=["staff-auth"])
 )
 def login(
     body: StaffLoginRequest,
+    request: Request,
     db: Session = Depends(get_db),
     r: redis.Redis = Depends(get_redis),
 ) -> StaffTokenResponse:
     svc = StaffAuthService(db, r)
-    result = svc.authenticate(body.login, body.password)
+    source_ip = request.client.host if request.client is not None else None
+    try:
+        result = svc.authenticate(body.login, body.password, source_ip=source_ip)
+    except StaffLoginRateLimited as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts",
+            headers={"Retry-After": str(exc.retry_after)},
+        )
 
     if result is None:
         raise HTTPException(

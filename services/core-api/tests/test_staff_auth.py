@@ -121,6 +121,92 @@ class TestStaffLogin:
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid credentials"
 
+    # GRACE-LDD: staff login throttling emits auth marker and redacts secrets.
+    def test_wrong_password_is_throttled_by_login(
+        self, client: TestClient, grace_logs
+    ) -> None:
+        staff = _make_staff_account(password="correct_pass")
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+        redis_client = fakeredis.FakeRedis()
+
+        with _override_deps(mock_db, redis_client):
+            for _ in range(5):
+                response = client.post(
+                    "/api/v1/staff/auth/login",
+                    json={"login": "admin", "password": "wrong_pass"},
+                )
+                assert response.status_code == 401
+
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "wrong_pass"},
+            )
+
+        assert response.status_code == 429
+        assert int(response.headers["retry-after"]) > 0
+        grace_logs.assert_trajectory(
+            ("staff.auth_login", "BLOCK_AUTH_VERIFY")
+        )
+        captured = "\n".join(grace_logs.lines)
+        assert "wrong_pass" not in captured
+        assert "correct_pass" not in captured
+        assert "refresh_token" not in captured
+        assert "access_token" not in captured
+        assert not grace_logs.beliefs(status="MISMATCH")
+
+    def test_failed_login_throttling_resets_after_success(
+        self, client: TestClient
+    ) -> None:
+        staff = _make_staff_account(password="correct_pass")
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+        redis_client = fakeredis.FakeRedis()
+
+        with _override_deps(mock_db, redis_client):
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "wrong_pass"},
+            )
+            assert response.status_code == 401
+            assert redis_client.keys("staff_login_rate:*")
+
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "admin", "password": "correct_pass"},
+            )
+
+        assert response.status_code == 200
+        keys = {
+            key.decode() if isinstance(key, bytes) else key
+            for key in redis_client.keys("staff_login_rate:*")
+        }
+        assert not any(":login:" in key for key in keys)
+        assert any(":ip:" in key for key in keys)
+
+    def test_failed_login_is_throttled_by_source_ip(
+        self, client: TestClient
+    ) -> None:
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+        redis_client = fakeredis.FakeRedis()
+
+        with _override_deps(mock_db, redis_client):
+            for idx in range(30):
+                response = client.post(
+                    "/api/v1/staff/auth/login",
+                    json={"login": f"missing-{idx}", "password": "guess"},
+                )
+                assert response.status_code == 401
+
+            response = client.post(
+                "/api/v1/staff/auth/login",
+                json={"login": "another-missing", "password": "guess"},
+            )
+
+        assert response.status_code == 429
+        assert int(response.headers["retry-after"]) > 0
+
 
 class TestStaffRefresh:
     def test_valid_refresh(self, client: TestClient) -> None:
