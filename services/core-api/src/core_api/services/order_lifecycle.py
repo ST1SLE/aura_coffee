@@ -216,19 +216,35 @@ def transition_order(
             - `wrong_order_type_for_transition` — тип заказа не подходит
               (READY→IN_DELIVERY требует DELIVERY, READY→COMPLETED — PICKUP).
     """
+    _grace_log.block(
+        "order_lifecycle.transition_order",
+        "BLOCK_TX_BEGIN",
+        "order transition begin",
+        order_id=str(order_id),
+        target=new_status.value,
+        actor=actor_role,
+    )
     order = _apply_transition(order_id, new_status, actor_role, db_session)
     # actor_role="system" — служебный вызов (например, scheduler
     # pickup-autoclose): §6.1 row "Автозакрытие по таймеру" явно требует
     # отсутствия уведомлений для этого перехода.
     if actor_role != "system":
         send_order_notification(order, new_status, actor_role=actor_role)
-    db_session.commit()
     _grace_log.belief(
         "order_lifecycle.transition_order",
         "BLOCK_STATE_TRANSITION",
         belief=str(new_status),
         actual=str(order.status),
         order_id=str(order.id),
+    )
+    db_session.commit()
+    _grace_log.block(
+        "order_lifecycle.transition_order",
+        "BLOCK_TX_COMMIT",
+        "order transition committed",
+        order_id=str(order.id),
+        status=order.status.value,
+        actor=actor_role,
     )
     return order
 

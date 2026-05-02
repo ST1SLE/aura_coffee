@@ -180,6 +180,30 @@ def test_paid_to_preparing_barista_happy_path(db: Session, notify_mock: MagicMoc
     assert notify_mock.call_count == 1
 
 
+# GRACE-LDD: order status transitions emit required tx/state/commit markers.
+def test_transition_order_emits_ldd_markers(
+    db: Session,
+    notify_mock: MagicMock,
+    grace_logs,
+) -> None:
+    from core_api.services.order_lifecycle import transition_order
+    from shared.enums import OrderStatus
+
+    oid = _seed_order(db, status="paid", order_type="pickup")
+
+    transition_order(oid, OrderStatus.PREPARING, "barista", db)
+
+    grace_logs.assert_trajectory(
+        ("order_lifecycle.transition_order", "BLOCK_TX_BEGIN"),
+        ("order_lifecycle.transition_order", "BLOCK_STATE_TRANSITION"),
+        ("order_lifecycle.transition_order", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    joined_logs = "\n".join(grace_logs.lines)
+    assert "phone" not in joined_logs.lower()
+    assert "address" not in joined_logs.lower()
+
+
 def test_paid_to_cancelled_admin_happy_path(db: Session, notify_mock: MagicMock) -> None:
     from core_api.services.order_lifecycle import transition_order
     from shared.enums import OrderStatus
@@ -259,6 +283,33 @@ def test_ready_to_in_delivery_rejects_pickup_order(
     assert notify_mock.call_count == 0
 
 
+# GRACE-LDD: forbidden transition validation emits no state or commit marker.
+def test_forbidden_transition_emits_no_state_or_commit_marker(
+    db: Session,
+    notify_mock: MagicMock,
+    grace_logs,
+) -> None:
+    from core_api.services.order_lifecycle import (
+        OrderTransitionError,
+        transition_order,
+    )
+    from shared.enums import OrderStatus
+
+    oid = _seed_order(db, status="ready", order_type="pickup")
+    with pytest.raises(OrderTransitionError):
+        transition_order(oid, OrderStatus.IN_DELIVERY, "courier", db)
+
+    assert grace_logs.blocks(
+        fn="order_lifecycle.transition_order", blk="BLOCK_TX_BEGIN"
+    )
+    assert grace_logs.blocks(
+        fn="order_lifecycle.transition_order", blk="BLOCK_STATE_TRANSITION"
+    ) == []
+    assert grace_logs.blocks(
+        fn="order_lifecycle.transition_order", blk="BLOCK_TX_COMMIT"
+    ) == []
+
+
 def test_ready_to_completed_pickup_barista(
     db: Session, notify_mock: MagicMock
 ) -> None:
@@ -335,7 +386,7 @@ def test_in_delivery_to_completed_courier_happy_path(
 def test_completed_accrues_loyalty_pickup(db: Session, notify_mock: MagicMock) -> None:
     from core_api.services.order_lifecycle import transition_order
     from shared.enums import LoyaltyTransactionType, OrderStatus
-    from shared.models import LoyaltyAccount, LoyaltyTransaction, Order
+    from shared.models import LoyaltyAccount, LoyaltyTransaction
 
     _seed_shop_settings(db, loyalty_percent=5)
     uid = _seed_user(db)
