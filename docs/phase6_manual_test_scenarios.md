@@ -36,8 +36,8 @@ Expect the banner to finish with `Migrations: applied ✓`. If it says `FAILED`,
 Containers you should see `Up (healthy)` or `Up`:
 
 ```
-postgres, redis, core-api, payment-worker, payment-webhook, sms-worker,
-web-customer, web-admin, nginx
+postgres, redis, core-api, core-api-worker, scheduler, payment-worker,
+payment-webhook, sms-worker, web-customer, web-admin, nginx
 ```
 
 `db-migrate` and `db-seed` are one-shot — they exit 0 on success and are expected to be `Exited (0)`.
@@ -53,6 +53,12 @@ docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 
 For a clean QA loop after mutating seeded orders, assignments, carts, or users,
 prefer the guarded reset wrapper in §0.7 over volume deletion.
+
+For the automated release-smoke subset against a running stack, use
+`./scripts/verify-browser-smoke.sh`. It performs the guarded QA reset and covers
+customer pickup checkout, admin logout → barista login, barista pickup
+transitions, and courier delivery assignment flow. It is a smoke gate, not a
+replacement for the full manual walk below.
 
 Inserts / upserts:
 
@@ -279,7 +285,8 @@ Optional fifth: `docker compose logs -f nginx` if you suspect routing issues.
 ### 0.7 Reset cheat-sheet
 
 ```bash
-# routine local QA reset: deletes deterministic QA fixture rows only, then reseeds.
+# routine local QA reset: deletes rows owned by known Phase 4 QA seed
+# identifiers/users, then reseeds.
 # Refuses outside dev/test/local unless ALLOW_QA_RESET=1 is set intentionally.
 ./scripts/reset-qa-data.sh
 
@@ -312,7 +319,7 @@ docker compose exec -T redis redis-cli GET "otp:$PH" | jq -r .code
 
 Type it in → "Подтвердить". Expect redirect to `/` (customer home) with an avatar in the header.
 
-**Network check (DevTools).** `POST /api/v1/auth/send-code` returned 200 `{"message":"OTP sent"}` and did not expose `phone_hash`. `POST /api/v1/auth/verify-code` returned 200 with `{access_token, refresh_token, token_type}`. `access_token` lands in `localStorage` / memory per the auth-state spec.
+**Network check (DevTools).** `POST /api/v1/auth/send-code` returned 200 `{"message":"OTP sent"}` and did not expose `phone_hash`. `POST /api/v1/auth/verify-code` returned 200 with `{access_token, refresh_token, token_type}`. The customer SPA keeps `access_token` only in module-scope memory. `refresh_token` is returned for API clients and also set as an HttpOnly refresh cookie; the browser SPA must not persist it in localStorage.
 
 ### 1.2 OTP — negative paths
 
@@ -336,7 +343,7 @@ curl -s -X PATCH $BASE/api/v1/profile \
   -d '{"name":"QA Tester","language":"ru"}' | jq '{name, language}'
 ```
 
-Log out via UI → header reverts to "Войти". `localStorage` cleared. `POST /api/v1/auth/logout` returns 200.
+Log out via UI → header reverts to "Войти". The in-memory access token is cleared, any legacy `aura_refresh_token` localStorage entry is removed, and the server clears/revokes the HttpOnly refresh cookie. `POST /api/v1/auth/logout` returns 200.
 
 ### 1.4 Delivery address add — **real Yandex path**
 
@@ -548,7 +555,7 @@ Top-level fields: `{currency, expires_at, items, subtotal}`. Note `expires_at` �
 
 ### 2.3 Checkout pickup → fake YuKassa → paid
 
-**UI.** `/cart` → "Оформить" → `/checkout`. Pickup tab selected by default (only option unless §3). "Оплатить" → loading spinner → SPA redirects to `/orders/<short_id>`. In fake YuKassa mode the page must NOT navigate to `/dev/yukassa-sandbox/fake_…`; it keeps polling the order. Watch `payment-worker` logs: within 1–2 s you'll see `Task yukassa_fake_callback[…] succeeded`, and the order page flips from "Новый" / "Created" to "Оплачен" / "Paid".
+**UI.** `/cart` → "Оформить" → `/checkout`. Pickup tab selected by default. "Оформить заказ" / "Place order" → loading spinner → SPA redirects to `/orders/<order_id>` (full UUID in the URL; short ID only in display text). In fake YuKassa mode the page must NOT navigate to `/dev/yukassa-sandbox/fake_…`; it keeps polling the order. Watch `payment-worker` logs: within 1–2 s you'll see `Task yukassa_fake_callback[…] succeeded`, and the order page flips from "Новый" / "Created" to "Оплачен" / "Paid".
 
 **API.**
 
@@ -598,7 +605,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 
 ### 2.5 Promocode applied
 
-The customer SPA does **not** expose a promocode input yet (cart page has no field). Apply via the order-create API; UI clickthrough is in §5.
+The customer checkout SPA exposes a promocode field, points-to-use field, and ASAP/scheduled time controls. It calls `POST /api/v1/orders/estimate` while editing and then submits the same option fields to `POST /api/v1/orders`.
+
+**UI.** `/cart` → `/checkout` → enter `QA10` in "Промокод" / "Promo code". The estimate block should refresh with a non-zero discount and updated total. Submit with "Оформить заказ" / "Place order"; the resulting order detail should show the discounted total.
 
 ```bash
 # create a promo first — see §5.1 for UI; curl fast-path:
@@ -615,6 +624,12 @@ curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /de
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
   -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
+
+curl -s -X POST $BASE/api/v1/orders/estimate \
+  -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"type":"pickup","promocode_code":"qa10"}' \
+  | jq '{subtotal, discount_amount, points_used, delivery_fee, total, estimated_accrual, estimated_ready_at}'
+# Expect: discount_amount ≈ 10% of subtotal before order creation.
 
 curl -s -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
@@ -634,9 +649,9 @@ Depends on **at least one delivery address** for the customer (§1.4 or 1.4-B) a
 
 ### 3.1 Address selection at checkout
 
-**UI.** `$BASE/` → cart → `/checkout`. Tab "Доставка" / "Delivery". The form shows a dropdown of saved addresses (from §1). Selecting one shows `lat/lon` beneath for tester visibility.
+**UI.** `$BASE/` → cart → `/checkout`. Tab "Доставка" / "Delivery". If the customer has saved addresses from §1, the form shows a saved-address choice and a list of labels/address text. Selecting one submits its `delivery_address_id`; coordinates stay server-side.
 
-Alternatively, type a fresh address in the autocomplete — this triggers `/api/v1/maps/suggest` + `/geocode`. If Yandex returned 403 (§0.5), the dropdown is empty and you must pick a pre-saved address.
+Alternatively, type a fresh address in the autocomplete — this triggers `/api/v1/maps/suggest` + `/geocode`. If Yandex returned 403 (§0.5), fresh typed addresses are blocked, but the saved-address list still comes from Aura's database and can be used if §1 created or seeded an in-zone address.
 
 ### 3.2 Delivery fee + min-amount validation
 
@@ -706,7 +721,7 @@ DOM check: `document.querySelectorAll('[data-testid^="nav-"]')` returns exactly 
 
 ### 4.2 Orders feed
 
-**UI.** `/admin/orders`. Table lists all orders, newest first. Filters: status (all / created / paid / preparing / ready / …), type (pickup / delivery / all), date-range. Selecting a row opens a detail panel with items, customer-ish identifiers (user_id is an opaque UUID — INV-013), and state-transition buttons.
+**UI.** `/admin/orders`. Table lists orders newest first. Status tabs are Active / Paid / Preparing / Ready / In delivery / Completed / Cancelled; the Active tab aggregates paid + preparing + ready + in_delivery and polls every 5 seconds while the browser tab is visible. Type filter is All / Pickup / Delivery, with pagination below the table. Selecting a row opens a detail panel with items, customer-ish identifiers (user_id is an opaque UUID — INV-013), and state-transition buttons.
 
 **API shape** — important: top-level key is `.orders` (not `.items`):
 
@@ -1034,15 +1049,15 @@ After unblock, re-run §0.4 to get a fresh `CUST_TOKEN`; the old session was int
 | Field | Typical value |
 |-------|--------------|
 | Working hours | Mon–Sun 08:00–22:00 |
-| Default prep time (min) | 10 |
-| Auto-close minutes (unclaimed pickup) | 30 |
-| Delivery fee (₽) | 150 |
+| Default prep time (min) | 15 |
+| Auto-close minutes (unclaimed pickup) | 60 |
+| Delivery fee (₽) | 200 |
 | Free delivery threshold (₽) | 1500 |
 | Min delivery amount (₽) | 500 |
-| Delivery radius (km) | 10 |
-| Estimated delivery time (min) | 45 |
+| Delivery radius (km) | 5 |
+| Estimated delivery time (min) | 30 |
 | Loyalty accrual (%) | 5 |
-| Shop lat / lon | 55.75 / 37.62 |
+| Shop lat / lon | 55.7558 / 37.6173 |
 
 Save → PUT returns the full updated row → subsequent customer checkouts pick up new values (e.g., raise `min_delivery_amount` to 10000 ₽ and watch `/checkout` with a small cart reject — exercise from customer UI).
 
@@ -1220,10 +1235,9 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 
 ## §10 Known gaps / out-of-scope
 
-- **Customer promocode input in cart/checkout** — no UI field yet. `promocode_code` is accepted on the order-create API (§2.5) but the SPA does not expose it. Planned for a later phase.
 - **Menu media binary workflow** — the admin form edits `media_type`, `media_url`, `media_poster_url`, and legacy `image_url` only. It does not upload files or verify that a referenced static asset exists. Preparing/committing product media remains a content/deploy step.
 - **Seeded media paths are references only** — the seed points `Капучино (QA)` at `/media/menu/cappuccino-qa/*`, but missing local binaries should degrade gracefully. Do not commit ad hoc QA media unless those files are approved product assets.
-- **Barista realtime feed** — orders table refreshes on poll / manual click, not push. New-order sound / badge is out of scope.
+- **Staff order push/badges** — the Active orders tab polls every 5 seconds while visible; websocket/push delivery, new-order sound, and badge counters are out of scope.
 - **`ADMIN_ADJUSTMENT` UI on customer page** — the row appears in `/profile/loyalty` history but has no link (no owning order). Intentional.
 - **YuKassa real backend** — `YUKASSA_BACKEND=live` requires production credentials; `services/payment-worker/src/payment_worker/main.py` refuses to start if `YUKASSA_BASE_URL` contains "test" / "sandbox" / "localhost" when `live` is set. Do not attempt to flip it during manual QA.
 - **Yandex activation delay** — new free-tier keys can take up to ~15 min to propagate. If §0.5 shows 403 but you just issued the key, retry later. If persistent, check that both "Геокодер HTTP API" and "Геосаджест API" are activated in the developer cabinet — they are separate subscriptions.

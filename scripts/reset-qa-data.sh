@@ -3,7 +3,8 @@
 #
 # This does not run `docker compose down -v`, drop volumes, or reset arbitrary
 # user data. The Python seed module enforces the dev/test/local environment
-# guard and only removes deterministic Phase 4 QA fixture rows before reseeding.
+# guard and only removes rows owned by known Phase 4 QA seed identifiers/users
+# before reseeding.
 
 set -euo pipefail
 
@@ -53,5 +54,5 @@ require_env_file
 require_running_service core-api
 require_running_service postgres
 
-echo "=== reset deterministic QA data and re-run manual seed ==="
+echo "=== reset QA-scoped data and re-run manual seed ==="
 docker compose exec -T core-api python -m database.seeds.reset_qa_data
