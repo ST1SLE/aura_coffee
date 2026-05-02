@@ -175,13 +175,37 @@
   </ModuleVerification>
 
   <PhaseGates>
+    <Gate-Local-Fast PHASE="Local-Fast">
+      <goal>Pre-commit-ish local gate for lint, frontend typecheck, route/RBAC coverage, and an SMS LDD redaction smoke test against an already-running non-destructive Compose stack.</goal>
+      <commands>
+        <command-1>./scripts/verify-fast.sh</command-1>
+      </commands>
+      <required-evidence>
+        <evidence-1>Backend ruff checks pass inside service containers.</evidence-1>
+        <evidence-2>Both frontend lint and typecheck scripts pass.</evidence-2>
+        <evidence-3>Core API route/RBAC coverage tests pass.</evidence-3>
+        <evidence-4>SMS worker LDD marker/redaction smoke test passes.</evidence-4>
+      </required-evidence>
+    </Gate-Local-Fast>
+
+    <Gate-Local-Full PHASE="Local-Full">
+      <goal>Full local verification against an already-running non-destructive Compose stack: migrations, backend ruff, Python pytest suites, frontend lint/typecheck/Vitest, and dependency audit gates where available.</goal>
+      <commands>
+        <command-1>./scripts/verify-full.sh</command-1>
+      </commands>
+      <required-evidence>
+        <evidence-1>Alembic check and upgrade head pass in the core-api container.</evidence-1>
+        <evidence-2>Shared, core-api, payment-worker, and sms-worker pytest suites pass.</evidence-2>
+        <evidence-3>Both frontend lint, typecheck, Vitest, and npm audit gates pass.</evidence-3>
+        <evidence-4>Python dependency audit runs when pip-audit is present in the verification image, or is reported as skipped.</evidence-4>
+      </required-evidence>
+    </Gate-Local-Full>
+
     <Gate-Phase-Migration PHASE="Phase-Migration">
       <goal>GRACE substrate adopted across all 7 modules; dev-workflow-kb retired; full backend + frontend test suites still green.</goal>
       <commands>
         <command-1>./scripts/up.sh</command-1>
-        <command-2>docker compose exec core-api pytest services/core-api/tests/ -v</command-2>
-        <command-3>cd web/customer &amp;&amp; npm run test</command-3>
-        <command-4>cd web/admin &amp;&amp; npm run test</command-4>
+        <command-2>./scripts/verify-full.sh</command-2>
       </commands>
       <required-evidence>
         <evidence-1>All Python public APIs have function contracts (CP3).</evidence-1>
