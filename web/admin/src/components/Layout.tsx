@@ -1,6 +1,14 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut } from 'lucide-react';
+import {
+  ClipboardList,
+  Coffee,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  TicketPercent,
+  Users,
+} from 'lucide-react';
 import { logout } from '@/api/client';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Button } from '@/components/ui/button';
@@ -9,9 +17,10 @@ import { cn } from '@/lib/utils';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Admin/barista shell layout — left sidebar nav whose visible items
-//            are filtered by the current role hint, plus header with language
-//            switcher, logout action, and a main outlet for nested routes.
-//            Courier role uses CourierShell instead.
+//            are filtered by the current role hint, a matching mobile bottom
+//            nav for small screens, plus header with language switcher, logout
+//            action, and a main outlet for nested routes. Courier role uses
+//            CourierShell instead.
 //   SCOPE:   Mounted under the admin/barista ProtectedRoute branch in App.tsx.
 //   DEPENDS: react-router-dom (Outlet/Link/useLocation), react-i18next,
 //            lucide-react, @/api/client, @/components/LanguageSwitcher,
@@ -23,16 +32,16 @@ import { cn } from '@/lib/utils';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   Layout - admin/barista shell with role-filtered sidebar nav and outlet
+//   Layout - admin/barista shell with role-filtered desktop/mobile nav and outlet
 // END_MODULE_MAP
 
 const navItems = [
-  { path: '/', key: 'dashboard' },
-  { path: '/orders', key: 'orders' },
-  { path: '/menu', key: 'menu' },
-  { path: '/users', key: 'users' },
-  { path: '/promos', key: 'promos' },
-  { path: '/settings', key: 'settings' },
+  { path: '/', key: 'dashboard', icon: LayoutDashboard },
+  { path: '/orders', key: 'orders', icon: ClipboardList },
+  { path: '/menu', key: 'menu', icon: Coffee },
+  { path: '/users', key: 'users', icon: Users },
+  { path: '/promos', key: 'promos', icon: TicketPercent },
+  { path: '/settings', key: 'settings', icon: Settings },
 ] as const;
 
 // Exhaustive по StaffRole: добавление новой роли в union без обновления
@@ -46,9 +55,10 @@ const NAV_BY_ROLE: Record<StaffRole, readonly string[]> = {
 };
 
 // START_CONTRACT: Layout
-//   PURPOSE: Render the admin/barista shell — sidebar nav (filtered by role) +
-//            logout + header + Outlet for nested route content. Courier never
-//            reaches this component (separate CourierShell tree).
+//   PURPOSE: Render the admin/barista shell — desktop sidebar nav and mobile
+//            bottom nav (both filtered by role) + logout + header + Outlet for
+//            nested route content. Courier never reaches this component
+//            (separate CourierShell tree).
 //   INPUTS:  none (uses router/i18n/role hooks).
 //   OUTPUTS: JSX.Element
 //   SIDE_EFFECTS: reads useCurrentRole / useLocation / useTranslation; Link
@@ -120,10 +130,43 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4">
+        <main className="flex-1 p-4 pb-24 md:pb-4">
           <Outlet />
         </main>
       </div>
+
+      {visibleItems.length > 0 && (
+        <nav
+          aria-label={t('nav.mobileLabel')}
+          data-testid="mobile-nav"
+          className="fixed inset-x-0 bottom-0 z-40 border-t bg-background px-2 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:hidden"
+        >
+          <div className="flex gap-1 overflow-x-auto">
+            {visibleItems.map((item) => {
+              const Icon = item.icon;
+              const active = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.key}
+                  to={item.path}
+                  data-testid={`nav-mobile-${item.key}`}
+                  className={cn(
+                    'flex min-w-[4.5rem] flex-1 flex-col items-center justify-center rounded-md px-2 py-1.5 text-center text-[11px] leading-tight transition-colors',
+                    active
+                      ? 'bg-brand-100 text-brand-900 font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <Icon className="mb-0.5 h-4 w-4" aria-hidden="true" />
+                  <span className="max-w-full truncate">
+                    {t(`nav.${item.key}`)}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

@@ -182,6 +182,7 @@
         <scenario-4 kind="success">Admin/barista inventory controls edit menu_items.inventory_quantity with clear unlimited vs finite stock states; server remains the authorization gate.</scenario-4>
         <scenario-5 kind="success">Order detail renders staff-only customer contact affordance from the staff detail payload without adding phone data to order lists.</scenario-5>
         <scenario-6 kind="success">Staff API client stores access/refresh tokens, rotates the pair after a protected 401, retries once, and revokes the refresh token on logout before local cleanup.</scenario-6>
+        <scenario-7 kind="success">Admin/barista layout exposes role-filtered navigation on both desktop sidebar and mobile viewport surfaces; courier remains on CourierShell.</scenario-7>
       </scenarios>
     </V-M-WEB-ADMIN>
   </ModuleVerification>

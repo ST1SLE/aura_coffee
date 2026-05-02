@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import '@/i18n/config';
 import { Layout } from './Layout';
 import { logout } from '@/api/client';
 import { setRole, clearRole, type StaffRole } from '@/lib/auth';
@@ -44,6 +45,17 @@ describe('Layout role-filtered sidebar', () => {
     expect(screen.getByTestId('nav-settings')).toBeInTheDocument();
   });
 
+  it('admin mobile nav reuses all 6 role-filtered items', () => {
+    renderLayout('admin');
+    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-dashboard')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-orders')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-menu')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-users')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-promos')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-settings')).toBeInTheDocument();
+  });
+
   it('barista sees only orders and menu', () => {
     renderLayout('barista');
     expect(screen.getByTestId('nav-orders')).toBeInTheDocument();
@@ -54,16 +66,28 @@ describe('Layout role-filtered sidebar', () => {
     expect(screen.queryByTestId('nav-settings')).toBeNull();
   });
 
+  it('barista mobile nav includes only orders and menu', () => {
+    renderLayout('barista');
+    expect(screen.getByTestId('nav-mobile-orders')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-mobile-menu')).toBeInTheDocument();
+    expect(screen.queryByTestId('nav-mobile-dashboard')).toBeNull();
+    expect(screen.queryByTestId('nav-mobile-users')).toBeNull();
+    expect(screen.queryByTestId('nav-mobile-promos')).toBeNull();
+    expect(screen.queryByTestId('nav-mobile-settings')).toBeNull();
+  });
+
   it('courier sees zero nav links', () => {
     renderLayout('courier');
     const links = screen.queryAllByTestId(/^nav-/);
     expect(links).toHaveLength(0);
+    expect(screen.queryByTestId('mobile-nav')).toBeNull();
   });
 
   it('null role renders zero nav links', () => {
     renderLayout(null);
     const links = screen.queryAllByTestId(/^nav-/);
     expect(links).toHaveLength(0);
+    expect(screen.queryByTestId('mobile-nav')).toBeNull();
   });
 
   it('renders logout action and delegates to api client logout', () => {

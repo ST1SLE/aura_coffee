@@ -7,7 +7,8 @@
     "users": "Пользователи",
     "promos": "Промокоды",
     "settings": "Настройки",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "mobileLabel": "Навигация персонала"
   },
   "pages": {
     "dashboard": {
