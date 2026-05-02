@@ -1,0 +1,155 @@
+## test_list_available_for_courier_returns_only_awaiting
+>       assert len(rows) == 1
+E       AssertionError: assert 3 == 1
+E        +  where 3 = len([{'delivery_address_snapshot': None, 'id': UUID('84441699-91d4-488a-b97d-38beac425a28'), 'order_id': UUID('d832e452-0cf8-49ce-ba60-c1a6d0c03c5b'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('88f67203-6270-4e2d-a1c6-bd4a59cfaa9b'), 'order_id': UUID('2755116f-f9b1-45eb-9b03-a8e936f532fc'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('001b3386-0023-41dc-ae5a-0346f6931f5d'), 'order_id': UUID('c7559a0a-4143-4d56-8596-96a547b78579'), 'requested_time': None, ...}])
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+
+## test_main_include_router_call_count
+>       assert count == 13, (
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+
+## test_admin_delete_referenced_category_returns_409
+        assert resp.status_code == 409
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 101)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>.get
+E        +    and   101 = <Category id=101 type=drink>.id
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+
+## test_get_menu_empty_database_returns_empty_list
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         Differing items:
+E         {'categories': [{'id': 95, 'items': [], 'name': 'Напитки', 'name_en': 'Drinks', ...}, {'id': 96, 'items': [], 'name': ...base_price': 35000, 'category_id': 102, 'description': None, ...}], 'name': 'Напитки', 'name_en': 'Drinks', ...}, ...]} != {'categories': []}
+E         Full diff:
+E           {
+E         -     'categories': [],...
+E         ...Full output truncated (437 lines hidden), use '-vv' to show
+services/core-api/tests/test_menu_public.py:172: AssertionError
+
+## test_post_cart_item_merges_same_line
+        assert resp.status_code in (200, 201)
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+services/core-api/tests/test_route_cart.py:199: AssertionError
+
+## test_patch_cart_item_updates_quantity
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+services/core-api/tests/test_route_cart.py:270: AssertionError
+
+## test_delete_cart_item_removes_line
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+services/core-api/tests/test_route_cart.py:311: AssertionError
+
+## test_cart_ttl_env_override_respected
+>           patch("core_api.services.cart.settings") as mock_s2,
+        except (AttributeError, KeyError):
+>           raise AttributeError(
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+
+## test_status_endpoint_rejects_customer_with_403
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+
+## test_status_endpoint_barista_calls_service
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:140: AssertionError
+
+## test_status_endpoint_rejects_invalid_new_status_with_422
+>       assert resp.status_code == 422
+E       assert 401 == 422
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:161: AssertionError
+
+## test_status_endpoint_forwards_transition_error_as_409
+>       assert resp.status_code == 409
+E       assert 401 == 409
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:176: AssertionError
+
+## test_status_endpoint_returns_404_for_not_found
+>       assert resp.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:191: AssertionError
+
+## test_cancel_endpoint_customer_own_order_happy_path
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:238: AssertionError
+
+## test_cancel_endpoint_customer_foreign_order_403
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:260: AssertionError
+
+## test_cancel_endpoint_admin_allowed
+>       assert resp.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:276: AssertionError
+
+## test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:291: AssertionError
+
+## test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:291: AssertionError
+
+## test_cancel_endpoint_forwards_cancel_error_as_409
+>       assert resp.status_code == 409
+E       assert 401 == 409
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:306: AssertionError
+
+## test_cancel_endpoint_returns_404_for_not_found
+>       assert resp.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+services/core-api/tests/test_route_order_actions.py:321: AssertionError
+
+## test_single_order_detail_is_not_duplicated
+
+## test_shop_settings_response_round_trip
+>       resp = ShopSettingsResponse.model_validate(ns)
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ShopSettingsResponse
+E       auto_close_minutes
+E         Field required [type=missing, input_value=namespace(shop_lat=55.755...=datetime.timezone.utc)), input_type=SimpleNamespace]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+    assert mapper.mapper.mapped_table.name == "categories"
+    assert mapper.mapper.mapped_table.name == "menu_items"
+    assert mapper.mapper.mapped_table.name == "size_options"
+    assert mapper.mapper.mapped_table.name == "modifiers"
+    assert mapper.mapper.mapped_table.name == "shop_settings"
+    assert mapper.mapper.mapped_table.name == "orders"
+    assert mapper.mapper.mapped_table.name == "order_items"
+    assert mapper.mapper.mapped_table.name == "payments"
+    assert mapper.mapper.mapped_table.name == "refunds"
+    assert mapper.mapper.mapped_table.name == "loyalty_transactions"
+    assert mapper.mapper.mapped_table.name == "promocodes"
+    assert mapper.mapper.mapped_table.name == "promocode_usages"
+    assert mapper.mapper.mapped_table.name == "notifications"
+

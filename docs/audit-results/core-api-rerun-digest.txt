@@ -1,0 +1,673 @@
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+===== 22 failed, 1072 passed, 1 skipped, 592 warnings in 65.30s (0:01:05) ======
+
+Representative failure blocks:
+--- line 1134 ---
+_____________________ test_main_include_router_call_count ______________________
+
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a52219d0>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MmMwMjhkMi04NDBjLTQ4NjMtOGMwYi02ZTQyODBlYWQxZGMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1MzkwNzEsImV4cCI6MTc3NzUzOTk3MX0.9H9gi9OhIgw0YHitEqQX5JBiu13pj6inLslCSuEfvtQ'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 101)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>.get
+E        +    and   101 = <Category id=101 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+
+_pg_db_override = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+
+    def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
+        """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+        with TestClient(app) as c:
+            resp = c.get("/api/v1/menu")
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         
+E         Differing items:
+E         {'categories': [{'id': 95, 'items': [], 'name': 'Напитки', 'name_en': 'Drinks', ...}, {'id': 96, 'items': [], 'name': ...base_price': 35000, 'category_id': 102, 'description': None, ...}], 'name': 'Напитки', 'name_en': 'Drinks', ...}, ...]} != {'categories': []}
+E         
+E         Full diff:
+E           {
+E         -     'categories': [],...
+E         
+E         ...Full output truncated (437 lines hidden), use '-vv' to show
+
+services/core-api/tests/test_menu_public.py:172: AssertionError
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a4f0bc80>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a42ce360>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+--- line 1148 ---
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a52219d0>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MmMwMjhkMi04NDBjLTQ4NjMtOGMwYi02ZTQyODBlYWQxZGMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1MzkwNzEsImV4cCI6MTc3NzUzOTk3MX0.9H9gi9OhIgw0YHitEqQX5JBiu13pj6inLslCSuEfvtQ'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 101)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>.get
+E        +    and   101 = <Category id=101 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+
+_pg_db_override = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+
+    def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
+        """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+        with TestClient(app) as c:
+            resp = c.get("/api/v1/menu")
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         
+E         Differing items:
+E         {'categories': [{'id': 95, 'items': [], 'name': 'Напитки', 'name_en': 'Drinks', ...}, {'id': 96, 'items': [], 'name': ...base_price': 35000, 'category_id': 102, 'description': None, ...}], 'name': 'Напитки', 'name_en': 'Drinks', ...}, ...]} != {'categories': []}
+E         
+E         Full diff:
+E           {
+E         -     'categories': [],...
+E         
+E         ...Full output truncated (437 lines hidden), use '-vv' to show
+
+services/core-api/tests/test_menu_public.py:172: AssertionError
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a4f0bc80>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a42ce360>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+            resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+    
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+
+services/core-api/tests/test_route_cart.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+--- line 1177 ---
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+
+_pg_db_override = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+
+    def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
+        """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+        with TestClient(app) as c:
+            resp = c.get("/api/v1/menu")
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         
+E         Differing items:
+E         {'categories': [{'id': 95, 'items': [], 'name': 'Напитки', 'name_en': 'Drinks', ...}, {'id': 96, 'items': [], 'name': ...base_price': 35000, 'category_id': 102, 'description': None, ...}], 'name': 'Напитки', 'name_en': 'Drinks', ...}, ...]} != {'categories': []}
+E         
+E         Full diff:
+E           {
+E         -     'categories': [],...
+E         
+E         ...Full output truncated (437 lines hidden), use '-vv' to show
+
+services/core-api/tests/test_menu_public.py:172: AssertionError
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a4f0bc80>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a42ce360>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+            resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+    
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+
+services/core-api/tests/test_route_cart.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229ef9ade0>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229f18ffb0>
+
+    def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
+        """PATCH обновляет quantity строки."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r = db_client.post(
+                "/api/v1/cart/items",
+                json={"menu_item_id": item.id, "quantity": 2},
+                headers=_auth("customer"),
+            )
+            line_id = r.json()["items"][0]["line_id"]
+    
+            resp = db_client.patch(
+                f"/api/v1/cart/items/{line_id}",
+                json={"menu_item_id": item.id, "quantity": 4},
+                headers=_auth("customer"),
+            )
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:270: AssertionError
+--- line 1199 ---
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a4f0bc80>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a42ce360>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+            resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+    
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+
+services/core-api/tests/test_route_cart.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229ef9ade0>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229f18ffb0>
+
+    def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
+        """PATCH обновляет quantity строки."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r = db_client.post(
+                "/api/v1/cart/items",
+                json={"menu_item_id": item.id, "quantity": 2},
+                headers=_auth("customer"),
+            )
+            line_id = r.json()["items"][0]["line_id"]
+    
+            resp = db_client.patch(
+                f"/api/v1/cart/items/{line_id}",
+                json={"menu_item_id": item.id, "quantity": 4},
+                headers=_auth("customer"),
+            )
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:270: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________________ test_delete_cart_item_removes_line ______________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f143050>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229ef98e00>
+
+    def test_delete_cart_item_removes_line(db_client, db_session) -> None:
+        """DELETE /cart/items/{line_id} удаляет одну строку."""
+        from tests._factories.menu import make_menu_item
+    
+        item1 = make_menu_item(db_session, name_ru="А", name_en="A", base_price=15000)
+        item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
+            db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+            line_id = r1.json()["items"][0]["line_id"]
+    
+            resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+--- line 1226 ---
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229ef9ade0>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229f18ffb0>
+
+    def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
+        """PATCH обновляет quantity строки."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r = db_client.post(
+                "/api/v1/cart/items",
+                json={"menu_item_id": item.id, "quantity": 2},
+                headers=_auth("customer"),
+            )
+            line_id = r.json()["items"][0]["line_id"]
+    
+            resp = db_client.patch(
+                f"/api/v1/cart/items/{line_id}",
+                json={"menu_item_id": item.id, "quantity": 4},
+                headers=_auth("customer"),
+            )
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:270: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________________ test_delete_cart_item_removes_line ______________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f143050>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229ef98e00>
+
+    def test_delete_cart_item_removes_line(db_client, db_session) -> None:
+        """DELETE /cart/items/{line_id} удаляет одну строку."""
+        from tests._factories.menu import make_menu_item
+    
+        item1 = make_menu_item(db_session, name_ru="А", name_en="A", base_price=15000)
+        item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
+            db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+            line_id = r1.json()["items"][0]["line_id"]
+    
+            resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:311: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_cart_ttl_env_override_respected _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f18de20>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a4a6b260>
+cart_redis = <fakeredis._connection.FakeRedis(<redis.connection.ConnectionPool(<fakeredis._connection.FakeRedisConnection(server=<fakeredis._server.FakeServer object at 0x7422a4d77c20>,db=0)>)>)>
+
+    def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> None:
+        """CART_TTL_SECONDS monkeypatch применяется при записи в Redis."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        uid = uuid.uuid4()
+        token = _make_token("customer", uid)
+    
+        with (
+            _patch_jwt(),
+--- line 1260 ---
+______________________ test_delete_cart_item_removes_line ______________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f143050>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229ef98e00>
+
+    def test_delete_cart_item_removes_line(db_client, db_session) -> None:
+        """DELETE /cart/items/{line_id} удаляет одну строку."""
+        from tests._factories.menu import make_menu_item
+    
+        item1 = make_menu_item(db_session, name_ru="А", name_en="A", base_price=15000)
+        item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
+            db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+            line_id = r1.json()["items"][0]["line_id"]
+    
+            resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:311: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_cart_ttl_env_override_respected _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f18de20>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a4a6b260>
+cart_redis = <fakeredis._connection.FakeRedis(<redis.connection.ConnectionPool(<fakeredis._connection.FakeRedisConnection(server=<fakeredis._server.FakeServer object at 0x7422a4d77c20>,db=0)>)>)>
+
+    def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> None:
+        """CART_TTL_SECONDS monkeypatch применяется при записи в Redis."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        uid = uuid.uuid4()
+        token = _make_token("customer", uid)
+    
+        with (
+            _patch_jwt(),
+            patch("core_api.routers.cart.settings") as mock_s,
+>           patch("core_api.services.cart.settings") as mock_s2,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ):
+
+services/core-api/tests/test_route_cart.py:382: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x74229ef0b110>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+--- line 1288 ---
+_____________________ test_cart_ttl_env_override_respected _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f18de20>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a4a6b260>
+cart_redis = <fakeredis._connection.FakeRedis(<redis.connection.ConnectionPool(<fakeredis._connection.FakeRedisConnection(server=<fakeredis._server.FakeServer object at 0x7422a4d77c20>,db=0)>)>)>
+
+    def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> None:
+        """CART_TTL_SECONDS monkeypatch применяется при записи в Redis."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        uid = uuid.uuid4()
+        token = _make_token("customer", uid)
+    
+        with (
+            _patch_jwt(),
+            patch("core_api.routers.cart.settings") as mock_s,
+>           patch("core_api.services.cart.settings") as mock_s2,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ):
+
+services/core-api/tests/test_route_cart.py:382: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x74229ef0b110>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x7422a4c03d10>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x7422a5220200>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+--- line 1347 ---
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x7422a4c03d10>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x7422a5220200>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{order_id}/status",
+                headers=_auth("barista"),
+                json={"new_status": "preparing"},
+            )
+    
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:140: AssertionError
+___________ test_status_endpoint_rejects_invalid_new_status_with_422 ___________
+
+client = <starlette.testclient.TestClient object at 0x74229ef8e690>
+
+    def test_status_endpoint_rejects_invalid_new_status_with_422(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+    
+        stub = MagicMock()
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{uuid.uuid4()}/status",
+                headers=_auth("admin"),
+                json={"new_status": "not-a-status"},
+            )
+>       assert resp.status_code == 422
+E       assert 401 == 422
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:161: AssertionError
+____________ test_status_endpoint_forwards_transition_error_as_409 _____________
+
+client = <starlette.testclient.TestClient object at 0x74229ef9aae0>
+
+    def test_status_endpoint_forwards_transition_error_as_409(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from core_api.services.order_lifecycle import OrderTransitionError
+    
+        stub = MagicMock(side_effect=OrderTransitionError(reason="forbidden_transition"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{uuid.uuid4()}/status",
+                headers=_auth("admin"),
+                json={"new_status": "preparing"},
+            )
+>       assert resp.status_code == 409
+E       assert 401 == 409
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:176: AssertionError
+________________ test_status_endpoint_returns_404_for_not_found ________________
+
+client = <starlette.testclient.TestClient object at 0x74229ef59730>

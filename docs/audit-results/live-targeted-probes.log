@@ -1,0 +1,6 @@
+cart_probe_item=1 size=null
+cart_merge_status=201 quantity=4 line_id=326150815b3f330c
+cart_patch_status=200 quantity=5
+cart_delete_status=200 remaining=0
+category_create_status=201 item_create_status=201 category_delete_status=409 category_still_exists=1 delete_body={"detail":"category has items"}
+probe_log=audit-results/live-targeted-probes.log

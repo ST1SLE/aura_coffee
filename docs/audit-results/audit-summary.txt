@@ -1,0 +1,819 @@
+===== stack-ps =====
+COMMAND: docker compose -p aura_audit_111515 ps --all
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/stack-ps.log
+--- tail stack-ps ---
+NAME                                  IMAGE                               COMMAND                  SERVICE           CREATED          STATUS                      PORTS
+aura_audit_111515-core-api-1          aura_audit_111515-core-api          "uvicorn core_api.ma…"   core-api          23 minutes ago   Up 23 minutes               0.0.0.0:8180->8000/tcp, [::]:8180->8000/tcp
+aura_audit_111515-core-api-worker-1   aura_audit_111515-core-api-worker   "celery -A core_api.…"   core-api-worker   23 minutes ago   Up 23 minutes               8000/tcp
+aura_audit_111515-db-migrate-1        aura_audit_111515-db-migrate        "sh -c 'cd /app/data…"   db-migrate        23 minutes ago   Exited (0) 23 minutes ago   
+aura_audit_111515-db-seed-1           aura_audit_111515-db-seed           "python -m database.…"   db-seed           23 minutes ago   Exited (0) 23 minutes ago   
+aura_audit_111515-nginx-1             nginx:alpine                        "/docker-entrypoint.…"   nginx             23 minutes ago   Up 23 minutes               0.0.0.0:8260->80/tcp, [::]:8260->80/tcp
+aura_audit_111515-payment-webhook-1   aura_audit_111515-payment-webhook   "uvicorn payment_wor…"   payment-webhook   23 minutes ago   Up 23 minutes               0.0.0.0:8261->8241/tcp, [::]:8261->8241/tcp
+aura_audit_111515-payment-worker-1    aura_audit_111515-payment-worker    "celery -A payment_w…"   payment-worker    23 minutes ago   Up 23 minutes               
+aura_audit_111515-postgres-1          postgres:16-alpine                  "docker-entrypoint.s…"   postgres          23 minutes ago   Up 23 minutes (healthy)     0.0.0.0:5613->5432/tcp, [::]:5613->5432/tcp
+aura_audit_111515-redis-1             redis:7-alpine                      "docker-entrypoint.s…"   redis             23 minutes ago   Up 23 minutes (healthy)     0.0.0.0:6559->6379/tcp, [::]:6559->6379/tcp
+aura_audit_111515-scheduler-1         aura_audit_111515-scheduler         "celery -A core_api.…"   scheduler         23 minutes ago   Up 23 minutes               8000/tcp
+aura_audit_111515-sms-worker-1        aura_audit_111515-sms-worker        "celery -A sms_worke…"   sms-worker        23 minutes ago   Up 23 minutes               
+aura_audit_111515-web-admin-1         node:22-alpine                      "docker-entrypoint.s…"   web-admin         23 minutes ago   Up 23 minutes               0.0.0.0:5354->5174/tcp, [::]:5354->5174/tcp
+aura_audit_111515-web-customer-1      node:22-alpine                      "docker-entrypoint.s…"   web-customer      23 minutes ago   Up 23 minutes               0.0.0.0:5353->5173/tcp, [::]:5353->5173/tcp
+
+===== stack-logs-startup =====
+COMMAND: docker compose -p aura_audit_111515 logs --tail 120 db-migrate db-seed core-api payment-worker sms-worker payment-webhook web-customer web-admin nginx
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/stack-logs-startup.log
+--- tail stack-logs-startup ---
+web-customer-1     | npm notice To update run: npm install -g npm@11.13.0
+web-customer-1     | npm notice
+web-customer-1     | 
+web-admin-1        | 
+web-customer-1     | > aura-coffee-customer@0.0.0 dev
+payment-worker-1   | --- ***** ----- 
+nginx-1            | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+nginx-1            | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+payment-worker-1   |  -------------- [queues]
+nginx-1            | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+payment-worker-1   |                 .> payments         exchange=payments(direct) key=payments
+nginx-1            | /docker-entrypoint.sh: Configuration complete; ready for start up
+payment-worker-1   |                 
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: using the "epoll" event method
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: nginx/1.27.5
+web-admin-1        |   VITE v6.4.2  ready in 270 ms
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: built by gcc 14.2.0 (Alpine 14.2.0) 
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: OS: Linux 6.17.0-22-generic
+web-admin-1        | 
+sms-worker-1       |  
+sms-worker-1       |  -------------- celery@1af89f50e90f v5.6.3 (recovery)
+sms-worker-1       | --- ***** ----- 
+web-customer-1     | > vite --host
+sms-worker-1       | -- ******* ---- Linux-6.17.0-22-generic-x86_64-with-glibc2.41 2026-04-30 08:21:45
+sms-worker-1       | - *** --- * --- 
+web-customer-1     | 
+sms-worker-1       | - ** ---------- [config]
+sms-worker-1       | - ** ---------- .> app:         sms_worker:0x7235b04a0410
+web-customer-1     | 
+sms-worker-1       | - ** ---------- .> transport:   redis://redis:6379/0
+web-customer-1     |   VITE v6.4.2  ready in 229 ms
+payment-worker-1   | 
+web-customer-1     | 
+payment-worker-1   | [tasks]
+payment-worker-1   |   . payment_worker.tasks.create_payment
+payment-worker-1   |   . payment_worker.tasks.health_check
+payment-worker-1   |   . payment_worker.tasks.initiate_refund
+payment-worker-1   |   . yukassa_fake_callback
+payment-worker-1   | 
+web-admin-1        |   ➜  Local:   http://localhost:5174/admin/
+web-admin-1        |   ➜  Network: http://172.18.0.4:5174/admin/
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1024:524288
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker processes
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 21
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 22
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 23
+payment-worker-1   | [2026-04-30 08:21:46,471: INFO/MainProcess] Connected to redis://redis:6379/0
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 24
+web-customer-1     |   ➜  Local:   http://localhost:5173/
+sms-worker-1       | - ** ---------- .> results:     disabled://
+web-customer-1     |   ➜  Network: http://172.18.0.2:5173/
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 25
+sms-worker-1       | - *** --- * --- .> concurrency: 12 (prefork)
+sms-worker-1       | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+sms-worker-1       | --- ***** ----- 
+sms-worker-1       |  -------------- [queues]
+payment-worker-1   | [2026-04-30 08:21:46,472: INFO/MainProcess] mingle: searching for neighbors
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 26
+payment-worker-1   | [2026-04-30 08:21:47,479: INFO/MainProcess] mingle: all alone
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 27
+payment-worker-1   | [2026-04-30 08:21:47,497: INFO/MainProcess] celery@36d1df49d76f ready.
+payment-worker-1   | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+sms-worker-1       |                 .> sms              exchange=sms(direct) key=sms
+sms-worker-1       |                 
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 28
+sms-worker-1       | 
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 29
+sms-worker-1       | [tasks]
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 30
+sms-worker-1       |   . sms_worker.tasks.health_check
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 31
+sms-worker-1       |   . sms_worker.tasks.otp.send_otp_sms
+nginx-1            | 2026/04/30 08:21:50 [notice] 1#1: start worker process 32
+sms-worker-1       | 
+sms-worker-1       | [2026-04-30 08:21:45,664: INFO/MainProcess] Connected to redis://redis:6379/0
+sms-worker-1       | [2026-04-30 08:21:45,668: INFO/MainProcess] mingle: searching for neighbors
+sms-worker-1       | [2026-04-30 08:21:46,676: INFO/MainProcess] mingle: all alone
+sms-worker-1       | [2026-04-30 08:21:46,684: INFO/MainProcess] celery@1af89f50e90f ready.
+sms-worker-1       | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+nginx-1            | 172.18.0.1 - - [30/Apr/2026:08:41:41 +0000] "HEAD / HTTP/1.1" 200 0 "-" "curl/8.5.0" "-"
+
+===== health-core =====
+COMMAND: curl -sS http://localhost:8180/health
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/health-core.log
+--- tail health-core ---
+{"status":"ok","yukassa_backend":"fake"}
+===== health-nginx =====
+COMMAND: curl -sS -I http://localhost:8260/
+EXIT: 0 DURATION_SEC: 1 LOG: audit-results/health-nginx.log
+--- tail health-nginx ---
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Thu, 30 Apr 2026 08:44:55 GMT
+Content-Type: text/html
+Connection: keep-alive
+Vary: Origin
+Cache-Control: no-cache
+Etag: W/"23d-mvuJ/pRlRLvjlOh4bK/6jQ/wcjo"
+
+
+===== health-customer =====
+COMMAND: curl -sS -I http://localhost:5353/
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/health-customer.log
+--- tail health-customer ---
+HTTP/1.1 200 OK
+Vary: Origin
+Content-Type: text/html
+Cache-Control: no-cache
+Etag: W/"23d-mvuJ/pRlRLvjlOh4bK/6jQ/wcjo"
+Date: Thu, 30 Apr 2026 08:44:55 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+===== health-admin =====
+COMMAND: curl -sS -I http://localhost:5354/
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/health-admin.log
+--- tail health-admin ---
+HTTP/1.1 302 Found
+Vary: Origin
+Location: /admin/
+Date: Thu, 30 Apr 2026 08:44:55 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+===== shared-pytest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T core-api pytest packages/shared/tests -v
+EXIT: 0 DURATION_SEC: 2 LOG: audit-results/shared-pytest.log
+--- tail shared-pytest ---
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/packages/shared
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 11 items
+
+packages/shared/tests/test_enums_menu.py::test_category_type_values PASSED [  9%]
+packages/shared/tests/test_enums_menu.py::test_size_label_values PASSED  [ 18%]
+packages/shared/tests/test_enums_menu.py::test_menu_item_availability_values PASSED [ 27%]
+packages/shared/tests/test_grace_logging.py::test_block_marker_format PASSED [ 36%]
+packages/shared/tests/test_grace_logging.py::test_belief_match PASSED    [ 45%]
+packages/shared/tests/test_grace_logging.py::test_belief_mismatch PASSED [ 54%]
+packages/shared/tests/test_grace_logging.py::test_assert_trajectory_in_order PASSED [ 63%]
+packages/shared/tests/test_grace_logging.py::test_assert_trajectory_missing_marker PASSED [ 72%]
+packages/shared/tests/test_grace_logging.py::test_parse_belief_standalone PASSED [ 81%]
+packages/shared/tests/test_grace_logging.py::test_parse_belief_returns_none_for_non_belief_lines PASSED [ 90%]
+packages/shared/tests/test_grace_logging.py::test_module_label_from_logger_name PASSED [100%]
+
+============================== 11 passed in 0.05s ==============================
+
+===== core-api-pytest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T core-api pytest services/core-api/tests -v
+EXIT: 1 DURATION_SEC: 143 LOG: audit-results/core-api-pytest.log
+--- tail core-api-pytest ---
+ERROR services/core-api/tests/test_cart_service.py::test_get_surfaces_archived_item_as_archived
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_creates_new_line
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_persists_no_prices_in_redis
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_sets_ttl_atomically
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_into_existing_line_same_shape
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_ignoring_modifier_order
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_archived_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_size_option
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_modifier
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_size_from_different_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_modifier_not_linked_to_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_unknown_menu_item_id
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_merge_exceeding_cap
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_no_partial_write_on_rejection
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_changes_quantity
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_recomputes_line_id_when_modifiers_change
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_stop_listed_target_state
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_refreshes_ttl
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_changes_only_quantity
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_stop_listed
+ERROR services/core-api/tests/test_cart_service.py::test_delete_item_removes_one_line
+ERROR services/core-api/tests/test_cart_service.py::test_delete_item_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_delete_last_item_yields_empty_cart_read
+ERROR services/core-api/tests/test_cart_service.py::test_clear_deletes_redis_key
+ERROR services/core-api/tests/test_cart_service.py::test_clear_is_idempotent_on_empty
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_concurrent_modification_retries
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_both_delivery_fields_with_422
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_neither_delivery_field_with_422
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_foreign_address_id_returns_404
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_unknown_address_id_returns_404
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshots_saved_address_into_order_jsonb
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_byte_identical_after_saved_address_deleted
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_shape_matches_inline_path
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_rejects_saved_address_now_outside_radius
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_pricing_uses_fresh_prices_from_db
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_row_with_status_created
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_items_with_snapshots
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_item_stores_menu_item_id_as_reference_not_fk
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_payment_with_pending_status_and_idempotency_key
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_payment_amount_matches_order_total
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_order_items_count_matches_cart_lines
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_creates_reservation_transaction
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_debits_account_balance
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_records_points_used_in_order_row
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_points_skips_loyalty_transaction
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_increments_current_uses
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_inserts_promocode_usage_row
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_promocode_skips_promocode_usage
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_commits_order_as_paid
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_creates_loyalty_transaction_as_redemption
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_deletes_cart_from_redis
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_does_not_enqueue_celery_task
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_payment_row_has_amount_zero
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_enqueues_celery_task
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_leaves_cart_in_redis
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_returns_created_status
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_enqueues_after_db_commit
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_empty_returns_200_with_empty_list
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_returns_own_rows_only
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_default_first_then_created_asc
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_happy_path_returns_201
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_rejects_out_of_radius_with_422
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_persists_optional_fields
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_first_for_user_not_automatically_default
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_with_is_default_true_persists_flag
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_label
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_optional_fields
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_true_demotes_previous_default
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_false_does_not_touch_other_rows
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_foreign_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_unknown_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_returns_updated_body
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_own_address_returns_204
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_foreign_address_returns_404_and_row_persists
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_unknown_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_does_not_mutate_past_order_snapshot
+= 23 failed, 822 passed, 1 skipped, 374 warnings, 249 errors in 135.00s (0:02:15) =
+
+===== payment-worker-pytest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T payment-worker pytest services/payment-worker/tests -v
+EXIT: 0 DURATION_SEC: 6 LOG: audit-results/payment-worker-pytest.log
+--- tail payment-worker-pytest ---
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.4.2, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/payment-worker
+configfile: pyproject.toml
+plugins: asyncio-0.26.0, respx-0.23.1, anyio-4.13.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 54 items
+
+services/payment-worker/tests/test_client_factory.py::test_factory_returns_live_client_by_default PASSED [  1%]
+services/payment-worker/tests/test_client_factory.py::test_factory_returns_fake_when_backend_fake PASSED [  3%]
+services/payment-worker/tests/test_client_factory.py::test_factory_is_called_per_task_not_at_import PASSED [  5%]
+services/payment-worker/tests/test_fake_autodrive.py::test_create_payment_schedules_success_callback PASSED [  7%]
+services/payment-worker/tests/test_fake_autodrive.py::test_create_payment_schedules_cancel_callback PASSED [  9%]
+services/payment-worker/tests/test_fake_autodrive.py::test_create_payment_http_error_outcome_raises PASSED [ 11%]
+services/payment-worker/tests/test_fake_autodrive.py::test_callback_posts_canonical_webhook_body PASSED [ 12%]
+services/payment-worker/tests/test_fake_client.py::test_create_payment_returns_fake_payment_id PASSED [ 14%]
+services/payment-worker/tests/test_fake_client.py::test_create_payment_confirmation_url_is_localhost PASSED [ 16%]
+services/payment-worker/tests/test_fake_client.py::test_create_payment_status_pending PASSED [ 18%]
+services/payment-worker/tests/test_fake_client.py::test_create_refund_returns_fake_refund_id PASSED [ 20%]
+services/payment-worker/tests/test_fake_e2e.py::test_fake_success_drives_order_to_paid PASSED [ 22%]
+services/payment-worker/tests/test_fake_e2e.py::test_fake_canceled_drives_order_to_cancelled PASSED [ 24%]
+services/payment-worker/tests/test_fake_e2e.py::test_fake_http_error_triggers_compensation PASSED [ 25%]
+services/payment-worker/tests/test_health.py::test_health_reports_backend_live PASSED [ 27%]
+services/payment-worker/tests/test_health.py::test_health_reports_backend_fake PASSED [ 29%]
+services/payment-worker/tests/test_settings.py::test_settings_exposes_yukassa_and_db_fields PASSED [ 31%]
+services/payment-worker/tests/test_settings.py::test_yukassa_base_url_default PASSED [ 33%]
+services/payment-worker/tests/test_settings.py::test_webhook_ips_parses_comma_list PASSED [ 35%]
+services/payment-worker/tests/test_settings.py::test_yukassa_backend_defaults_to_live PASSED [ 37%]
+services/payment-worker/tests/test_settings.py::test_yukassa_backend_accepts_fake PASSED [ 38%]
+services/payment-worker/tests/test_settings.py::test_yukassa_backend_rejects_unknown PASSED [ 40%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_live_with_empty_shop_id_refused PASSED [ 42%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_live_with_empty_secret_refused PASSED [ 44%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_live_with_sandbox_url_refused PASSED [ 46%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_live_with_test_url_refused PASSED [ 48%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_live_with_localhost_url_refused PASSED [ 50%]
+services/payment-worker/tests/test_settings_safety_rail.py::test_fake_with_empty_creds_accepted PASSED [ 51%]
+services/payment-worker/tests/test_tasks.py::test_create_payment_happy_path_marks_awaiting_confirmation PASSED [ 53%]
+services/payment-worker/tests/test_tasks.py::test_create_payment_task_has_retry_policy PASSED [ 55%]
+services/payment-worker/tests/test_tasks.py::test_create_payment_compensation_on_exhausted_retries PASSED [ 57%]
+services/payment-worker/tests/test_tasks.py::test_create_payment_compensation_is_atomic PASSED [ 59%]
+services/payment-worker/tests/test_tasks.py::test_initiate_refund_success_marks_refund_pending PASSED [ 61%]
+services/payment-worker/tests/test_tasks.py::test_initiate_refund_failure_does_not_mutate PASSED [ 62%]
+services/payment-worker/tests/test_webhook.py::test_reject_request_from_untrusted_ip PASSED [ 64%]
+services/payment-worker/tests/test_webhook.py::test_duplicate_event_id_returns_200_without_mutation PASSED [ 66%]
+services/payment-worker/tests/test_webhook.py::test_payment_succeeded_advances_payment_and_order PASSED [ 68%]
+services/payment-worker/tests/test_webhook.py::test_payment_canceled_cancels_order_and_unreserves PASSED [ 70%]
+services/payment-worker/tests/test_webhook.py::test_refund_succeeded_marks_refunded PASSED [ 72%]
+services/payment-worker/tests/test_webhook.py::test_refund_canceled_marks_refund_failed_and_notifies_admin PASSED [ 74%]
+services/payment-worker/tests/test_webhook.py::test_unknown_event_type_returns_200_no_mutation PASSED [ 75%]
+services/payment-worker/tests/test_webhook.py::test_processing_exception_surfaces_as_500 PASSED [ 77%]
+services/payment-worker/tests/test_webhook_whitelist.py::test_hostname_entry_resolves_and_matches PASSED [ 79%]
+services/payment-worker/tests/test_webhook_whitelist.py::test_wildcard_is_not_permissive PASSED [ 81%]
+services/payment-worker/tests/test_webhook_whitelist.py::test_localhost_default_accepted PASSED [ 83%]
+services/payment-worker/tests/test_yukassa_client.py::test_create_payment_posts_to_v3_payments PASSED [ 85%]
+services/payment-worker/tests/test_yukassa_client.py::test_create_payment_returns_id_confirmation_status PASSED [ 87%]
+services/payment-worker/tests/test_yukassa_client.py::test_get_payment_hits_v3_payments_id_with_auth_no_idempotency PASSED [ 88%]
+services/payment-worker/tests/test_yukassa_client.py::test_create_refund_posts_full_refund PASSED [ 90%]
+services/payment-worker/tests/test_yukassa_client.py::test_client_timeout_is_10_connect_30_read PASSED [ 92%]
+services/payment-worker/tests/test_yukassa_client.py::test_amount_formatting_edge_cases[100-1.00] PASSED [ 94%]
+services/payment-worker/tests/test_yukassa_client.py::test_amount_formatting_edge_cases[12345-123.45] PASSED [ 96%]
+services/payment-worker/tests/test_yukassa_client.py::test_amount_formatting_edge_cases[1-0.01] PASSED [ 98%]
+services/payment-worker/tests/test_yukassa_client.py::test_amount_formatting_edge_cases[100000-1000.00] PASSED [100%]
+
+============================== 54 passed in 3.68s ==============================
+
+===== sms-worker-pytest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T sms-worker pytest services/sms-worker/tests -v
+EXIT: 0 DURATION_SEC: 5 LOG: audit-results/sms-worker-pytest.log
+--- tail sms-worker-pytest ---
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/sms-worker
+configfile: pyproject.toml
+plugins: anyio-4.13.0
+collecting ... collected 19 items
+
+services/sms-worker/tests/test_log_transport.py::test_send_via_log_logs_message_and_returns_true PASSED [  5%]
+services/sms-worker/tests/test_log_transport.py::test_send_via_log_never_calls_httpx PASSED [ 10%]
+services/sms-worker/tests/test_notification_task.py::test_task_is_registered_under_expected_name PASSED [ 15%]
+services/sms-worker/tests/test_notification_task.py::test_task_retry_configuration_matches_pdd_7_8 PASSED [ 21%]
+services/sms-worker/tests/test_notification_task.py::test_success_updates_notification_to_sent PASSED [ 26%]
+services/sms-worker/tests/test_notification_task.py::test_decrypted_phone_is_passed_to_transport PASSED [ 31%]
+services/sms-worker/tests/test_notification_task.py::test_intermediate_failure_raises_for_retry PASSED [ 36%]
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_marks_failed_and_does_not_raise PASSED [ 42%]
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_logs_error_with_notification_id PASSED [ 47%]
+services/sms-worker/tests/test_notification_task.py::test_plaintext_phone_not_in_logs PASSED [ 52%]
+services/sms-worker/tests/test_notification_task.py::test_missing_notification_row_logs_and_returns PASSED [ 57%]
+services/sms-worker/tests/test_otp_task.py::TestSendOtpSms::test_success PASSED [ 63%]
+services/sms-worker/tests/test_otp_task.py::TestSendOtpSms::test_failure_after_retries PASSED [ 68%]
+services/sms-worker/tests/test_otp_task_log_backend.py::test_send_otp_sms_transitions_created_to_sent_via_log PASSED [ 73%]
+services/sms-worker/tests/test_otp_task_log_backend.py::test_send_otp_sms_log_backend_does_not_retry PASSED [ 78%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_rejects_placeholder_key PASSED [ 84%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_requires_nonempty_key PASSED [ 89%]
+services/sms-worker/tests/test_settings.py::test_log_backend_accepts_empty_key PASSED [ 94%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_accepts_real_key PASSED [100%]
+
+============================== 19 passed in 2.72s ==============================
+
+===== customer-vitest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-customer npm test
+EXIT: 0 DURATION_SEC: 8 LOG: audit-results/customer-vitest.log
+--- tail customer-vitest ---
+
+
+ RUN  v3.2.4 /app
+
+ ✓ src/api/client.test.ts (9 tests) 35ms
+ ✓ src/api/addresses.test.ts (7 tests) 48ms
+ ✓ src/api/auth.test.ts (8 tests) 198ms
+ ✓ src/store/cart.test.ts (8 tests) 176ms
+ ✓ src/components/AddressAutocomplete/AddressAutocomplete.test.tsx (8 tests) 325ms
+ ✓ src/pages/Menu/MenuPage.test.tsx (5 tests) 463ms
+   ✓ MenuPage > renders categories in server-returned order  306ms
+ ✓ src/pages/Cart/CartPage.test.tsx (9 tests) 475ms
+ ✓ src/pages/Profile/Loyalty/LoyaltyPage.test.tsx (5 tests) 578ms
+ ✓ src/pages/VerifyPage.test.tsx (6 tests) 609ms
+ ✓ src/pages/CheckoutPage.test.tsx (7 tests) 923ms
+ ✓ src/pages/Menu/ItemDetail.test.tsx (6 tests) 1399ms
+   ✓ ItemDetail — price display > selecting size L (price 22000) shows 220 ₽  352ms
+   ✓ ItemDetail — Add-to-Cart actions (task 6.8) > success: closes the view and calls the store with selected payload  888ms
+ ✓ src/auth/AuthProvider.test.tsx (4 tests) 181ms
+ ✓ src/pages/Cart/CartLine.test.tsx (7 tests) 380ms
+stderr | src/App.menuCart.test.tsx > App routing — menu and cart (task 8.2) > authenticated /menu renders MenuPage
+An update to MenuPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to MenuPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/App.menuCart.test.tsx (4 tests) 256ms
+ ✓ src/api/loyalty.test.ts (6 tests) 28ms
+ ✓ src/api/orders.test.ts (4 tests) 15ms
+ ✓ src/api/yandex_maps.test.ts (7 tests) 18ms
+ ✓ src/pages/Profile/Addresses/AddressForm.test.tsx (4 tests) 617ms
+   ✓ AddressForm submit > calls createAddress with address_text and label  361ms
+ ✓ src/App.test.tsx (4 tests) 418ms
+ ✓ src/api/cart.test.ts (5 tests) 14ms
+ ✓ src/pages/Profile/Loyalty/TransactionRow.test.tsx (7 tests) 302ms
+ ✓ src/pages/VerifyPage.otp409.test.tsx (3 tests) 577ms
+   ✓ VerifyPage — CODE_NOT_DELIVERED (409) > shows "not delivered" message instead of network error  368ms
+ ✓ src/api/menu.test.ts (4 tests) 35ms
+ ✓ src/auth/ProtectedRoute.test.tsx (4 tests) 124ms
+ ✓ src/pages/LoginPage.test.tsx (4 tests) 403ms
+ ✓ src/components/auth/OTPInput.test.tsx (6 tests) 405ms
+ ✓ src/pages/Menu/MenuItemCard.test.tsx (4 tests) 228ms
+ ✓ src/components/auth/PhoneInput.test.tsx (7 tests) 157ms
+ ✓ src/pages/ProfilePage.test.tsx (1 test) 192ms
+ ✓ src/lib/formatPrice.test.ts (5 tests) 32ms
+stderr | src/pages/Profile/LoyaltyCard.test.tsx > LoyaltyCard > renders link to /profile/loyalty
+An update to LoyaltyCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/Profile/LoyaltyCard.test.tsx (2 tests) 129ms
+
+ Test Files  31 passed (31)
+      Tests  170 passed (170)
+   Start at  08:47:32
+   Duration  7.06s (transform 2.02s, setup 0ms, collect 12.26s, tests 9.74s, environment 29.00s, prepare 7.64s)
+
+
+===== admin-vitest =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-admin npm test
+EXIT: 0 DURATION_SEC: 13 LOG: audit-results/admin-vitest.log
+--- tail admin-vitest ---
+ ✓ src/pages/Orders/OrderDetailDialog.test.tsx (12 tests) 1480ms
+   ✓ OrderDetailDialog > renders money breakdown in kopecks → rubles  369ms
+ ✓ src/pages/Promos/PromoFormDialog.test.tsx (10 tests) 1676ms
+   ✓ PromoFormDialog > edit-mode current_uses=0 — all lockable fields editable  389ms
+   ✓ PromoFormDialog > rubles → kopecks on save (create) — fixed_amount  352ms
+ ✓ src/pages/Dashboard/DashboardPage.test.tsx (6 tests) 367ms
+ ✓ src/pages/Courier/AvailableTab.test.tsx (4 tests) 476ms
+ ✓ src/pages/Users/UsersPage.test.tsx (5 tests) 495ms
+ ✓ src/api/courier.test.ts (7 tests) 42ms
+ ✓ src/pages/Courier/MineTab.test.tsx (4 tests) 546ms
+   ✓ MineTab > COURIER_ASSIGNED: показывает "Забрал" и вызывает pickupAssignment  392ms
+stderr | src/App.test.tsx > App > рендерится без краша (без токена)
+<Router basename="/admin"> is not able to match the URL "/" because it does not start with the basename, so the <Router> won't render anything.
+
+stderr | src/App.test.tsx > App > рендерится без краша (с токеном в localStorage)
+<Router basename="/admin"> is not able to match the URL "/" because it does not start with the basename, so the <Router> won't render anything.
+
+ ✓ src/pages/Users/BlockConfirmDialog.test.tsx (5 tests) 785ms
+   ✓ BlockConfirmDialog > confirm button starts disabled; checkbox unchecked  362ms
+ ✓ src/api/admin-stats.test.ts (6 tests) 52ms
+stderr | src/pages/Promos/PromosPage.test.tsx > PromosPage > create dialog opens and closes
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+ ✓ src/App.test.tsx (6 tests) 571ms
+ ✓ src/pages/Promos/PromosPage.test.tsx (4 tests) 712ms
+   ✓ PromosPage > create dialog opens and closes  368ms
+ ✓ src/pages/Users/UsersTable.test.tsx (6 tests) 383ms
+ ✓ src/pages/Settings/SectionWorkingHours.test.tsx (6 tests) 242ms
+ ✓ src/pages/Dashboard/RangeSelector.test.tsx (5 tests) 141ms
+ ✓ src/pages/Dashboard/PopularItemsList.test.tsx (5 tests) 192ms
+stderr | src/pages/Menu/MenuItemFormDialog.test.tsx > MenuItemFormDialog > MenuItemFormDialog has name_ru, name_en, description_ru, description_en, sort_order, image_url
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/pages/Menu/MenuItemFormDialog.test.tsx > MenuItemFormDialog > MenuItemFormDialog submits bilingual payload with base_price
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+ ✓ src/pages/Menu/MenuItemFormDialog.test.tsx (2 tests) 909ms
+   ✓ MenuItemFormDialog > MenuItemFormDialog has name_ru, name_en, description_ru, description_en, sort_order, image_url  496ms
+   ✓ MenuItemFormDialog > MenuItemFormDialog submits bilingual payload with base_price  407ms
+ ✓ src/pages/Settings/SectionDelivery.test.tsx (6 tests) 192ms
+ ✓ src/pages/Orders/OrdersTable.test.tsx (3 tests) 180ms
+ ✓ src/pages/Settings/SettingsPage.test.tsx (3 tests) 1149ms
+   ✓ SettingsPage > mount: поля заполнены, Save disabled пока !isDirty  500ms
+   ✓ SettingsPage > happy save: success toast, isDirty сбрасывается (Save снова disabled)  372ms
+ ✓ src/pages/Menu/ModifiersPanel.test.tsx (2 tests) 425ms
+stderr | src/components/Layout.test.tsx > Layout role-filtered sidebar > admin sees all 6 nav items
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: [32m'NO_I18NEXT_INSTANCE'[39m }
+
+ ✓ src/components/Layout.test.tsx (4 tests) 154ms
+ ✓ src/pages/Dashboard/StatsCards.test.tsx (4 tests) 203ms
+ ✓ src/lib/auth.test.ts (7 tests) 46ms
+stderr | src/pages/Menu/CategoryList.test.tsx > CategoryList > CategoryList create form has name_ru, name_en, and type inputs
+An update to CategoryList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/Menu/CategoryList.test.tsx (2 tests) 349ms
+ ✓ src/pages/Menu/SizeOptionsEditor.test.tsx (2 tests) 374ms
+ ✓ src/lib/money.test.ts (5 tests) 47ms
+ ✓ src/pages/Menu/utils.test.ts (4 tests) 41ms
+ ✓ src/pages/Settings/SectionCoords.test.tsx (5 tests) 180ms
+ ✓ src/pages/Users/UserStatusBadge.test.tsx (5 tests) 88ms
+ ✓ src/pages/Settings/SectionTiming.test.tsx (5 tests) 112ms
+ ✓ src/i18n/locales/__tests__/courier.test.ts (2 tests) 15ms
+ ✓ src/pages/Settings/SectionLoyalty.test.tsx (4 tests) 81ms
+ ✓ src/i18n/locales/__tests__/parity.test.ts (1 test) 7ms
+ ✓ src/pages/Menu/MenuItemsTable.test.tsx (1 test) 274ms
+
+ Test Files  45 passed (45)
+      Tests  270 passed (270)
+   Start at  08:47:40
+   Duration  11.76s (transform 3.01s, setup 0ms, collect 37.15s, tests 16.70s, environment 42.83s, prepare 10.66s)
+
+
+===== customer-build =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-customer npm run build
+EXIT: 1 DURATION_SEC: 4 LOG: audit-results/customer-build.log
+--- tail customer-build ---
+
+> aura-coffee-customer@0.0.0 build
+> tsc -b && vite build
+
+src/App.test.tsx(5,1): error TS6133: 'AuthProvider' is declared but its value is never read.
+src/pages/VerifyPage.test.tsx(2,36): error TS6133: 'beforeEach' is declared but its value is never read.
+src/pages/VerifyPage.test.tsx(2,48): error TS6133: 'afterEach' is declared but its value is never read.
+
+===== admin-build =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-admin npm run build
+EXIT: 0 DURATION_SEC: 10 LOG: audit-results/admin-build.log
+--- tail admin-build ---
+
+> aura-coffee-admin@0.0.0 build
+> tsc -b && vite build
+
+vite v6.4.2 building for production...
+transforming...
+✓ 1806 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.42 kB │ gzip:   0.28 kB
+dist/assets/index-DedA8DLr.css   23.14 kB │ gzip:   5.07 kB
+dist/assets/index-Bkr-jQZU.js   523.50 kB │ gzip: 156.68 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.16s
+
+===== ruff-all =====
+COMMAND: docker compose -p aura_audit_111515 exec -T core-api ruff check .
+EXIT: 1 DURATION_SEC: 0 LOG: audit-results/ruff-all.log
+--- tail ruff-all ---
+ 8 | import importlib.util
+   |        ^^^^^^^^^^^^^^
+ 9 | import pathlib
+10 | from datetime import datetime, timezone
+   |
+help: Remove unused import: `importlib.util`
+
+F401 [*] `typing` imported but unused
+   --> services/core-api/tests/test_schemas_cart.py:224:12
+    |
+222 |     field = CartItemResponse.model_fields["line_id"]
+223 |     # Проверяем аннотацию типа
+224 |     import typing
+    |            ^^^^^^
+225 |     annotation = field.annotation
+226 |     assert annotation is str or annotation == str, (
+    |
+help: Remove unused import: `typing`
+
+E721 Use `is` and `is not` for type comparisons, or `isinstance()` for isinstance checks
+   --> services/core-api/tests/test_schemas_cart.py:226:33
+    |
+224 |     import typing
+225 |     annotation = field.annotation
+226 |     assert annotation is str or annotation == str, (
+    |                                 ^^^^^^^^^^^^^^^^^
+227 |         f"line_id должен быть str, получено: {annotation}"
+228 |     )
+    |
+
+F401 [*] `core_api.schemas.menu.SizeOptionResponse` imported but unused
+   --> services/core-api/tests/test_schemas_menu.py:147:57
+    |
+145 |     from types import SimpleNamespace
+146 |
+147 |     from core_api.schemas.menu import MenuItemResponse, SizeOptionResponse, ModifierResponse
+    |                                                         ^^^^^^^^^^^^^^^^^^
+148 |
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+    |
+help: Remove unused import
+
+F401 [*] `core_api.schemas.menu.ModifierResponse` imported but unused
+   --> services/core-api/tests/test_schemas_menu.py:147:77
+    |
+145 |     from types import SimpleNamespace
+146 |
+147 |     from core_api.schemas.menu import MenuItemResponse, SizeOptionResponse, ModifierResponse
+    |                                                                             ^^^^^^^^^^^^^^^^
+148 |
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+    |
+help: Remove unused import
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_user_service.py:9:8
+   |
+ 7 | from unittest.mock import MagicMock, patch
+ 8 |
+ 9 | import pytest
+   |        ^^^^^^
+10 |
+11 | from shared.enums import UserStatus
+   |
+help: Remove unused import: `pytest`
+
+F841 Local variable `promo` is assigned to but never used
+   --> services/core-api/tests/test_validators_promocode.py:184:5
+    |
+182 |     from core_api.services.validators import validate_promocode
+183 |
+184 |     promo = _make_promocode(
+    |     ^^^^^
+185 |         db_session,
+186 |         code="HAPPY10",
+    |
+help: Remove assignment to unused variable `promo`
+
+Found 73 errors.
+[*] 42 fixable with the `--fix` option (5 hidden fixes can be enabled with the `--unsafe-fixes` option).
+
+===== npm-audit-customer =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-customer npm audit --audit-level=moderate
+EXIT: 1 DURATION_SEC: 2 LOG: audit-results/npm-audit-customer.log
+--- tail npm-audit-customer ---
+# npm audit report
+
+postcss  <8.5.10
+Severity: moderate
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+fix available via `npm audit fix`
+node_modules/postcss
+
+1 moderate severity vulnerability
+
+To address all issues, run:
+  npm audit fix
+
+===== npm-audit-admin =====
+COMMAND: docker compose -p aura_audit_111515 exec -T web-admin npm audit --audit-level=moderate
+EXIT: 1 DURATION_SEC: 1 LOG: audit-results/npm-audit-admin.log
+--- tail npm-audit-admin ---
+# npm audit report
+
+postcss  <8.5.10
+Severity: moderate
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+fix available via `npm audit fix`
+node_modules/postcss
+
+1 moderate severity vulnerability
+
+To address all issues, run:
+  npm audit fix
+
+===== phase4-manual-seed =====
+COMMAND: docker compose -p aura_audit_111515 exec -T core-api python -m database.seeds.phase4_manual_test
+EXIT: 0 DURATION_SEC: 3 LOG: audit-results/phase4-manual-seed.log
+--- tail phase4-manual-seed ---
+phase4_manual_test seed applied
+
+===== manual-api-probes =====
+COMMAND: python3 audit-results/manual_probe.py
+EXIT: 1 DURATION_SEC: 1 LOG: audit-results/manual-api-probes.log
+--- tail manual-api-probes ---
+Traceback (most recent call last):
+  File "/tmp/aura-coffee-audit-20260430-111515/audit-results/manual_probe.py", line 36, in <module>
+    record("maps_suggest_no_key", *call("GET", "/api/v1/maps/suggest?query=Москва"))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/aura-coffee-audit-20260430-111515/audit-results/manual_probe.py", line 15, in call
+    with request.urlopen(req, timeout=10) as r:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 1344, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+  File "/usr/local/lib/python3.12/http/client.py", line 1331, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/usr/local/lib/python3.12/http/client.py", line 1342, in _send_request
+    self.putrequest(method, url, **skips)
+  File "/usr/local/lib/python3.12/http/client.py", line 1179, in putrequest
+    self._output(self._encode_request(request))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/http/client.py", line 1260, in _encode_request
+    return request.encode('ascii')
+           ^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 31-36: ordinal not in range(128)
+
+===== stack-logs-after =====
+COMMAND: docker compose -p aura_audit_111515 logs --tail 240 core-api payment-worker sms-worker payment-webhook
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/stack-logs-after.log
+--- tail stack-logs-after ---
+sms-worker-1       | Please see
+sms-worker-1       | https://docs.celeryq.dev/en/latest/internals/protocol.html
+sms-worker-1       | for more information.
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:33988 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-worker-1   | /usr/local/lib/python3.12/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is
+payment-worker-1   | absolutely not recommended!
+payment-worker-1   | 
+payment-worker-1   | Please specify a different user using the --uid option.
+payment-worker-1   | 
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message body was:
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "b709dbf6bdf64476a7e9a54734c72457"}}, "77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u21161101cced. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+payment-worker-1   | User information: uid=0 euid=0 gid=0 egid=0
+payment-worker-1   | 
+payment-worker-1   |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+payment-worker-1   |  
+payment-webhook-1  | INFO:     172.18.0.7:33996 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message headers:
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:34008 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | INFO:     172.18.0.7:34016 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:34030 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | INFO:     172.18.0.7:34046 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'parent_id': None, 'argsrepr': "(UUID('b709dbf6-bdf6-4476-a7e9-a54734c72457'), '77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9', 'Оплачен. Заказ №1101cced. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen17@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+payment-worker-1   |  -------------- celery@36d1df49d76f v5.6.3 (recovery)
+sms-worker-1       | 
+sms-worker-1       | The delivery info for this task is:
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+sms-worker-1       |     strategy = strategies[type_]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+payment-worker-1   | --- ***** ----- 
+payment-worker-1   | -- ******* ---- Linux-6.17.0-22-generic-x86_64-with-glibc2.41 2026-04-30 08:21:45
+payment-worker-1   | - *** --- * --- 
+payment-worker-1   | - ** ---------- [config]
+payment-worker-1   | - ** ---------- .> app:         payment_worker:0x7e303ddb2840
+payment-worker-1   | - ** ---------- .> transport:   redis://redis:6379/0
+payment-worker-1   | - ** ---------- .> results:     disabled://
+payment-worker-1   | - *** --- * --- .> concurrency: 12 (prefork)
+payment-worker-1   | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+payment-worker-1   | --- ***** ----- 
+payment-worker-1   |  -------------- [queues]
+payment-worker-1   |                 .> payments         exchange=payments(direct) key=payments
+payment-worker-1   |                 
+payment-worker-1   | 
+payment-worker-1   | [tasks]
+payment-worker-1   |   . payment_worker.tasks.create_payment
+payment-worker-1   |   . payment_worker.tasks.health_check
+payment-worker-1   |   . payment_worker.tasks.initiate_refund
+payment-worker-1   |   . yukassa_fake_callback
+payment-worker-1   | 
+payment-worker-1   | [2026-04-30 08:21:46,471: INFO/MainProcess] Connected to redis://redis:6379/0
+payment-worker-1   | [2026-04-30 08:21:46,472: INFO/MainProcess] mingle: searching for neighbors
+payment-worker-1   | [2026-04-30 08:21:47,479: INFO/MainProcess] mingle: all alone
+payment-worker-1   | [2026-04-30 08:21:47,497: INFO/MainProcess] celery@36d1df49d76f ready.
+payment-worker-1   | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+payment-worker-1   | [2026-04-30 08:47:25,045: INFO/MainProcess] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] received
+payment-worker-1   | [2026-04-30 08:47:25,048: INFO/MainProcess] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] received
+payment-worker-1   | [2026-04-30 08:47:25,052: INFO/MainProcess] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] received
+payment-worker-1   | [2026-04-30 08:47:25,055: INFO/MainProcess] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] received
+payment-worker-1   | [2026-04-30 08:47:25,187: INFO/MainProcess] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] received
+payment-worker-1   | [2026-04-30 08:47:25,224: INFO/MainProcess] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] received
+payment-worker-1   | [2026-04-30 08:47:26,570: INFO/ForkPoolWorker-8] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,571: INFO/ForkPoolWorker-8] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] succeeded in 0.523860668999987s: None
+payment-worker-1   | [2026-04-30 08:47:26,575: INFO/ForkPoolWorker-1] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,576: INFO/ForkPoolWorker-1] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] succeeded in 0.523886462997325s: None
+payment-worker-1   | [2026-04-30 08:47:26,578: INFO/ForkPoolWorker-7] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,579: INFO/ForkPoolWorker-7] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] succeeded in 0.5530858490019455s: None
+payment-worker-1   | [2026-04-30 08:47:26,581: INFO/ForkPoolWorker-9] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,582: INFO/ForkPoolWorker-9] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] succeeded in 0.5269215510015783s: None
+payment-worker-1   | [2026-04-30 08:47:26,584: INFO/ForkPoolWorker-2] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,585: INFO/ForkPoolWorker-2] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] succeeded in 0.39867397799753235s: None
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] succeeded in 0.36465499800033285s: None
+

@@ -1,0 +1,826 @@
+F821 Undefined name `User`
+  --> packages/shared/src/shared/models/loyalty_account.py:38:19
+   |
+36 |     )
+37 |
+38 |     user: Mapped["User"] = relationship(back_populates="loyalty_account")
+   |                   ^^^^
+   |
+
+F821 Undefined name `UserProfile`
+  --> packages/shared/src/shared/models/user.py:55:22
+   |
+53 |     )
+54 |
+55 |     profile: Mapped["UserProfile"] = relationship(back_populates="user")
+   |                      ^^^^^^^^^^^
+56 |     loyalty_account: Mapped["LoyaltyAccount | None"] = relationship(
+57 |         back_populates="user"
+   |
+
+F821 Undefined name `LoyaltyAccount`
+  --> packages/shared/src/shared/models/user.py:56:30
+   |
+55 |     profile: Mapped["UserProfile"] = relationship(back_populates="user")
+56 |     loyalty_account: Mapped["LoyaltyAccount | None"] = relationship(
+   |                              ^^^^^^^^^^^^^^
+57 |         back_populates="user"
+58 |     )
+   |
+
+F821 Undefined name `User`
+  --> packages/shared/src/shared/models/user_profile.py:39:19
+   |
+37 |     )
+38 |
+39 |     user: Mapped["User"] = relationship(back_populates="profile")
+   |                   ^^^^
+   |
+
+F401 [*] `pytest` imported but unused
+ --> packages/shared/tests/test_enums_menu.py:6:8
+  |
+4 | """
+5 |
+6 | import pytest
+  |        ^^^^^^
+  |
+help: Remove unused import: `pytest`
+
+F401 [*] `core_api.schemas.promocode.PromocodeState` imported but unused
+  --> services/core-api/src/core_api/routers/admin_promocodes.py:43:5
+   |
+41 |     PromocodeListResponse,
+42 |     PromocodeResponse,
+43 |     PromocodeState,
+   |     ^^^^^^^^^^^^^^
+44 |     PromocodeUpdate,
+45 | )
+   |
+help: Remove unused import: `core_api.schemas.promocode.PromocodeState`
+
+F841 Local variable `user_info` is assigned to but never used
+  --> services/core-api/src/core_api/routers/auth.py:92:5
+   |
+90 |         )
+91 |
+92 |     user_info = user_svc.get_or_create_user(phone, phone_hash)
+   |     ^^^^^^^^^
+93 |     otp_svc.increment_rate_limits(phone_hash)
+94 |     code = otp_svc.create_otp(phone_hash)
+   |
+help: Remove assignment to unused variable `user_info`
+
+F841 [*] Local variable `exc` is assigned to but never used
+   --> services/core-api/src/core_api/routers/orders.py:114:39
+    |
+112 |     except EmptyCartError as exc:
+113 |         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+114 |     except DeliveryAddressNotFound as exc:
+    |                                       ^^^
+115 |         # INV-013: чужой/неизвестный delivery_address_id → 404 (НЕ 403, иначе утечка ID).
+116 |         raise HTTPException(
+    |
+help: Remove assignment to unused variable `exc`
+
+F841 Local variable `resolved` is assigned to but never used
+   --> services/core-api/src/core_api/services/cart.py:288:9
+    |
+286 |     def add_item(self, item: CartItemCreate) -> CartResponse:
+287 |         """Добавляет позицию в корзину или увеличивает quantity при совпадении line_id."""
+288 |         resolved = self._validate_and_resolve(item)
+    |         ^^^^^^^^
+289 |
+290 |         new_line_id = CartItemResponse.compute_line_id(
+    |
+help: Remove assignment to unused variable `resolved`
+
+E402 Module level import not at top of file
+  --> services/core-api/src/core_api/services/checkout.py:71:1
+   |
+69 |   # Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
+70 |   celery_app = _celery_mod.celery_app
+71 | / from shared.enums import (
+72 | |     LoyaltyTransactionType,
+73 | |     OrderStatus,
+74 | |     OrderType,
+75 | |     PaymentStatus,
+76 | |     PromocodeDiscountType,
+77 | | )
+   | |_^
+78 |   from shared.models import (
+79 |       DeliveryAddress,
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/src/core_api/services/checkout.py:78:1
+   |
+76 |       PromocodeDiscountType,
+77 |   )
+78 | / from shared.models import (
+79 | |     DeliveryAddress,
+80 | |     LoyaltyAccount,
+81 | |     LoyaltyTransaction,
+82 | |     Order,
+83 | |     OrderItem,
+84 | |     Payment,
+85 | |     Promocode,
+86 | |     PromocodeUsage,
+87 | |     ShopSettings,
+88 | | )
+   | |_^
+89 |   from shared.models.menu import MenuItem, Modifier, SizeOption
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/src/core_api/services/checkout.py:89:1
+   |
+87 |     ShopSettings,
+88 | )
+89 | from shared.models.menu import MenuItem, Modifier, SizeOption
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+90 |
+91 | from shared.grace.logging import get_grace_logger
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/src/core_api/services/checkout.py:91:1
+   |
+89 | from shared.models.menu import MenuItem, Modifier, SizeOption
+90 |
+91 | from shared.grace.logging import get_grace_logger
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+92 |
+93 | _grace_log = get_grace_logger("CoreApi")
+   |
+
+F401 [*] `shared.models.menu.Category` imported but unused
+  --> services/core-api/tests/_factories/orders.py:21:32
+   |
+20 | from shared.enums import OrderStatus, OrderType, SizeLabel, UserStatus
+21 | from shared.models.menu import Category, MenuItem, Modifier, SizeOption
+   |                                ^^^^^^^^
+22 | from shared.models.order import Order
+23 | from shared.models.order_item import OrderItem
+   |
+help: Remove unused import
+
+F401 [*] `shared.models.menu.Modifier` imported but unused
+  --> services/core-api/tests/_factories/orders.py:21:52
+   |
+20 | from shared.enums import OrderStatus, OrderType, SizeLabel, UserStatus
+21 | from shared.models.menu import Category, MenuItem, Modifier, SizeOption
+   |                                                    ^^^^^^^^
+22 | from shared.models.order import Order
+23 | from shared.models.order_item import OrderItem
+   |
+help: Remove unused import
+
+F401 [*] `tests._factories.menu.make_modifier` imported but unused
+  --> services/core-api/tests/_factories/orders.py:26:66
+   |
+24 | from shared.models.user import User
+25 |
+26 | from tests._factories.menu import make_category, make_menu_item, make_modifier, make_size_option
+   |                                                                  ^^^^^^^^^^^^^
+   |
+help: Remove unused import
+
+F401 [*] `tests._factories.menu.make_size_option` imported but unused
+  --> services/core-api/tests/_factories/orders.py:26:81
+   |
+24 | from shared.models.user import User
+25 |
+26 | from tests._factories.menu import make_category, make_menu_item, make_modifier, make_size_option
+   |                                                                                 ^^^^^^^^^^^^^^^^
+   |
+help: Remove unused import
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:20:1
+   |
+18 | _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+19 |
+20 | import pathlib
+   | ^^^^^^^^^^^^^^
+21 | import uuid
+22 | from collections.abc import Generator
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:21:1
+   |
+20 | import pathlib
+21 | import uuid
+   | ^^^^^^^^^^^
+22 | from collections.abc import Generator
+23 | from dataclasses import dataclass
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:22:1
+   |
+20 | import pathlib
+21 | import uuid
+22 | from collections.abc import Generator
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+23 | from dataclasses import dataclass
+24 | from datetime import UTC, datetime, timedelta
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:23:1
+   |
+21 | import uuid
+22 | from collections.abc import Generator
+23 | from dataclasses import dataclass
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+24 | from datetime import UTC, datetime, timedelta
+25 | from typing import Any
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:24:1
+   |
+22 | from collections.abc import Generator
+23 | from dataclasses import dataclass
+24 | from datetime import UTC, datetime, timedelta
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+25 | from typing import Any
+26 | from unittest.mock import patch
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:25:1
+   |
+23 | from dataclasses import dataclass
+24 | from datetime import UTC, datetime, timedelta
+25 | from typing import Any
+   | ^^^^^^^^^^^^^^^^^^^^^^
+26 | from unittest.mock import patch
+27 | from urllib.parse import urlparse, urlunparse
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:26:1
+   |
+24 | from datetime import UTC, datetime, timedelta
+25 | from typing import Any
+26 | from unittest.mock import patch
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+27 | from urllib.parse import urlparse, urlunparse
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:27:1
+   |
+25 | from typing import Any
+26 | from unittest.mock import patch
+27 | from urllib.parse import urlparse, urlunparse
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+28 |
+29 | import fakeredis
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:29:1
+   |
+27 | from urllib.parse import urlparse, urlunparse
+28 |
+29 | import fakeredis
+   | ^^^^^^^^^^^^^^^^
+30 | import jwt as pyjwt
+31 | import pytest
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:30:1
+   |
+29 | import fakeredis
+30 | import jwt as pyjwt
+   | ^^^^^^^^^^^^^^^^^^^
+31 | import pytest
+32 | from fastapi.testclient import TestClient
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:31:1
+   |
+29 | import fakeredis
+30 | import jwt as pyjwt
+31 | import pytest
+   | ^^^^^^^^^^^^^
+32 | from fastapi.testclient import TestClient
+33 | from sqlalchemy import create_engine, text
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:32:1
+   |
+30 | import jwt as pyjwt
+31 | import pytest
+32 | from fastapi.testclient import TestClient
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 | from sqlalchemy import create_engine, text
+34 | from sqlalchemy.orm import Session
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:33:1
+   |
+31 | import pytest
+32 | from fastapi.testclient import TestClient
+33 | from sqlalchemy import create_engine, text
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+34 | from sqlalchemy.orm import Session
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:34:1
+   |
+32 | from fastapi.testclient import TestClient
+33 | from sqlalchemy import create_engine, text
+34 | from sqlalchemy.orm import Session
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+35 |
+36 | from core_api.main import app
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:36:1
+   |
+34 | from sqlalchemy.orm import Session
+35 |
+36 | from core_api.main import app
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+37 | from core_api.services.auth import AuthService
+38 | from core_api.services.otp import OTPService
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:37:1
+   |
+36 | from core_api.main import app
+37 | from core_api.services.auth import AuthService
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+38 | from core_api.services.otp import OTPService
+   |
+
+E402 Module level import not at top of file
+  --> services/core-api/tests/conftest.py:38:1
+   |
+36 | from core_api.main import app
+37 | from core_api.services.auth import AuthService
+38 | from core_api.services.otp import OTPService
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+39 |
+40 | # ─────────────────────────────────────────────
+   |
+
+F841 Local variable `buckets` is assigned to but never used
+  --> services/core-api/tests/test_admin_promocodes_list.py:55:5
+   |
+53 |     from tests._factories.promocodes import seed_promocodes_across_states
+54 |
+55 |     buckets = seed_promocodes_across_states(db_session)
+   |     ^^^^^^^
+56 |
+57 |     r = promo_client.get("/api/v1/admin/promocodes", headers=admin_headers)
+   |
+help: Remove assignment to unused variable `buckets`
+
+F401 [*] `uuid` imported but unused
+ --> services/core-api/tests/test_auth_endpoints.py:7:8
+  |
+5 | """
+6 |
+7 | import uuid
+  |        ^^^^
+8 | from unittest.mock import MagicMock, patch
+  |
+help: Remove unused import: `uuid`
+
+F401 [*] `uuid` imported but unused
+  --> services/core-api/tests/test_cart_service.py:9:8
+   |
+ 8 | import json
+ 9 | import uuid
+   |        ^^^^
+10 | from datetime import datetime, timezone
+   |
+help: Remove unused import: `uuid`
+
+F541 [*] f-string without any placeholders
+   --> services/core-api/tests/test_cart_service.py:107:20
+    |
+105 |         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+106 |     })
+107 |     cart_redis.set(f"cart:1", payload)
+    |                    ^^^^^^^^^
+108 |
+109 |     svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+    |
+help: Remove extraneous `f` prefix
+
+F401 [*] `core_api.schemas.cart.CartItemResponse` imported but unused
+   --> services/core-api/tests/test_cart_service.py:506:55
+    |
+504 | def test_update_item_changes_quantity(cart_redis, db_session) -> None:
+505 |     """update_item() заменяет quantity строки (не суммирует)."""
+506 |     from core_api.schemas.cart import CartItemCreate, CartItemResponse
+    |                                                       ^^^^^^^^^^^^^^^^
+507 |     from core_api.services.cart import CartService
+508 |     from tests._factories.menu import make_menu_item
+    |
+help: Remove unused import: `core_api.schemas.cart.CartItemResponse`
+
+F401 [*] `core_api.schemas.cart.CartItemResponse` imported but unused
+   --> services/core-api/tests/test_cart_service.py:525:55
+    |
+523 | def test_update_item_recomputes_line_id_when_modifiers_change(cart_redis, db_session) -> None:
+524 |     """Изменение модификаторов меняет line_id строки."""
+525 |     from core_api.schemas.cart import CartItemCreate, CartItemResponse
+    |                                                       ^^^^^^^^^^^^^^^^
+526 |     from core_api.services.cart import CartService
+527 |     from tests._factories.menu import make_menu_item, make_modifier
+    |
+help: Remove unused import: `core_api.schemas.cart.CartItemResponse`
+
+F401 [*] `unittest.mock.call` imported but unused
+  --> services/core-api/tests/test_checkout_service.py:18:38
+   |
+16 | from datetime import datetime, timezone
+17 | from typing import Any
+18 | from unittest.mock import MagicMock, call, patch
+   |                                      ^^^^
+19 |
+20 | import fakeredis
+   |
+help: Remove unused import: `unittest.mock.call`
+
+F841 Local variable `promo_id` is assigned to but never used
+    --> services/core-api/tests/test_checkout_service.py:1175:5
+     |
+1173 |     db_session.add(promo)
+1174 |     db_session.flush()
+1175 |     promo_id = promo.id
+     |     ^^^^^^^^
+1176 |
+1177 |     item = make_menu_item(db_session, base_price=20000)
+     |
+help: Remove assignment to unused variable `promo_id`
+
+F401 [*] `itertools` imported but unused
+  --> services/core-api/tests/test_delivery_assignment_state_machine.py:11:8
+   |
+ 9 | from __future__ import annotations
+10 |
+11 | import itertools
+   |        ^^^^^^^^^
+12 | import uuid
+13 | from unittest.mock import MagicMock
+   |
+help: Remove unused import: `itertools`
+
+F401 [*] `os` imported but unused
+ --> services/core-api/tests/test_jwt.py:1:8
+  |
+1 | import os
+  |        ^^
+2 | import time
+3 | import uuid
+  |
+help: Remove unused import: `os`
+
+F401 [*] `time` imported but unused
+ --> services/core-api/tests/test_jwt.py:2:8
+  |
+1 | import os
+2 | import time
+  |        ^^^^
+3 | import uuid
+4 | from unittest.mock import patch
+  |
+help: Remove unused import: `time`
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_main_includes_menu_routers.py:9:8
+   |
+ 7 | import pathlib
+ 8 |
+ 9 | import pytest
+   |        ^^^^^^
+10 | from fastapi.testclient import TestClient
+   |
+help: Remove unused import: `pytest`
+
+F401 [*] `re` imported but unused
+ --> services/core-api/tests/test_menu_admin.py:4:8
+  |
+3 | import inspect
+4 | import re
+  |        ^^
+5 | from pathlib import Path
+  |
+help: Remove unused import: `re`
+
+F401 [*] `os` imported but unused
+  --> services/core-api/tests/test_migration_bootstrap.py:9:8
+   |
+ 7 | from __future__ import annotations
+ 8 |
+ 9 | import os
+   |        ^^
+10 | import pathlib
+   |
+help: Remove unused import: `os`
+
+F401 [*] `sqlalchemy` imported but unused
+ --> services/core-api/tests/test_models_menu.py:8:22
+  |
+7 | import pytest
+8 | import sqlalchemy as sa
+  |                      ^^
+9 | from sqlalchemy import inspect as sa_inspect
+  |
+help: Remove unused import: `sqlalchemy`
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_models_order.py:18:8
+   |
+16 | import enum
+17 |
+18 | import pytest
+   |        ^^^^^^
+19 | import sqlalchemy as sa
+20 | from sqlalchemy import inspect as sa_inspect
+   |
+help: Remove unused import: `pytest`
+
+F401 [*] `os` imported but unused
+  --> services/core-api/tests/test_notification_service.py:39:12
+   |
+37 | def _make_user(db: "Session", *, preferred_language: str = "ru") -> tuple[object, object]:
+38 |     """Создаёт User + UserProfile c зашифрованным телефоном. Возвращает (user, profile)."""
+39 |     import os
+   |            ^^
+40 |
+41 |     from core_api.settings import settings
+   |
+help: Remove unused import: `os`
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_order_history_service.py:12:8
+   |
+10 | from datetime import UTC, datetime, timedelta
+11 |
+12 | import pytest
+   |        ^^^^^^
+13 |
+14 | from tests._factories.orders import (
+   |
+help: Remove unused import: `pytest`
+
+F401 [*] `tests._factories.orders.HistoryItemSpec` imported but unused
+  --> services/core-api/tests/test_order_history_service.py:15:5
+   |
+14 | from tests._factories.orders import (
+15 |     HistoryItemSpec,
+   |     ^^^^^^^^^^^^^^^
+16 |     make_user,
+17 |     seed_history_order,
+   |
+help: Remove unused import
+
+F401 [*] `tests._factories.orders.seed_history_order` imported but unused
+  --> services/core-api/tests/test_order_history_service.py:17:5
+   |
+15 |     HistoryItemSpec,
+16 |     make_user,
+17 |     seed_history_order,
+   |     ^^^^^^^^^^^^^^^^^^
+18 |     seed_n_orders_for_user,
+19 | )
+   |
+help: Remove unused import
+
+F401 [*] `shared.models.Order` imported but unused
+   --> services/core-api/tests/test_order_lifecycle.py:338:67
+    |
+336 |     from core_api.services.order_lifecycle import transition_order
+337 |     from shared.enums import LoyaltyTransactionType, OrderStatus
+338 |     from shared.models import LoyaltyAccount, LoyaltyTransaction, Order
+    |                                                                   ^^^^^
+339 |
+340 |     _seed_shop_settings(db, loyalty_percent=5)
+    |
+help: Remove unused import: `shared.models.Order`
+
+F401 [*] `json` imported but unused
+  --> services/core-api/tests/test_order_repeat_service.py:9:8
+   |
+ 7 | from __future__ import annotations
+ 8 |
+ 9 | import json
+   |        ^^^^
+10 | from typing import Any
+   |
+help: Remove unused import: `json`
+
+F401 [*] `shared.models.menu.Modifier` imported but unused
+  --> services/core-api/tests/test_order_repeat_service.py:17:32
+   |
+16 | from shared.enums import SizeLabel
+17 | from shared.models.menu import Modifier, SizeOption
+   |                                ^^^^^^^^
+18 | from tests._factories.menu import (
+19 |     make_category,
+   |
+help: Remove unused import
+
+F401 [*] `shared.models.menu.SizeOption` imported but unused
+  --> services/core-api/tests/test_order_repeat_service.py:17:42
+   |
+16 | from shared.enums import SizeLabel
+17 | from shared.models.menu import Modifier, SizeOption
+   |                                          ^^^^^^^^^^
+18 | from tests._factories.menu import (
+19 |     make_category,
+   |
+help: Remove unused import
+
+F401 [*] `pytest` imported but unused
+ --> services/core-api/tests/test_otp_service.py:4:8
+  |
+3 | import fakeredis
+4 | import pytest
+  |        ^^^^^^
+5 |
+6 | from core_api.services.otp import OTPService, VerifyResult
+  |
+help: Remove unused import: `pytest`
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_pickup_autoclose_task.py:16:8
+   |
+14 | from unittest.mock import MagicMock
+15 |
+16 | import pytest
+   |        ^^^^^^
+17 | from sqlalchemy.orm import Session
+   |
+help: Remove unused import: `pytest`
+
+F401 [*] `fakeredis` imported but unused
+  --> services/core-api/tests/test_route_cart.py:11:8
+   |
+ 9 | from unittest.mock import patch
+10 |
+11 | import fakeredis
+   |        ^^^^^^^^^
+12 | import pytest
+13 | from fastapi.testclient import TestClient
+   |
+help: Remove unused import: `fakeredis`
+
+F401 [*] `shared.enums.SizeLabel` imported but unused
+  --> services/core-api/tests/test_route_order_history.py:19:26
+   |
+18 | from core_api.main import app
+19 | from shared.enums import SizeLabel
+   |                          ^^^^^^^^^
+20 | from tests._factories.menu import (
+21 |     make_category,
+   |
+help: Remove unused import: `shared.enums.SizeLabel`
+
+F401 [*] `tests._factories.menu.make_modifier` imported but unused
+  --> services/core-api/tests/test_route_order_history.py:23:5
+   |
+21 |     make_category,
+22 |     make_menu_item,
+23 |     make_modifier,
+   |     ^^^^^^^^^^^^^
+24 |     make_size_option,
+25 | )
+   |
+help: Remove unused import
+
+F401 [*] `tests._factories.menu.make_size_option` imported but unused
+  --> services/core-api/tests/test_route_order_history.py:24:5
+   |
+22 |     make_menu_item,
+23 |     make_modifier,
+24 |     make_size_option,
+   |     ^^^^^^^^^^^^^^^^
+25 | )
+26 | from tests._factories.orders import (
+   |
+help: Remove unused import
+
+F401 [*] `tests._helpers.jwt.make_jwt_for_user` imported but unused
+  --> services/core-api/tests/test_route_order_history.py:32:55
+   |
+30 |     seed_n_orders_for_user,
+31 | )
+32 | from tests._helpers.jwt import auth_headers_for_user, make_jwt_for_user
+   |                                                       ^^^^^^^^^^^^^^^^^
+   |
+help: Remove unused import: `tests._helpers.jwt.make_jwt_for_user`
+
+F401 [*] `unittest.mock.MagicMock` imported but unused
+  --> services/core-api/tests/test_route_orders.py:16:27
+   |
+14 | import uuid
+15 | from datetime import datetime, timezone
+16 | from unittest.mock import MagicMock, patch
+   |                           ^^^^^^^^^
+17 |
+18 | import fakeredis
+   |
+help: Remove unused import: `unittest.mock.MagicMock`
+
+F401 [*] `importlib.util` imported but unused
+  --> services/core-api/tests/test_schemas_cart.py:8:8
+   |
+ 7 | import ast
+ 8 | import importlib.util
+   |        ^^^^^^^^^^^^^^
+ 9 | import pathlib
+10 | from datetime import datetime, timezone
+   |
+help: Remove unused import: `importlib.util`
+
+F401 [*] `typing` imported but unused
+   --> services/core-api/tests/test_schemas_cart.py:224:12
+    |
+222 |     field = CartItemResponse.model_fields["line_id"]
+223 |     # Проверяем аннотацию типа
+224 |     import typing
+    |            ^^^^^^
+225 |     annotation = field.annotation
+226 |     assert annotation is str or annotation == str, (
+    |
+help: Remove unused import: `typing`
+
+E721 Use `is` and `is not` for type comparisons, or `isinstance()` for isinstance checks
+   --> services/core-api/tests/test_schemas_cart.py:226:33
+    |
+224 |     import typing
+225 |     annotation = field.annotation
+226 |     assert annotation is str or annotation == str, (
+    |                                 ^^^^^^^^^^^^^^^^^
+227 |         f"line_id должен быть str, получено: {annotation}"
+228 |     )
+    |
+
+F401 [*] `core_api.schemas.menu.SizeOptionResponse` imported but unused
+   --> services/core-api/tests/test_schemas_menu.py:147:57
+    |
+145 |     from types import SimpleNamespace
+146 |
+147 |     from core_api.schemas.menu import MenuItemResponse, SizeOptionResponse, ModifierResponse
+    |                                                         ^^^^^^^^^^^^^^^^^^
+148 |
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+    |
+help: Remove unused import
+
+F401 [*] `core_api.schemas.menu.ModifierResponse` imported but unused
+   --> services/core-api/tests/test_schemas_menu.py:147:77
+    |
+145 |     from types import SimpleNamespace
+146 |
+147 |     from core_api.schemas.menu import MenuItemResponse, SizeOptionResponse, ModifierResponse
+    |                                                                             ^^^^^^^^^^^^^^^^
+148 |
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+    |
+help: Remove unused import
+
+F401 [*] `pytest` imported but unused
+  --> services/core-api/tests/test_user_service.py:9:8
+   |
+ 7 | from unittest.mock import MagicMock, patch
+ 8 |
+ 9 | import pytest
+   |        ^^^^^^
+10 |
+11 | from shared.enums import UserStatus
+   |
+help: Remove unused import: `pytest`
+
+F841 Local variable `promo` is assigned to but never used
+   --> services/core-api/tests/test_validators_promocode.py:184:5
+    |
+182 |     from core_api.services.validators import validate_promocode
+183 |
+184 |     promo = _make_promocode(
+    |     ^^^^^
+185 |         db_session,
+186 |         code="HAPPY10",
+    |
+help: Remove assignment to unused variable `promo`
+
+Found 73 errors.
+[*] 42 fixable with the `--fix` option (5 hidden fixes can be enabled with the `--unsafe-fixes` option).

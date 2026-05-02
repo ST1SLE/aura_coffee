@@ -1,0 +1,7 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_single_order_detail_is_not_duplicated __________________
+[XPASS(strict)] GET /api/v1/orders/{order_id} принадлежит фиче order-checkout; в этом worktree маршрут не регистрируется. XFAIL снимается при мерже.
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+1 failed in 0.05s

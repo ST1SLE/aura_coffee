@@ -1,0 +1,55 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x7e5e7748b980>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x7e5e7771c620>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZGZjMDAxMi03ZWQyLTRmOWQtODViYi1hYWQ3OTk4YjQ2ZTMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1NDAxNzIsImV4cCI6MTc3NzU0MTA3Mn0.Y8SufO61ziu5lw9kgRgBvWuBY7E5rSwesaAjLomKYo0'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 1)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7e5e7771c620>.get
+E        +    and   1 = <Category id=1 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+1 failed, 2 warnings in 1.21s

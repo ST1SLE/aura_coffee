@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/sms-worker
+configfile: pyproject.toml
+plugins: anyio-4.13.0
+collecting ... collected 19 items
+
+services/sms-worker/tests/test_log_transport.py::test_send_via_log_logs_message_and_returns_true PASSED [  5%]
+services/sms-worker/tests/test_log_transport.py::test_send_via_log_never_calls_httpx PASSED [ 10%]
+services/sms-worker/tests/test_notification_task.py::test_task_is_registered_under_expected_name PASSED [ 15%]
+services/sms-worker/tests/test_notification_task.py::test_task_retry_configuration_matches_pdd_7_8 PASSED [ 21%]
+services/sms-worker/tests/test_notification_task.py::test_success_updates_notification_to_sent PASSED [ 26%]
+services/sms-worker/tests/test_notification_task.py::test_decrypted_phone_is_passed_to_transport PASSED [ 31%]
+services/sms-worker/tests/test_notification_task.py::test_intermediate_failure_raises_for_retry PASSED [ 36%]
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_marks_failed_and_does_not_raise PASSED [ 42%]
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_logs_error_with_notification_id PASSED [ 47%]
+services/sms-worker/tests/test_notification_task.py::test_plaintext_phone_not_in_logs PASSED [ 52%]
+services/sms-worker/tests/test_notification_task.py::test_missing_notification_row_logs_and_returns PASSED [ 57%]
+services/sms-worker/tests/test_otp_task.py::TestSendOtpSms::test_success PASSED [ 63%]
+services/sms-worker/tests/test_otp_task.py::TestSendOtpSms::test_failure_after_retries PASSED [ 68%]
+services/sms-worker/tests/test_otp_task_log_backend.py::test_send_otp_sms_transitions_created_to_sent_via_log PASSED [ 73%]
+services/sms-worker/tests/test_otp_task_log_backend.py::test_send_otp_sms_log_backend_does_not_retry PASSED [ 78%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_rejects_placeholder_key PASSED [ 84%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_requires_nonempty_key PASSED [ 89%]
+services/sms-worker/tests/test_settings.py::test_log_backend_accepts_empty_key PASSED [ 94%]
+services/sms-worker/tests/test_settings.py::test_smsru_backend_accepts_real_key PASSED [100%]
+
+============================== 19 passed in 2.72s ==============================

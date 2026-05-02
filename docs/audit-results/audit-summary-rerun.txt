@@ -1,0 +1,263 @@
+===== create-test-db =====
+COMMAND: exists=$(docker compose -p aura_audit_111515 exec -T postgres psql -U aura -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='aura_coffee_test'"); if [ "$exists" != "1" ]; then docker compose -p aura_audit_111515 exec -T postgres psql -U aura -d postgres -c "CREATE DATABASE aura_coffee_test"; else echo aura_coffee_test_exists; fi
+EXIT: 0 DURATION_SEC: 1 LOG: audit-results/create-test-db.log
+/home/p3tal/.profile: line 32: /home/p3tal/snap/code/223/.local/share/../bin/env: No such file or directory
+aura_coffee_test_exists
+
+===== core-api-pytest-rerun =====
+COMMAND: docker compose -p aura_audit_111515 exec -T core-api pytest services/core-api/tests -v
+EXIT: 1 DURATION_SEC: 73 LOG: audit-results/core-api-pytest-rerun.log
+  /app/services/core-api/src/core_api/routers/menu_admin.py:262: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return MenuItemResponse.model_validate(svc.set_item_modifiers(item_id, body.modifier_ids))
+
+tests/test_models_menu.py::test_category_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:26: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "categories"
+
+tests/test_models_menu.py::test_menu_item_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:45: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "menu_items"
+
+tests/test_models_menu.py::test_size_option_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:66: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "size_options"
+
+tests/test_models_menu.py::test_modifier_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:88: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "modifiers"
+
+tests/test_models_order.py::test_shop_settings_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:146: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "shop_settings"
+
+tests/test_models_order.py::test_order_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:174: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "orders"
+
+tests/test_models_order.py::test_order_item_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:229: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "order_items"
+
+tests/test_models_order.py::test_payment_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:294: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "payments"
+
+tests/test_models_order.py::test_payment_order_fk_is_unique
+  /app/services/core-api/tests/test_models_order.py:315: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    table = mapper.mapper.mapped_table
+
+tests/test_models_order.py::test_refund_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:340: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "refunds"
+
+tests/test_models_order.py::test_loyalty_transaction_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:364: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "loyalty_transactions"
+
+tests/test_models_order.py::test_promocode_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:385: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "promocodes"
+
+tests/test_models_order.py::test_promocode_usage_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:408: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "promocode_usages"
+
+tests/test_models_order.py::test_notification_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:421: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "notifications"
+
+tests/test_profile_endpoints.py::TestGetProfile::test_success
+tests/test_profile_endpoints.py::TestGetProfile::test_wrong_role
+tests/test_profile_endpoints.py::TestGetProfile::test_profile_not_found
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_name
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_language
+tests/test_profile_endpoints.py::TestUpdateProfile::test_empty_body_noop
+tests/test_profile_endpoints.py::TestUpdateProfile::test_name_too_long
+tests/test_profile_endpoints.py::TestUpdateProfile::test_invalid_language
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 29 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_profile_endpoints.py::TestGetProfile::test_success
+tests/test_profile_endpoints.py::TestGetProfile::test_wrong_role
+tests/test_profile_endpoints.py::TestGetProfile::test_profile_not_found
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_name
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_language
+tests/test_profile_endpoints.py::TestUpdateProfile::test_empty_body_noop
+tests/test_profile_endpoints.py::TestUpdateProfile::test_name_too_long
+tests/test_profile_endpoints.py::TestUpdateProfile::test_invalid_language
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 29 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_rbac_middleware.py::TestValidRoleAccess::test_customer_accesses_profile
+tests/test_rbac_middleware.py::TestInvalidRole::test_admin_denied_from_customer_endpoint
+tests/test_rbac_middleware.py::TestExpiredToken::test_expired_jwt_returns_401
+tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_denied_with_valid_token
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 20 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_rbac_middleware.py::TestValidRoleAccess::test_customer_accesses_profile
+tests/test_rbac_middleware.py::TestInvalidRole::test_admin_denied_from_customer_endpoint
+tests/test_rbac_middleware.py::TestExpiredToken::test_expired_jwt_returns_401
+tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_denied_with_valid_token
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 20 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+===== 22 failed, 1072 passed, 1 skipped, 592 warnings in 65.30s (0:01:05) ======
+
+===== manual-api-probes-fixed =====
+COMMAND: python3 audit-results/manual_probe_fixed.py
+EXIT: 1 DURATION_SEC: 0 LOG: audit-results/manual-api-probes-fixed.log
+Traceback (most recent call last):
+  File "/tmp/aura-coffee-audit-20260430-111515/audit-results/manual_probe_fixed.py", line 29, in <module>
+    "description": null,
+                   ^^^^
+NameError: name 'null' is not defined
+
+===== stack-logs-after-rerun =====
+COMMAND: docker compose -p aura_audit_111515 logs --tail 240 core-api payment-worker sms-worker payment-webhook
+EXIT: 0 DURATION_SEC: 0 LOG: audit-results/stack-logs-after-rerun.log
+sms-worker-1       | --- ***** ----- 
+sms-worker-1       |  -------------- [queues]
+sms-worker-1       |                 .> sms              exchange=sms(direct) key=sms
+payment-worker-1   | [tasks]
+sms-worker-1       |                 
+payment-worker-1   |   . payment_worker.tasks.create_payment
+sms-worker-1       | 
+payment-worker-1   |   . payment_worker.tasks.health_check
+sms-worker-1       | [tasks]
+sms-worker-1       |   . sms_worker.tasks.health_check
+payment-worker-1   |   . payment_worker.tasks.initiate_refund
+sms-worker-1       |   . sms_worker.tasks.otp.send_otp_sms
+payment-worker-1   |   . yukassa_fake_callback
+sms-worker-1       | 
+payment-worker-1   | 
+sms-worker-1       | [2026-04-30 08:21:45,664: INFO/MainProcess] Connected to redis://redis:6379/0
+core-api-1         | INFO:     172.18.0.1:32936 - "GET /health HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36996 - "GET /health HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:37002 - "GET /api/v1/menu HTTP/1.1" 200 OK
+sms-worker-1       | [2026-04-30 08:21:45,668: INFO/MainProcess] mingle: searching for neighbors
+sms-worker-1       | [2026-04-30 08:21:46,676: INFO/MainProcess] mingle: all alone
+sms-worker-1       | [2026-04-30 08:21:46,684: INFO/MainProcess] celery@1af89f50e90f ready.
+sms-worker-1       | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+sms-worker-1       | [2026-04-30 08:46:54,981: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+sms-worker-1       | The message has been ignored and discarded.
+sms-worker-1       | 
+core-api-1         | INFO:     172.18.0.1:36076 - "GET /health HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36082 - "GET /api/v1/menu HTTP/1.1" 200 OK
+sms-worker-1       | Did you remember to import the module containing this task?
+core-api-1         | INFO:     172.18.0.1:36094 - "GET /api/v1/maps/suggest?query=Moscow HTTP/1.1" 401 Unauthorized
+core-api-1         | /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+core-api-1         |   return self._jws.encode(
+core-api-1         | INFO:     172.18.0.1:36098 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36112 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36120 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+payment-worker-1   | [2026-04-30 08:21:46,471: INFO/MainProcess] Connected to redis://redis:6379/0
+core-api-1         | INFO:     172.18.0.1:36136 - "GET /api/v1/admin/orders HTTP/1.1" 401 Unauthorized
+payment-worker-1   | [2026-04-30 08:21:46,472: INFO/MainProcess] mingle: searching for neighbors
+core-api-1         | /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+payment-worker-1   | [2026-04-30 08:21:47,479: INFO/MainProcess] mingle: all alone
+core-api-1         |   decoded = self.decode_complete(
+payment-worker-1   | [2026-04-30 08:21:47,497: INFO/MainProcess] celery@36d1df49d76f ready.
+core-api-1         | INFO:     172.18.0.1:36150 - "GET /api/v1/admin/orders HTTP/1.1" 403 Forbidden
+sms-worker-1       | Or maybe you're using relative imports?
+core-api-1         | INFO:     172.18.0.1:36164 - "GET /api/v1/admin/orders HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36176 - "POST /api/v1/auth/send-code HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36192 - "POST /api/v1/auth/verify-code HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36196 - "GET /api/v1/profile HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36212 - "GET /api/v1/cart HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:36218 - "POST /api/v1/cart/items HTTP/1.1" 401 Unauthorized
+core-api-1         | INFO:     172.18.0.1:36226 - "POST /api/v1/cart/items HTTP/1.1" 404 Not Found
+core-api-1         | INFO:     172.18.0.1:36240 - "GET /api/v1/orders HTTP/1.1" 200 OK
+payment-worker-1   | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+payment-worker-1   | [2026-04-30 08:47:25,045: INFO/MainProcess] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] received
+payment-worker-1   | [2026-04-30 08:47:25,048: INFO/MainProcess] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] received
+payment-worker-1   | [2026-04-30 08:47:25,052: INFO/MainProcess] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] received
+payment-worker-1   | [2026-04-30 08:47:25,055: INFO/MainProcess] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] received
+payment-worker-1   | [2026-04-30 08:47:25,187: INFO/MainProcess] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] received
+payment-worker-1   | [2026-04-30 08:47:25,224: INFO/MainProcess] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] received
+payment-worker-1   | [2026-04-30 08:47:26,570: INFO/ForkPoolWorker-8] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,571: INFO/ForkPoolWorker-8] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] succeeded in 0.523860668999987s: None
+payment-worker-1   | [2026-04-30 08:47:26,575: INFO/ForkPoolWorker-1] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+sms-worker-1       | 
+payment-worker-1   | [2026-04-30 08:47:26,576: INFO/ForkPoolWorker-1] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] succeeded in 0.523886462997325s: None
+sms-worker-1       | Please see
+core-api-1         | INFO:     172.18.0.1:36248 - "GET /api/v1/barista/orders HTTP/1.1" 403 Forbidden
+sms-worker-1       | https://docs.celeryq.dev/en/latest/internals/protocol.html
+sms-worker-1       | for more information.
+payment-worker-1   | [2026-04-30 08:47:26,578: INFO/ForkPoolWorker-7] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,579: INFO/ForkPoolWorker-7] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] succeeded in 0.5530858490019455s: None
+sms-worker-1       | 
+payment-worker-1   | [2026-04-30 08:47:26,581: INFO/ForkPoolWorker-9] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,582: INFO/ForkPoolWorker-9] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] succeeded in 0.5269215510015783s: None
+core-api-1         | INFO:     172.18.0.1:36252 - "GET /api/v1/courier/orders HTTP/1.1" 403 Forbidden
+payment-worker-1   | [2026-04-30 08:47:26,584: INFO/ForkPoolWorker-2] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+core-api-1         | INFO:     172.18.0.1:36264 - "GET /api/v1/courier/orders HTTP/1.1" 403 Forbidden
+payment-worker-1   | [2026-04-30 08:47:26,585: INFO/ForkPoolWorker-2] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] succeeded in 0.39867397799753235s: None
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] succeeded in 0.36465499800033285s: None
+sms-worker-1       | The full contents of the message body was:
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "b709dbf6bdf64476a7e9a54734c72457"}}, "77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u21161101cced. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message headers:
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'parent_id': None, 'argsrepr': "(UUID('b709dbf6-bdf6-4476-a7e9-a54734c72457'), '77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9', 'Оплачен. Заказ №1101cced. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen17@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+sms-worker-1       | 
+sms-worker-1       | The delivery info for this task is:
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+sms-worker-1       |     strategy = strategies[type_]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+sms-worker-1       | [2026-04-30 08:51:21,532: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+sms-worker-1       | The message has been ignored and discarded.
+sms-worker-1       | 
+sms-worker-1       | Did you remember to import the module containing this task?
+sms-worker-1       | Or maybe you're using relative imports?
+sms-worker-1       | 
+sms-worker-1       | Please see
+sms-worker-1       | https://docs.celeryq.dev/en/latest/internals/protocol.html
+sms-worker-1       | for more information.
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message body was:
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "7c073bd243e64adab92e88bed8247543"}}, "98fcea6dacca252bb54f8e6c41d8acdbb36b3917fd649e0b4fb3aa32f64eefc663c08b5ec9ce9bcc", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u21169e94dcf8. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message headers:
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': 'd46ac4b1-ee1d-4ed6-8424-56cfa12d1aed', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': 'd46ac4b1-ee1d-4ed6-8424-56cfa12d1aed', 'parent_id': None, 'argsrepr': "(UUID('7c073bd2-43e6-4ada-b92e-88bed8247543'), '98fcea6dacca252bb54f8e6c41d8acdbb36b3917fd649e0b4fb3aa32f64eefc663c08b5ec9ce9bcc', 'Оплачен. Заказ №9e94dcf8. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen455@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+sms-worker-1       | 
+sms-worker-1       | The delivery info for this task is:
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+sms-worker-1       |     strategy = strategies[type_]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+sms-worker-1       | [2026-04-30 08:51:48,229: INFO/MainProcess] Task sms_worker.tasks.otp.send_otp_sms[8b929d35-9c0f-4d45-ad46-85cb61d15eed] received
+sms-worker-1       | [2026-04-30 08:51:48,235: INFO/ForkPoolWorker-8] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+sms-worker-1       | [2026-04-30 08:51:48,235: INFO/ForkPoolWorker-8] [SMS:log] to=+79991234567 msg=Код подтверждения: 290322. Aura Coffee
+sms-worker-1       | [2026-04-30 08:51:48,245: INFO/ForkPoolWorker-8] OTP SMS sent for aaa3a8d5
+sms-worker-1       | [2026-04-30 08:51:48,246: INFO/ForkPoolWorker-8] Task sms_worker.tasks.otp.send_otp_sms[8b929d35-9c0f-4d45-ad46-85cb61d15eed] succeeded in 0.01543587999913143s: None
+

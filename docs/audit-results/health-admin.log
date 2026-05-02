@@ -1,0 +1,7 @@
+HTTP/1.1 302 Found
+Vary: Origin
+Location: /admin/
+Date: Thu, 30 Apr 2026 08:44:55 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

@@ -1,0 +1,20 @@
+health: 200 
+public_menu: 200 categories=7
+maps_suggest_no_key_unauth: 401 detail='Not authenticated'
+staff_login_admin: 200 auth={'role': 'admin', 'has_token': True}
+staff_login_barista: 200 auth={'role': 'barista', 'has_token': True}
+staff_login_courier: 200 auth={'role': 'courier', 'has_token': True}
+admin_orders_unauth: 401 detail='Not authenticated'
+admin_orders_as_courier: 403 detail='Insufficient permissions'
+admin_orders_as_admin: 200 orders=20
+otp_send: 200 
+otp_redis_payload: 200 
+otp_verify: 200 auth={'role': None, 'has_token': True, 'error': None}
+profile_me: 200 
+cart_get: 200 items=0
+cart_add_invalid_unauth: 401 detail='Not authenticated'
+cart_add_invalid_auth: 404 detail='not_found'
+orders_history: 200 orders=0
+barista_orders_as_barista: 403 detail='Insufficient permissions'
+courier_orders_as_courier: 403 detail='Insufficient permissions'
+courier_orders_as_customer: 403 detail='Insufficient permissions'

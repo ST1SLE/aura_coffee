@@ -1,0 +1,1730 @@
+## Core API pytest summary
+66585:FAILED services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_two_couriers_race_one_wins
+66586:FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+66587:FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+66588:FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+66589:FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+66590:FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+66591:FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+66592:FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+66593:FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+66594:FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+66595:FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+66596:FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+66597:FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+66598:FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+66599:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+66600:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+66601:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+66602:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+66603:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+66604:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+66605:FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+66606:FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+66607:FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+66608:ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order
+66609:ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id
+66610:ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization
+66611:ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer
+66612:ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order
+66613:ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order
+66614:ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id
+66615:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized
+66616:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact
+66617:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status
+66618:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc
+66619:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc
+66620:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total
+66621:ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users
+66622:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization
+66623:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer
+66624:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier
+66625:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100
+66626:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter
+66627:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter
+66628:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin
+66629:ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders
+66630:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code
+66631:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409
+66632:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern
+66633:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected
+66634:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected
+66635:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected
+66636:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected
+66637:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista
+66638:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token
+66639:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field
+66640:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404
+66641:ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer
+66642:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable
+66643:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code]
+66644:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload1-discount_type]
+66645:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload2-discount_value]
+66646:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_accepts_valid_until
+66647:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_accepts_is_active
+66648:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_merged_dates_must_be_ordered
+66649:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_failed_lock_leaves_row_unchanged
+66650:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_rejects_barista
+66651:ERROR services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unknown_id_returns_404
+66652:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_requires_valid_until
+66653:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_expired_rejected
+66654:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_exhausted_rejected
+66655:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_happy_sets_is_active_true
+66656:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_rejects_barista
+66657:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_unknown_id_returns_404
+66658:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_expired_rejected
+66659:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_happy_sets_is_active_false
+66660:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_unknown_id_returns_404
+66661:ERROR services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_rejects_customer
+66662:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_default_state_all_returns_every_bucket
+66663:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[active]
+66664:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[expired]
+66665:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[exhausted]
+66666:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[inactive]
+66667:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_code_prefix_case_insensitive
+66668:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_per_page_over_100_rejected
+66669:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_sort_created_at_desc
+66670:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_total_count_after_filter
+66671:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_pagination_slice
+66672:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_rejects_barista
+66673:ERROR services/core-api/tests/test_admin_promocodes_list.py::test_list_requires_token
+66674:ERROR services/core-api/tests/test_admin_shop_settings_get.py::test_admin_get_returns_default_snapshot
+66675:ERROR services/core-api/tests/test_admin_shop_settings_put.py::test_admin_put_updates_all_fields
+66676:ERROR services/core-api/tests/test_admin_shop_settings_put.py::test_singleton_check_rejects_second_row
+66677:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_barista
+66678:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_courier
+66679:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_customer
+66680:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_unauthorized_without_token
+66681:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_barista
+66682:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_courier
+66683:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_customer
+66684:ERROR services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_unauthorized_without_token
+66685:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lat-91]
+66686:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lat-neg91]
+66687:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lon-181]
+66688:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lon-neg181]
+66689:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[loyalty-101]
+66690:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[loyalty-neg]
+66691:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[free-threshold-below-min]
+66692:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[auto-close-0]
+66693:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[auto-close-1441]
+66694:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-missing-sun]
+66695:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-bad-time]
+66696:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-open-eq-close]
+66697:ERROR services/core-api/tests/test_admin_shop_settings_validation.py::test_working_hours_day_off_accepted
+66698:ERROR services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_same_snapshot_aggregates_to_one_row
+66699:ERROR services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_different_snapshots_produce_two_rows
+66700:ERROR services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_cancelled_excluded
+66701:ERROR services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_limits_to_ten_ordered_desc
+66702:ERROR services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_out_of_range_excluded
+66703:ERROR services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_empty_range_returns_zeros
+66704:ERROR services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_sums_only_completed
+66705:ERROR services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_excludes_out_of_range_orders
+66706:ERROR services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_respects_half_open_interval
+66707:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_happy_path_with_three_active_orders
+66708:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_completed_and_cancelled_orders_are_not_touched
+66709:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_in_delivery_orders_are_skipped_silently
+66710:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_idempotent_when_already_blocked
+66711:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_pending_verification_raises_invalid_state
+66712:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_deleted_raises_invalid_state
+66713:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_tombstone_raises_invalid_state
+66714:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_route_rejects_no_auth
+66715:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_route_rejects_barista
+66716:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_route_happy_path_returns_200_and_count
+66717:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_route_409_on_pending_verification
+66718:ERROR services/core-api/tests/test_admin_users_block.py::test_block_user_route_404_on_unknown_user_id
+66719:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_happy_path_returns_merged_shape
+66720:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_returns_last_20_loyalty_transactions_desc
+66721:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_tombstone_raises_user_not_found
+66722:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_unknown_id_raises_user_not_found
+66723:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_active_orders_count_excludes_completed_and_cancelled
+66724:ERROR services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_response_has_no_phone_or_phone_hash_or_deleted_at_fields
+66725:ERROR services/core-api/tests/test_admin_users_detail.py::test_loyalty_transaction_item_omits_user_id_and_order_id
+66726:ERROR services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_no_auth
+66727:ERROR services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[barista_headers]
+66728:ERROR services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[courier_headers]
+66729:ERROR services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[customer_headers]
+66730:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_status_all_includes_every_status_and_tombstones
+66731:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_status_active_excludes_tombstones
+66732:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_status_blocked_filters_exact
+66733:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_status_pending_verification_filters_exact
+66734:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_status_deleted_returns_deleted_and_tombstones
+66735:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_search_prefix_matches_display_name_case_insensitively
+66736:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_search_does_not_match_phone_hash_fragment
+66737:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_pagination_page_2_slices_rows_and_reports_total
+66738:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_sort_is_created_at_desc
+66739:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_loyalty_balance_coalesces_to_zero_when_account_absent
+66740:ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_summary_has_no_phone_or_phone_hash_fields
+66741:ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_no_auth_route_level
+66742:ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_barista
+66743:ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_courier
+66744:ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_customer
+66745:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_positive_delta_credits_and_creates_admin_adjustment_transaction
+66746:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_negative_delta_debits_balance
+66747:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_insufficient_balance_raises_and_rolls_back
+66748:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_blocked_user_is_accepted
+66749:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_pending_verification_raises_invalid_state
+66750:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_deleted_raises_invalid_state
+66751:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_tombstone_raises_invalid_state
+66752:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_no_auth
+66753:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[barista_headers]
+66754:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[courier_headers]
+66755:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[customer_headers]
+66756:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_happy_path_returns_200
+66757:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_delta_zero
+66758:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_empty_reason
+66759:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_long_reason
+66760:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_insufficient_balance
+66761:ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_409_on_deleted_user
+66762:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_happy_path_flips_to_active
+66763:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_idempotent_when_active
+66764:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_pending_verification_raises_invalid_state
+66765:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_deleted_raises_invalid_state
+66766:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_tombstone_raises_invalid_state
+66767:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_does_not_resurrect_cancelled_orders
+66768:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_no_auth
+66769:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_customer
+66770:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_happy_path_returns_200
+66771:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_409_on_pending_verification
+66772:ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_404_on_unknown_user_id
+66773:ERROR services/core-api/tests/test_cart_service.py::test_get_returns_empty_cart_when_no_key
+66774:ERROR services/core-api/tests/test_cart_service.py::test_get_hydrates_line_with_fresh_prices
+66775:ERROR services/core-api/tests/test_cart_service.py::test_get_reflects_updated_menu_price
+66776:ERROR services/core-api/tests/test_cart_service.py::test_get_refreshes_ttl_on_read
+66777:ERROR services/core-api/tests/test_cart_service.py::test_get_surfaces_stop_listed_item_without_removing
+66778:ERROR services/core-api/tests/test_cart_service.py::test_get_surfaces_archived_item_as_archived
+66779:ERROR services/core-api/tests/test_cart_service.py::test_add_item_creates_new_line
+66780:ERROR services/core-api/tests/test_cart_service.py::test_add_item_persists_no_prices_in_redis
+66781:ERROR services/core-api/tests/test_cart_service.py::test_add_item_sets_ttl_atomically
+66782:ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_into_existing_line_same_shape
+66783:ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_ignoring_modifier_order
+66784:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_menu_item
+66785:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_archived_menu_item
+66786:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_size_option
+66787:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_modifier
+66788:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_size_from_different_menu_item
+66789:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_modifier_not_linked_to_menu_item
+66790:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_unknown_menu_item_id
+66791:ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_merge_exceeding_cap
+66792:ERROR services/core-api/tests/test_cart_service.py::test_add_item_no_partial_write_on_rejection
+66793:ERROR services/core-api/tests/test_cart_service.py::test_update_item_changes_quantity
+66794:ERROR services/core-api/tests/test_cart_service.py::test_update_item_recomputes_line_id_when_modifiers_change
+66795:ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_unknown_line_id
+66796:ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_stop_listed_target_state
+66797:ERROR services/core-api/tests/test_cart_service.py::test_update_item_refreshes_ttl
+66798:ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_changes_only_quantity
+66799:ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_unknown_line_id
+66800:ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_stop_listed
+66801:ERROR services/core-api/tests/test_cart_service.py::test_delete_item_removes_one_line
+66802:ERROR services/core-api/tests/test_cart_service.py::test_delete_item_rejects_unknown_line_id
+66803:ERROR services/core-api/tests/test_cart_service.py::test_delete_last_item_yields_empty_cart_read
+66804:ERROR services/core-api/tests/test_cart_service.py::test_clear_deletes_redis_key
+66805:ERROR services/core-api/tests/test_cart_service.py::test_clear_is_idempotent_on_empty
+66806:ERROR services/core-api/tests/test_cart_service.py::test_add_item_concurrent_modification_retries
+66807:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_both_delivery_fields_with_422
+66808:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_neither_delivery_field_with_422
+66809:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_foreign_address_id_returns_404
+66810:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_unknown_address_id_returns_404
+66811:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshots_saved_address_into_order_jsonb
+66812:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_byte_identical_after_saved_address_deleted
+66813:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_shape_matches_inline_path
+66814:ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_rejects_saved_address_now_outside_radius
+66815:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_pricing_uses_fresh_prices_from_db
+66816:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_row_with_status_created
+66817:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_items_with_snapshots
+66818:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_item_stores_menu_item_id_as_reference_not_fk
+66819:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_payment_with_pending_status_and_idempotency_key
+66820:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_payment_amount_matches_order_total
+66821:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_order_items_count_matches_cart_lines
+66822:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_creates_reservation_transaction
+66823:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_debits_account_balance
+66824:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_records_points_used_in_order_row
+66825:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_points_skips_loyalty_transaction
+66826:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_increments_current_uses
+66827:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_inserts_promocode_usage_row
+66828:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_promocode_skips_promocode_usage
+66829:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_commits_order_as_paid
+66830:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_creates_loyalty_transaction_as_redemption
+66831:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_deletes_cart_from_redis
+66832:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_does_not_enqueue_celery_task
+66833:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_payment_row_has_amount_zero
+66834:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_enqueues_celery_task
+66835:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_leaves_cart_in_redis
+66836:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_returns_created_status
+66837:ERROR services/core-api/tests/test_checkout_service.py::test_create_order_enqueues_after_db_commit
+66838:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_empty_returns_200_with_empty_list
+66839:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_returns_own_rows_only
+66840:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_default_first_then_created_asc
+66841:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_happy_path_returns_201
+66842:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_rejects_out_of_radius_with_422
+66843:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_persists_optional_fields
+66844:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_first_for_user_not_automatically_default
+66845:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_with_is_default_true_persists_flag
+66846:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_label
+66847:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_optional_fields
+66848:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_true_demotes_previous_default
+66849:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_false_does_not_touch_other_rows
+66850:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_foreign_address_returns_404
+66851:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_unknown_address_returns_404
+66852:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_returns_updated_body
+66853:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_own_address_returns_204
+66854:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_foreign_address_returns_404_and_row_persists
+66855:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_unknown_address_returns_404
+66856:ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_does_not_mutate_past_order_snapshot
+66857:= 23 failed, 822 passed, 1 skipped, 374 warnings, 249 errors in 135.00s (0:02:15) =
+
+## First setup/error blocks
+
+### ERROR at setup
+--- line 1106 ---
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_missing_text_param_422 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_requires_customer_auth PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_timeout_returns_503_maps_unavailable PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_connection_error_returns_503 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_5xx_returns_503 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_4xx_bubbles_up_as_500_not_503 PASSED [100%]
+
+==================================== ERRORS ====================================
+_____ ERROR at setup of test_get_order_for_staff_returns_other_users_order _____
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e81bb1fd0>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:389: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:674: in __init__
+--- line 1365 ---
+        dsn = _ext.make_dsn(dsn, **kwargs)
+>       conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "postgres" (172.18.0.5), port 5432 failed: FATAL:  database "aura_coffee_test" does not exist
+E       
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+/usr/local/lib/python3.12/site-packages/psycopg2/__init__.py:122: OperationalError
+_______ ERROR at setup of test_get_order_for_staff_raises_on_unknown_id ________
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e7e7b3050>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:389: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:674: in __init__
+--- line 1624 ---
+        dsn = _ext.make_dsn(dsn, **kwargs)
+>       conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "postgres" (172.18.0.5), port 5432 failed: FATAL:  database "aura_coffee_test" does not exist
+E       
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+/usr/local/lib/python3.12/site-packages/psycopg2/__init__.py:122: OperationalError
+______ ERROR at setup of test_admin_orders_detail_requires_authorization _______
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e7deb49b0>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:389: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:674: in __init__
+
+### ERROR at teardown
+(none)
+
+### FAILED services/core-api/tests
+--- line 66585 ---
+    decoded = self.decode_complete(
+
+tests/test_route_order_history.py::test_post_repeat_all_unavailable_returns_422
+  /usr/local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1002: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_two_couriers_race_one_wins
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders
+--- line 66586 ---
+
+tests/test_route_order_history.py::test_post_repeat_all_unavailable_returns_422
+  /usr/local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1002: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_two_couriers_race_one_wins
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders
+ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code
+--- line 66587 ---
+tests/test_route_order_history.py::test_post_repeat_all_unavailable_returns_422
+  /usr/local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1002: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_two_couriers_race_one_wins
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order
+ERROR services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total
+ERROR services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin
+ERROR services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders
+ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code
+ERROR services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409
+
+### Traceback (most recent call last):
+(none)
+
+### sqlalchemy.exc
+--- line 1360 ---
+        if 'async' in kwargs:
+            kwasync['async'] = kwargs.pop('async')
+        if 'async_' in kwargs:
+            kwasync['async_'] = kwargs.pop('async_')
+    
+        dsn = _ext.make_dsn(dsn, **kwargs)
+>       conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "postgres" (172.18.0.5), port 5432 failed: FATAL:  database "aura_coffee_test" does not exist
+E       
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+/usr/local/lib/python3.12/site-packages/psycopg2/__init__.py:122: OperationalError
+_______ ERROR at setup of test_get_order_for_staff_raises_on_unknown_id ________
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e7e7b3050>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+--- line 1619 ---
+        if 'async' in kwargs:
+            kwasync['async'] = kwargs.pop('async')
+        if 'async_' in kwargs:
+            kwasync['async_'] = kwargs.pop('async_')
+    
+        dsn = _ext.make_dsn(dsn, **kwargs)
+>       conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "postgres" (172.18.0.5), port 5432 failed: FATAL:  database "aura_coffee_test" does not exist
+E       
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+/usr/local/lib/python3.12/site-packages/psycopg2/__init__.py:122: OperationalError
+______ ERROR at setup of test_admin_orders_detail_requires_authorization _______
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e7deb49b0>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+--- line 1878 ---
+        if 'async' in kwargs:
+            kwasync['async'] = kwargs.pop('async')
+        if 'async_' in kwargs:
+            kwasync['async_'] = kwargs.pop('async_')
+    
+        dsn = _ext.make_dsn(dsn, **kwargs)
+>       conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "postgres" (172.18.0.5), port 5432 failed: FATAL:  database "aura_coffee_test" does not exist
+E       
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+/usr/local/lib/python3.12/site-packages/psycopg2/__init__.py:122: OperationalError
+_________ ERROR at setup of test_admin_orders_detail_rejects_customer __________
+
+self = <sqlalchemy.engine.base.Connection object at 0x702e7de39fd0>
+engine = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3317: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:306: in _do_get
+    return self._create_connection()
+
+### psycopg2.errors
+(none)
+
+### sqlite3.
+(none)
+
+### AssertionError
+--- line 65933 ---
+            db, status="courier_assigned", order_id=oid_ca, courier_id=c1
+        )
+        _seed_assignment(
+            db, status="delivered", order_id=oid_dv, courier_id=c1
+        )
+    
+        rows = list_available_for_courier(db)
+>       assert len(rows) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([{'delivery_address_snapshot': None, 'id': UUID('84441699-91d4-488a-b97d-38beac425a28'), 'order_id': UUID('d832e452-0cf8-49ce-ba60-c1a6d0c03c5b'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('3e236740-067a-4230-a8a9-2331751ac1c7'), 'order_id': UUID('8005a1de-690e-4a42-aeb1-3ba4056ece9b'), 'requested_time': None, ...}])
+
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+_____________________ test_main_include_router_call_count ______________________
+
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x702e7d73fa70>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlNGYyYTMyNS01ZjJmLTRkZWItYjkzMi01YTNkNjAxNTkyNmQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1Mzg4MDQsImV4cCI6MTc3NzUzOTcwNH0.G5nIem4e6NRdhgTOa8ggNGrLc1WNFBk1xiTZSDSp4Fs'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 7)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>.get
+E        +    and   7 = <Category id=7 type=drink>.id
+--- line 65936 ---
+            db, status="delivered", order_id=oid_dv, courier_id=c1
+        )
+    
+        rows = list_available_for_courier(db)
+>       assert len(rows) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([{'delivery_address_snapshot': None, 'id': UUID('84441699-91d4-488a-b97d-38beac425a28'), 'order_id': UUID('d832e452-0cf8-49ce-ba60-c1a6d0c03c5b'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('3e236740-067a-4230-a8a9-2331751ac1c7'), 'order_id': UUID('8005a1de-690e-4a42-aeb1-3ba4056ece9b'), 'requested_time': None, ...}])
+
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+_____________________ test_main_include_router_call_count ______________________
+
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x702e7d73fa70>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlNGYyYTMyNS01ZjJmLTRkZWItYjkzMi01YTNkNjAxNTkyNmQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1Mzg4MDQsImV4cCI6MTc3NzUzOTcwNH0.G5nIem4e6NRdhgTOa8ggNGrLc1WNFBk1xiTZSDSp4Fs'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 7)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>.get
+E        +    and   7 = <Category id=7 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+--- line 65947 ---
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x702e7d73fa70>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlNGYyYTMyNS01ZjJmLTRkZWItYjkzMi01YTNkNjAxNTkyNmQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1Mzg4MDQsImV4cCI6MTc3NzUzOTcwNH0.G5nIem4e6NRdhgTOa8ggNGrLc1WNFBk1xiTZSDSp4Fs'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 7)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x702e7d453a40>.get
+E        +    and   7 = <Category id=7 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+
+_pg_db_override = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+
+    def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
+        """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+        with TestClient(app) as c:
+            resp = c.get("/api/v1/menu")
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         
+
+### AttributeError
+--- line 66132 ---
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x702e763889b0>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x702e764aa120>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+--- line 66141 ---
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x702e763889b0>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x702e764aa120>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{order_id}/status",
+                headers=_auth("barista"),
+                json={"new_status": "preparing"},
+            )
+    
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+--- line 66144 ---
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x702e763889b0>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x702e764aa120>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{order_id}/status",
+                headers=_auth("barista"),
+                json={"new_status": "preparing"},
+            )
+    
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:140: AssertionError
+___________ test_status_endpoint_rejects_invalid_new_status_with_422 ___________
+
+### TypeError
+(none)
+
+### KeyError
+--- line 66132 ---
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x702e763889b0>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x702e764aa120>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+
+### ValueError
+(none)
+
+## Failure sections by test file
+
+### test_admin_users_list.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_admin_users_loyalty_adjust.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_admin_users_unblock.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_cart_service.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_checkout_delivery_address_id.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_checkout_service.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_delivery_addresses_api.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_route_orders.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/
+
+### test_order_lifecycle.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order ERROR [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id ERROR [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier ERROR [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin ERROR [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders ERROR [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista ERROR [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable ERROR [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] ERROR [  4%]
+services/

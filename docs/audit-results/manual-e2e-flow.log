@@ -1,0 +1,267 @@
+staff_login_admin: 200
+{"role": "admin", "has_token": true}
+staff_login_barista: 200
+{"role": "barista", "has_token": true}
+staff_login_courier: 200
+{"role": "courier", "has_token": true}
+otp_send: 200
+{"message": "OTP sent", "phone_hash": "aaa3a8d51bbd45911d65744e547c0b7094464669438951c04b8a86c56e1ce8db"}
+otp_payload: 200
+{"code": "REDACTED", "attempts": 0, "status": "sent"}
+otp_verify: 200
+{"has_token": true, "keys": ["access_token", "refresh_token", "token_type"]}
+menu: 200
+{"categories": 1}
+selected_item: 200
+{"id": 1, "name_ru": "Капучино (QA)", "size_option_id": 1}
+cart_clear: 200
+{"items": [], "subtotal": 0, "currency": "RUB", "expires_at": "2026-05-01T09:06:25.520357Z"}
+cart_add_pickup: 201
+{"items": 1, "subtotal": 60000, "payload": null}
+pickup_checkout: 201
+{"id": "56eb76fc-6ca4-48c5-899a-c7b2f003fbd8", "status": "created", "total": 60000, "payload": null}
+pickup_after_payment_poll: 200
+{"status": "paid"}
+pickup_status_preparing: 200
+{"status": "preparing", "detail": null}
+pickup_status_ready: 200
+{"status": "ready", "detail": null}
+pickup_status_completed: 200
+{"status": "completed", "detail": null}
+cart_clear_delivery: 200
+{"items": [], "subtotal": 0, "currency": "RUB", "expires_at": "2026-05-01T09:06:27.814948Z"}
+cart_add_delivery: 201
+{"items": 1, "subtotal": 60000, "payload": null}
+delivery_checkout: 201
+{"id": "6aa6af31-5f9c-40e0-b974-6e0fab467623", "status": "created", "total": 60000, "payload": null}
+delivery_after_payment_poll: 200
+{"status": "paid"}
+delivery_status_preparing: 200
+{"status": "preparing", "detail": null}
+delivery_status_ready: 200
+{"status": "ready", "detail": null}
+courier_available: 200
+{"count": 1, "payload": null}
+courier_take: 200
+{"assignment_status": "courier_assigned", "detail": null}
+courier_pickup: 200
+{"assignment_status": "picked_up", "detail": null}
+courier_deliver: 200
+{"assignment_status": "delivered", "detail": null}
+
+JSON_SUMMARY
+[
+  {
+    "name": "staff_login_admin",
+    "status": 200,
+    "payload": {
+      "role": "admin",
+      "has_token": true
+    }
+  },
+  {
+    "name": "staff_login_barista",
+    "status": 200,
+    "payload": {
+      "role": "barista",
+      "has_token": true
+    }
+  },
+  {
+    "name": "staff_login_courier",
+    "status": 200,
+    "payload": {
+      "role": "courier",
+      "has_token": true
+    }
+  },
+  {
+    "name": "otp_send",
+    "status": 200,
+    "payload": {
+      "message": "OTP sent",
+      "phone_hash": "aaa3a8d51bbd45911d65744e547c0b7094464669438951c04b8a86c56e1ce8db"
+    }
+  },
+  {
+    "name": "otp_payload",
+    "status": 200,
+    "payload": {
+      "code": "REDACTED",
+      "attempts": 0,
+      "status": "sent"
+    }
+  },
+  {
+    "name": "otp_verify",
+    "status": 200,
+    "payload": {
+      "has_token": true,
+      "keys": [
+        "access_token",
+        "refresh_token",
+        "token_type"
+      ]
+    }
+  },
+  {
+    "name": "menu",
+    "status": 200,
+    "payload": {
+      "categories": 1
+    }
+  },
+  {
+    "name": "selected_item",
+    "status": 200,
+    "payload": {
+      "id": 1,
+      "name_ru": "Капучино (QA)",
+      "size_option_id": 1
+    }
+  },
+  {
+    "name": "cart_clear",
+    "status": 200,
+    "payload": {
+      "items": [],
+      "subtotal": 0,
+      "currency": "RUB",
+      "expires_at": "2026-05-01T09:06:25.520357Z"
+    }
+  },
+  {
+    "name": "cart_add_pickup",
+    "status": 201,
+    "payload": {
+      "items": 1,
+      "subtotal": 60000,
+      "payload": null
+    }
+  },
+  {
+    "name": "pickup_checkout",
+    "status": 201,
+    "payload": {
+      "id": "56eb76fc-6ca4-48c5-899a-c7b2f003fbd8",
+      "status": "created",
+      "total": 60000,
+      "payload": null
+    }
+  },
+  {
+    "name": "pickup_after_payment_poll",
+    "status": 200,
+    "payload": {
+      "status": "paid"
+    }
+  },
+  {
+    "name": "pickup_status_preparing",
+    "status": 200,
+    "payload": {
+      "status": "preparing",
+      "detail": null
+    }
+  },
+  {
+    "name": "pickup_status_ready",
+    "status": 200,
+    "payload": {
+      "status": "ready",
+      "detail": null
+    }
+  },
+  {
+    "name": "pickup_status_completed",
+    "status": 200,
+    "payload": {
+      "status": "completed",
+      "detail": null
+    }
+  },
+  {
+    "name": "cart_clear_delivery",
+    "status": 200,
+    "payload": {
+      "items": [],
+      "subtotal": 0,
+      "currency": "RUB",
+      "expires_at": "2026-05-01T09:06:27.814948Z"
+    }
+  },
+  {
+    "name": "cart_add_delivery",
+    "status": 201,
+    "payload": {
+      "items": 1,
+      "subtotal": 60000,
+      "payload": null
+    }
+  },
+  {
+    "name": "delivery_checkout",
+    "status": 201,
+    "payload": {
+      "id": "6aa6af31-5f9c-40e0-b974-6e0fab467623",
+      "status": "created",
+      "total": 60000,
+      "payload": null
+    }
+  },
+  {
+    "name": "delivery_after_payment_poll",
+    "status": 200,
+    "payload": {
+      "status": "paid"
+    }
+  },
+  {
+    "name": "delivery_status_preparing",
+    "status": 200,
+    "payload": {
+      "status": "preparing",
+      "detail": null
+    }
+  },
+  {
+    "name": "delivery_status_ready",
+    "status": 200,
+    "payload": {
+      "status": "ready",
+      "detail": null
+    }
+  },
+  {
+    "name": "courier_available",
+    "status": 200,
+    "payload": {
+      "count": 1,
+      "payload": null
+    }
+  },
+  {
+    "name": "courier_take",
+    "status": 200,
+    "payload": {
+      "assignment_status": "courier_assigned",
+      "detail": null
+    }
+  },
+  {
+    "name": "courier_pickup",
+    "status": 200,
+    "payload": {
+      "assignment_status": "picked_up",
+      "detail": null
+    }
+  },
+  {
+    "name": "courier_deliver",
+    "status": 200,
+    "payload": {
+      "assignment_status": "delivered",
+      "detail": null
+    }
+  }
+]

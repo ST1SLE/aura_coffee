@@ -1,0 +1,40 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_shop_settings_response_round_trip ____________________
+
+    def test_shop_settings_response_round_trip() -> None:
+        from core_api.schemas.shop_settings import ShopSettingsResponse
+    
+        now = datetime.now(UTC)
+        ns = SimpleNamespace(
+            shop_lat=55.7558,
+            shop_lon=37.6173,
+            delivery_radius_km=5,
+            min_delivery_amount=50000,
+            free_delivery_threshold=150000,
+            delivery_fee=20000,
+            loyalty_percent=5,
+            default_prep_time_minutes=15,
+            estimated_delivery_time_minutes=30,
+            working_hours={
+                "mon": {"open": "08:00", "close": "22:00"},
+                "tue": {"open": "08:00", "close": "22:00"},
+                "wed": {"open": "08:00", "close": "22:00"},
+                "thu": {"open": "08:00", "close": "22:00"},
+                "fri": {"open": "08:00", "close": "22:00"},
+                "sat": {"open": "08:00", "close": "22:00"},
+                "sun": {"open": "08:00", "close": "22:00"},
+            },
+            updated_at=now,
+        )
+>       resp = ShopSettingsResponse.model_validate(ns)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ShopSettingsResponse
+E       auto_close_minutes
+E         Field required [type=missing, input_value=namespace(shop_lat=55.755...=datetime.timezone.utc)), input_type=SimpleNamespace]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+
+services/core-api/tests/test_schemas_order.py:265: ValidationError
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+1 failed in 0.11s

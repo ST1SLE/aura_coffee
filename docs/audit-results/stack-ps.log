@@ -1,0 +1,14 @@
+NAME                                  IMAGE                               COMMAND                  SERVICE           CREATED          STATUS                      PORTS
+aura_audit_111515-core-api-1          aura_audit_111515-core-api          "uvicorn core_api.ma…"   core-api          23 minutes ago   Up 23 minutes               0.0.0.0:8180->8000/tcp, [::]:8180->8000/tcp
+aura_audit_111515-core-api-worker-1   aura_audit_111515-core-api-worker   "celery -A core_api.…"   core-api-worker   23 minutes ago   Up 23 minutes               8000/tcp
+aura_audit_111515-db-migrate-1        aura_audit_111515-db-migrate        "sh -c 'cd /app/data…"   db-migrate        23 minutes ago   Exited (0) 23 minutes ago   
+aura_audit_111515-db-seed-1           aura_audit_111515-db-seed           "python -m database.…"   db-seed           23 minutes ago   Exited (0) 23 minutes ago   
+aura_audit_111515-nginx-1             nginx:alpine                        "/docker-entrypoint.…"   nginx             23 minutes ago   Up 23 minutes               0.0.0.0:8260->80/tcp, [::]:8260->80/tcp
+aura_audit_111515-payment-webhook-1   aura_audit_111515-payment-webhook   "uvicorn payment_wor…"   payment-webhook   23 minutes ago   Up 23 minutes               0.0.0.0:8261->8241/tcp, [::]:8261->8241/tcp
+aura_audit_111515-payment-worker-1    aura_audit_111515-payment-worker    "celery -A payment_w…"   payment-worker    23 minutes ago   Up 23 minutes               
+aura_audit_111515-postgres-1          postgres:16-alpine                  "docker-entrypoint.s…"   postgres          23 minutes ago   Up 23 minutes (healthy)     0.0.0.0:5613->5432/tcp, [::]:5613->5432/tcp
+aura_audit_111515-redis-1             redis:7-alpine                      "docker-entrypoint.s…"   redis             23 minutes ago   Up 23 minutes (healthy)     0.0.0.0:6559->6379/tcp, [::]:6559->6379/tcp
+aura_audit_111515-scheduler-1         aura_audit_111515-scheduler         "celery -A core_api.…"   scheduler         23 minutes ago   Up 23 minutes               8000/tcp
+aura_audit_111515-sms-worker-1        aura_audit_111515-sms-worker        "celery -A sms_worke…"   sms-worker        23 minutes ago   Up 23 minutes               
+aura_audit_111515-web-admin-1         node:22-alpine                      "docker-entrypoint.s…"   web-admin         23 minutes ago   Up 23 minutes               0.0.0.0:5354->5174/tcp, [::]:5354->5174/tcp
+aura_audit_111515-web-customer-1      node:22-alpine                      "docker-entrypoint.s…"   web-customer      23 minutes ago   Up 23 minutes               0.0.0.0:5353->5173/tcp, [::]:5353->5173/tcp

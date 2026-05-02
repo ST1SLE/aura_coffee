@@ -1,0 +1,181 @@
+===== unregistered task / errors =====
+5:payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+12:payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+16:payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+21:payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+132:sms-worker-1       | [2026-04-30 08:46:54,981: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+184:sms-worker-1       | Traceback (most recent call last):
+188:sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+189:sms-worker-1       | [2026-04-30 08:51:21,532: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+232:sms-worker-1       | Traceback (most recent call last):
+240:sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+285:sms-worker-1       | [2026-04-30 09:03:03,059: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+321:sms-worker-1       | Traceback (most recent call last):
+325:sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+===== GRACE/log markers sample =====
+249:sms-worker-1       | [2026-04-30 08:51:48,235: INFO/ForkPoolWorker-8] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+281:sms-worker-1       | [2026-04-30 08:54:07,453: INFO/ForkPoolWorker-8] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+290:payment-worker-1   | [2026-04-30 09:06:25,988: INFO/ForkPoolWorker-7] [PaymentWorker][create_intent][BLOCK_YUKASSA_CALL] order_id=56eb76fc-6ca4-48c5-899a-c7b2f003fbd8
+296:payment-worker-1   | [2026-04-30 09:06:27,871: INFO/ForkPoolWorker-7] [PaymentWorker][create_intent][BLOCK_YUKASSA_CALL] order_id=6aa6af31-5f9c-40e0-b974-6e0fab467623
+372:sms-worker-1       | [2026-04-30 09:06:25,256: INFO/ForkPoolWorker-7] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+===== tail =====
+payment-worker-1   |                 .> payments         exchange=payments(direct) key=payments
+payment-worker-1   |                 
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "7c073bd243e64adab92e88bed8247543"}}, "98fcea6dacca252bb54f8e6c41d8acdbb36b3917fd649e0b4fb3aa32f64eefc663c08b5ec9ce9bcc", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u21169e94dcf8. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+core-api-1         | INFO:     172.18.0.1:48244 - "GET /api/v1/orders HTTP/1.1" 200 OK
+sms-worker-1       | 
+core-api-1         | INFO:     172.18.0.1:48256 - "GET /api/v1/barista/orders HTTP/1.1" 403 Forbidden
+sms-worker-1       | The full contents of the message headers:
+core-api-1         | INFO:     172.18.0.1:48266 - "GET /api/v1/courier/orders HTTP/1.1" 403 Forbidden
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': 'd46ac4b1-ee1d-4ed6-8424-56cfa12d1aed', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': 'd46ac4b1-ee1d-4ed6-8424-56cfa12d1aed', 'parent_id': None, 'argsrepr': "(UUID('7c073bd2-43e6-4ada-b92e-88bed8247543'), '98fcea6dacca252bb54f8e6c41d8acdbb36b3917fd649e0b4fb3aa32f64eefc663c08b5ec9ce9bcc', 'Оплачен. Заказ №9e94dcf8. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen455@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+core-api-1         | INFO:     172.18.0.1:48270 - "GET /api/v1/courier/orders HTTP/1.1" 403 Forbidden
+sms-worker-1       | 
+core-api-1         | INFO:     172.18.0.1:52808 - "GET /openapi.json HTTP/1.1" 200 OK
+sms-worker-1       | The delivery info for this task is:
+core-api-1         | INFO:     172.18.0.1:40904 - "GET /openapi.json HTTP/1.1" 200 OK
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+core-api-1         | INFO:     Shutting down
+sms-worker-1       | Traceback (most recent call last):
+core-api-1         | INFO:     Waiting for application shutdown.
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+core-api-1         | INFO:     Application shutdown complete.
+sms-worker-1       |     strategy = strategies[type_]
+core-api-1         | INFO:     Finished server process [8]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+core-api-1         | INFO:     Stopping reloader process [1]
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+core-api-1         | INFO:     Will watch for changes in these directories: ['/app']
+core-api-1         | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+core-api-1         | INFO:     Started reloader process [1] using WatchFiles
+core-api-1         | INFO:     Started server process [8]
+core-api-1         | INFO:     Waiting for application startup.
+core-api-1         | INFO:     Application startup complete.
+sms-worker-1       | [2026-04-30 08:51:48,229: INFO/MainProcess] Task sms_worker.tasks.otp.send_otp_sms[8b929d35-9c0f-4d45-ad46-85cb61d15eed] received
+core-api-1         | INFO:     172.18.0.1:45766 - "GET /health HTTP/1.1" 200 OK
+sms-worker-1       | [2026-04-30 08:51:48,235: INFO/ForkPoolWorker-8] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+core-api-1         | /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+core-api-1         |   return self._jws.encode(
+core-api-1         | INFO:     172.18.0.1:52190 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52206 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52214 - "POST /api/v1/staff/auth/login HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52224 - "POST /api/v1/auth/send-code HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52238 - "POST /api/v1/auth/verify-code HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52240 - "GET /api/v1/menu HTTP/1.1" 200 OK
+core-api-1         | /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+core-api-1         |   decoded = self.decode_complete(
+sms-worker-1       | [2026-04-30 08:51:48,235: INFO/ForkPoolWorker-8] [SMS:log] to=+79991234567 msg=Код подтверждения: 290322. Aura Coffee
+payment-worker-1   | 
+payment-worker-1   | [tasks]
+core-api-1         | INFO:     172.18.0.1:52248 - "DELETE /api/v1/cart HTTP/1.1" 200 OK
+payment-worker-1   |   . payment_worker.tasks.create_payment
+core-api-1         | INFO:     172.18.0.1:52254 - "POST /api/v1/cart/items HTTP/1.1" 201 Created
+payment-worker-1   |   . payment_worker.tasks.health_check
+core-api-1         | INFO:     172.18.0.1:52258 - "POST /api/v1/orders HTTP/1.1" 201 Created
+payment-worker-1   |   . payment_worker.tasks.initiate_refund
+core-api-1         | INFO:     172.18.0.1:52264 - "GET /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8 HTTP/1.1" 200 OK
+payment-worker-1   |   . yukassa_fake_callback
+core-api-1         | INFO:     172.18.0.1:52278 - "GET /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8 HTTP/1.1" 200 OK
+payment-worker-1   | 
+core-api-1         | INFO:     172.18.0.1:52280 - "GET /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8 HTTP/1.1" 200 OK
+payment-worker-1   | [2026-04-30 09:05:15,354: INFO/MainProcess] Connected to redis://redis:6379/0
+core-api-1         | INFO:     172.18.0.1:52286 - "PATCH /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8/status HTTP/1.1" 200 OK
+payment-worker-1   | [2026-04-30 09:05:15,360: INFO/MainProcess] mingle: searching for neighbors
+sms-worker-1       | [2026-04-30 08:51:48,245: INFO/ForkPoolWorker-8] OTP SMS sent for aaa3a8d5
+payment-worker-1   | [2026-04-30 09:05:16,369: INFO/MainProcess] mingle: all alone
+sms-worker-1       | [2026-04-30 08:51:48,246: INFO/ForkPoolWorker-8] Task sms_worker.tasks.otp.send_otp_sms[8b929d35-9c0f-4d45-ad46-85cb61d15eed] succeeded in 0.01543587999913143s: None
+sms-worker-1       | [2026-04-30 08:54:07,451: INFO/MainProcess] Task sms_worker.tasks.otp.send_otp_sms[62cb2c69-8a2f-4872-b74b-cc78b281dc5f] received
+sms-worker-1       | [2026-04-30 08:54:07,453: INFO/ForkPoolWorker-8] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+sms-worker-1       | [2026-04-30 08:54:07,453: INFO/ForkPoolWorker-8] [SMS:log] to=+79991234567 msg=Код подтверждения: 993935. Aura Coffee
+sms-worker-1       | [2026-04-30 08:54:07,456: INFO/ForkPoolWorker-8] OTP SMS sent for aaa3a8d5
+sms-worker-1       | [2026-04-30 08:54:07,457: INFO/ForkPoolWorker-8] Task sms_worker.tasks.otp.send_otp_sms[62cb2c69-8a2f-4872-b74b-cc78b281dc5f] succeeded in 0.004152172001340659s: None
+sms-worker-1       | [2026-04-30 09:03:03,059: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+payment-worker-1   | [2026-04-30 09:05:16,383: INFO/MainProcess] celery@36d1df49d76f ready.
+sms-worker-1       | The message has been ignored and discarded.
+payment-worker-1   | [2026-04-30 09:05:18,858: INFO/MainProcess] sync with celery@1b21fd5a4f28
+payment-worker-1   | [2026-04-30 09:06:25,631: INFO/MainProcess] Task payment_worker.tasks.create_payment[f23cca70-cf57-4b23-a625-c5f3c631d6f4] received
+payment-worker-1   | [2026-04-30 09:06:25,988: INFO/ForkPoolWorker-7] [PaymentWorker][create_intent][BLOCK_YUKASSA_CALL] order_id=56eb76fc-6ca4-48c5-899a-c7b2f003fbd8
+payment-worker-1   | [2026-04-30 09:06:26,013: INFO/MainProcess] Task yukassa_fake_callback[1da44255-4428-415b-a03c-8429f7a9096d] received
+payment-worker-1   | [2026-04-30 09:06:26,025: INFO/ForkPoolWorker-7] Task payment_worker.tasks.create_payment[f23cca70-cf57-4b23-a625-c5f3c631d6f4] succeeded in 0.39183293899986893s: None
+payment-worker-1   | [2026-04-30 09:06:27,559: INFO/ForkPoolWorker-7] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 09:06:27,560: INFO/ForkPoolWorker-7] Task yukassa_fake_callback[1da44255-4428-415b-a03c-8429f7a9096d] succeeded in 0.5674552089985809s: None
+payment-worker-1   | [2026-04-30 09:06:27,864: INFO/MainProcess] Task payment_worker.tasks.create_payment[1f13aaa6-d838-45e2-8d1e-a9edbe2ee88d] received
+payment-worker-1   | [2026-04-30 09:06:27,871: INFO/ForkPoolWorker-7] [PaymentWorker][create_intent][BLOCK_YUKASSA_CALL] order_id=6aa6af31-5f9c-40e0-b974-6e0fab467623
+sms-worker-1       | 
+payment-worker-1   | [2026-04-30 09:06:27,874: INFO/MainProcess] Task yukassa_fake_callback[ab1e6264-7b7f-469d-85f9-40dac9c07f1f] received
+payment-worker-1   | [2026-04-30 09:06:27,880: INFO/ForkPoolWorker-7] Task payment_worker.tasks.create_payment[1f13aaa6-d838-45e2-8d1e-a9edbe2ee88d] succeeded in 0.014607981000153814s: None
+sms-worker-1       | Did you remember to import the module containing this task?
+payment-worker-1   | [2026-04-30 09:06:28,921: INFO/ForkPoolWorker-7] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+sms-worker-1       | Or maybe you're using relative imports?
+payment-worker-1   | [2026-04-30 09:06:28,922: INFO/ForkPoolWorker-7] Task yukassa_fake_callback[ab1e6264-7b7f-469d-85f9-40dac9c07f1f] succeeded in 0.046739861001697136s: None
+sms-worker-1       | 
+sms-worker-1       | Please see
+core-api-1         | INFO:     172.18.0.1:52288 - "PATCH /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8/status HTTP/1.1" 200 OK
+sms-worker-1       | https://docs.celeryq.dev/en/latest/internals/protocol.html
+core-api-1         | INFO:     172.18.0.1:52296 - "PATCH /api/v1/orders/56eb76fc-6ca4-48c5-899a-c7b2f003fbd8/status HTTP/1.1" 200 OK
+sms-worker-1       | for more information.
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message body was:
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "206b5a9dbd714698befd92f7e6bb0a7f"}}, "192433d2f93ca8d0944e9e836575eeb0a4e133834125bc8044df0b96dc8b144a6aee4bc2c5acfa77", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u211639a415e3. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message headers:
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': 'af3cbb76-7a40-48fa-b5a0-c2354e0def4b', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': 'af3cbb76-7a40-48fa-b5a0-c2354e0def4b', 'parent_id': None, 'argsrepr': "(UUID('206b5a9d-bd71-4698-befd-92f7e6bb0a7f'), '192433d2f93ca8d0944e9e836575eeb0a4e133834125bc8044df0b96dc8b144a6aee4bc2c5acfa77', 'Оплачен. Заказ №39a415e3. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen1090@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+sms-worker-1       | 
+sms-worker-1       | The delivery info for this task is:
+core-api-1         | INFO:     172.18.0.1:52298 - "DELETE /api/v1/cart HTTP/1.1" 200 OK
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+core-api-1         | INFO:     172.18.0.1:52302 - "POST /api/v1/cart/items HTTP/1.1" 201 Created
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+sms-worker-1       |     strategy = strategies[type_]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+sms-worker-1       | 
+sms-worker-1       | worker: Warm shutdown (MainProcess)
+sms-worker-1       | /usr/local/lib/python3.12/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is
+sms-worker-1       | absolutely not recommended!
+core-api-1         | INFO:     172.18.0.1:52318 - "POST /api/v1/orders HTTP/1.1" 201 Created
+sms-worker-1       | 
+core-api-1         | INFO:     172.18.0.1:52328 - "GET /api/v1/orders/6aa6af31-5f9c-40e0-b974-6e0fab467623 HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52336 - "GET /api/v1/orders/6aa6af31-5f9c-40e0-b974-6e0fab467623 HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52348 - "GET /api/v1/orders/6aa6af31-5f9c-40e0-b974-6e0fab467623 HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52362 - "PATCH /api/v1/orders/6aa6af31-5f9c-40e0-b974-6e0fab467623/status HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52374 - "PATCH /api/v1/orders/6aa6af31-5f9c-40e0-b974-6e0fab467623/status HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52382 - "GET /api/v1/courier/assignments/available HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52398 - "POST /api/v1/courier/assignments/49fbf2c1-12be-475b-a7ff-fc5c90d05f0e/take HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52408 - "POST /api/v1/courier/assignments/49fbf2c1-12be-475b-a7ff-fc5c90d05f0e/pickup HTTP/1.1" 200 OK
+core-api-1         | INFO:     172.18.0.1:52410 - "POST /api/v1/courier/assignments/49fbf2c1-12be-475b-a7ff-fc5c90d05f0e/deliver HTTP/1.1" 200 OK
+sms-worker-1       | Please specify a different user using the --uid option.
+sms-worker-1       | 
+sms-worker-1       | User information: uid=0 euid=0 gid=0 egid=0
+sms-worker-1       | 
+sms-worker-1       |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+sms-worker-1       |  
+sms-worker-1       |  -------------- celery@1af89f50e90f v5.6.3 (recovery)
+sms-worker-1       | --- ***** ----- 
+sms-worker-1       | -- ******* ---- Linux-6.17.0-22-generic-x86_64-with-glibc2.41 2026-04-30 09:05:14
+sms-worker-1       | - *** --- * --- 
+sms-worker-1       | - ** ---------- [config]
+sms-worker-1       | - ** ---------- .> app:         sms_worker:0x707297934fb0
+sms-worker-1       | - ** ---------- .> transport:   redis://redis:6379/0
+sms-worker-1       | - ** ---------- .> results:     disabled://
+sms-worker-1       | - *** --- * --- .> concurrency: 12 (prefork)
+sms-worker-1       | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+sms-worker-1       | --- ***** ----- 
+sms-worker-1       |  -------------- [queues]
+sms-worker-1       |                 .> sms              exchange=sms(direct) key=sms
+sms-worker-1       |                 
+sms-worker-1       | 
+sms-worker-1       | [tasks]
+sms-worker-1       |   . sms_worker.tasks.health_check
+sms-worker-1       |   . sms_worker.tasks.otp.send_otp_sms
+sms-worker-1       | 
+sms-worker-1       | [2026-04-30 09:05:14,797: INFO/MainProcess] Connected to redis://redis:6379/0
+sms-worker-1       | [2026-04-30 09:05:14,801: INFO/MainProcess] mingle: searching for neighbors
+sms-worker-1       | [2026-04-30 09:05:15,813: INFO/MainProcess] mingle: all alone
+sms-worker-1       | [2026-04-30 09:05:15,836: INFO/MainProcess] celery@1af89f50e90f ready.
+sms-worker-1       | [2026-04-30 09:05:18,858: INFO/MainProcess] sync with celery@1b21fd5a4f28
+sms-worker-1       | [2026-04-30 09:06:25,250: INFO/MainProcess] Task sms_worker.tasks.otp.send_otp_sms[c39032aa-a3f8-4c18-bdc1-c1cc04f9b2bf] received
+sms-worker-1       | [2026-04-30 09:06:25,256: INFO/ForkPoolWorker-7] [SmsWorker][send_otp][BLOCK_SMSRU_CALL]
+sms-worker-1       | [2026-04-30 09:06:25,256: INFO/ForkPoolWorker-7] [SMS:log] to=+79991234567 msg=Код подтверждения: 884876. Aura Coffee
+sms-worker-1       | [2026-04-30 09:06:25,266: INFO/ForkPoolWorker-7] OTP SMS sent for aaa3a8d5
+sms-worker-1       | [2026-04-30 09:06:25,266: INFO/ForkPoolWorker-7] Task sms_worker.tasks.otp.send_otp_sms[c39032aa-a3f8-4c18-bdc1-c1cc04f9b2bf] succeeded in 0.015173249998042593s: None

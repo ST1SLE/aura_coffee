@@ -1,0 +1,94 @@
+Stopping app/worker containers that hold DB connections
+ Container aura_audit_111515-payment-webhook-1  Stopping
+ Container aura_audit_111515-nginx-1  Stopping
+ Container aura_audit_111515-payment-worker-1  Stopping
+ Container aura_audit_111515-core-api-worker-1  Stopping
+ Container aura_audit_111515-sms-worker-1  Stopping
+ Container aura_audit_111515-scheduler-1  Stopping
+ Container aura_audit_111515-nginx-1  Stopped
+ Container aura_audit_111515-core-api-1  Stopping
+ Container aura_audit_111515-scheduler-1  Stopped
+ Container aura_audit_111515-payment-webhook-1  Stopped
+ Container aura_audit_111515-core-api-1  Stopped
+ Container aura_audit_111515-core-api-worker-1  Stopped
+ Container aura_audit_111515-sms-worker-1  Stopped
+ Container aura_audit_111515-payment-worker-1  Stopped
+Dropping/recreating isolated runtime DB aura_coffee
+ pg_terminate_backend 
+----------------------
+(0 rows)
+
+DROP DATABASE
+CREATE DATABASE
+Applying migrations
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+Applying initial admin seed
+initial_admin seed applied
+Restarting isolated stack services
+ Container aura_audit_111515-postgres-1  Running
+ Container aura_audit_111515-redis-1  Running
+ Container aura_audit_111515-web-customer-1  Running
+ Container aura_audit_111515-web-admin-1  Running
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-postgres-1  Waiting
+ Container aura_audit_111515-postgres-1  Waiting
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-postgres-1  Healthy
+ Container aura_audit_111515-scheduler-1  Starting
+ Container aura_audit_111515-sms-worker-1  Starting
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-postgres-1  Healthy
+ Container aura_audit_111515-db-migrate-1  Starting
+ Container aura_audit_111515-payment-webhook-1  Starting
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-payment-worker-1  Starting
+ Container aura_audit_111515-payment-webhook-1  Started
+ Container aura_audit_111515-payment-worker-1  Started
+ Container aura_audit_111515-db-migrate-1  Started
+ Container aura_audit_111515-db-migrate-1  Waiting
+ Container aura_audit_111515-scheduler-1  Started
+ Container aura_audit_111515-sms-worker-1  Started
+ Container aura_audit_111515-db-migrate-1  Exited
+ Container aura_audit_111515-db-seed-1  Starting
+ Container aura_audit_111515-db-seed-1  Started
+ Container aura_audit_111515-db-seed-1  Waiting
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-postgres-1  Waiting
+ Container aura_audit_111515-postgres-1  Waiting
+ Container aura_audit_111515-redis-1  Waiting
+ Container aura_audit_111515-db-seed-1  Waiting
+ Container aura_audit_111515-postgres-1  Healthy
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-postgres-1  Healthy
+ Container aura_audit_111515-redis-1  Healthy
+ Container aura_audit_111515-db-seed-1  Exited
+ Container aura_audit_111515-core-api-worker-1  Starting
+ Container aura_audit_111515-db-seed-1  Exited
+ Container aura_audit_111515-core-api-1  Starting
+ Container aura_audit_111515-core-api-1  Started
+ Container aura_audit_111515-nginx-1  Starting
+ Container aura_audit_111515-core-api-worker-1  Started
+ Container aura_audit_111515-nginx-1  Started
+Waiting for core health
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+{"status":"ok","yukassa_backend":"fake"}
+Applying phase4 manual QA seed
+phase4_manual_test seed applied
+Runtime reset done

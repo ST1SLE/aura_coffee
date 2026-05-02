@@ -1,0 +1,33 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_list_available_for_courier_returns_only_awaiting _____________
+
+db = <sqlalchemy.orm.session.Session object at 0x7720276aaba0>
+notify_mock = <MagicMock id='130979983961040'>
+
+    def test_list_available_for_courier_returns_only_awaiting(
+        db: Session, notify_mock: MagicMock
+    ) -> None:
+        from core_api.services.delivery_assignment import list_available_for_courier
+    
+        c1 = _seed_courier(db)
+        oid_aw = _seed_order(db, status="preparing", order_type="delivery", total=77000)
+        oid_ca = _seed_order(db, status="preparing", order_type="delivery", total=88000)
+        oid_dv = _seed_order(db, status="completed", order_type="delivery", total=99000)
+        aid_aw = _seed_assignment(db, status="awaiting_courier", order_id=oid_aw)
+        _seed_assignment(
+            db, status="courier_assigned", order_id=oid_ca, courier_id=c1
+        )
+        _seed_assignment(
+            db, status="delivered", order_id=oid_dv, courier_id=c1
+        )
+    
+        rows = list_available_for_courier(db)
+>       assert len(rows) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([{'delivery_address_snapshot': None, 'id': UUID('ed59bf7a-5df0-4c1c-82ba-36ad661ca0ec'), 'order_id': UUID('c7a39c53-2d...-9d80-43ed-9f8b-a49db5af34f5'), 'order_id': UUID('ed8c0d1c-c51f-4209-97c8-a889e4cafc24'), 'requested_time': None, ...}])
+
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+1 failed in 0.22s

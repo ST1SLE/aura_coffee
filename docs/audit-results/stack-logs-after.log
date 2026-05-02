@@ -1,0 +1,133 @@
+sms-worker-1  | /usr/local/lib/python3.12/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is
+sms-worker-1  | absolutely not recommended!
+core-api-1    | INFO:     Will watch for changes in these directories: ['/app']
+core-api-1    | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+core-api-1    | INFO:     Started reloader process [1] using WatchFiles
+core-api-1    | INFO:     Started server process [8]
+core-api-1    | INFO:     Waiting for application startup.
+core-api-1    | INFO:     Application startup complete.
+core-api-1    | INFO:     172.18.0.1:38500 - "GET /health HTTP/1.1" 200 OK
+core-api-1    | INFO:     172.18.0.1:32936 - "GET /health HTTP/1.1" 200 OK
+core-api-1    | INFO:     172.18.0.1:36996 - "GET /health HTTP/1.1" 200 OK
+sms-worker-1  | 
+sms-worker-1  | Please specify a different user using the --uid option.
+sms-worker-1  | 
+sms-worker-1  | User information: uid=0 euid=0 gid=0 egid=0
+core-api-1    | INFO:     172.18.0.1:37002 - "GET /api/v1/menu HTTP/1.1" 200 OK
+sms-worker-1  | 
+sms-worker-1  |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+sms-worker-1  |  
+sms-worker-1  |  -------------- celery@1af89f50e90f v5.6.3 (recovery)
+sms-worker-1  | --- ***** ----- 
+sms-worker-1  | -- ******* ---- Linux-6.17.0-22-generic-x86_64-with-glibc2.41 2026-04-30 08:21:45
+sms-worker-1  | - *** --- * --- 
+sms-worker-1  | - ** ---------- [config]
+sms-worker-1  | - ** ---------- .> app:         sms_worker:0x7235b04a0410
+sms-worker-1  | - ** ---------- .> transport:   redis://redis:6379/0
+sms-worker-1  | - ** ---------- .> results:     disabled://
+sms-worker-1  | - *** --- * --- .> concurrency: 12 (prefork)
+sms-worker-1  | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+sms-worker-1  | --- ***** ----- 
+sms-worker-1  |  -------------- [queues]
+sms-worker-1  |                 .> sms              exchange=sms(direct) key=sms
+sms-worker-1  |                 
+sms-worker-1  | 
+sms-worker-1  | [tasks]
+sms-worker-1  |   . sms_worker.tasks.health_check
+sms-worker-1  |   . sms_worker.tasks.otp.send_otp_sms
+sms-worker-1  | 
+sms-worker-1  | [2026-04-30 08:21:45,664: INFO/MainProcess] Connected to redis://redis:6379/0
+sms-worker-1  | [2026-04-30 08:21:45,668: INFO/MainProcess] mingle: searching for neighbors
+sms-worker-1  | [2026-04-30 08:21:46,676: INFO/MainProcess] mingle: all alone
+sms-worker-1  | [2026-04-30 08:21:46,684: INFO/MainProcess] celery@1af89f50e90f ready.
+sms-worker-1       | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+sms-worker-1       | [2026-04-30 08:46:54,981: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+payment-webhook-1  | INFO:     Started server process [1]
+payment-webhook-1  | INFO:     Waiting for application startup.
+payment-webhook-1  | INFO:     Application startup complete.
+payment-webhook-1  | INFO:     Uvicorn running on http://0.0.0.0:8241 (Press CTRL+C to quit)
+sms-worker-1       | The message has been ignored and discarded.
+sms-worker-1       | 
+sms-worker-1       | Did you remember to import the module containing this task?
+sms-worker-1       | Or maybe you're using relative imports?
+sms-worker-1       | 
+sms-worker-1       | Please see
+sms-worker-1       | https://docs.celeryq.dev/en/latest/internals/protocol.html
+sms-worker-1       | for more information.
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:33988 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-worker-1   | /usr/local/lib/python3.12/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is
+payment-worker-1   | absolutely not recommended!
+payment-worker-1   | 
+payment-worker-1   | Please specify a different user using the --uid option.
+payment-worker-1   | 
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message body was:
+sms-worker-1       | b'[[{"__type__": "uuid", "__value__": {"hex": "b709dbf6bdf64476a7e9a54734c72457"}}, "77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9", "\\u041e\\u043f\\u043b\\u0430\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043a\\u0430\\u0437 \\u21161101cced. Aura Coffee"], {}, {"callbacks": null, "errbacks": null, "chain": null, "chord": null}]' (345b)
+payment-worker-1   | User information: uid=0 euid=0 gid=0 egid=0
+payment-worker-1   | 
+payment-worker-1   |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+payment-worker-1   |  
+payment-webhook-1  | INFO:     172.18.0.7:33996 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+sms-worker-1       | 
+sms-worker-1       | The full contents of the message headers:
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:34008 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | INFO:     172.18.0.7:34016 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | payment.succeeded: unknown yukassa_payment_id
+payment-webhook-1  | INFO:     172.18.0.7:34030 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+payment-webhook-1  | INFO:     172.18.0.7:34046 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+sms-worker-1       | {'lang': 'py', 'task': 'sms_worker.send_order_notification_sms', 'id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': '8e4fe6a4-1a74-4b25-93b4-d780dff94c3c', 'parent_id': None, 'argsrepr': "(UUID('b709dbf6-bdf6-4476-a7e9-a54734c72457'), '77858e9db8bf1ece6de7cfb42b7ceb0dd981f90cf2202173c662f8df6173efde381f34a312fd72b9', 'Оплачен. Заказ №1101cced. Aura Coffee')", 'kwargsrepr': '{}', 'origin': 'gen17@88200a06016f', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}}
+payment-worker-1   |  -------------- celery@36d1df49d76f v5.6.3 (recovery)
+sms-worker-1       | 
+sms-worker-1       | The delivery info for this task is:
+sms-worker-1       | {'exchange': '', 'routing_key': 'sms'}
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       |   File "/usr/local/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 668, in on_task_received
+sms-worker-1       |     strategy = strategies[type_]
+sms-worker-1       |                ~~~~~~~~~~^^^^^^^
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+payment-worker-1   | --- ***** ----- 
+payment-worker-1   | -- ******* ---- Linux-6.17.0-22-generic-x86_64-with-glibc2.41 2026-04-30 08:21:45
+payment-worker-1   | - *** --- * --- 
+payment-worker-1   | - ** ---------- [config]
+payment-worker-1   | - ** ---------- .> app:         payment_worker:0x7e303ddb2840
+payment-worker-1   | - ** ---------- .> transport:   redis://redis:6379/0
+payment-worker-1   | - ** ---------- .> results:     disabled://
+payment-worker-1   | - *** --- * --- .> concurrency: 12 (prefork)
+payment-worker-1   | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+payment-worker-1   | --- ***** ----- 
+payment-worker-1   |  -------------- [queues]
+payment-worker-1   |                 .> payments         exchange=payments(direct) key=payments
+payment-worker-1   |                 
+payment-worker-1   | 
+payment-worker-1   | [tasks]
+payment-worker-1   |   . payment_worker.tasks.create_payment
+payment-worker-1   |   . payment_worker.tasks.health_check
+payment-worker-1   |   . payment_worker.tasks.initiate_refund
+payment-worker-1   |   . yukassa_fake_callback
+payment-worker-1   | 
+payment-worker-1   | [2026-04-30 08:21:46,471: INFO/MainProcess] Connected to redis://redis:6379/0
+payment-worker-1   | [2026-04-30 08:21:46,472: INFO/MainProcess] mingle: searching for neighbors
+payment-worker-1   | [2026-04-30 08:21:47,479: INFO/MainProcess] mingle: all alone
+payment-worker-1   | [2026-04-30 08:21:47,497: INFO/MainProcess] celery@36d1df49d76f ready.
+payment-worker-1   | [2026-04-30 08:21:51,821: INFO/MainProcess] sync with celery@1b21fd5a4f28
+payment-worker-1   | [2026-04-30 08:47:25,045: INFO/MainProcess] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] received
+payment-worker-1   | [2026-04-30 08:47:25,048: INFO/MainProcess] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] received
+payment-worker-1   | [2026-04-30 08:47:25,052: INFO/MainProcess] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] received
+payment-worker-1   | [2026-04-30 08:47:25,055: INFO/MainProcess] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] received
+payment-worker-1   | [2026-04-30 08:47:25,187: INFO/MainProcess] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] received
+payment-worker-1   | [2026-04-30 08:47:25,224: INFO/MainProcess] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] received
+payment-worker-1   | [2026-04-30 08:47:26,570: INFO/ForkPoolWorker-8] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,571: INFO/ForkPoolWorker-8] Task yukassa_fake_callback[5bdaf31b-678c-4ca9-a35e-550ee4b17e0b] succeeded in 0.523860668999987s: None
+payment-worker-1   | [2026-04-30 08:47:26,575: INFO/ForkPoolWorker-1] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,576: INFO/ForkPoolWorker-1] Task yukassa_fake_callback[b174aea1-e4ce-413f-98af-f7af20da9f22] succeeded in 0.523886462997325s: None
+payment-worker-1   | [2026-04-30 08:47:26,578: INFO/ForkPoolWorker-7] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,579: INFO/ForkPoolWorker-7] Task yukassa_fake_callback[a0982587-c51f-417e-879d-d33e8d8c6565] succeeded in 0.5530858490019455s: None
+payment-worker-1   | [2026-04-30 08:47:26,581: INFO/ForkPoolWorker-9] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,582: INFO/ForkPoolWorker-9] Task yukassa_fake_callback[792703e6-c80a-462a-8c0d-a4feec10416b] succeeded in 0.5269215510015783s: None
+payment-worker-1   | [2026-04-30 08:47:26,584: INFO/ForkPoolWorker-2] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,585: INFO/ForkPoolWorker-2] Task yukassa_fake_callback[ac9493fa-52e4-44cb-9161-9e0ece343bc8] succeeded in 0.39867397799753235s: None
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] HTTP Request: POST http://payment-webhook:8241/webhooks/yukassa "HTTP/1.1 200 OK"
+payment-worker-1   | [2026-04-30 08:47:26,587: INFO/ForkPoolWorker-10] Task yukassa_fake_callback[0a9b1ba2-086b-4805-8d26-609995ff05a0] succeeded in 0.36465499800033285s: None

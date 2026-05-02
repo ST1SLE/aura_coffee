@@ -1,0 +1,1844 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app/services/core-api
+configfile: pyproject.toml
+plugins: respx-0.23.1, anyio-4.13.0
+collecting ... collected 1095 items
+
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_returns_other_users_order PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_get_order_for_staff_raises_on_unknown_id PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_route_not_registered PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_requires_authorization PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_rejects_customer PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_other_users_order PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_barista_sees_other_users_order PASSED [  0%]
+services/core-api/tests/test_admin_orders_detail.py::test_admin_orders_detail_returns_404_on_unknown_id PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_symbol_absent PASSED [  0%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_excludes_finalized PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_explicit_status_filters_exact PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_type_filter_combines_with_status PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_active_orders_by_created_at_desc PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_finalized_orders_by_updated_at_desc PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_pagination_slice_and_total PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_list_orders_for_staff_sees_all_users PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_route_not_registered PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_requires_authorization PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_customer PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_courier PASSED [  1%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_rejects_per_page_over_100 PASSED [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_defaults_to_active_filter PASSED [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_type_filter PASSED [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_barista_same_access_as_admin PASSED [  2%]
+services/core-api/tests/test_admin_orders_list.py::test_admin_orders_list_sees_multiple_users_orders PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_list_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_detail_matrix_row_allows_admin_and_barista_only PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_admin_orders_routes_not_public PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_list_orders_signature_has_user_id PASSED [  2%]
+services/core-api/tests/test_admin_orders_rbac.py::test_existing_customer_order_detail_row_untouched PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_schemas_module_importable PASSED [  2%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_update_all_fields_optional PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_promocode_state_literal_values PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_route_registered PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_happy_path_uppercases_code PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_duplicate_code_returns_409 PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_rejects_bad_pattern PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_percent_over_100_rejected PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_fixed_amount_non_positive_rejected PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_dates_inverted_rejected PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_per_user_over_max_uses_rejected PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_admin_rejects_barista PASSED [  3%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_create_requires_token PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_happy_returns_state_field PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_unknown_id_returns_404 PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_crud.py::test_detail_rejects_customer PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_route_registered PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unused_all_fields_editable PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code] PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload1-discount_type] PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload2-discount_value] PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_accepts_valid_until PASSED [  4%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_used_accepts_is_active PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_merged_dates_must_be_ordered PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_failed_lock_leaves_row_unchanged PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_rejects_barista PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_edit_rules.py::test_patch_unknown_id_returns_404 PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_symbol_absent PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_expired_beats_everything PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_exhausted_when_not_expired PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_active_happy PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_inactive_when_is_active_false PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_compute_state_inactive_before_valid_from PASSED [  5%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_route_registered PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_requires_valid_until PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_expired_rejected PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_exhausted_rejected PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_happy_sets_is_active_true PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_rejects_barista PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_activate_unknown_id_returns_404 PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_route_registered PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_expired_rejected PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_happy_sets_is_active_false PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_unknown_id_returns_404 PASSED [  6%]
+services/core-api/tests/test_admin_promocodes_lifecycle.py::test_deactivate_rejects_customer PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_route_registered PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_default_state_all_returns_every_bucket PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[active] PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[expired] PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[exhausted] PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_state_filter[inactive] PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_code_prefix_case_insensitive PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_per_page_over_100_rejected PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_sort_created_at_desc PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_total_count_after_filter PASSED [  7%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_pagination_slice PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_rejects_barista PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_list.py::test_list_requires_token PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_rbac.py::test_rbac_matrix_rows_admin_only PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_rbac.py::test_rbac_none_of_six_routes_public PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_rbac.py::test_no_delete_route_registered PASSED [  8%]
+services/core-api/tests/test_admin_promocodes_rbac.py::test_validators_promocode_module_unchanged_signature PASSED [  8%]
+services/core-api/tests/test_admin_shop_settings_get.py::test_get_route_registered PASSED [  8%]
+services/core-api/tests/test_admin_shop_settings_get.py::test_admin_get_returns_default_snapshot PASSED [  8%]
+services/core-api/tests/test_admin_shop_settings_put.py::test_put_route_registered PASSED [  8%]
+services/core-api/tests/test_admin_shop_settings_put.py::test_admin_put_updates_all_fields PASSED [  8%]
+services/core-api/tests/test_admin_shop_settings_put.py::test_singleton_check_rejects_second_row PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_rbac_matrix_admin_only PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_rbac_routes_not_public PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_barista PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_courier PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_forbidden_for_customer PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_get_unauthorized_without_token PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_barista PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_courier PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_forbidden_for_customer PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_rbac.py::test_put_unauthorized_without_token PASSED [  9%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lat-91] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lat-neg91] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lon-181] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[lon-neg181] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[loyalty-101] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[loyalty-neg] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[free-threshold-below-min] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[auto-close-0] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[auto-close-1441] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-missing-sun] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-bad-time] PASSED [ 10%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_put_invalid_payload_returns_422[wh-open-eq-close] PASSED [ 11%]
+services/core-api/tests/test_admin_shop_settings_validation.py::test_working_hours_day_off_accepted PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_symbol_absent PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_same_snapshot_aggregates_to_one_row PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_different_snapshots_produce_two_rows PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_cancelled_excluded PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_limits_to_ten_ordered_desc PASSED [ 11%]
+services/core-api/tests/test_admin_stats_popular.py::test_get_popular_items_out_of_range_excluded PASSED [ 11%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_symbol_absent PASSED [ 11%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_today_starts_at_europe_moscow_midnight PASSED [ 11%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_today_end_is_now_utc PASSED [ 11%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_week_spans_seven_days PASSED [ 12%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_month_spans_thirty_days PASSED [ 12%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_returns_half_open_interval_with_start_lt_end[today] PASSED [ 12%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_returns_half_open_interval_with_start_lt_end[week] PASSED [ 12%]
+services/core-api/tests/test_admin_stats_range.py::test_compute_range_returns_half_open_interval_with_start_lt_end[month] PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_matrix_row_is_admin_only PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_matrix_row_excludes_barista_courier_customer PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_route_not_public PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_requires_authorization PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_rejects_barista PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_rejects_courier PASSED [ 12%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_rejects_customer PASSED [ 13%]
+services/core-api/tests/test_admin_stats_rbac.py::test_admin_stats_rejects_unknown_range PASSED [ 13%]
+services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_symbol_absent PASSED [ 13%]
+services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_empty_range_returns_zeros PASSED [ 13%]
+services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_sums_only_completed PASSED [ 13%]
+services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_excludes_out_of_range_orders PASSED [ 13%]
+services/core-api/tests/test_admin_stats_revenue.py::test_get_revenue_and_count_respects_half_open_interval PASSED [ 13%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_symbol_absent PASSED [ 13%]
+services/core-api/tests/test_admin_users_block.py::test_invalid_user_state_error_symbol_absent PASSED [ 13%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_happy_path_with_three_active_orders PASSED [ 13%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_completed_and_cancelled_orders_are_not_touched PASSED [ 13%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_in_delivery_orders_are_skipped_silently PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_idempotent_when_already_blocked PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_pending_verification_raises_invalid_state PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_deleted_raises_invalid_state PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_tombstone_raises_invalid_state PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_registered PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_rejects_no_auth PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_rejects_barista PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_happy_path_returns_200_and_count PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_409_on_pending_verification PASSED [ 14%]
+services/core-api/tests/test_admin_users_block.py::test_block_user_route_404_on_unknown_user_id PASSED [ 14%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_symbol_absent PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_user_not_found_error_symbol_absent PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_happy_path_returns_merged_shape PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_returns_last_20_loyalty_transactions_desc PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_tombstone_raises_user_not_found PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_unknown_id_raises_user_not_found PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_active_orders_count_excludes_completed_and_cancelled PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_get_user_detail_response_has_no_phone_or_phone_hash_or_deleted_at_fields PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_loyalty_transaction_item_omits_user_id_and_order_id PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_no_auth PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[barista_headers] PASSED [ 15%]
+services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[courier_headers] PASSED [ 16%]
+services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_rejects_non_admin_roles[customer_headers] PASSED [ 16%]
+services/core-api/tests/test_admin_users_detail.py::test_admin_users_detail_route_registered PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_symbol_absent PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_status_all_includes_every_status_and_tombstones PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_status_active_excludes_tombstones PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_status_blocked_filters_exact PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_status_pending_verification_filters_exact PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_status_deleted_returns_deleted_and_tombstones PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_search_prefix_matches_display_name_case_insensitively PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_search_does_not_match_phone_hash_fragment PASSED [ 16%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_pagination_page_2_slices_rows_and_reports_total PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_sort_is_created_at_desc PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_loyalty_balance_coalesces_to_zero_when_account_absent PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_list_users_summary_has_no_phone_or_phone_hash_fields PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_no_auth_route_level PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_barista PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_courier PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_customer PASSED [ 17%]
+services/core-api/tests/test_admin_users_list.py::test_admin_users_list_route_registered PASSED [ 17%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_symbol_absent PASSED [ 17%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_insufficient_balance_error_symbol_absent PASSED [ 17%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_positive_delta_credits_and_creates_admin_adjustment_transaction PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_negative_delta_debits_balance PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_insufficient_balance_raises_and_rolls_back PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_blocked_user_is_accepted PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_pending_verification_raises_invalid_state PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_deleted_raises_invalid_state PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_tombstone_raises_invalid_state PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_schema_rejects_delta_zero PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_schema_rejects_empty_reason PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_schema_rejects_reason_longer_than_500 PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_registered PASSED [ 18%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_no_auth PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[barista_headers] PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[courier_headers] PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[customer_headers] PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_happy_path_returns_200 PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_delta_zero PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_empty_reason PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_long_reason PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_insufficient_balance PASSED [ 19%]
+services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_409_on_deleted_user PASSED [ 19%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_list_row_is_admin_only PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_detail_row_is_admin_only PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_block_row_is_admin_only PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_unblock_row_is_admin_only PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_loyalty_adjust_row_is_admin_only PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_admin_users_routes_not_public PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_existing_customer_profile_row_untouched PASSED [ 20%]
+services/core-api/tests/test_admin_users_rbac.py::test_existing_customer_profile_loyalty_row_untouched PASSED [ 20%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_symbol_absent PASSED [ 20%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_happy_path_flips_to_active PASSED [ 20%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_idempotent_when_active PASSED [ 20%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_pending_verification_raises_invalid_state PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_deleted_raises_invalid_state PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_tombstone_raises_invalid_state PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_does_not_resurrect_cancelled_orders PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_registered PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_no_auth PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_customer PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_happy_path_returns_200 PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_409_on_pending_verification PASSED [ 21%]
+services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_404_on_unknown_user_id PASSED [ 21%]
+services/core-api/tests/test_auth_endpoints.py::TestSendCode::test_invalid_phone PASSED [ 21%]
+services/core-api/tests/test_auth_endpoints.py::TestVerifyCode::test_invalid_phone PASSED [ 22%]
+services/core-api/tests/test_auth_endpoints.py::TestRefresh::test_invalid_token PASSED [ 22%]
+services/core-api/tests/test_auth_endpoints.py::TestLogout::test_unauthenticated PASSED [ 22%]
+services/core-api/tests/test_cart_fixture_smoke.py::test_cart_redis_fixture_is_fakeredis PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_cart_service_importable_with_expected_methods PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_cart_service_constructor_takes_session_and_redis PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_cart_validation_error_exception_exists PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_get_returns_empty_cart_when_no_key PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_get_hydrates_line_with_fresh_prices PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_get_reflects_updated_menu_price PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_get_refreshes_ttl_on_read PASSED [ 22%]
+services/core-api/tests/test_cart_service.py::test_get_surfaces_stop_listed_item_without_removing PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_get_surfaces_archived_item_as_archived PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_creates_new_line PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_persists_no_prices_in_redis PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_sets_ttl_atomically PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_merges_into_existing_line_same_shape PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_merges_ignoring_modifier_order PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_menu_item PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_archived_menu_item PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_size_option PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_modifier PASSED [ 23%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_size_from_different_menu_item PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_modifier_not_linked_to_menu_item PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_unknown_menu_item_id PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_add_item_rejects_merge_exceeding_cap PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_add_item_no_partial_write_on_rejection PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_changes_quantity PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_recomputes_line_id_when_modifiers_change PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_rejects_unknown_line_id PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_rejects_stop_listed_target_state PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_refreshes_ttl PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_quantity_changes_only_quantity PASSED [ 24%]
+services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_unknown_line_id PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_stop_listed PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_delete_item_removes_one_line PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_delete_item_rejects_unknown_line_id PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_delete_last_item_yields_empty_cart_read PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_clear_deletes_redis_key PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_clear_is_idempotent_on_empty PASSED [ 25%]
+services/core-api/tests/test_cart_service.py::test_add_item_concurrent_modification_retries PASSED [ 25%]
+services/core-api/tests/test_celery_beat_schedule.py::test_beat_schedule_has_pickup_autoclose_entry PASSED [ 25%]
+services/core-api/tests/test_celery_beat_schedule.py::test_beat_schedule_entry_points_to_task_with_60s_interval PASSED [ 25%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_create_order_request_accepts_delivery_address_id PASSED [ 25%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_create_order_request_accepts_inline_delivery_address_legacy_path PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_create_order_request_both_set_raises_validation_error PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_create_order_request_neither_set_for_delivery_raises PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_create_order_request_pickup_without_address_is_valid PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_both_delivery_fields_with_422 PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_neither_delivery_field_with_422 PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_loads_saved_address_when_id_provided PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_foreign_address_id_returns_404 PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_unknown_address_id_returns_404 PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_does_not_call_geocoder_when_address_id_provided PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshots_saved_address_into_order_jsonb PASSED [ 26%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_byte_identical_after_saved_address_deleted PASSED [ 27%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_shape_matches_inline_path PASSED [ 27%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_calls_validate_delivery_address_on_saved_path PASSED [ 27%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_calls_validate_delivery_address_on_inline_path PASSED [ 27%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_rejects_saved_address_now_outside_radius PASSED [ 27%]
+services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_haversine_uses_saved_row_coords_not_request_body PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_checkout_service_module_importable PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_create_order_rejects_empty_cart PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_create_order_rejects_cart_with_zero_items PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_create_order_calls_stop_list_validator PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_create_order_calls_time_slot_validator_before_pricing PASSED [ 27%]
+services/core-api/tests/test_checkout_service.py::test_create_order_does_not_call_delivery_validators_for_pickup PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_does_not_call_promocode_validator_when_code_absent PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_validator_failure_raises_before_db_writes PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_delivery_calls_delivery_validators PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_delivery_calls_delivery_validators_before_pricing PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_promocode_validator_called_when_code_provided PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_pricing_chain_order PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_pricing_delivery_includes_delivery_fee PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_pricing_uses_fresh_prices_from_db PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_row_with_status_created PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_items_with_snapshots PASSED [ 28%]
+services/core-api/tests/test_checkout_service.py::test_create_order_item_stores_menu_item_id_as_reference_not_fk PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_inserts_payment_with_pending_status_and_idempotency_key PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_payment_amount_matches_order_total PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_order_items_count_matches_cart_lines PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_creates_reservation_transaction PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_debits_account_balance PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_records_points_used_in_order_row PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_without_points_skips_loyalty_transaction PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_increments_current_uses PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_inserts_promocode_usage_row PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_without_promocode_skips_promocode_usage PASSED [ 29%]
+services/core-api/tests/test_checkout_service.py::test_create_order_stores_discount_amount_on_order PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_commits_order_as_paid PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_creates_loyalty_transaction_as_redemption PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_deletes_cart_from_redis PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_does_not_enqueue_celery_task PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_payment_row_has_amount_zero PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_enqueues_celery_task PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_leaves_cart_in_redis PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_returns_created_status PASSED [ 30%]
+services/core-api/tests/test_checkout_service.py::test_create_order_enqueues_after_db_commit PASSED [ 30%]
+services/core-api/tests/test_courier_endpoints.py::test_courier_router_module_exists PASSED [ 30%]
+services/core-api/tests/test_courier_endpoints.py::test_main_registers_courier_router PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_rbac_matrix_has_courier_entries PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_available_endpoint_rejects_non_courier_with_403[customer] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_available_endpoint_rejects_non_courier_with_403[barista] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_available_endpoint_rejects_non_courier_with_403[admin] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_mine_endpoint_rejects_non_courier_with_403[customer] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_mine_endpoint_rejects_non_courier_with_403[barista] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_mine_endpoint_rejects_non_courier_with_403[admin] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_take_endpoint_rejects_non_courier_with_403[customer] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_take_endpoint_rejects_non_courier_with_403[barista] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_take_endpoint_rejects_non_courier_with_403[admin] PASSED [ 31%]
+services/core-api/tests/test_courier_endpoints.py::test_pickup_endpoint_rejects_non_courier_with_403[customer] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_pickup_endpoint_rejects_non_courier_with_403[barista] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_pickup_endpoint_rejects_non_courier_with_403[admin] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_deliver_endpoint_rejects_non_courier_with_403[customer] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_deliver_endpoint_rejects_non_courier_with_403[barista] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_deliver_endpoint_rejects_non_courier_with_403[admin] PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_take_endpoint_forwards_already_taken_as_409 PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_pickup_endpoint_forwards_not_owner_as_403 PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_deliver_endpoint_forwards_forbidden_transition_as_409 PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_assignment_not_found_returns_404 PASSED [ 32%]
+services/core-api/tests/test_courier_endpoints.py::test_available_endpoint_returns_json_list PASSED [ 32%]
+services/core-api/tests/test_crypto.py::TestHashPhone::test_deterministic PASSED [ 33%]
+services/core-api/tests/test_crypto.py::TestHashPhone::test_hex_64_chars PASSED [ 33%]
+services/core-api/tests/test_crypto.py::TestHashPhone::test_different_phones_different_hashes PASSED [ 33%]
+services/core-api/tests/test_crypto.py::TestEncryptDecryptPhone::test_roundtrip PASSED [ 33%]
+services/core-api/tests/test_crypto.py::TestEncryptDecryptPhone::test_unique_nonces PASSED [ 33%]
+services/core-api/tests/test_crypto.py::TestEncryptDecryptPhone::test_nonce_is_12_bytes_prefix PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_address_model_importable PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_address_model_has_user_cascade_delete PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_address_has_partial_unique_default_index PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_addresses_router_is_mounted PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_addresses_rbac_matrix_entries PASSED [ 33%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delivery_addresses_not_in_public_routes PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_requires_auth PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_forbidden_for_staff PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_requires_auth PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_forbidden_for_staff PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_requires_auth PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_forbidden_for_staff PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_address_requires_auth PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_address_forbidden_for_staff PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_empty_returns_200_with_empty_list PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_returns_own_rows_only PASSED [ 34%]
+services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_default_first_then_created_asc PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_happy_path_returns_201 PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_rejects_out_of_radius_with_422 PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_rejects_missing_fields_with_422 PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_persists_optional_fields PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_first_for_user_not_automatically_default PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_create_address_with_is_default_true_persists_flag PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_label PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_optional_fields PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_true_demotes_previous_default PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_false_does_not_touch_other_rows PASSED [ 35%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_foreign_address_returns_404 PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_unknown_address_returns_404 PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_patch_returns_updated_body PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_own_address_returns_204 PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_foreign_address_returns_404_and_row_persists PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_unknown_address_returns_404 PASSED [ 36%]
+services/core-api/tests/test_delivery_addresses_api.py::test_delete_does_not_mutate_past_order_snapshot PASSED [ 36%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_transition_order_bridge_exists PASSED [ 36%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_paid_to_preparing_delivery_creates_awaiting_assignment PASSED [ 36%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_paid_to_preparing_pickup_does_not_create_assignment PASSED [ 36%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_pickup_assignment_transitions_order_to_in_delivery PASSED [ 36%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_deliver_assignment_transitions_order_to_completed_and_accrues_loyalty PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_pickup_rolls_back_if_order_transition_fails PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_deliver_rolls_back_if_accrual_fails PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_bridge.py::test_cancel_assignment_for_order_integrates_with_order_cancel PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_optimistic_lock_module_exists PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_optimistic_lock.py::test_two_couriers_race_one_wins PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_delivery_assignment_module_exists PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_take_assignment_awaiting_to_assigned_happy_path PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_pickup_assignment_assigned_to_picked_up_happy_path PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_deliver_assignment_picked_up_to_delivered_happy_path PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_cancel_assignment_for_order_awaiting_to_cancelled PASSED [ 37%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_cancel_assignment_for_order_assigned_to_cancelled PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_cancel_assignment_for_order_picked_up_is_noop PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_cancel_assignment_for_order_when_no_assignment_returns_none PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_take_assignment_on_non_awaiting_raises_forbidden_transition[courier_assigned] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_take_assignment_on_non_awaiting_raises_forbidden_transition[picked_up] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_take_assignment_on_non_awaiting_raises_forbidden_transition[delivered] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_take_assignment_on_non_awaiting_raises_forbidden_transition[cancelled] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_pickup_transitions[awaiting_courier] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_pickup_transitions[picked_up] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_pickup_transitions[delivered] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_pickup_transitions[cancelled] PASSED [ 38%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_deliver_transitions[awaiting_courier] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_deliver_transitions[courier_assigned] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_deliver_transitions[delivered] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_forbidden_deliver_transitions[cancelled] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_pickup_ownership_mismatch_raises_not_owner PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_deliver_ownership_mismatch_raises_not_owner PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_pickup_requires_order_ready[paid] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_pickup_requires_order_ready[preparing] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_pickup_requires_order_ready[in_delivery] PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_assignment_not_found_raises PASSED [ 39%]
+services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting FAILED [ 40%]
+services/core-api/tests/test_health.py::test_health_returns_ok PASSED    [ 40%]
+services/core-api/tests/test_health.py::test_health_includes_yukassa_backend PASSED [ 40%]
+services/core-api/tests/test_jwt.py::TestJWT::test_create_and_decode PASSED [ 40%]
+services/core-api/tests/test_jwt.py::TestJWT::test_expired_token PASSED  [ 40%]
+services/core-api/tests/test_jwt.py::TestJWT::test_invalid_signature PASSED [ 40%]
+services/core-api/tests/test_main_includes_maps_router.py::test_main_registers_yandex_maps_router PASSED [ 40%]
+services/core-api/tests/test_main_includes_menu_routers.py::test_main_registers_three_new_routers PASSED [ 40%]
+services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count FAILED [ 40%]
+services/core-api/tests/test_menu_admin.py::test_availability_patch_schema_exists PASSED [ 40%]
+services/core-api/tests/test_menu_admin.py::test_availability_patch_rejects_extra_fields PASSED [ 40%]
+services/core-api/tests/test_menu_admin.py::test_menu_admin_service_importable PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_menu_admin_service_has_required_methods PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_menu_admin_router_has_no_direct_db_calls PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_admin_creates_category PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_admin_updates_category PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_admin_lists_categories_returns_seeded_rows PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_barista_lists_categories_allowed PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_admin_deletes_empty_category PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409 FAILED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_barista_cannot_create_category PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_barista_cannot_delete_category PASSED [ 41%]
+services/core-api/tests/test_menu_admin.py::test_customer_blocked_from_categories_crud PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_creates_menu_item PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_create_item_with_unknown_category_rejected PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_updates_item_archives_it PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_lists_items PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_gets_single_item_with_sizes_and_modifiers PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_deletes_item PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_barista_lists_items_allowed PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_barista_cannot_delete_item PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_customer_blocked_from_items_crud PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_creates_modifier PASSED [ 42%]
+services/core-api/tests/test_menu_admin.py::test_admin_updates_modifier_price PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_admin_deletes_modifier PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_delete_missing_modifier_returns_404 PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_barista_lists_modifiers_allowed PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_barista_cannot_update_modifier PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_admin_creates_size_for_item PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_duplicate_size_label_on_same_item_returns_409 PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_admin_updates_size_price PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_admin_deletes_size PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_barista_cannot_create_size PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_barista_stop_lists_item PASSED [ 43%]
+services/core-api/tests/test_menu_admin.py::test_barista_unstops_item PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_archived_item_availability_unchanged_by_toggle PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_admin_stop_lists_item PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_customer_blocked_from_item_availability PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_courier_blocked_from_item_availability PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_item_availability_patch_404_on_missing_id PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_item_availability_patch_rejects_extra_fields PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_item_availability_patch_only_touches_available_column PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_barista_stop_lists_modifier PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_admin_stop_lists_modifier PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_customer_blocked_from_modifier_availability PASSED [ 44%]
+services/core-api/tests/test_menu_admin.py::test_courier_blocked_from_modifier_availability PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_modifier_availability_patch_404_on_missing_id PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_rbac_matrix_contains_admin_menu_routes PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_rbac_matrix_availability_routes_allow_barista PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_rbac_matrix_mutations_admin_only PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_admin_menu_routes_not_public PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_unauthenticated_admin_menu_request_401 PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_openapi_exposes_menu_admin_paths PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_openapi_menu_admin_tag_is_consistent PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_admin_items_list_filters_by_category PASSED [ 45%]
+services/core-api/tests/test_menu_admin.py::test_admin_set_item_modifiers PASSED [ 45%]
+services/core-api/tests/test_menu_public.py::test_get_public_menu_service_is_importable PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_get_public_menu_signature_uses_keyword_only_flags PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_language_enum_exists PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_menu_schemas_importable PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_menu_item_has_no_archived_field PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_menu_item_exposes_flat_and_raw_bilingual_fields PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_category_exposes_flat_and_raw_bilingual_fields PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_admin_menu_item_response_still_has_archived PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_menu_modifier_has_bilingual_and_name PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_public_menu_size_option_has_expected_fields PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_get_menu_returns_200_for_anonymous_client PASSED [ 46%]
+services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list FAILED [ 47%]
+services/core-api/tests/test_menu_public.py::test_get_menu_groups_and_orders_categories_and_items PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_archived_items_are_never_returned PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_invisible_category_is_excluded_with_its_items PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_modifier_type_category_is_excluded PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_default_request_includes_stop_listed_items PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_available_true_hides_stop_listed_items PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_available_true_prunes_stop_listed_size_options PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_available_false_is_treated_as_default PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_archived_filter_is_independent_of_available_param PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_default_language_is_russian PASSED [ 47%]
+services/core-api/tests/test_menu_public.py::test_accept_language_en_selects_english PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_accept_language_en_us_is_treated_as_english PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_unknown_accept_language_falls_back_to_russian PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_null_description_projects_as_null PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_modifier_name_is_projected_bilingually PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_size_options_are_ordered_S_M_L PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_modifiers_ordered_by_sort_order_then_id PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_stop_listed_modifiers_still_visible_under_available_true PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_anonymous_request_has_no_rbac_entry PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_public_menu_query_is_bounded PASSED [ 48%]
+services/core-api/tests/test_menu_public.py::test_router_delegates_to_service PASSED [ 48%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_categories_table PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_menu_items_table PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_size_options_table PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_modifiers_table PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_junction_table PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_upgrade_creates_indexes PASSED [ 49%]
+services/core-api/tests/test_migration_0004_menu_tables.py::test_downgrade_removes_everything PASSED [ 49%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_shop_settings_table PASSED [ 49%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_shop_settings_check_id_is_1 PASSED [ 49%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_orders_table PASSED [ 49%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_orders_user_fk_behavior PASSED [ 49%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_order_items_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_payments_table_and_order_unique PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_refunds_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_loyalty_transactions_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_promocodes_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_promocode_usages_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_notifications_table PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_upgrade_creates_phase3_indexes PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_shop_settings_seed_populates_defaults PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_shop_settings_seed_is_idempotent PASSED [ 50%]
+services/core-api/tests/test_migration_0005_phase3_schema.py::test_downgrade_removes_phase3_tables_and_enums PASSED [ 50%]
+services/core-api/tests/test_migration_0008_auto_close.py::test_upgrade_adds_auto_close_minutes_column PASSED [ 51%]
+services/core-api/tests/test_migration_0008_auto_close.py::test_downgrade_drops_auto_close_minutes_column PASSED [ 51%]
+services/core-api/tests/test_migration_0008_auto_close.py::test_seed_row_has_auto_close_default PASSED [ 51%]
+services/core-api/tests/test_migration_bootstrap.py::test_upgrade_head_without_admin_env_vars PASSED [ 51%]
+services/core-api/tests/test_migration_bootstrap.py::test_upgrade_head_no_admin_row_seeded PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_category_model_declares_columns PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_menu_item_model_declares_columns PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_size_option_model_declares_columns PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_modifier_model_declares_columns PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_category_menu_items_relationship PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_menu_item_size_options_cascade_delete PASSED [ 51%]
+services/core-api/tests/test_models_menu.py::test_menu_item_modifiers_many_to_many PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_order_status_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_order_type_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_payment_status_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_refund_status_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_notification_channel_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_notification_type_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_notification_status_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_loyalty_transaction_type_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_promocode_discount_type_enum_exists_with_correct_values PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_shop_settings_model_declares_columns PASSED [ 52%]
+services/core-api/tests/test_models_order.py::test_order_model_declares_columns PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_user_fk_and_promocode_fk PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_model_forbids_pii_columns PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_item_model_declares_columns PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_item_order_fk_cascade PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_item_menu_item_id_is_not_fk PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_order_item_nullable_snapshot_references PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_payment_model_declares_columns PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_payment_order_fk_is_unique PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_refund_model_declares_columns PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_refund_payment_fk PASSED [ 53%]
+services/core-api/tests/test_models_order.py::test_loyalty_transaction_model_declares_columns PASSED [ 54%]
+services/core-api/tests/test_models_order.py::test_promocode_model_declares_columns PASSED [ 54%]
+services/core-api/tests/test_models_order.py::test_promocode_usage_model_declares_columns PASSED [ 54%]
+services/core-api/tests/test_models_order.py::test_notification_model_declares_columns PASSED [ 54%]
+services/core-api/tests/test_models_order.py::test_phase3_models_registered_in_shared_models_all PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_matrix_has_nine_cases PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[paid] PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[preparing] PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[ready-pickup] PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[ready-delivery] PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[in-delivery] PASSED [ 54%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[completed-pickup] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[completed-delivery] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[cancelled-customer] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_ru[cancelled-admin] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[paid] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[preparing] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[ready-pickup] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[ready-delivery] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[in-delivery] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[completed-pickup] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[completed-delivery] PASSED [ 55%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[cancelled-customer] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_frozen_en[cancelled-admin] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[paid] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[preparing] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[ready-pickup] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[ready-delivery] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[in-delivery] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[completed-pickup] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[completed-delivery] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[cancelled-customer] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_requires_sms_flag[cancelled-admin] PASSED [ 56%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[paid] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[preparing] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[ready-pickup] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[ready-delivery] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[in-delivery] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[completed-pickup] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[completed-delivery] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[cancelled-customer] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_resolve_notification_text_returns_sms_status[cancelled-admin] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[paid] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[preparing] PASSED [ 57%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[ready-pickup] PASSED [ 58%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[ready-delivery] PASSED [ 58%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[completed-delivery] PASSED [ 58%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[cancelled-customer] PASSED [ 58%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_length_is_within_one_cyrillic_segment[cancelled-admin] PASSED [ 58%]
+services/core-api/tests/test_notification_messages.py::test_sms_body_substitutes_short_id PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_make_order_fixture_smoke PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_fixture_returns_hex_string PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_paid_writes_in_app_row_status_sent PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[paid-pickup] PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[preparing-pickup] PASSED [ 58%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[ready-pickup] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[ready-delivery] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[in-delivery] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[completed-pickup] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[completed-delivery] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[cancelled-customer] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_written_for_every_status_with_notification[cancelled-admin] PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_app_row_text_matches_preferred_language_selection PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_paid_writes_sms_row_status_pending PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_in_delivery_does_not_write_sms_row PASSED [ 59%]
+services/core-api/tests/test_notification_service.py::test_completed_pickup_does_not_write_sms_row PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[paid] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[preparing] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[ready-pickup] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[ready-delivery] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[completed-delivery] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[cancelled-customer] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_sms_required_cases_enqueue_celery_task[cancelled-admin] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_in_app_only_cases_do_not_enqueue_task[in-delivery] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_in_app_only_cases_do_not_enqueue_task[completed-pickup] PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_celery_task_is_dispatched_by_registered_name PASSED [ 60%]
+services/core-api/tests/test_notification_service.py::test_plaintext_phone_never_passed_to_task PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_sms_row_committed_before_dispatch PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_short_id_is_first_8_hex_chars_of_uuid PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_cancelled_by_customer_uses_refund_wording PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_cancelled_by_admin_uses_coffee_shop_wording PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_cancelled_without_cancelled_by_raises PASSED [ 61%]
+services/core-api/tests/test_notification_service.py::test_unknown_transition_raises PASSED [ 61%]
+services/core-api/tests/test_order_cancel.py::test_order_cancel_module_exists PASSED [ 61%]
+services/core-api/tests/test_order_cancel.py::test_customer_cancels_paid_order_full_chain PASSED [ 61%]
+services/core-api/tests/test_order_cancel.py::test_admin_cancels_preparing_order_full_chain PASSED [ 61%]
+services/core-api/tests/test_order_cancel.py::test_admin_cancels_ready_order PASSED [ 61%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_preparing PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[created] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[preparing] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[ready] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[in_delivery] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[completed] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_customer_cannot_cancel_non_paid_statuses[cancelled] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_admin_cannot_cancel_terminal_or_in_delivery[in_delivery] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_admin_cannot_cancel_terminal_or_in_delivery[completed] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_admin_cannot_cancel_terminal_or_in_delivery[cancelled] PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_no_promocode_skips_promo_step PASSED [ 62%]
+services/core-api/tests/test_order_cancel.py::test_no_points_used_skips_loyalty_step PASSED [ 63%]
+services/core-api/tests/test_order_cancel.py::test_zero_payment_amount_skips_refund PASSED [ 63%]
+services/core-api/tests/test_order_cancel.py::test_celery_send_task_failure_rolls_back_everything PASSED [ 63%]
+services/core-api/tests/test_order_cancel.py::test_notification_failure_rolls_back_and_no_task_enqueued PASSED [ 63%]
+services/core-api/tests/test_order_cancel.py::test_order_not_found_raises_cancel PASSED [ 63%]
+services/core-api/tests/test_order_cancel_atomic_decrement.py::test_double_cancel_does_not_drive_counter_below_zero PASSED [ 63%]
+services/core-api/tests/test_order_cancel_atomic_decrement.py::test_normal_decrement_matches_single_row PASSED [ 63%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_module_missing PASSED [ 63%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_empty_user_returns_zero_total PASSED [ 63%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_sorts_desc_by_created_at PASSED [ 63%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_pagination_slice_and_total PASSED [ 63%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_does_not_leak_across_users PASSED [ 64%]
+services/core-api/tests/test_order_history_service.py::test_list_orders_eagerly_loads_items PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_order_lifecycle_module_exists PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_paid_to_preparing_barista_happy_path PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_paid_to_cancelled_admin_happy_path PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_preparing_to_ready_barista_happy_path PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_preparing_to_cancelled_admin_only PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_ready_to_in_delivery_courier_happy_path PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_ready_to_in_delivery_rejects_pickup_order PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_ready_to_completed_pickup_barista PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_ready_to_completed_rejects_delivery_order PASSED [ 64%]
+services/core-api/tests/test_order_lifecycle.py::test_ready_to_cancelled_admin_only PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_in_delivery_to_completed_courier_happy_path PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_completed_accrues_loyalty_pickup PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_completed_accrues_loyalty_delivery_excludes_delivery_fee PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_completed_zero_goods_total_accrues_nothing PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-paid] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-preparing] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-ready] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-in_delivery] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-completed] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[created-cancelled] PASSED [ 65%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[paid-created] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[paid-ready] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[paid-in_delivery] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[paid-completed] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[preparing-created] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[preparing-paid] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[preparing-in_delivery] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[preparing-completed] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[ready-created] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[ready-paid] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[ready-preparing] PASSED [ 66%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[in_delivery-created] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[in_delivery-paid] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[in_delivery-preparing] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[in_delivery-ready] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[in_delivery-cancelled] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-created] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-paid] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-preparing] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-ready] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-in_delivery] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[completed-cancelled] PASSED [ 67%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-created] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-paid] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-preparing] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-ready] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-in_delivery] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_forbidden_transitions_raise[cancelled-completed] PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_customer_role_cannot_transition PASSED [ 68%]
+services/core-api/tests/test_order_lifecycle.py::test_order_not_found_raises PASSED [ 68%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_order_module_missing PASSED [ 68%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_happy_path_adds_all_items_with_current_prices PASSED [ 68%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_rejects_other_users_order PASSED [ 68%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_skips_stop_listed_item PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_skips_archived_item PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_skips_deleted_item PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_size_unavailable_skips_entire_item PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_modifier_unavailable_keeps_item PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_all_items_unavailable_raises PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_does_not_create_new_order_row PASSED [ 69%]
+services/core-api/tests/test_order_repeat_service.py::test_repeat_result_shape PASSED [ 69%]
+services/core-api/tests/test_otp_service.py::TestCreateOTP::test_creates_6_digit_code PASSED [ 69%]
+services/core-api/tests/test_otp_service.py::TestCreateOTP::test_stores_in_redis PASSED [ 69%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_correct_code PASSED [ 69%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_wrong_code PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_exhausted_attempts PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_expired PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_correct_code_on_final_attempt PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_invalid_status_created PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_remaining_attempts_decrement PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_key_deleted_after_verified PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestVerifyOTP::test_key_deleted_after_failed PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_allowed PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_per_minute_exceeded PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_per_hour_exceeded PASSED [ 70%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_per_day_exceeded PASSED [ 71%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_exact_boundary_per_minute PASSED [ 71%]
+services/core-api/tests/test_otp_service.py::TestRateLimit::test_retry_after_positive PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_valid_plus7 PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_valid_8_prefix PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_valid_7_prefix_no_plus PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_with_spaces_and_dashes PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_with_parens PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_invalid_short PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_invalid_non_russian PASSED [ 71%]
+services/core-api/tests/test_phone.py::TestNormalizePhone::test_invalid_too_long PASSED [ 71%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_no_stale_orders_returns_zero PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_stale_pickup_ready_is_completed PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_fresh_pickup_ready_is_skipped PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_delivery_ready_is_skipped PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_pickup_preparing_is_skipped PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_auto_close_fires_loyalty_accrual PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_auto_close_does_not_send_sms PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_cutoff_respects_auto_close_minutes[60-59-False] PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_cutoff_respects_auto_close_minutes[60-61-True] PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_cutoff_respects_auto_close_minutes[120-119-False] PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_service.py::test_cutoff_respects_auto_close_minutes[120-121-True] PASSED [ 72%]
+services/core-api/tests/test_pickup_autoclose_task.py::test_task_registered_under_expected_name PASSED [ 73%]
+services/core-api/tests/test_pickup_autoclose_task.py::test_task_invokes_service PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_base_price_only PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_size_overrides_base PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_size_zero_overrides_base PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_modifiers_sum PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_quantity_multiplies PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_zero_modifiers_no_change PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_rejects_negative_base PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_rejects_negative_modifier PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_line_total_rejects_zero_quantity PASSED [ 73%]
+services/core-api/tests/test_pricing.py::test_compute_subtotal_empty_is_zero PASSED [ 74%]
+services/core-api/tests/test_pricing.py::test_compute_subtotal_sums_values PASSED [ 74%]
+services/core-api/tests/test_pricing.py::test_compute_subtotal_rejects_negative PASSED [ 74%]
+services/core-api/tests/test_pricing.py::test_pricing_module_has_no_framework_imports PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_promocode_none_returns_zero_and_subtotal PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_promocode_percent_floor_division PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_promocode_percent_zero_value_yields_zero_discount PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_promocode_fixed_amount_within_subtotal PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_promocode_fixed_amount_caps_at_subtotal PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_loyalty_points_no_request_returns_zero PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_loyalty_points_request_below_balance_and_after_promo PASSED [ 74%]
+services/core-api/tests/test_pricing_chain.py::test_apply_loyalty_points_request_exceeds_balance_uses_balance PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_apply_loyalty_points_cap_at_after_promo PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_apply_loyalty_points_zero_balance PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_delivery_fee_below_min_raises PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_delivery_fee_equal_to_min_returns_delivery_fee PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_delivery_fee_above_free_threshold_returns_zero PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_delivery_fee_between_min_and_threshold_returns_fee PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_order_total_sums_after_points_and_delivery PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_order_total_zero_delivery_for_pickup PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_estimated_accrual_floor_division PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_estimated_accrual_zero_when_fully_points_paid PASSED [ 75%]
+services/core-api/tests/test_pricing_chain.py::test_compute_estimated_accrual_zero_loyalty_percent PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestGetProfile::test_success PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestGetProfile::test_masked_phone_format PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestGetProfile::test_unauthenticated PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestGetProfile::test_wrong_role PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestGetProfile::test_profile_not_found PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestUpdateProfile::test_update_name PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestUpdateProfile::test_update_language PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestUpdateProfile::test_empty_body_noop PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestUpdateProfile::test_name_too_long PASSED [ 76%]
+services/core-api/tests/test_profile_endpoints.py::TestUpdateProfile::test_invalid_language PASSED [ 76%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_get_balance_symbol_absent PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_get_balance_returns_account_balance_and_lifetime_from_accrual_only PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_get_balance_zero_for_new_user PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_get_balance_raises_when_account_row_missing PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_get_balance_isolates_users PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_schema_module_absent PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_schema_fields PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_route_not_registered PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_requires_authorization PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_rejects_admin PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_rejects_barista PASSED [ 77%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_rejects_courier PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_balance.py::test_balance_returns_balance_and_lifetime_for_customer PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_balance_matrix_row_allows_customer_only PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_transactions_matrix_row_allows_customer_only PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_loyalty_routes_not_in_public_routes PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_existing_profile_get_matrix_row_untouched PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_balance_rejects_admin_barista_courier_rbac_matrix PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_rbac.py::test_user_A_cannot_see_user_B_transactions PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_symbol_absent PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_sorts_created_at_desc PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_pagination_slice_and_total PASSED [ 78%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_contains_all_four_types PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_admin_adjustment_has_null_order_id PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_empty_history PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_list_transactions_isolates_users PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transaction_schema_module_absent PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transaction_schema_has_required_fields PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transaction_list_schema_has_required_fields PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_route_not_registered PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_requires_authorization PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_rejects_admin PASSED [ 79%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_rejects_barista PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_rejects_courier PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_rejects_per_page_over_100 PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_returns_items_sorted_desc_with_pagination PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_body_contains_all_four_types PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_admin_adjustment_order_id_is_null PASSED [ 80%]
+services/core-api/tests/test_profile_loyalty_transactions.py::test_transactions_empty_history_returns_empty_list PASSED [ 80%]
+services/core-api/tests/test_promocode_atomic_increment.py::test_race_loss_raises_validation_error_and_does_not_overshoot_max_uses PASSED [ 80%]
+services/core-api/tests/test_promocode_atomic_increment.py::test_unlimited_promocode_still_increments PASSED [ 80%]
+services/core-api/tests/test_promocode_atomic_increment.py::test_under_quota_single_row_match PASSED [ 80%]
+services/core-api/tests/test_rbac_matrix.py::TestCompilePattern::test_exact_path PASSED [ 80%]
+services/core-api/tests/test_rbac_matrix.py::TestCompilePattern::test_param_placeholder PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestMatchRoute::test_exact_match PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestMatchRoute::test_no_match_returns_none PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestMatchRoute::test_parameterized_match PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestMatchRoute::test_longest_prefix_precedence PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestMatchRoute::test_method_mismatch PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestIsPublic::test_public_route_matches PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestIsPublic::test_protected_route_not_public PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestIsPublic::test_method_matters PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestCartRbac::test_cart_routes_are_in_route_matrix PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestCartRbac::test_cart_routes_absent_from_public_routes PASSED [ 81%]
+services/core-api/tests/test_rbac_matrix.py::TestYandexMapsRbac::test_yandex_maps_routes_registered_for_customer_only PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestValidRoleAccess::test_customer_accesses_profile PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestInvalidRole::test_admin_denied_from_customer_endpoint PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestMissingToken::test_no_auth_header_on_protected_route PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestExpiredToken::test_expired_jwt_returns_401 PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestOptionsPassthrough::test_options_request_bypasses_auth PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_denied_with_valid_token PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_without_auth PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestPublicRoutes::test_health_no_auth_required PASSED [ 82%]
+services/core-api/tests/test_rbac_middleware.py::TestPublicRoutes::test_send_code_no_auth_required PASSED [ 82%]
+services/core-api/tests/test_route_cart.py::test_cart_router_now_has_five_operations PASSED [ 82%]
+services/core-api/tests/test_route_cart.py::test_get_cart_requires_auth PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_get_cart_forbidden_for_staff PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_get_cart_returns_empty_for_fresh_customer PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_post_cart_item_creates_line_and_returns_full_cart PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_post_cart_item_rejects_stop_listed_with_409 PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line FAILED [ 83%]
+services/core-api/tests/test_route_cart.py::test_post_cart_item_merge_cap_409 PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_post_cart_item_unknown_menu_item_404 PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity FAILED [ 83%]
+services/core-api/tests/test_route_cart.py::test_patch_cart_item_unknown_line_id_404 PASSED [ 83%]
+services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line FAILED [ 83%]
+services/core-api/tests/test_route_cart.py::test_delete_cart_item_unknown_line_id_404 PASSED [ 84%]
+services/core-api/tests/test_route_cart.py::test_delete_cart_clears_all PASSED [ 84%]
+services/core-api/tests/test_route_cart.py::test_delete_cart_idempotent_on_empty PASSED [ 84%]
+services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected FAILED [ 84%]
+services/core-api/tests/test_route_coverage.py::TestRouteCoverage::test_all_routes_covered PASSED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_order_actions_router_module_exists PASSED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_main_registers_order_actions_router PASSED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_requires_auth PASSED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403 FAILED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service FAILED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422 FAILED [ 84%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409 FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403 FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista] FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier] FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409 FAILED [ 85%]
+services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found FAILED [ 85%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_route_not_registered PASSED [ 85%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_requires_authorization PASSED [ 85%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_forbids_non_customer_role PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_rejects_per_page_over_50 PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_returns_only_own_orders PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_get_orders_empty_returns_200_with_empty_list PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_route_not_registered PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_requires_authorization PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_forbids_non_customer_role PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_returns_404_for_other_users_order PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_success_populates_cart_and_returns_200 PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_all_unavailable_returns_422 PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_post_repeat_does_not_auto_checkout PASSED [ 86%]
+services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated FAILED [ 87%]
+services/core-api/tests/test_route_orders.py::test_orders_router_exposes_post PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_requires_auth PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_forbidden_for_staff PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_forbidden_for_admin_and_courier PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_empty_cart_returns_400 PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_happy_path_returns_201 PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_validator_failure_returns_409 PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_rejects_unknown_type_with_422 PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_rejects_negative_points_with_422 PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_post_orders_total_zero_returns_paid_status PASSED [ 87%]
+services/core-api/tests/test_route_orders.py::test_orders_router_exposes_get_detail PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_requires_auth PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_forbidden_for_staff PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_returns_own_order PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_foreign_order_returns_404 PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_unknown_id_returns_404 PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_includes_confirmation_url_when_set PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_get_order_detail_confirmation_url_null_while_worker_pending PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_orders_routes_in_rbac_matrix PASSED [ 88%]
+services/core-api/tests/test_route_orders.py::test_route_coverage_passes_for_orders PASSED [ 88%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_create_exists_with_required_fields PASSED [ 88%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_create_quantity_bounds PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_has_server_computed_fields PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_line_total_invariant PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_response_subtotal_invariant PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_response_currency_locked_to_rub PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_schemas_do_not_import_orm_or_redis SKIPPED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_has_line_id PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_compute_line_id_is_deterministic PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_compute_line_id_modifier_order_independent PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_compute_line_id_size_sensitive PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_compute_line_id_modifier_sensitive PASSED [ 89%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_response_compute_line_id_size_option_none_stable PASSED [ 90%]
+services/core-api/tests/test_schemas_cart.py::test_cart_item_create_has_no_line_id_field PASSED [ 90%]
+services/core-api/tests/test_schemas_cart.py::test_full_cart_item_response_round_trip_with_line_id PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_category_schemas_exist PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_category_create_rejects_unknown_type PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_menu_item_schemas_exist PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_menu_item_create_rejects_negative_price PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_menu_item_response_derives_availability PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_size_option_schemas_exist PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_modifier_schemas_exist PASSED [ 90%]
+services/core-api/tests/test_schemas_menu.py::test_menu_item_response_from_orm_roundtrip PASSED [ 90%]
+services/core-api/tests/test_schemas_order.py::test_order_schemas_exist PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_shop_settings_schema_exists PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_create_order_request_accepts_minimal_pickup PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_create_order_request_rejects_unknown_type PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_create_order_request_accepts_delivery_with_address PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_create_order_request_rejects_negative_points_to_use PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_order_item_response_round_trip_from_namespace PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_order_response_round_trip_from_namespace PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_order_list_response_schema PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_order_status_update_schema PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_cancel_order_request_schema PASSED [ 91%]
+services/core-api/tests/test_schemas_order.py::test_repeat_order_result_schema PASSED [ 92%]
+services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip FAILED [ 92%]
+services/core-api/tests/test_seed_initial_admin.py::test_seed_creates_admin_row PASSED [ 92%]
+services/core-api/tests/test_seed_initial_admin.py::test_seed_is_idempotent PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogin::test_valid_credentials PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogin::test_wrong_password PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogin::test_nonexistent_login PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogin::test_inactive_account PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffRefresh::test_valid_refresh PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffRefresh::test_expired_token PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffRefresh::test_replayed_token PASSED [ 92%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogout::test_successful_logout PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestStaffLogout::test_unauthenticated PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestRequireRole::test_authorized_role PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestRequireRole::test_unauthorized_role PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestRequireRole::test_no_auth_header PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestRequireRole::test_customer_denied_on_staff_endpoint PASSED [ 93%]
+services/core-api/tests/test_staff_auth.py::TestRequireRole::test_multi_role_access PASSED [ 93%]
+services/core-api/tests/test_token_lifecycle.py::TestIssueTokens::test_access_token_decodable PASSED [ 93%]
+services/core-api/tests/test_token_lifecycle.py::TestIssueTokens::test_refresh_token_in_redis PASSED [ 93%]
+services/core-api/tests/test_token_lifecycle.py::TestRefreshTokenRotation::test_rotation_deletes_old_creates_new PASSED [ 93%]
+services/core-api/tests/test_token_lifecycle.py::TestRefreshTokenRotation::test_rotation_preserves_user_id PASSED [ 93%]
+services/core-api/tests/test_token_lifecycle.py::TestRefreshTokenRotation::test_double_use_returns_none PASSED [ 94%]
+services/core-api/tests/test_token_lifecycle.py::TestLogout::test_logout_deletes_session PASSED [ 94%]
+services/core-api/tests/test_token_lifecycle.py::TestLogout::test_logout_nonexistent_returns_false PASSED [ 94%]
+services/core-api/tests/test_user_service.py::TestUserService::test_create_new_user PASSED [ 94%]
+services/core-api/tests/test_user_service.py::TestUserService::test_existing_user PASSED [ 94%]
+services/core-api/tests/test_user_service.py::TestUserService::test_activate_pending_user PASSED [ 94%]
+services/core-api/tests/test_user_service.py::TestUserService::test_activate_already_active PASSED [ 94%]
+services/core-api/tests/test_user_service.py::TestUserService::test_blocked_user_status PASSED [ 94%]
+services/core-api/tests/test_validators_delivery.py::test_validate_delivery_address_inside_radius_accepts PASSED [ 94%]
+services/core-api/tests/test_validators_delivery.py::test_validate_delivery_address_outside_radius_raises PASSED [ 94%]
+services/core-api/tests/test_validators_delivery.py::test_validate_delivery_address_earth_radius_6371_sanity PASSED [ 94%]
+services/core-api/tests/test_validators_delivery.py::test_validate_min_delivery_amount_below_raises PASSED [ 95%]
+services/core-api/tests/test_validators_delivery.py::test_validate_min_delivery_amount_equal_accepts PASSED [ 95%]
+services/core-api/tests/test_validators_delivery.py::test_validate_min_delivery_amount_above_accepts PASSED [ 95%]
+services/core-api/tests/test_validators_init.py::test_validators_package_exports_public_names PASSED [ 95%]
+services/core-api/tests/test_validators_init.py::test_validators_exceptions_module_exports_error_classes PASSED [ 95%]
+services/core-api/tests/test_validators_init.py::test_validators_exceptions_share_base_class PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_unknown_code_raises PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_inactive_raises PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_valid_from_future_raises PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_valid_until_past_raises PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_global_quota_exhausted_raises PASSED [ 95%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_per_user_quota_exhausted_raises PASSED [ 96%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_subtotal_below_min_order_amount_raises PASSED [ 96%]
+services/core-api/tests/test_validators_promocode.py::test_validate_promocode_happy_path_returns_promocode PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_all_available_returns_validated_items PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_menu_item_unavailable_raises PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_size_option_unavailable_raises PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_modifier_unavailable_raises PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_returns_fresh_prices_not_client_prices PASSED [ 96%]
+services/core-api/tests/test_validators_stop_list.py::test_validate_stop_list_error_carries_offending_item_id PASSED [ 96%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_asap_pickup_in_working_hours PASSED [ 96%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_asap_delivery_adds_estimated_delivery_time PASSED [ 96%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_asap_closed_opens_same_day PASSED [ 97%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_asap_closed_gt_24h_raises PASSED [ 97%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_explicit_in_past_raises PASSED [ 97%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_explicit_below_prep_time_raises PASSED [ 97%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_explicit_outside_hours_raises PASSED [ 97%]
+services/core-api/tests/test_validators_working_hours.py::test_validate_time_slot_explicit_in_hours_accepts PASSED [ 97%]
+services/core-api/tests/test_verify_409.py::TestVerifyCode409::test_returns_409_when_otp_status_created PASSED [ 97%]
+services/core-api/tests/test_verify_409.py::TestVerifyCode409::test_409_not_returned_for_sent_otp PASSED [ 97%]
+services/core-api/tests/test_verify_409.py::TestVerifyCode409::test_409_documented_in_openapi_schema PASSED [ 97%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_happy_path_returns_canonical_fields PASSED [ 97%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_cache_miss_then_hit_one_yandex_call PASSED [ 97%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_cache_key_is_sha256_of_normalized_text PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_cache_ttl_is_seven_days PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_low_precision_returns_422_with_reason PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_precision_street_is_accepted PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_requires_customer_auth PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_timeout_returns_503_and_skips_cache PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_5xx_returns_503_and_skips_cache PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_geocode_timeout_budget_is_three_seconds PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_successful_call_increments_daily_counter PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_counter_expires_in_48h PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_first_crossing_of_80_percent_emits_one_warning PASSED [ 98%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_subsequent_crossings_do_not_reemit_warning PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_geocode.py::test_cache_hit_does_not_increment_counter PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_happy_path_returns_four_field_items PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_forwards_api_key_in_outbound_request PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_is_not_cached PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_missing_text_param_422 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_requires_customer_auth PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_timeout_returns_503_maps_unavailable PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_connection_error_returns_503 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_5xx_returns_503 PASSED [ 99%]
+services/core-api/tests/test_yandex_maps_suggest.py::test_suggest_4xx_bubbles_up_as_500_not_503 PASSED [100%]
+
+=================================== FAILURES ===================================
+____________ test_list_available_for_courier_returns_only_awaiting _____________
+
+db = <sqlalchemy.orm.session.Session object at 0x7422a4f51070>
+notify_mock = <MagicMock id='127692145244928'>
+
+    def test_list_available_for_courier_returns_only_awaiting(
+        db: Session, notify_mock: MagicMock
+    ) -> None:
+        from core_api.services.delivery_assignment import list_available_for_courier
+    
+        c1 = _seed_courier(db)
+        oid_aw = _seed_order(db, status="preparing", order_type="delivery", total=77000)
+        oid_ca = _seed_order(db, status="preparing", order_type="delivery", total=88000)
+        oid_dv = _seed_order(db, status="completed", order_type="delivery", total=99000)
+        aid_aw = _seed_assignment(db, status="awaiting_courier", order_id=oid_aw)
+        _seed_assignment(
+            db, status="courier_assigned", order_id=oid_ca, courier_id=c1
+        )
+        _seed_assignment(
+            db, status="delivered", order_id=oid_dv, courier_id=c1
+        )
+    
+        rows = list_available_for_courier(db)
+>       assert len(rows) == 1
+E       AssertionError: assert 3 == 1
+E        +  where 3 = len([{'delivery_address_snapshot': None, 'id': UUID('84441699-91d4-488a-b97d-38beac425a28'), 'order_id': UUID('d832e452-0cf8-49ce-ba60-c1a6d0c03c5b'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('88f67203-6270-4e2d-a1c6-bd4a59cfaa9b'), 'order_id': UUID('2755116f-f9b1-45eb-9b03-a8e936f532fc'), 'requested_time': None, ...}, {'delivery_address_snapshot': None, 'id': UUID('001b3386-0023-41dc-ae5a-0346f6931f5d'), 'order_id': UUID('c7559a0a-4143-4d56-8596-96a547b78579'), 'requested_time': None, ...}])
+
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+_____________________ test_main_include_router_call_count ______________________
+
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a52219d0>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MmMwMjhkMi04NDBjLTQ4NjMtOGMwYi02ZTQyODBlYWQxZGMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1MzkwNzEsImV4cCI6MTc3NzUzOTk3MX0.9H9gi9OhIgw0YHitEqQX5JBiu13pj6inLslCSuEfvtQ'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 101)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7422a46bac00>.get
+E        +    and   101 = <Category id=101 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+_______________ test_get_menu_empty_database_returns_empty_list ________________
+
+_pg_db_override = Engine(postgresql://aura:***@postgres:5432/aura_coffee_test)
+
+    def test_get_menu_empty_database_returns_empty_list(_pg_db_override) -> None:
+        """4.2 RED: при пустой БД возвращается {\"categories\": []}."""
+        with TestClient(app) as c:
+            resp = c.get("/api/v1/menu")
+        assert resp.status_code == 200
+>       assert resp.json() == {"categories": []}
+E       AssertionError: assert {'categories'...', ...}, ...]} == {'categories': []}
+E         
+E         Differing items:
+E         {'categories': [{'id': 95, 'items': [], 'name': 'Напитки', 'name_en': 'Drinks', ...}, {'id': 96, 'items': [], 'name': ...base_price': 35000, 'category_id': 102, 'description': None, ...}], 'name': 'Напитки', 'name_en': 'Drinks', ...}, ...]} != {'categories': []}
+E         
+E         Full diff:
+E           {
+E         -     'categories': [],...
+E         
+E         ...Full output truncated (437 lines hidden), use '-vv' to show
+
+services/core-api/tests/test_menu_public.py:172: AssertionError
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7422a4f0bc80>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a42ce360>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+            resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+    
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+
+services/core-api/tests/test_route_cart.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229ef9ade0>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229f18ffb0>
+
+    def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
+        """PATCH обновляет quantity строки."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r = db_client.post(
+                "/api/v1/cart/items",
+                json={"menu_item_id": item.id, "quantity": 2},
+                headers=_auth("customer"),
+            )
+            line_id = r.json()["items"][0]["line_id"]
+    
+            resp = db_client.patch(
+                f"/api/v1/cart/items/{line_id}",
+                json={"menu_item_id": item.id, "quantity": 4},
+                headers=_auth("customer"),
+            )
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:270: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________________ test_delete_cart_item_removes_line ______________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f143050>
+db_session = <sqlalchemy.orm.session.Session object at 0x74229ef98e00>
+
+    def test_delete_cart_item_removes_line(db_client, db_session) -> None:
+        """DELETE /cart/items/{line_id} удаляет одну строку."""
+        from tests._factories.menu import make_menu_item
+    
+        item1 = make_menu_item(db_session, name_ru="А", name_en="A", base_price=15000)
+        item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
+            db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+            line_id = r1.json()["items"][0]["line_id"]
+    
+            resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:311: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_cart_ttl_env_override_respected _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x74229f18de20>
+db_session = <sqlalchemy.orm.session.Session object at 0x7422a4a6b260>
+cart_redis = <fakeredis._connection.FakeRedis(<redis.connection.ConnectionPool(<fakeredis._connection.FakeRedisConnection(server=<fakeredis._server.FakeServer object at 0x7422a4d77c20>,db=0)>)>)>
+
+    def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> None:
+        """CART_TTL_SECONDS monkeypatch применяется при записи в Redis."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        uid = uuid.uuid4()
+        token = _make_token("customer", uid)
+    
+        with (
+            _patch_jwt(),
+            patch("core_api.routers.cart.settings") as mock_s,
+>           patch("core_api.services.cart.settings") as mock_s2,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ):
+
+services/core-api/tests/test_route_cart.py:382: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x74229ef0b110>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_status_endpoint_rejects_customer_with_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x7422a4c03d10>
+
+    def test_status_endpoint_rejects_customer_with_403(client: TestClient) -> None:
+        resp = client.patch(
+            f"/api/v1/orders/{uuid.uuid4()}/status",
+            headers=_auth("customer"),
+            json={"new_status": "preparing"},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:97: AssertionError
+__________________ test_status_endpoint_barista_calls_service __________________
+
+client = <starlette.testclient.TestClient object at 0x7422a5220200>
+
+    def test_status_endpoint_barista_calls_service(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from shared.enums import OrderStatus
+    
+        order_id = uuid.uuid4()
+        stub = MagicMock(return_value=_fake_order_response(order_id, "preparing"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{order_id}/status",
+                headers=_auth("barista"),
+                json={"new_status": "preparing"},
+            )
+    
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:140: AssertionError
+___________ test_status_endpoint_rejects_invalid_new_status_with_422 ___________
+
+client = <starlette.testclient.TestClient object at 0x74229ef8e690>
+
+    def test_status_endpoint_rejects_invalid_new_status_with_422(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+    
+        stub = MagicMock()
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{uuid.uuid4()}/status",
+                headers=_auth("admin"),
+                json={"new_status": "not-a-status"},
+            )
+>       assert resp.status_code == 422
+E       assert 401 == 422
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:161: AssertionError
+____________ test_status_endpoint_forwards_transition_error_as_409 _____________
+
+client = <starlette.testclient.TestClient object at 0x74229ef9aae0>
+
+    def test_status_endpoint_forwards_transition_error_as_409(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from core_api.services.order_lifecycle import OrderTransitionError
+    
+        stub = MagicMock(side_effect=OrderTransitionError(reason="forbidden_transition"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{uuid.uuid4()}/status",
+                headers=_auth("admin"),
+                json={"new_status": "preparing"},
+            )
+>       assert resp.status_code == 409
+E       assert 401 == 409
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:176: AssertionError
+________________ test_status_endpoint_returns_404_for_not_found ________________
+
+client = <starlette.testclient.TestClient object at 0x74229ef59730>
+
+    def test_status_endpoint_returns_404_for_not_found(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from core_api.services.order_lifecycle import OrderTransitionError
+    
+        stub = MagicMock(side_effect=OrderTransitionError(reason="order_not_found"))
+        with patch.object(router_mod, "transition_order", stub):
+            resp = client.patch(
+                f"/api/v1/orders/{uuid.uuid4()}/status",
+                headers=_auth("admin"),
+                json={"new_status": "preparing"},
+            )
+>       assert resp.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:191: AssertionError
+______________ test_cancel_endpoint_customer_own_order_happy_path ______________
+
+client = <starlette.testclient.TestClient object at 0x74229ee0e540>
+
+    def test_cancel_endpoint_customer_own_order_happy_path(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+    
+        user_id = uuid.uuid4()
+        order_id = _seed_order_for_user(user_id)
+    
+        stub = MagicMock(return_value=_fake_order_response(order_id, "cancelled"))
+        with patch.object(router_mod, "cancel_order", stub):
+            resp = client.post(
+                f"/api/v1/orders/{order_id}/cancel",
+                headers=_auth("customer", user_id=user_id),
+                json={"reason": "changed my mind"},
+            )
+    
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"Not authenticated"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:238: AssertionError
+_______________ test_cancel_endpoint_customer_foreign_order_403 ________________
+
+client = <starlette.testclient.TestClient object at 0x74229eec8800>
+
+    def test_cancel_endpoint_customer_foreign_order_403(client: TestClient) -> None:
+        """Customer B пытается отменить заказ customer A → 403, service не вызван."""
+        import core_api.routers.order_actions as router_mod
+    
+        owner_id = uuid.uuid4()
+        order_id = _seed_order_for_user(owner_id)
+    
+        stranger_id = uuid.uuid4()
+        stub = MagicMock()
+        with patch.object(router_mod, "cancel_order", stub):
+            resp = client.post(
+                f"/api/v1/orders/{order_id}/cancel",
+                headers=_auth("customer", user_id=stranger_id),
+                json={"reason": None},
+            )
+    
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:260: AssertionError
+______________________ test_cancel_endpoint_admin_allowed ______________________
+
+client = <starlette.testclient.TestClient object at 0x74229efa2630>
+
+    def test_cancel_endpoint_admin_allowed(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+    
+        order_id = _seed_order_for_user(uuid.uuid4())
+    
+        stub = MagicMock(return_value=_fake_order_response(order_id, "cancelled"))
+        with patch.object(router_mod, "cancel_order", stub):
+            resp = client.post(
+                f"/api/v1/orders/{order_id}/cancel",
+                headers=_auth("admin"),
+                json={"reason": "admin decision"},
+            )
+>       assert resp.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:276: AssertionError
+______ test_cancel_endpoint_rejects_barista_and_courier_with_403[barista] ______
+
+client = <starlette.testclient.TestClient object at 0x74229ef588f0>
+role = 'barista'
+
+    @pytest.mark.parametrize("role", ["barista", "courier"])
+    def test_cancel_endpoint_rejects_barista_and_courier_with_403(
+        client: TestClient, role: str
+    ) -> None:
+        """INV-010: только CUSTOMER и ADMIN могут вызывать cancel."""
+        resp = client.post(
+            f"/api/v1/orders/{uuid.uuid4()}/cancel",
+            headers=_auth(role),
+            json={"reason": None},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:291: AssertionError
+______ test_cancel_endpoint_rejects_barista_and_courier_with_403[courier] ______
+
+client = <starlette.testclient.TestClient object at 0x74229ee493a0>
+role = 'courier'
+
+    @pytest.mark.parametrize("role", ["barista", "courier"])
+    def test_cancel_endpoint_rejects_barista_and_courier_with_403(
+        client: TestClient, role: str
+    ) -> None:
+        """INV-010: только CUSTOMER и ADMIN могут вызывать cancel."""
+        resp = client.post(
+            f"/api/v1/orders/{uuid.uuid4()}/cancel",
+            headers=_auth(role),
+            json={"reason": None},
+        )
+>       assert resp.status_code == 403
+E       assert 401 == 403
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:291: AssertionError
+______________ test_cancel_endpoint_forwards_cancel_error_as_409 _______________
+
+client = <starlette.testclient.TestClient object at 0x74229ef99250>
+
+    def test_cancel_endpoint_forwards_cancel_error_as_409(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from core_api.services.order_cancel import OrderCancelError
+    
+        order_id = _seed_order_for_user(uuid.uuid4())
+        stub = MagicMock(side_effect=OrderCancelError(reason="customer_cannot_cancel_in_this_status"))
+        with patch.object(router_mod, "cancel_order", stub):
+            resp = client.post(
+                f"/api/v1/orders/{order_id}/cancel",
+                headers=_auth("admin"),
+                json={"reason": None},
+            )
+>       assert resp.status_code == 409
+E       assert 401 == 409
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:306: AssertionError
+________________ test_cancel_endpoint_returns_404_for_not_found ________________
+
+client = <starlette.testclient.TestClient object at 0x7422a5175fd0>
+
+    def test_cancel_endpoint_returns_404_for_not_found(client: TestClient) -> None:
+        import core_api.routers.order_actions as router_mod
+        from core_api.services.order_cancel import OrderCancelError
+    
+        stub = MagicMock(side_effect=OrderCancelError(reason="order_not_found"))
+        with patch.object(router_mod, "cancel_order", stub):
+            resp = client.post(
+                f"/api/v1/orders/{uuid.uuid4()}/cancel",
+                headers=_auth("admin"),
+                json={"reason": None},
+            )
+>       assert resp.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+services/core-api/tests/test_route_order_actions.py:321: AssertionError
+__________________ test_single_order_detail_is_not_duplicated __________________
+[XPASS(strict)] GET /api/v1/orders/{order_id} принадлежит фиче order-checkout; в этом worktree маршрут не регистрируется. XFAIL снимается при мерже.
+____________________ test_shop_settings_response_round_trip ____________________
+
+    def test_shop_settings_response_round_trip() -> None:
+        from core_api.schemas.shop_settings import ShopSettingsResponse
+    
+        now = datetime.now(UTC)
+        ns = SimpleNamespace(
+            shop_lat=55.7558,
+            shop_lon=37.6173,
+            delivery_radius_km=5,
+            min_delivery_amount=50000,
+            free_delivery_threshold=150000,
+            delivery_fee=20000,
+            loyalty_percent=5,
+            default_prep_time_minutes=15,
+            estimated_delivery_time_minutes=30,
+            working_hours={
+                "mon": {"open": "08:00", "close": "22:00"},
+                "tue": {"open": "08:00", "close": "22:00"},
+                "wed": {"open": "08:00", "close": "22:00"},
+                "thu": {"open": "08:00", "close": "22:00"},
+                "fri": {"open": "08:00", "close": "22:00"},
+                "sat": {"open": "08:00", "close": "22:00"},
+                "sun": {"open": "08:00", "close": "22:00"},
+            },
+            updated_at=now,
+        )
+>       resp = ShopSettingsResponse.model_validate(ns)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ShopSettingsResponse
+E       auto_close_minutes
+E         Field required [type=missing, input_value=namespace(shop_lat=55.755...=datetime.timezone.utc)), input_type=SimpleNamespace]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+
+services/core-api/tests/test_schemas_order.py:265: ValidationError
+=============================== warnings summary ===============================
+tests/test_admin_orders_detail.py: 4 warnings
+tests/test_admin_orders_list.py: 7 warnings
+tests/test_admin_promocodes_crud.py: 11 warnings
+tests/test_admin_promocodes_edit_rules.py: 10 warnings
+tests/test_admin_promocodes_lifecycle.py: 10 warnings
+tests/test_admin_promocodes_list.py: 11 warnings
+tests/test_admin_shop_settings_get.py: 1 warning
+tests/test_admin_shop_settings_put.py: 1 warning
+tests/test_admin_shop_settings_rbac.py: 6 warnings
+tests/test_admin_shop_settings_validation.py: 13 warnings
+tests/test_admin_stats_rbac.py: 4 warnings
+tests/test_admin_users_block.py: 4 warnings
+tests/test_admin_users_detail.py: 3 warnings
+tests/test_admin_users_list.py: 3 warnings
+tests/test_admin_users_loyalty_adjust.py: 9 warnings
+tests/test_admin_users_unblock.py: 4 warnings
+tests/test_courier_endpoints.py: 20 warnings
+tests/test_menu_admin.py: 45 warnings
+tests/test_profile_loyalty_balance.py: 4 warnings
+tests/test_profile_loyalty_rbac.py: 1 warning
+tests/test_profile_loyalty_transactions.py: 8 warnings
+tests/test_route_order_history.py: 9 warnings
+tests/test_staff_auth.py: 7 warnings
+tests/test_yandex_maps_geocode.py: 14 warnings
+tests/test_yandex_maps_suggest.py: 9 warnings
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_admin_orders_detail.py: 4 warnings
+tests/test_admin_orders_list.py: 7 warnings
+tests/test_admin_promocodes_crud.py: 11 warnings
+tests/test_admin_promocodes_edit_rules.py: 10 warnings
+tests/test_admin_promocodes_lifecycle.py: 10 warnings
+tests/test_admin_promocodes_list.py: 11 warnings
+tests/test_admin_shop_settings_get.py: 1 warning
+tests/test_admin_shop_settings_put.py: 1 warning
+tests/test_admin_shop_settings_rbac.py: 6 warnings
+tests/test_admin_shop_settings_validation.py: 13 warnings
+tests/test_admin_stats_rbac.py: 4 warnings
+tests/test_admin_users_block.py: 4 warnings
+tests/test_admin_users_detail.py: 3 warnings
+tests/test_admin_users_list.py: 3 warnings
+tests/test_admin_users_loyalty_adjust.py: 9 warnings
+tests/test_admin_users_unblock.py: 4 warnings
+tests/test_courier_endpoints.py: 20 warnings
+tests/test_menu_admin.py: 45 warnings
+tests/test_profile_loyalty_balance.py: 4 warnings
+tests/test_profile_loyalty_rbac.py: 1 warning
+tests/test_profile_loyalty_transactions.py: 8 warnings
+tests/test_route_cart.py: 1 warning
+tests/test_route_order_actions.py: 12 warnings
+tests/test_route_order_history.py: 9 warnings
+tests/test_staff_auth.py: 5 warnings
+tests/test_yandex_maps_geocode.py: 14 warnings
+tests/test_yandex_maps_suggest.py: 9 warnings
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 26 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload0-code]
+tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload1-discount_type]
+tests/test_admin_promocodes_edit_rules.py::test_patch_used_rejects_locked_field[payload2-discount_value]
+tests/test_admin_promocodes_edit_rules.py::test_patch_merged_dates_must_be_ordered
+tests/test_admin_promocodes_edit_rules.py::test_patch_failed_lock_leaves_row_unchanged
+tests/test_admin_promocodes_lifecycle.py::test_activate_requires_valid_until
+tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_insufficient_balance
+tests/test_delivery_addresses_api.py::test_create_address_rejects_out_of_radius_with_422
+tests/test_route_order_history.py::test_post_repeat_all_unavailable_returns_422
+  /usr/local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1002: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+tests/test_checkout_delivery_address_id.py: 8 warnings
+tests/test_jwt.py: 3 warnings
+tests/test_route_cart.py: 14 warnings
+tests/test_route_order_actions.py: 12 warnings
+tests/test_route_orders.py: 14 warnings
+tests/test_token_lifecycle.py: 6 warnings
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_checkout_delivery_address_id.py: 8 warnings
+tests/test_jwt.py: 2 warnings
+tests/test_route_cart.py: 13 warnings
+tests/test_route_orders.py: 14 warnings
+tests/test_token_lifecycle.py: 2 warnings
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_jwt.py::TestJWT::test_invalid_signature
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 12 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_menu_admin.py::test_admin_set_item_modifiers
+  /app/services/core-api/src/core_api/routers/menu_admin.py:262: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return MenuItemResponse.model_validate(svc.set_item_modifiers(item_id, body.modifier_ids))
+
+tests/test_models_menu.py::test_category_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:26: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "categories"
+
+tests/test_models_menu.py::test_menu_item_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:45: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "menu_items"
+
+tests/test_models_menu.py::test_size_option_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:66: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "size_options"
+
+tests/test_models_menu.py::test_modifier_model_declares_columns
+  /app/services/core-api/tests/test_models_menu.py:88: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "modifiers"
+
+tests/test_models_order.py::test_shop_settings_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:146: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "shop_settings"
+
+tests/test_models_order.py::test_order_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:174: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "orders"
+
+tests/test_models_order.py::test_order_item_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:229: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "order_items"
+
+tests/test_models_order.py::test_payment_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:294: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "payments"
+
+tests/test_models_order.py::test_payment_order_fk_is_unique
+  /app/services/core-api/tests/test_models_order.py:315: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    table = mapper.mapper.mapped_table
+
+tests/test_models_order.py::test_refund_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:340: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "refunds"
+
+tests/test_models_order.py::test_loyalty_transaction_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:364: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "loyalty_transactions"
+
+tests/test_models_order.py::test_promocode_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:385: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "promocodes"
+
+tests/test_models_order.py::test_promocode_usage_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:408: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "promocode_usages"
+
+tests/test_models_order.py::test_notification_model_declares_columns
+  /app/services/core-api/tests/test_models_order.py:421: SADeprecationWarning: Use .persist_selectable (deprecated since: 1.3)
+    assert mapper.mapper.mapped_table.name == "notifications"
+
+tests/test_profile_endpoints.py::TestGetProfile::test_success
+tests/test_profile_endpoints.py::TestGetProfile::test_wrong_role
+tests/test_profile_endpoints.py::TestGetProfile::test_profile_not_found
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_name
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_language
+tests/test_profile_endpoints.py::TestUpdateProfile::test_empty_body_noop
+tests/test_profile_endpoints.py::TestUpdateProfile::test_name_too_long
+tests/test_profile_endpoints.py::TestUpdateProfile::test_invalid_language
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 29 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_profile_endpoints.py::TestGetProfile::test_success
+tests/test_profile_endpoints.py::TestGetProfile::test_wrong_role
+tests/test_profile_endpoints.py::TestGetProfile::test_profile_not_found
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_name
+tests/test_profile_endpoints.py::TestUpdateProfile::test_update_language
+tests/test_profile_endpoints.py::TestUpdateProfile::test_empty_body_noop
+tests/test_profile_endpoints.py::TestUpdateProfile::test_name_too_long
+tests/test_profile_endpoints.py::TestUpdateProfile::test_invalid_language
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 29 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_rbac_middleware.py::TestValidRoleAccess::test_customer_accesses_profile
+tests/test_rbac_middleware.py::TestInvalidRole::test_admin_denied_from_customer_endpoint
+tests/test_rbac_middleware.py::TestExpiredToken::test_expired_jwt_returns_401
+tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_denied_with_valid_token
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 20 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_rbac_middleware.py::TestValidRoleAccess::test_customer_accesses_profile
+tests/test_rbac_middleware.py::TestInvalidRole::test_admin_denied_from_customer_endpoint
+tests/test_rbac_middleware.py::TestExpiredToken::test_expired_jwt_returns_401
+tests/test_rbac_middleware.py::TestDefaultDeny::test_unlisted_route_denied_with_valid_token
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 20 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+FAILED services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_customer_with_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_barista_calls_service
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_rejects_invalid_new_status_with_422
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_forwards_transition_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_status_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_own_order_happy_path
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_customer_foreign_order_403
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_admin_allowed
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[barista]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_rejects_barista_and_courier_with_403[courier]
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_forwards_cancel_error_as_409
+FAILED services/core-api/tests/test_route_order_actions.py::test_cancel_endpoint_returns_404_for_not_found
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+===== 22 failed, 1072 passed, 1 skipped, 592 warnings in 65.30s (0:01:05) ======

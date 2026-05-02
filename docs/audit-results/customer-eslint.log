@@ -1,0 +1,23 @@
+
+> aura-coffee-customer@0.0.0 lint
+> eslint src/
+
+
+/app/src/App.test.tsx
+  5:10  error  'AuthProvider' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/app/src/pages/Cart/CartPage.tsx
+  50:35  warning  React Hook useEffect has a missing dependency: 'refresh'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/src/pages/Profile/Addresses/AddressesPage.tsx
+  66:6  warning  React Hook useEffect has a missing dependency: 'refetch'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/src/pages/ProfilePage.tsx
+  73:6  warning  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/src/pages/VerifyPage.test.tsx
+  2:36  error  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:48  error  'afterEach' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+✖ 6 problems (3 errors, 3 warnings)
+

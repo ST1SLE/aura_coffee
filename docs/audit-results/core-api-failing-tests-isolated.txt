@@ -1,0 +1,422 @@
+===== services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_delivery_assignment_state_machine.py__test_list_available_for_courier_returns_only_awaiting.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_list_available_for_courier_returns_only_awaiting _____________
+
+db = <sqlalchemy.orm.session.Session object at 0x7720276aaba0>
+notify_mock = <MagicMock id='130979983961040'>
+
+    def test_list_available_for_courier_returns_only_awaiting(
+        db: Session, notify_mock: MagicMock
+    ) -> None:
+        from core_api.services.delivery_assignment import list_available_for_courier
+    
+        c1 = _seed_courier(db)
+        oid_aw = _seed_order(db, status="preparing", order_type="delivery", total=77000)
+        oid_ca = _seed_order(db, status="preparing", order_type="delivery", total=88000)
+        oid_dv = _seed_order(db, status="completed", order_type="delivery", total=99000)
+        aid_aw = _seed_assignment(db, status="awaiting_courier", order_id=oid_aw)
+        _seed_assignment(
+            db, status="courier_assigned", order_id=oid_ca, courier_id=c1
+        )
+        _seed_assignment(
+            db, status="delivered", order_id=oid_dv, courier_id=c1
+        )
+    
+        rows = list_available_for_courier(db)
+>       assert len(rows) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([{'delivery_address_snapshot': None, 'id': UUID('ed59bf7a-5df0-4c1c-82ba-36ad661ca0ec'), 'order_id': UUID('c7a39c53-2d...-9d80-43ed-9f8b-a49db5af34f5'), 'order_id': UUID('ed8c0d1c-c51f-4209-97c8-a889e4cafc24'), 'requested_time': None, ...}])
+
+services/core-api/tests/test_delivery_assignment_state_machine.py:605: AssertionError
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_delivery_assignment_state_machine.py::test_list_available_for_courier_returns_only_awaiting
+1 failed in 0.22s
+
+===== services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_main_includes_menu_routers.py__test_main_include_router_call_count.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_main_include_router_call_count ______________________
+
+    def test_main_include_router_call_count() -> None:
+        main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
+        content = main_path.read_text()
+        count = content.count("include_router(")
+>       assert count == 13, (
+            f"Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), "
+            f"найдено: {count}"
+        )
+E       AssertionError: Ожидается 13 вызовов include_router (3 Phase 1 + 3 Phase 2 + 3 Phase 3 + 1 Phase 4 maps + 1 delivery-addresses + 1 courier + 1 admin-orders), найдено: 18
+E       assert 18 == 13
+
+services/core-api/tests/test_main_includes_menu_routers.py:37: AssertionError
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_main_includes_menu_routers.py::test_main_include_router_call_count
+1 failed in 0.08s
+
+===== services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409 =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_menu_admin.py__test_admin_delete_referenced_category_returns_409.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_admin_delete_referenced_category_returns_409 _______________
+
+db_client = <starlette.testclient.TestClient object at 0x7e5e7748b980>
+migrated_db_session = <sqlalchemy.orm.session.Session object at 0x7e5e7771c620>
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZGZjMDAxMi03ZWQyLTRmOWQtODViYi1hYWQ3OTk4YjQ2ZTMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzc1NDAxNzIsImV4cCI6MTc3NzU0MTA3Mn0.Y8SufO61ziu5lw9kgRgBvWuBY7E5rSwesaAjLomKYo0'}
+
+    @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+    def test_admin_delete_referenced_category_returns_409(
+        db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+    ) -> None:
+        from shared.models.menu import Category, MenuItem
+    
+        cat = Category(type="drink", name_ru="Напитки", name_en="Drinks")
+        migrated_db_session.add(cat)
+        migrated_db_session.flush()
+        item = MenuItem(category_id=cat.id, name_ru="Латте", name_en="Latte", base_price=35000)
+        migrated_db_session.add(item)
+        migrated_db_session.flush()
+    
+        resp = db_client.delete(f"/api/v1/admin/menu/categories/{cat.id}", headers=admin_headers)
+        assert resp.status_code == 409
+        migrated_db_session.expire_all()
+>       assert migrated_db_session.get(Category, cat.id) is not None
+E       AssertionError: assert None is not None
+E        +  where None = get(<class 'shared.models.menu.Category'>, 1)
+E        +    where get = <sqlalchemy.orm.session.Session object at 0x7e5e7771c620>.get
+E        +    and   1 = <Category id=1 type=drink>.id
+
+services/core-api/tests/test_menu_admin.py:193: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_menu_admin.py::test_admin_delete_referenced_category_returns_409
+1 failed, 2 warnings in 1.21s
+
+===== services/core-api/tests/test_menu_public.py::test_get_menu_empty_database_returns_empty_list =====
+exit=0 log=audit-results/isolated-services_core-api_tests_test_menu_public.py__test_get_menu_empty_database_returns_empty_list.log
+.                                                                        [100%]
+1 passed in 1.14s
+
+===== services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_route_cart.py__test_post_cart_item_merges_same_line.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_post_cart_item_merges_same_line _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x71f56eba0890>
+db_session = <sqlalchemy.orm.session.Session object at 0x71f56ec5d520>
+
+    def test_post_cart_item_merges_same_line(db_client, db_session) -> None:
+        """POST одной и той же позиции дважды → одна строка с суммарным quantity."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        payload = {"menu_item_id": item.id, "quantity": 2}
+        with _patch_jwt():
+            db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+            resp = db_client.post("/api/v1/cart/items", json=payload, headers=_auth("customer"))
+    
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert len(data["items"]) == 1
+>       assert data["items"][0]["quantity"] == 4
+E       assert 2 == 4
+
+services/core-api/tests/test_route_cart.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_route_cart.py::test_post_cart_item_merges_same_line
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_route_cart.py::test_post_cart_item_merges_same_line
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_cart.py::test_post_cart_item_merges_same_line
+1 failed, 2 warnings in 1.15s
+
+===== services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_route_cart.py__test_patch_cart_item_updates_quantity.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_patch_cart_item_updates_quantity _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x7910f61884a0>
+db_session = <sqlalchemy.orm.session.Session object at 0x7910f616f5c0>
+
+    def test_patch_cart_item_updates_quantity(db_client, db_session) -> None:
+        """PATCH обновляет quantity строки."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r = db_client.post(
+                "/api/v1/cart/items",
+                json={"menu_item_id": item.id, "quantity": 2},
+                headers=_auth("customer"),
+            )
+            line_id = r.json()["items"][0]["line_id"]
+    
+            resp = db_client.patch(
+                f"/api/v1/cart/items/{line_id}",
+                json={"menu_item_id": item.id, "quantity": 4},
+                headers=_auth("customer"),
+            )
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:270: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_cart.py::test_patch_cart_item_updates_quantity
+1 failed, 2 warnings in 1.11s
+
+===== services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_route_cart.py__test_delete_cart_item_removes_line.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________________ test_delete_cart_item_removes_line ______________________
+
+db_client = <starlette.testclient.TestClient object at 0x78e2aef88620>
+db_session = <sqlalchemy.orm.session.Session object at 0x78e2aef6f110>
+
+    def test_delete_cart_item_removes_line(db_client, db_session) -> None:
+        """DELETE /cart/items/{line_id} удаляет одну строку."""
+        from tests._factories.menu import make_menu_item
+    
+        item1 = make_menu_item(db_session, name_ru="А", name_en="A", base_price=15000)
+        item2 = make_menu_item(db_session, name_ru="Б", name_en="B", base_price=17000)
+        db_session.flush()
+    
+        with _patch_jwt():
+            r1 = db_client.post("/api/v1/cart/items", json={"menu_item_id": item1.id, "quantity": 1}, headers=_auth("customer"))
+            db_client.post("/api/v1/cart/items", json={"menu_item_id": item2.id, "quantity": 1}, headers=_auth("customer"))
+            line_id = r1.json()["items"][0]["line_id"]
+    
+            resp = db_client.delete(f"/api/v1/cart/items/{line_id}", headers=_auth("customer"))
+    
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+services/core-api/tests/test_route_cart.py:311: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_route_cart.py::test_delete_cart_item_removes_line
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_route_cart.py::test_delete_cart_item_removes_line
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_cart.py::test_delete_cart_item_removes_line
+1 failed, 2 warnings in 1.19s
+
+===== services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_route_cart.py__test_cart_ttl_env_override_respected.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_cart_ttl_env_override_respected _____________________
+
+db_client = <starlette.testclient.TestClient object at 0x759b8b3a48f0>
+db_session = <sqlalchemy.orm.session.Session object at 0x759b8b47f7a0>
+cart_redis = <fakeredis._connection.FakeRedis(<redis.connection.ConnectionPool(<fakeredis._connection.FakeRedisConnection(server=<fakeredis._server.FakeServer object at 0x759b8b38eae0>,db=0)>)>)>
+
+    def test_cart_ttl_env_override_respected(db_client, db_session, cart_redis) -> None:
+        """CART_TTL_SECONDS monkeypatch применяется при записи в Redis."""
+        from tests._factories.menu import make_menu_item
+    
+        item = make_menu_item(db_session, base_price=15000)
+        db_session.flush()
+    
+        uid = uuid.uuid4()
+        token = _make_token("customer", uid)
+    
+        with (
+            _patch_jwt(),
+            patch("core_api.routers.cart.settings") as mock_s,
+>           patch("core_api.services.cart.settings") as mock_s2,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ):
+
+services/core-api/tests/test_route_cart.py:382: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x759b8b211af0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core_api.services.cart' from '/app/services/core-api/src/core_api/services/cart.py'> does not have the attribute 'settings'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial empty migration.
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, Auth tables: users, user_profiles, loyalty_accounts.
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, Staff accounts table.
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Menu tables: categories, menu_items, size_options, modifiers, menu_item_modifiers.
+INFO  [alembic.runtime.migration] Running upgrade 0004 -> 0005, Phase 3 schema: orders, payments, refunds, loyalty, promocodes, notifications, shop_settings.
+INFO  [alembic.runtime.migration] Running upgrade 0005 -> 0006, Delivery addresses table: CRUD for saved Customer addresses (PDD §3, §5.2, INV-013).
+INFO  [alembic.runtime.migration] Running upgrade 0006 -> 0007, Phase 4: delivery_assignments — привязка курьера к DELIVERY-заказу (PDD §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0007 -> 0008, Phase 6: shop_settings.auto_close_minutes (PDD §6.1, §7.1 Phase 6 item 3).
+=============================== warnings summary ===============================
+tests/test_route_cart.py::test_cart_ttl_env_override_respected
+  /usr/local/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_cart.py::test_cart_ttl_env_override_respected
+1 failed, 1 warning in 1.16s
+
+===== services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_route_order_history.py__test_single_order_detail_is_not_duplicated.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_single_order_detail_is_not_duplicated __________________
+[XPASS(strict)] GET /api/v1/orders/{order_id} принадлежит фиче order-checkout; в этом worktree маршрут не регистрируется. XFAIL снимается при мерже.
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_route_order_history.py::test_single_order_detail_is_not_duplicated
+1 failed in 0.05s
+
+===== services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip =====
+exit=1 log=audit-results/isolated-services_core-api_tests_test_schemas_order.py__test_shop_settings_response_round_trip.log
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_shop_settings_response_round_trip ____________________
+
+    def test_shop_settings_response_round_trip() -> None:
+        from core_api.schemas.shop_settings import ShopSettingsResponse
+    
+        now = datetime.now(UTC)
+        ns = SimpleNamespace(
+            shop_lat=55.7558,
+            shop_lon=37.6173,
+            delivery_radius_km=5,
+            min_delivery_amount=50000,
+            free_delivery_threshold=150000,
+            delivery_fee=20000,
+            loyalty_percent=5,
+            default_prep_time_minutes=15,
+            estimated_delivery_time_minutes=30,
+            working_hours={
+                "mon": {"open": "08:00", "close": "22:00"},
+                "tue": {"open": "08:00", "close": "22:00"},
+                "wed": {"open": "08:00", "close": "22:00"},
+                "thu": {"open": "08:00", "close": "22:00"},
+                "fri": {"open": "08:00", "close": "22:00"},
+                "sat": {"open": "08:00", "close": "22:00"},
+                "sun": {"open": "08:00", "close": "22:00"},
+            },
+            updated_at=now,
+        )
+>       resp = ShopSettingsResponse.model_validate(ns)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ShopSettingsResponse
+E       auto_close_minutes
+E         Field required [type=missing, input_value=namespace(shop_lat=55.755...=datetime.timezone.utc)), input_type=SimpleNamespace]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+
+services/core-api/tests/test_schemas_order.py:265: ValidationError
+=========================== short test summary info ============================
+FAILED services/core-api/tests/test_schemas_order.py::test_shop_settings_response_round_trip
+1 failed in 0.11s
+

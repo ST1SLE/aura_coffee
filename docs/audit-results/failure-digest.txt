@@ -1,0 +1,164 @@
+===== admin-build.log =====
+(!) Some chunks are larger than 500 kB after minification. Consider:
+===== admin-vitest.log =====
+stderr | src/pages/Promos/PromoFormDialog.test.tsx > PromoFormDialog > server 422 field_locked_after_use surfaces localized inline error on code
+   ✓ SettingsPage > mount: поля заполнены, Save disabled пока !isDirty  500ms
+===== core-api-pytest.log =====
+ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_sort_is_created_at_desc
+ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_loyalty_balance_coalesces_to_zero_when_account_absent
+ERROR services/core-api/tests/test_admin_users_list.py::test_list_users_summary_has_no_phone_or_phone_hash_fields
+ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_no_auth_route_level
+ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_barista
+ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_courier
+ERROR services/core-api/tests/test_admin_users_list.py::test_admin_users_list_rejects_customer
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_positive_delta_credits_and_creates_admin_adjustment_transaction
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_negative_delta_debits_balance
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_insufficient_balance_raises_and_rolls_back
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_blocked_user_is_accepted
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_pending_verification_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_deleted_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_tombstone_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_no_auth
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[barista_headers]
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[courier_headers]
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_rejects_non_admin_roles[customer_headers]
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_happy_path_returns_200
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_delta_zero
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_empty_reason
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_long_reason
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_422_on_insufficient_balance
+ERROR services/core-api/tests/test_admin_users_loyalty_adjust.py::test_adjust_loyalty_route_409_on_deleted_user
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_happy_path_flips_to_active
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_idempotent_when_active
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_pending_verification_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_deleted_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_tombstone_raises_invalid_state
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_does_not_resurrect_cancelled_orders
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_no_auth
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_rejects_customer
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_happy_path_returns_200
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_409_on_pending_verification
+ERROR services/core-api/tests/test_admin_users_unblock.py::test_unblock_user_route_404_on_unknown_user_id
+ERROR services/core-api/tests/test_cart_service.py::test_get_returns_empty_cart_when_no_key
+ERROR services/core-api/tests/test_cart_service.py::test_get_hydrates_line_with_fresh_prices
+ERROR services/core-api/tests/test_cart_service.py::test_get_reflects_updated_menu_price
+ERROR services/core-api/tests/test_cart_service.py::test_get_refreshes_ttl_on_read
+ERROR services/core-api/tests/test_cart_service.py::test_get_surfaces_stop_listed_item_without_removing
+ERROR services/core-api/tests/test_cart_service.py::test_get_surfaces_archived_item_as_archived
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_creates_new_line
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_persists_no_prices_in_redis
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_sets_ttl_atomically
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_into_existing_line_same_shape
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_merges_ignoring_modifier_order
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_archived_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_size_option
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_stop_listed_modifier
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_size_from_different_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_modifier_not_linked_to_menu_item
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_unknown_menu_item_id
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_rejects_merge_exceeding_cap
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_no_partial_write_on_rejection
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_changes_quantity
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_recomputes_line_id_when_modifiers_change
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_rejects_stop_listed_target_state
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_refreshes_ttl
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_changes_only_quantity
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_update_item_quantity_rejects_stop_listed
+ERROR services/core-api/tests/test_cart_service.py::test_delete_item_removes_one_line
+ERROR services/core-api/tests/test_cart_service.py::test_delete_item_rejects_unknown_line_id
+ERROR services/core-api/tests/test_cart_service.py::test_delete_last_item_yields_empty_cart_read
+ERROR services/core-api/tests/test_cart_service.py::test_clear_deletes_redis_key
+ERROR services/core-api/tests/test_cart_service.py::test_clear_is_idempotent_on_empty
+ERROR services/core-api/tests/test_cart_service.py::test_add_item_concurrent_modification_retries
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_both_delivery_fields_with_422
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_post_orders_rejects_neither_delivery_field_with_422
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_foreign_address_id_returns_404
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_unknown_address_id_returns_404
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshots_saved_address_into_order_jsonb
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_byte_identical_after_saved_address_deleted
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_snapshot_shape_matches_inline_path
+ERROR services/core-api/tests/test_checkout_delivery_address_id.py::test_checkout_rejects_saved_address_now_outside_radius
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_pricing_uses_fresh_prices_from_db
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_row_with_status_created
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_order_items_with_snapshots
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_item_stores_menu_item_id_as_reference_not_fk
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_inserts_payment_with_pending_status_and_idempotency_key
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_payment_amount_matches_order_total
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_order_items_count_matches_cart_lines
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_creates_reservation_transaction
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_loyalty_points_debits_account_balance
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_records_points_used_in_order_row
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_points_skips_loyalty_transaction
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_increments_current_uses
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_with_promocode_inserts_promocode_usage_row
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_without_promocode_skips_promocode_usage
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_commits_order_as_paid
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_creates_loyalty_transaction_as_redemption
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_deletes_cart_from_redis
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_does_not_enqueue_celery_task
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_zero_payment_row_has_amount_zero
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_enqueues_celery_task
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_leaves_cart_in_redis
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_total_positive_returns_created_status
+ERROR services/core-api/tests/test_checkout_service.py::test_create_order_enqueues_after_db_commit
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_empty_returns_200_with_empty_list
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_returns_own_rows_only
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_list_addresses_default_first_then_created_asc
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_happy_path_returns_201
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_rejects_out_of_radius_with_422
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_persists_optional_fields
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_first_for_user_not_automatically_default
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_create_address_with_is_default_true_persists_flag
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_label
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_address_updates_optional_fields
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_true_demotes_previous_default
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_is_default_false_does_not_touch_other_rows
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_foreign_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_unknown_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_patch_returns_updated_body
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_own_address_returns_204
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_foreign_address_returns_404_and_row_persists
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_unknown_address_returns_404
+ERROR services/core-api/tests/test_delivery_addresses_api.py::test_delete_does_not_mutate_past_order_snapshot
+= 23 failed, 822 passed, 1 skipped, 374 warnings, 249 errors in 135.00s (0:02:15) =
+===== customer-build.log =====
+src/App.test.tsx(5,1): error TS6133: 'AuthProvider' is declared but its value is never read.
+src/pages/VerifyPage.test.tsx(2,36): error TS6133: 'beforeEach' is declared but its value is never read.
+src/pages/VerifyPage.test.tsx(2,48): error TS6133: 'afterEach' is declared but its value is never read.
+===== customer-vitest.log =====
+   ✓ VerifyPage — CODE_NOT_DELIVERED (409) > shows "not delivered" message instead of network error  368ms
+ ✓ src/pages/LoginPage.test.tsx (4 tests) 403ms
+===== manual-api-probes.log =====
+Traceback (most recent call last):
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 31-36: ordinal not in range(128)
+===== npm-audit-admin.log =====
+1 moderate severity vulnerability
+===== npm-audit-customer.log =====
+1 moderate severity vulnerability
+===== payment-worker-pytest.log =====
+services/payment-worker/tests/test_fake_autodrive.py::test_create_payment_http_error_outcome_raises PASSED [ 11%]
+services/payment-worker/tests/test_fake_e2e.py::test_fake_http_error_triggers_compensation PASSED [ 25%]
+services/payment-worker/tests/test_webhook.py::test_refund_canceled_marks_refund_failed_and_notifies_admin PASSED [ 74%]
+services/payment-worker/tests/test_webhook.py::test_processing_exception_surfaces_as_500 PASSED [ 77%]
+===== ruff-all.log =====
+112 |     except EmptyCartError as exc:
+115 |         # INV-013: чужой/неизвестный delivery_address_id → 404 (НЕ 403, иначе утечка ID).
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+149 |     size = SimpleNamespace(id=1, menu_item_id=1, label="M", price=35000, available=True)
+Found 73 errors.
+===== sms-worker-pytest.log =====
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_marks_failed_and_does_not_raise PASSED [ 42%]
+services/sms-worker/tests/test_notification_task.py::test_exhausted_retries_logs_error_with_notification_id PASSED [ 47%]
+===== stack-logs-after.log =====
+core-api-1    | INFO:     172.18.0.1:38500 - "GET /health HTTP/1.1" 200 OK
+sms-worker-1       | [2026-04-30 08:46:54,981: ERROR/MainProcess] Received unregistered task of type 'sms_worker.send_order_notification_sms'.
+payment-webhook-1  | INFO:     172.18.0.7:34030 - "POST /webhooks/yukassa HTTP/1.1" 200 OK
+sms-worker-1       | Traceback (most recent call last):
+sms-worker-1       | KeyError: 'sms_worker.send_order_notification_sms'
+===== stack-logs-startup.log =====
+web-admin-1        | 1 moderate severity vulnerability
+web-customer-1     | 1 moderate severity vulnerability
+core-api-1         | INFO:     172.18.0.1:38500 - "GET /health HTTP/1.1" 200 OK

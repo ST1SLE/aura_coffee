@@ -1,0 +1,12 @@
+# npm audit report
+
+postcss  <8.5.10
+Severity: moderate
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+fix available via `npm audit fix`
+node_modules/postcss
+
+1 moderate severity vulnerability
+
+To address all issues, run:
+  npm audit fix
