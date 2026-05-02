@@ -151,6 +151,14 @@ Required LDD:
 - Backend customer cancel and payment/status paths require order/payment marker assertions.
 - Pure frontend route rendering does not require LDD, but must not change price ownership or calculate business totals client-side.
 
+Status:
+
+- Current worktree already implements the Wave 2 customer order surface: `web/customer/src/App.tsx` routes `/orders` and `/orders/:orderId`; `web/customer/src/api/orders.ts` provides create/detail/history/cancel/repeat clients; `OrdersPage` renders real customer history with immutable item snapshots and repeat-order handoff; `OrderDetailPage` handles all PDD §6.1 customer-visible statuses, confirmation URL handoff, local fake YuKassa polling, zero-total paid orders, customer cancel when `PAID`, and repeat-order navigation.
+- Backend endpoints are present and verified for own-order detail, own-order history, customer cancel, and repeat-order cart rebuild: `services/core-api/src/core_api/routers/orders.py`, `order_history.py`, and `order_actions.py`.
+- Focused frontend verification passed: `npm --prefix web/customer test -- OrdersPage.test.tsx OrderDetailPage.test.tsx CheckoutPage.test.tsx api/orders.test.ts --run` (`36` tests) and `npm --prefix web/customer run typecheck`.
+- Focused backend verification passed: `docker compose exec -T core-api pytest services/core-api/tests/test_route_order_history.py services/core-api/tests/test_route_orders.py services/core-api/tests/test_route_order_actions.py services/core-api/tests/test_order_repeat_service.py -q` (`60` tests).
+- LDD gate: this packet made no runtime state-machine, payment, transaction, auth, PII, or logging code changes. Existing backend cancel/order lifecycle LDD coverage remains the gate for those flows; this Wave 2 update is audit status documentation only.
+
 ### Wave 3 - Courier Operations Contract and Ready Handoff
 
 Primary source: staff UX audit P0s plus security courier PII finding.
