@@ -31,7 +31,6 @@ export interface AuthUser {
 
 export interface SendCodeResponse {
   message: string;
-  phone_hash: string;
 }
 
 export interface VerifyCodeResponse {

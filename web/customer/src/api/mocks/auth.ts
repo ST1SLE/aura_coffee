@@ -12,7 +12,7 @@ let mockRefreshToken = '';
 
 export async function sendCode(_phone: string): Promise<SendCodeResponse> {
   await delay(MOCK_DELAY);
-  return { message: 'OTP sent', phone_hash: 'mock-hash' };
+  return { message: 'OTP sent' };
 }
 
 export async function verifyCode(

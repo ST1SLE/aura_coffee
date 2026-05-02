@@ -16,7 +16,7 @@ import { getAccessToken, getRefreshToken } from '@/auth/token';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   sendCode       - POST /auth/send-code, returns phone_hash
+//   sendCode       - POST /auth/send-code, returns confirmation message
 //   verifyCode     - POST /auth/verify-code, returns tokens + parsed AuthUser
 //   refreshTokens  - POST /auth/refresh, returns new AuthTokens
 //   logout         - POST /auth/logout (best-effort; ignores network errors)
@@ -66,7 +66,7 @@ async function handleErrorResponse(res: Response): Promise<never> {
 //   PURPOSE: Request the server to send an OTP SMS to the given phone number.
 //   INPUTS:  phone: string — E.164 form (e.g. '+79991234567'). INV-013 — server
 //            stores hashed phone; client passes plain to API only.
-//   OUTPUTS: Promise<SendCodeResponse> — { message, phone_hash }.
+//   OUTPUTS: Promise<SendCodeResponse> — { message }.
 //   SIDE_EFFECTS: HTTP POST /api/v1/auth/send-code; may throw AuthError for
 //                 RATE_LIMITED (429), CODE_NOT_DELIVERED (409), NETWORK_ERROR.
 //   LINKS:   PDD §6.1 send-code state.

@@ -4,7 +4,7 @@ import { AuthProvider } from './AuthProvider';
 import { useAuth } from './useAuth';
 
 vi.mock('@/api/auth', () => ({
-  sendCode: vi.fn().mockResolvedValue({ message: 'OTP sent', phone_hash: 'hash' }),
+  sendCode: vi.fn().mockResolvedValue({ message: 'OTP sent' }),
   verifyCode: vi.fn().mockResolvedValue({
     accessToken: 'test-access',
     refreshToken: 'test-refresh',

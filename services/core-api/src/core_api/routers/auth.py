@@ -50,7 +50,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 #   PURPOSE: Accept phone, validate, enforce per-phone OTP rate limit, issue
 #            a fresh OTP and dispatch SMS via Celery to sms-worker.
 #   INPUTS:  body: SendCodeRequest (JSON), Session, Redis client.
-#   OUTPUTS: 200 {"message", "phone_hash"}; 422 invalid phone;
+#   OUTPUTS: 200 {"message"}; 422 invalid phone;
 #            403 blocked user; 429 rate limit hit (with Retry-After header).
 #   SIDE_EFFECTS: Redis writes (rate counters + OTP record), DB upsert
 #                 of pending user, Celery send_task to sms_worker queue.
@@ -89,7 +89,7 @@ def send_code(
             headers={"Retry-After": str(rate_check.retry_after)},
         )
 
-    user_info = user_svc.get_or_create_user(phone, phone_hash)
+    user_svc.get_or_create_user(phone, phone_hash)
     otp_svc.increment_rate_limits(phone_hash)
     code = otp_svc.create_otp(phone_hash)
 
@@ -108,7 +108,7 @@ def send_code(
         queue="sms",
     )
 
-    return {"message": "OTP sent", "phone_hash": phone_hash}
+    return {"message": "OTP sent"}
 
 
 # START_CONTRACT: verify_code

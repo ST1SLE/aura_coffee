@@ -127,8 +127,9 @@ export PH=$(echo -n "$PHONE" | sha256sum | cut -d' ' -f1)
 docker compose exec -T redis redis-cli DEL \
   "sms_rate:$PH:min" "sms_rate:$PH:hour" "sms_rate:$PH:day" > /dev/null
 
-export PH=$(curl -s -X POST $BASE/api/v1/auth/send-code \
-  -H 'Content-Type: application/json' -d "{\"phone\":\"$PHONE\"}" | jq -r .phone_hash)
+SEND_CODE_RESPONSE=$(curl -s -X POST $BASE/api/v1/auth/send-code \
+  -H 'Content-Type: application/json' -d "{\"phone\":\"$PHONE\"}")
+echo "$SEND_CODE_RESPONSE" | jq -e '.message == "OTP sent" and (has("phone_hash") | not)' > /dev/null
 
 for i in {1..10}; do
   OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$PH")
@@ -269,7 +270,7 @@ docker compose exec -T redis redis-cli GET "otp:$PH" | jq -r .code
 
 Type it in → "Подтвердить". Expect redirect to `/` (customer home) with an avatar in the header.
 
-**Network check (DevTools).** `POST /api/v1/auth/send-code` returned 200 `{"message":"OTP sent","phone_hash":"…"}`. `POST /api/v1/auth/verify-code` returned 200 with `{access_token, refresh_token, token_type}`. `access_token` lands in `localStorage` / memory per the auth-state spec.
+**Network check (DevTools).** `POST /api/v1/auth/send-code` returned 200 `{"message":"OTP sent"}` and did not expose `phone_hash`. `POST /api/v1/auth/verify-code` returned 200 with `{access_token, refresh_token, token_type}`. `access_token` lands in `localStorage` / memory per the auth-state spec.
 
 ### 1.2 OTP — negative paths
 
