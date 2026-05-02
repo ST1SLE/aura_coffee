@@ -31,6 +31,13 @@ from shared.models import Base
 
 class PromocodeUsage(Base):
     __tablename__ = "promocode_usages"
+    __table_args__ = (
+        sa.Index(
+            "ix_promocode_usages_promocode_user",
+            "promocode_id",
+            "user_id",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

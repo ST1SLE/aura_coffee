@@ -35,6 +35,13 @@ from shared.models import Base
 
 class DeliveryAssignment(Base):
     __tablename__ = "delivery_assignments"
+    __table_args__ = (
+        sa.Index(
+            "ix_delivery_assignments_awaiting",
+            "status",
+            postgresql_where=sa.text("status = 'awaiting_courier'"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

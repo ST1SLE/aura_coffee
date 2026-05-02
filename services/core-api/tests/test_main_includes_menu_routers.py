@@ -6,7 +6,6 @@
 
 import pathlib
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -34,7 +33,7 @@ def test_main_include_router_call_count() -> None:
     main_path = pathlib.Path(__file__).parents[1] / "src" / "core_api" / "main.py"
     content = main_path.read_text()
     count = content.count("include_router(")
-    assert count == 18, (
-        f"Ожидается 18 вызовов include_router для текущего набора Core API routers, "
+    assert count == 19, (
+        f"Ожидается 19 вызовов include_router для текущего набора Core API routers, "
         f"найдено: {count}"
     )

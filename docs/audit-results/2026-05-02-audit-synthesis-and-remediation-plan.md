@@ -329,6 +329,25 @@ Status:
 - Item 5 is covered by `scripts/check-readiness.sh`, now wired into `scripts/verify-full.sh`: it checks direct Core API health, direct payment-webhook health, nginx canonical `/health`, and Celery worker pings.
 - Item 6 is covered by `cryptography>=46.0.7,<47.0` in core-api and sms-worker, a regenerated core-api lock pinned to `cryptography 46.0.7`, and mandatory `scripts/check-python-deps.sh` execution from `scripts/verify-full.sh`; host-side `pip-audit` now reports no known vulnerabilities for core-api, payment-worker, sms-worker, and shared.
 - Item 7 is covered by guarded `scripts/reset-qa-data.sh` plus `database/seeds/reset_qa_data.py`: it refuses outside dev/test/local unless `ALLOW_QA_RESET=1`, deletes only deterministic Phase 4 QA fixture rows, re-runs the manual seed, and keeps `docker compose down -v` documented as a destructive full-stack wipe rather than routine QA reset.
+- Current release-gate run passed on 2026-05-02 with `./scripts/verify-full.sh`. The gate covered readiness, Alembic drift detection and upgrade, Python ruff, shared/Core API/payment-worker/sms-worker tests, customer/admin lint/typecheck/Vitest/npm audit, and `pip-audit` for core-api, payment-worker, sms-worker, and shared.
+- Full-gate regressions found and fixed during the release-gate run:
+  - Alembic metadata drift: shared ORM metadata now declares the indexes and unique constraints already applied by migrations, so `alembic check` reports `No new upgrade operations detected`.
+  - Stale Core API test assumptions: admin-user list service tests now isolate their rows by display-name prefix under a non-empty Postgres test DB, and the router registration count test reflects the current 19 routers.
+  - Environment-only issue: the Core API image was rebuilt because `respx` was already declared in the dev extra but the running container predated that dependency; nginx was restarted after Core API recreation so it re-resolved the upstream container IP.
+
+## Remaining May 2 P1/P2 Review
+
+Release-significant items still open after the implemented waves and green full gate:
+
+1. Customer checkout input completeness remains open from the customer UX P1 list. Backend checkout supports `promocode_code`, `points_to_use`, and `requested_time`, but `web/customer/src/pages/CheckoutPage.tsx` still only submits pickup/delivery address data and has no server-owned estimate/free-delivery guidance. This is product completeness rather than a full-gate failure.
+2. DB-level `order_items` immutability remains open from business-logic P1-1. The ORM documents `order_items` as immutable, but `packages/shared/src/shared/models/order_item.py` and migration `0005_phase3_schema.py` still use `orders -> order_items ON DELETE CASCADE`, and there is no Postgres trigger/rule preventing direct `UPDATE` or `DELETE`.
+3. Browser E2E and tracked CI remain open from the verification audit. The local scripted gate is now green, but there is still no tracked CI workflow or Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
+
+Items that look downgraded to polish/backlog, not immediate release blockers:
+
+- Staff mobile navigation and order-feed freshness are now addressed in code: admin/barista layout has a role-filtered mobile bottom nav, and the staff orders feed polls active orders every 5 seconds.
+- SMS.ru redaction, Python dependency auditing, courier available-feed PII minimization, payment webhook ingress/guards, auth/session hardening, account deletion, notification boundary cleanup, and non-destructive QA reset are covered by the completed wave statuses above.
+- Remaining customer visual polish, staff table/card mobile optimization, admin exception queues, customer notification feed, and stale/flaky-test curation should be separate backlog packets unless the release definition expands to include them.
 
 ## Parallelization Guidance
 
@@ -351,10 +370,9 @@ Reason: these touch shared invariants, transaction boundaries, RBAC, PII, and LD
 
 ## Next Recommended Action
 
-Start with Wave 0:
+Open one final release-readiness packet before calling the May 2 remediation ship-ready:
 
-1. Review and split the current uncommitted seed/admin/audit changes.
-2. Re-run the narrow verification commands for those changes.
-3. Commit them in scoped commits.
-
-Then implement Wave 1 as a single GRACE packet with LDD assertions. Do not start Wave 2 customer order pages until backend checkout validation is real enough to trust the order/payment state the UI will display.
+1. Add DB-level `order_items` immutability and remove or neutralize the physical-delete cascade risk, with migration tests proving direct SQL `UPDATE`/`DELETE` fails.
+2. Complete the customer checkout P1 surface for promo code, points redemption, requested time, and server-owned estimate/free-delivery guidance.
+3. Add a small Playwright smoke or tracked CI follow-up if production release discipline requires an automated browser gate.
+4. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.

@@ -31,6 +31,13 @@ from shared.models import Base
 
 class LoyaltyTransaction(Base):
     __tablename__ = "loyalty_transactions"
+    __table_args__ = (
+        sa.Index(
+            "ix_loyalty_transactions_user_created_at",
+            "user_id",
+            sa.text("created_at DESC"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

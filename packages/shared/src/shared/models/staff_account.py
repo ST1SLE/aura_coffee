@@ -19,7 +19,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, func
+from sqlalchemy import Boolean, DateTime, Enum, Index, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,13 +29,15 @@ from shared.models import Base
 
 class StaffAccount(Base):
     __tablename__ = "staff_accounts"
+    __table_args__ = (
+        UniqueConstraint("login", name="staff_accounts_login_key"),
+        Index("ix_staff_accounts_login", "login"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    login: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
-    )
+    login: Mapped[str] = mapped_column(String(100), nullable=False)
     password_hash: Mapped[str] = mapped_column(
         String(255), nullable=False
     )

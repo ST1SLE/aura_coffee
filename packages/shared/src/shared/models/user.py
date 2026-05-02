@@ -19,7 +19,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import DateTime, Enum, Index, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,13 +33,15 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("phone_hash", name="users_phone_hash_key"),
+        Index("ix_users_phone_hash", "phone_hash"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    phone_hash: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
-    )
+    phone_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[UserStatus] = mapped_column(
         Enum(
             UserStatus,

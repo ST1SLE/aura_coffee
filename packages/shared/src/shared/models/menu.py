@@ -110,6 +110,12 @@ class Modifier(Base):
 
 class SizeOption(Base):
     __tablename__ = "size_options"
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "menu_item_id", "label", name="uq_size_options_item_label"
+        ),
+        sa.Index("ix_size_options_menu_item", "menu_item_id"),
+    )
 
     id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     menu_item_id: Mapped[int] = mapped_column(
@@ -137,6 +143,15 @@ class SizeOption(Base):
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
+    __table_args__ = (
+        sa.Index("ix_menu_items_category_sort", "category_id", "sort_order"),
+        sa.Index(
+            "ix_menu_items_active",
+            "available",
+            "archived",
+            postgresql_where=sa.text("archived = false"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True)
     category_id: Mapped[int] = mapped_column(

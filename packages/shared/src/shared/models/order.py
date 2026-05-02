@@ -36,6 +36,15 @@ from shared.models import Base
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        sa.Index("ix_orders_user_created_at", "user_id", sa.text("created_at DESC")),
+        sa.Index(
+            "ix_orders_active",
+            "status",
+            postgresql_where=sa.text("status NOT IN ('completed', 'cancelled')"),
+        ),
+        sa.Index("ix_orders_type_status", "type", "status"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

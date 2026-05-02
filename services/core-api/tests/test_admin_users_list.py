@@ -99,21 +99,34 @@ def test_list_users_status_active_excludes_tombstones(db_session) -> None:
     """2.3 — status='active' исключает tombstoned users и BLOCKED."""
     from core_api.services.admin_users import list_users
 
-    active1 = make_user_with_profile(db_session, status=UserStatus.ACTIVE, display_name="A1")
-    active2 = make_user_with_profile(db_session, status=UserStatus.ACTIVE, display_name="A2")
+    prefix = "active-filter-"
+    active1 = make_user_with_profile(
+        db_session,
+        status=UserStatus.ACTIVE,
+        display_name=f"{prefix}A1",
+    )
+    active2 = make_user_with_profile(
+        db_session,
+        status=UserStatus.ACTIVE,
+        display_name=f"{prefix}A2",
+    )
     make_user_with_profile(
         db_session,
         status=UserStatus.ACTIVE,
-        display_name="Tombstoned",
+        display_name=f"{prefix}Tombstoned",
         deleted_at=datetime.now(tz=UTC),
     )
-    make_user_with_profile(db_session, status=UserStatus.BLOCKED, display_name="B1")
+    make_user_with_profile(
+        db_session,
+        status=UserStatus.BLOCKED,
+        display_name=f"{prefix}B1",
+    )
     db_session.commit()
 
     result = list_users(
         db=db_session,
         status="active",
-        search=None,
+        search=prefix,
         page=1,
         per_page=50,
     )
@@ -264,11 +277,12 @@ def test_list_users_pagination_page_2_slices_rows_and_reports_total(db_session) 
     """2.9 — page=2, per_page=10 → 10 rows, total_count=25."""
     from core_api.services.admin_users import list_users
 
+    prefix = "page-slice-"
     for i in range(25):
         make_user_with_profile(
             db_session,
             status=UserStatus.ACTIVE,
-            display_name=f"u{i:02d}",
+            display_name=f"{prefix}u{i:02d}",
             created_at=datetime.now(tz=UTC) - timedelta(minutes=25 - i),
         )
     db_session.commit()
@@ -276,7 +290,7 @@ def test_list_users_pagination_page_2_slices_rows_and_reports_total(db_session) 
     result = list_users(
         db=db_session,
         status="all",
-        search=None,
+        search=prefix,
         page=2,
         per_page=10,
     )
@@ -291,25 +305,35 @@ def test_list_users_sort_is_created_at_desc(db_session) -> None:
     """2.10 — сортировка по users.created_at DESC."""
     from core_api.services.admin_users import list_users
 
+    prefix = "sort-desc-"
     t1 = datetime(2026, 4, 1, 12, 0, tzinfo=UTC)
     t2 = datetime(2026, 4, 1, 13, 0, tzinfo=UTC)
     t3 = datetime(2026, 4, 1, 14, 0, tzinfo=UTC)
 
     u1 = make_user_with_profile(
-        db_session, status=UserStatus.ACTIVE, display_name="u1", created_at=t1
+        db_session,
+        status=UserStatus.ACTIVE,
+        display_name=f"{prefix}u1",
+        created_at=t1,
     )
     u2 = make_user_with_profile(
-        db_session, status=UserStatus.ACTIVE, display_name="u2", created_at=t2
+        db_session,
+        status=UserStatus.ACTIVE,
+        display_name=f"{prefix}u2",
+        created_at=t2,
     )
     u3 = make_user_with_profile(
-        db_session, status=UserStatus.ACTIVE, display_name="u3", created_at=t3
+        db_session,
+        status=UserStatus.ACTIVE,
+        display_name=f"{prefix}u3",
+        created_at=t3,
     )
     db_session.commit()
 
     result = list_users(
         db=db_session,
         status="all",
-        search=None,
+        search=prefix,
         page=1,
         per_page=50,
     )
