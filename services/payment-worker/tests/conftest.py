@@ -43,6 +43,8 @@ def _reset_yukassa_env(monkeypatch):
         "YUKASSA_SHOP_ID",
         "YUKASSA_SECRET_KEY",
         "YUKASSA_WEBHOOK_IPS",
+        "YUKASSA_WEBHOOK_SIGNATURE_SECRET",
+        "YUKASSA_WEBHOOK_SIGNATURE_HEADER",
         "YUKASSA_BASE_URL",
     ):
         monkeypatch.delenv(key, raising=False)

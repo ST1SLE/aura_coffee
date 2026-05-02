@@ -908,6 +908,7 @@ PostgreSQL — единственный источник истины. Redis —
 | `YUKASSA_SHOP_ID` | ЮKassa | Идентификатор магазина |
 | `YUKASSA_SECRET_KEY` | ЮKassa | Секретный ключ для API |
 | `YUKASSA_WEBHOOK_IPS` | ЮKassa | Список доверенных IP для webhook'ов (или "все" в тестовом режиме) |
+| `YUKASSA_WEBHOOK_SIGNATURE_SECRET` | ЮKassa | Секрет подписи webhook'ов, если подпись настроена |
 | `SMSRU_API_KEY` | SMS.ru | API-ключ для отправки SMS |
 | `SMSRU_SENDER_NAME` | SMS.ru | Верифицированное имя отправителя |
 | `YANDEX_MAPS_API_KEY` | Яндекс.Карты | API-ключ для Suggest + Geocoder |

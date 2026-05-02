@@ -61,6 +61,23 @@ def test_webhook_ips_parses_comma_list(monkeypatch) -> None:
     assert s.yukassa_webhook_ips == ["185.71.76.1", "185.71.76.2"]
 
 
+def test_webhook_signature_settings_are_optional(monkeypatch) -> None:
+    monkeypatch.setenv("YUKASSA_SHOP_ID", "x")
+    monkeypatch.setenv("YUKASSA_SECRET_KEY", "y")
+    monkeypatch.setenv("YUKASSA_WEBHOOK_SIGNATURE_SECRET", "webhook-secret")
+    monkeypatch.setenv("YUKASSA_WEBHOOK_SIGNATURE_HEADER", "X-Custom-Signature")
+    monkeypatch.setenv("DATABASE_URL", "sqlite://")
+
+    import importlib
+    import payment_worker.settings as settings_module
+
+    importlib.reload(settings_module)
+
+    s = settings_module.Settings()  # type: ignore[call-arg]
+    assert s.yukassa_webhook_signature_secret == "webhook-secret"
+    assert s.yukassa_webhook_signature_header == "X-Custom-Signature"
+
+
 def test_yukassa_backend_defaults_to_live(monkeypatch) -> None:
     # Нужны валидные creds и прод base_url, чтобы safety-rail не помешал.
     monkeypatch.setenv("YUKASSA_SHOP_ID", "real")

@@ -123,8 +123,8 @@
         <check-2>/usr/bin/python3 -m pytest tests/test_nginx_webhook_route.py -q</check-2>
       </module-checks>
       <scenarios>
-        <scenario-1 kind="success">YuKassa webhook with valid signature transitions Payment to SUCCEEDED.</scenario-1>
-        <scenario-2 kind="failure">Invalid signature webhook is rejected without DB writes.</scenario-2>
+        <scenario-1 kind="success">YuKassa webhook with a valid signature, when signature verification is configured, transitions Payment to SUCCEEDED.</scenario-1>
+        <scenario-2 kind="failure">Invalid or missing signature webhook, when signature verification is configured, is rejected without JSON parsing or DB writes.</scenario-2>
         <scenario-3 kind="recovery">Admin refund retry creates a new refunds row and drives REFUND_FAILED to REFUND_PENDING only after YuKassa accepts the retry.</scenario-3>
         <scenario-4 kind="ingress">Nginx routes the public /api/webhooks/yukassa path to payment-webhook and overwrites client-supplied forwarded IP headers.</scenario-4>
       </scenarios>

@@ -3,8 +3,10 @@
 Единственная точка — ``POST /webhooks/yukassa``. Cекьюрити:
 
 1. IP whitelist через ``X-Forwarded-For`` против ``settings.yukassa_webhook_ips``.
-2. Идемпотентность на ``X-Event-Id`` в Redis (``yukassa:event:{event_id}``).
-3. Всё мутационное тело события — одна транзакция БД; Redis-ключ
+2. Если настроен ``YUKASSA_WEBHOOK_SIGNATURE_SECRET`` — HMAC-SHA256 подпись
+   сырого тела запроса до JSON-parsing и DB writes.
+3. Идемпотентность на ``X-Event-Id`` в Redis (``yukassa:event:{event_id}``).
+4. Всё мутационное тело события — одна транзакция БД; Redis-ключ
    ``yukassa:event:*`` пишется ТОЛЬКО после успешного commit.
 """
 
@@ -12,6 +14,8 @@
 #   PURPOSE: FastAPI webhook surface for YuKassa events. Security-relevant:
 #            verifies caller authenticity by IP whitelist (literal IPs, CIDRs,
 #            or DNS-resolved hostnames from settings.yukassa_webhook_ips),
+#            optionally verifies an HMAC-SHA256 signature over the raw request
+#            body when settings.yukassa_webhook_signature_secret is configured,
 #            enforces event-id idempotency via Redis, and runs every state
 #            transition inside one DB transaction so the Redis "processed"
 #            marker is only written after a successful commit (PDD §7.9).
@@ -46,7 +50,9 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import ipaddress
+import json
 import logging
 import socket
 from typing import TYPE_CHECKING, Any
@@ -149,6 +155,45 @@ def _is_whitelisted(ip: str, whitelist: list[str]) -> bool:
             pass
         resolved = _resolve_hostname(entry)
         if resolved is not None and resolved == ip:
+            return True
+    return False
+
+
+def _signature_values(header_value: str) -> list[str]:
+    values: list[str] = []
+    for part in header_value.split(","):
+        candidate = part.strip()
+        if not candidate:
+            continue
+        if "=" in candidate:
+            scheme, value = candidate.split("=", 1)
+            if scheme.strip().lower() in {"sha256", "v1"} and value.strip():
+                values.append(value.strip())
+            continue
+        values.append(candidate)
+    return values
+
+
+def _is_valid_signature(
+    *,
+    raw_body: bytes,
+    provided_signature: str | None,
+    signature_secret: str,
+) -> bool:
+    if not signature_secret:
+        return True
+    if not provided_signature:
+        return False
+    expected = hmac.new(
+        signature_secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    for candidate in _signature_values(provided_signature):
+        candidate = candidate.lower()
+        if hmac.compare_digest(candidate, expected):
+            return True
+        if hmac.compare_digest(candidate, f"sha256={expected}"):
             return True
     return False
 
@@ -612,11 +657,13 @@ def dispatch_event(
 #   PURPOSE: HTTP entry point for YuKassa callbacks. Security-relevant:
 #            first-hop X-Forwarded-For IP is checked against the configured
 #            whitelist (literal IPs / CIDRs / DNS-resolved hostnames); on
-#            miss returns 403. Idempotent: dedupes by X-Event-Id (falling
-#            back to sha256(body)) via Redis. Mutating work runs inside one
-#            DB transaction; the Redis "processed" marker is written ONLY
-#            after the transaction commits — exceptions return 500 and
-#            YuKassa retries.
+#            miss returns 403. If YUKASSA_WEBHOOK_SIGNATURE_SECRET is set,
+#            the configured signature header must match HMAC-SHA256 over the
+#            raw request body before JSON parsing or DB writes. Idempotent:
+#            dedupes by X-Event-Id (falling back to sha256(body)) via Redis.
+#            Mutating work runs inside one DB transaction; the Redis
+#            "processed" marker is written ONLY after the transaction commits
+#            — exceptions return 500 and YuKassa retries.
 #   INPUTS:  request: fastapi.Request — incoming POST with JSON body and
 #                                       optional X-Event-Id header
 #   OUTPUTS: JSONResponse — 200 {"ok": True} on success or dedup,
@@ -640,14 +687,39 @@ async def yukassa_webhook(request: Request) -> JSONResponse:
         logger.warning("yukassa webhook: rejected untrusted IP", extra={"ip": ip})
         return JSONResponse(status_code=403, content={"error": "forbidden"})
 
-    body = await request.json()
+    raw_body = await request.body()
+    signature_secret = current_settings.yukassa_webhook_signature_secret.strip()
+    signature_header = (
+        current_settings.yukassa_webhook_signature_header.strip()
+        or "X-YooKassa-Signature"
+    )
+    provided_signature = request.headers.get(signature_header)
+    if not _is_valid_signature(
+        raw_body=raw_body,
+        provided_signature=provided_signature,
+        signature_secret=signature_secret,
+    ):
+        _grace_log.block(
+            "process_webhook", "BLOCK_WEBHOOK_VERIFY", outcome="signature_rejected"
+        )
+        logger.warning("yukassa webhook: rejected invalid signature")
+        return JSONResponse(status_code=403, content={"error": "forbidden"})
+
+    try:
+        body = json.loads(raw_body or b"{}")
+    except json.JSONDecodeError:
+        logger.warning("yukassa webhook: malformed JSON body")
+        return JSONResponse(status_code=400, content={"error": "bad_request"})
+
     event = body.get("event", "")
     obj = body.get("object", {}) or {}
     _grace_log.block(
-        "process_webhook", "BLOCK_WEBHOOK_VERIFY", event_type=str(event)
+        "process_webhook",
+        "BLOCK_WEBHOOK_VERIFY",
+        event_type=str(event),
+        outcome="verified",
     )
 
-    raw_body = await request.body()
     event_id = request.headers.get("X-Event-Id") or hashlib.sha256(
         raw_body
     ).hexdigest()

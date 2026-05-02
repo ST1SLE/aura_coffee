@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +16,16 @@ import pytest
 from shared.grace.testing import GraceLogCapture
 
 WHITELISTED_IP = "127.0.0.1"
+SIGNATURE_SECRET = "webhook-secret"
+
+
+def _json_body(payload: dict) -> bytes:
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
+def _signature(raw_body: bytes, secret: str = SIGNATURE_SECRET) -> str:
+    digest = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
 
 
 def _seed_finite_inventory_line(
@@ -194,6 +207,147 @@ def test_payment_succeeded_advances_payment_and_order(
     args, kwargs = sms_task.call_args
     assert args[0] == "sms_worker.send_order_notification_sms"
     assert kwargs["queue"] == "sms"
+
+
+def test_valid_signature_advances_payment_and_order(
+    seed_user_order_payment,
+    db_session,
+    sqlite_engine,
+    fake_redis,
+    yukassa_env,
+    monkeypatch,
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    monkeypatch.setenv("YUKASSA_WEBHOOK_SIGNATURE_SECRET", SIGNATURE_SECRET)
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    payment.status = PaymentStatus.AWAITING_CONFIRMATION
+    payment.yukassa_payment_id = "pay_sig"
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    raw_body = _json_body(
+        {"event": "payment.succeeded", "object": {"id": "pay_sig"}}
+    )
+    sms_task = MagicMock()
+    with (
+        patch("payment_worker.webhook.celery_app.send_task", sms_task),
+        GraceLogCapture() as grace_logs,
+    ):
+        resp = client.post(
+            "/webhooks/yukassa",
+            content=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-signed-ok",
+                "X-YooKassa-Signature": _signature(raw_body),
+            },
+        )
+
+    assert resp.status_code == 200
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+        ("process_webhook", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    assert all(SIGNATURE_SECRET not in line for line in grace_logs.lines)
+    assert all(raw_body.decode("utf-8") not in line for line in grace_logs.lines)
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    assert payment.status == PaymentStatus.SUCCEEDED
+    assert order.status == OrderStatus.PAID
+
+
+def test_invalid_signature_rejects_before_dispatch_without_mutation(
+    seed_user_order_payment,
+    db_session,
+    sqlite_engine,
+    fake_redis,
+    yukassa_env,
+    monkeypatch,
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    monkeypatch.setenv("YUKASSA_WEBHOOK_SIGNATURE_SECRET", SIGNATURE_SECRET)
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    payment.status = PaymentStatus.AWAITING_CONFIRMATION
+    payment.yukassa_payment_id = "pay_bad_sig"
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    raw_body = _json_body(
+        {"event": "payment.succeeded", "object": {"id": "pay_bad_sig"}}
+    )
+    with (
+        patch("payment_worker.webhook.dispatch_event") as dispatch,
+        GraceLogCapture() as grace_logs,
+    ):
+        resp = client.post(
+            "/webhooks/yukassa",
+            content=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-bad-sig",
+                "X-YooKassa-Signature": "sha256=bad",
+            },
+        )
+
+    assert resp.status_code == 403
+    dispatch.assert_not_called()
+    assert fake_redis.get("yukassa:event:evt-bad-sig") is None
+    assert any("BLOCK_WEBHOOK_VERIFY" in line for line in grace_logs.lines)
+    assert all(SIGNATURE_SECRET not in line for line in grace_logs.lines)
+    assert all(raw_body.decode("utf-8") not in line for line in grace_logs.lines)
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    assert payment.status == PaymentStatus.AWAITING_CONFIRMATION
+    assert order.status == OrderStatus.CREATED
+
+
+def test_missing_signature_rejects_malformed_body_before_json_parse(
+    seed_user_order_payment,
+    db_session,
+    sqlite_engine,
+    fake_redis,
+    yukassa_env,
+    monkeypatch,
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    monkeypatch.setenv("YUKASSA_WEBHOOK_SIGNATURE_SECRET", SIGNATURE_SECRET)
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+
+    client = _make_client(sqlite_engine, fake_redis)
+    raw_body = b'{"event":'
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            content=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-missing-sig",
+            },
+        )
+
+    assert resp.status_code == 403
+    assert fake_redis.get("yukassa:event:evt-missing-sig") is None
+    assert any("BLOCK_WEBHOOK_VERIFY" in line for line in grace_logs.lines)
+    assert all(SIGNATURE_SECRET not in line for line in grace_logs.lines)
+    assert all(raw_body.decode("utf-8") not in line for line in grace_logs.lines)
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    assert payment.status == PaymentStatus.PENDING
+    assert order.status == OrderStatus.CREATED
 
 
 def test_payment_canceled_cancels_order_and_unreserves(

@@ -1,8 +1,9 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Pydantic settings model for payment-worker — Redis/DB URLs,
 #            YuKassa backend selector (live | fake), credentials, base URL,
-#            webhook IP whitelist. Carries a live-mode safety-rail that
-#            refuses empty creds or sandbox/test URLs in production.
+#            webhook IP whitelist, and optional webhook signature verification.
+#            Carries a live-mode safety-rail that refuses empty creds or
+#            sandbox/test URLs in production.
 #   SCOPE:   Settings class + lazy module-level `settings` accessor. Used by
 #            main.py at worker boot and by webhook.py at request time. NOT
 #            imported by tasks.py / db.py / redis_client.py to avoid firing
@@ -34,7 +35,8 @@ from pydantic_settings import BaseSettings, NoDecode
 #            test/sandbox/localhost).
 #   INPUTS:  reads env vars (REDIS_URL, DATABASE_URL, YUKASSA_BACKEND,
 #            YUKASSA_FAKE_OUTCOME, YUKASSA_SHOP_ID, YUKASSA_SECRET_KEY,
-#            YUKASSA_WEBHOOK_IPS, YUKASSA_BASE_URL).
+#            YUKASSA_WEBHOOK_IPS, YUKASSA_WEBHOOK_SIGNATURE_SECRET,
+#            YUKASSA_WEBHOOK_SIGNATURE_HEADER, YUKASSA_BASE_URL).
 #   OUTPUTS: Settings instance.
 #   SIDE_EFFECTS: none (no I/O); raises ValidationError when live-mode safety
 #                 rail fails.
@@ -50,6 +52,8 @@ class Settings(BaseSettings):
     yukassa_secret_key: str = ""
     # NoDecode отключает JSON-парсинг: ЮKassa выдаёт CSV-строку IP в env.
     yukassa_webhook_ips: Annotated[list[str], NoDecode] = []
+    yukassa_webhook_signature_secret: str = ""
+    yukassa_webhook_signature_header: str = "X-YooKassa-Signature"
     yukassa_base_url: str = "https://api.yookassa.ru/v3"
 
     @field_validator("yukassa_webhook_ips", mode="before")
