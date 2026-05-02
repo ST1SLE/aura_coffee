@@ -217,4 +217,31 @@ describe('OrderDetailPage payment handoff', () => {
       });
     }
   });
+
+  it('does not redirect to the local fake YuKassa sandbox URL', async () => {
+    const originalLocation = window.location;
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, assign },
+    });
+    (getOrder as Mock).mockResolvedValue({
+      ...order,
+      status: 'created',
+      confirmation_url:
+        'http://localhost:240/dev/yukassa-sandbox/fake_4af5e5a84e464f3e9376242fcf5acbd7',
+    });
+
+    try {
+      renderPage();
+
+      await screen.findByText(/капучино|cappuccino/i);
+      expect(assign).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
+  });
 });

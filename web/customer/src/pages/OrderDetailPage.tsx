@@ -100,6 +100,19 @@ function renderError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function isLocalFakeYukassaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const isLocalHost =
+      parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    return (
+      isLocalHost && parsed.pathname.startsWith('/dev/yukassa-sandbox/')
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface StatusTimelineProps {
   status: OrderStatus;
 }
@@ -217,9 +230,11 @@ function Receipt({ order, lang, locale }: ReceiptProps) {
 //   INPUTS:  none directly; reads :orderId from React Router params.
 //   OUTPUTS: JSX — loading/error/not-found or order detail.
 //   SIDE_EFFECTS: HTTP getOrder polling; window.location.assign() when backend
-//                 provides confirmation_url for created; cancelOrder() only
-//                 when UI state is paid; repeatOrder() then navigate('/cart').
-//                 No client-side price calculation.
+//                 provides an external confirmation_url for created. Local
+//                 fake YuKassa sandbox URLs are not navigated to; the page keeps
+//                 polling for the fake webhook. cancelOrder() only when UI
+//                 state is paid; repeatOrder() then navigate('/cart'). No
+//                 client-side price calculation.
 //   LINKS:   PDD §4.4, §6.1, §7.6, §7.7; INV-005, INV-014.
 // END_CONTRACT: OrderDetailPage
 export function OrderDetailPage() {
@@ -291,6 +306,7 @@ export function OrderDetailPage() {
     if (
       order?.status === 'created' &&
       order.confirmation_url &&
+      !isLocalFakeYukassaUrl(order.confirmation_url) &&
       redirectedUrl !== order.confirmation_url
     ) {
       setRedirectedUrl(order.confirmation_url);
