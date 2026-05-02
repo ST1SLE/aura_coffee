@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ShieldCheck } from 'lucide-react';
 import { OTPInput } from '@/components/auth/OTPInput';
 import { ResendTimer } from '@/components/auth/ResendTimer';
 import { useAuth } from '@/auth/useAuth';
@@ -48,7 +49,8 @@ export function VerifyPage() {
   const { verifyCode, login } = useAuth();
 
   const phone = (location.state as { phone?: string })?.phone;
-  const returnUrl = (location.state as { returnUrl?: string })?.returnUrl || '/';
+  const returnUrl =
+    (location.state as { returnUrl?: string })?.returnUrl || '/';
 
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,24 +110,31 @@ export function VerifyPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="aura-surface w-full max-w-sm space-y-6 rounded-lg p-5">
-        <div className="space-y-2 text-center">
-          <h1 className="font-display text-2xl font-bold">{t('auth.otp.title')}</h1>
+      <div className="aura-surface w-full max-w-sm overflow-hidden rounded-lg bg-card/95">
+        <div className="space-y-2 border-b border-border/60 bg-muted/75 px-5 py-6 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.18)]">
+            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="font-display text-2xl font-bold">
+            {t('auth.otp.title')}
+          </h1>
           <p className="text-sm text-muted-foreground">{maskPhone(phone)}</p>
         </div>
 
-        <OTPInput
-          value={code}
-          onChange={setCode}
-          onComplete={handleComplete}
-          disabled={isSubmitting}
-        />
+        <div className="space-y-5 p-5">
+          <OTPInput
+            value={code}
+            onChange={setCode}
+            onComplete={handleComplete}
+            disabled={isSubmitting}
+          />
 
-        {error && (
-          <p className="text-center text-sm text-destructive">{error}</p>
-        )}
+          {error && (
+            <p className="text-center text-sm text-destructive">{error}</p>
+          )}
 
-        <ResendTimer onResend={handleResend} disabled={isSubmitting} />
+          <ResendTimer onResend={handleResend} disabled={isSubmitting} />
+        </div>
       </div>
     </div>
   );

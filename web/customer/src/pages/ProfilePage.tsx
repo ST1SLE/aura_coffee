@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Languages, LogOut, MapPin, Phone, UserRound } from 'lucide-react';
+import {
+  ChevronRight,
+  Languages,
+  LogOut,
+  MapPin,
+  Phone,
+  UserRound,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/auth/useAuth';
 import { getProfile, updateProfile, type ProfileData } from '@/api/profile';
@@ -123,30 +130,39 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 md:px-6">
-      <div className="aura-surface rounded-lg p-4">
-        <h1 className="font-display text-3xl font-semibold tracking-normal">
-          {t('pages.profile.title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t('pages.profile.description')}
-        </p>
+    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5 md:px-6">
+      <div className="aura-surface flex items-start gap-3 rounded-lg bg-card/95 p-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.16)]">
+          <UserRound className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold tracking-normal">
+            {t('pages.profile.title')}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t('pages.profile.description')}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="aura-surface rounded-lg p-4">
+        <div className="aura-surface rounded-lg bg-card/95 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Phone className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-primary">
+              <Phone className="h-4 w-4" aria-hidden="true" />
+            </span>
             <label>{t('pages.profile.phoneLabel')}</label>
           </div>
-          <p className="rounded-md border border-border/70 bg-card px-3 py-2 text-sm">
+          <p className="aura-numeric rounded-md border border-border/70 bg-muted/65 px-3 py-2 text-sm font-medium">
             {profile?.phone_masked}
           </p>
         </div>
 
-        <div className="aura-surface rounded-lg p-4">
+        <div className="aura-surface rounded-lg bg-card/95 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Languages className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-primary">
+              <Languages className="h-4 w-4" aria-hidden="true" />
+            </span>
             <label>{t('pages.profile.languageLabel')}</label>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -172,12 +188,14 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <div className="aura-surface rounded-lg p-4">
+      <div className="aura-surface rounded-lg bg-card/95 p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-primary">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+          </span>
           <label>{t('pages.profile.nameLabel')}</label>
         </div>
-        <div className="flex gap-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <input
             type="text"
             value={displayName}
@@ -186,11 +204,12 @@ export function ProfilePage() {
               setNameError(null);
             }}
             maxLength={100}
-            className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+            className="min-w-0 rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           />
           <Button
             onClick={handleSaveName}
             disabled={saving || displayName === (profile?.display_name ?? '')}
+            className="sm:min-w-28"
           >
             {t('pages.profile.save')}
           </Button>
@@ -202,12 +221,12 @@ export function ProfilePage() {
 
       <Link
         to="/profile/addresses"
-        className="aura-surface flex items-center gap-3 rounded-lg p-4 transition-colors hover:bg-secondary"
+        className="aura-surface flex items-center gap-3 rounded-lg bg-card/95 p-4 transition-colors hover:bg-muted"
       >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-sage text-brand-sage-foreground">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary text-primary-foreground">
           <MapPin className="h-5 w-5" aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">
             {t('pages.profile.addressesLink.title')}
           </div>
@@ -215,6 +234,10 @@ export function ProfilePage() {
             {t('pages.profile.addressesLink.subtitle')}
           </div>
         </div>
+        <ChevronRight
+          className="h-5 w-5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
       </Link>
 
       {error && profile && <p className="text-sm text-destructive">{error}</p>}
@@ -224,7 +247,7 @@ export function ProfilePage() {
       {/* Выход */}
       <Button
         variant="outline"
-        className="w-full text-destructive"
+        className="w-full border-destructive/35 bg-card/80 text-destructive hover:bg-destructive/10"
         onClick={async () => {
           await logout();
           navigate('/login');

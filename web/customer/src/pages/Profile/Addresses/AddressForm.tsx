@@ -45,7 +45,7 @@ interface Props {
 }
 
 const fieldClassName =
-  'mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background';
+  'mt-1 w-full rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background';
 
 // START_CONTRACT: AddressForm
 //   PURPOSE: Render the address fields, validate required-ness in the disabled
@@ -157,7 +157,10 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="aura-surface space-y-3 rounded-lg p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="aura-surface space-y-4 rounded-lg bg-card/95 p-4"
+    >
       <div>
         <label className="text-xs font-medium text-muted-foreground">
           {t('pages.addresses.form.label')}
@@ -177,7 +180,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
         required
       />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid gap-2 sm:grid-cols-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground">
             {t('pages.addresses.form.apartment')}
@@ -231,10 +234,11 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
         </p>
       )}
 
-      <div className="flex gap-2">
+      <div className="grid gap-2 sm:flex">
         <Button
           type="submit"
           disabled={submitting || !address.text.trim() || !label.trim()}
+          className="sm:min-w-28"
         >
           {t('pages.addresses.form.save')}
         </Button>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Edit3, MapPin, Plus, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   listAddresses,
@@ -93,9 +94,26 @@ export function AddressesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-5 md:px-0">
-      <div className="aura-surface rounded-lg p-4">
-        <h1 className="font-display text-2xl font-bold">{t('pages.addresses.title')}</h1>
+    <div className="mx-auto max-w-2xl space-y-4 px-4 py-5 md:px-0">
+      <div className="aura-surface flex flex-col gap-3 rounded-lg bg-card/95 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground">
+            <MapPin className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h1 className="font-display text-2xl font-bold">
+            {t('pages.addresses.title')}
+          </h1>
+        </div>
+        {mode.kind === 'list' && (
+          <Button
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => setMode({ kind: 'create' })}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('pages.addresses.addButton')}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -107,23 +125,25 @@ export function AddressesPage() {
       {mode.kind === 'list' && (
         <>
           {addresses.length === 0 ? (
-            <p className="aura-surface rounded-lg p-4 text-sm text-muted-foreground">
-              {t('pages.addresses.empty')}
-            </p>
+            <div className="aura-surface rounded-lg bg-card/95 p-4 text-sm text-muted-foreground">
+              <p>{t('pages.addresses.empty')}</p>
+            </div>
           ) : (
             <ul className="space-y-3">
               {addresses.map((a) => (
                 <li
                   key={a.id}
-                  className="aura-surface rounded-lg p-3 text-sm"
+                  className="aura-surface rounded-lg bg-card/95 p-4 text-sm"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       {a.label && (
-                        <div className="font-medium">{a.label}</div>
+                        <div className="font-display text-base font-semibold">
+                          {a.label}
+                        </div>
                       )}
-                      <div>{a.address_text}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="mt-1 break-words">{a.address_text}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
                         {[
                           a.apartment && `кв. ${a.apartment}`,
                           a.entrance && `подъезд ${a.entrance}`,
@@ -133,18 +153,24 @@ export function AddressesPage() {
                           .join(', ')}
                       </div>
                       {a.is_default && (
-                        <span className="mt-2 inline-block rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-display text-xs font-semibold text-primary">
+                        <span className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-display text-xs font-semibold text-primary">
+                          <Star
+                            className="h-3 w-3 fill-current"
+                            aria-hidden="true"
+                          />
                           {t('pages.addresses.primaryBadge')}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:min-w-36 sm:flex-col">
                       {!a.is_default && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleSetPrimary(a.id)}
+                          className="col-span-2 sm:col-span-1"
                         >
+                          <Star className="h-4 w-4" aria-hidden="true" />
                           {t('pages.addresses.makePrimary')}
                         </Button>
                       )}
@@ -153,6 +179,7 @@ export function AddressesPage() {
                         variant="outline"
                         onClick={() => setMode({ kind: 'edit', address: a })}
                       >
+                        <Edit3 className="h-4 w-4" aria-hidden="true" />
                         {t('pages.addresses.edit')}
                       </Button>
                       <Button
@@ -161,6 +188,7 @@ export function AddressesPage() {
                         className="text-destructive"
                         onClick={() => handleDelete(a.id)}
                       >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                         {t('pages.addresses.delete')}
                       </Button>
                     </div>
@@ -169,9 +197,6 @@ export function AddressesPage() {
               ))}
             </ul>
           )}
-          <Button onClick={() => setMode({ kind: 'create' })}>
-            {t('pages.addresses.addButton')}
-          </Button>
         </>
       )}
 

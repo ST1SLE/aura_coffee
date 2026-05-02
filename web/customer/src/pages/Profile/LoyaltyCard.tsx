@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ChevronRight, Gift } from 'lucide-react';
 import { getLoyaltyBalance, type LoyaltyBalance } from '@/api/loyalty';
 
 // START_MODULE_CONTRACT
@@ -43,9 +44,12 @@ export function LoyaltyCard() {
   }, []);
 
   return (
-    <div className="aura-surface rounded-lg p-4">
-      <div className="mb-2 text-sm font-medium text-muted-foreground">
-        {t('pages.profile.loyaltyCard.title')}
+    <div className="aura-surface rounded-lg bg-card/95 p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-primary">
+          <Gift className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <span>{t('pages.profile.loyaltyCard.title')}</span>
       </div>
       {error ? (
         <p className="text-sm text-destructive">
@@ -65,9 +69,10 @@ export function LoyaltyCard() {
       )}
       <Link
         to="/profile/loyalty"
-        className="mt-3 inline-block font-display text-sm font-semibold text-primary underline"
+        className="mt-3 inline-flex items-center gap-1 font-display text-sm font-semibold text-primary underline"
       >
         {t('pages.profile.loyaltyCard.view_history')}
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Link>
     </div>
   );

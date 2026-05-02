@@ -592,6 +592,75 @@ Verification:
 - Layer smoke confirmed item-detail dialog z-index `70` sits above the floating
   cart CTA z-index `50`.
 
+### Packet 12 - Auth, Profile, And Address Polish
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/LoginPage.tsx`
+- `web/customer/src/pages/VerifyPage.tsx`
+- `web/customer/src/pages/ProfilePage.tsx`
+- `web/customer/src/pages/Profile/LoyaltyCard.tsx`
+- `web/customer/src/pages/Profile/Addresses/AddressesPage.tsx`
+- `web/customer/src/pages/Profile/Addresses/AddressForm.tsx`
+- `web/customer/src/components/AddressAutocomplete/AddressAutocomplete.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+After Packet 11, menu browsing has the intended smoked-sage/clay tone. The
+remaining customer polish backlog calls out auth, profile, and saved-address
+surfaces, which still read as older light cards compared with the menu and
+checkout work.
+
+Decision:
+
+Bring auth, profile, loyalty, and saved-address surfaces into the same visual
+system without changing the OTP flow, protected-route behavior, profile API,
+address create/edit/delete contracts, or PII handling. Keep forms compact and
+usable for repeated customer tasks rather than making them marketing screens.
+
+Steps:
+
+1. Restyle `/login` and `/login/verify` as compact branded auth panels on the
+   smoked-sage canvas while preserving input roles, masked-phone display, resend
+   behavior, and localized errors.
+2. Tighten `/profile` into structured surface groups with icon badges, mobile
+   wrapping for editable controls, and stronger language/name/addresses affordances.
+3. Refresh `LoyaltyCard` so the balance and history link match the customer
+   visual system without changing the balance fetch or link target.
+4. Polish saved-address list/create/edit screens with responsive action rows,
+   clearer default badges, softer address input surfaces, and mobile-safe form
+   grids.
+5. Preserve all profile/address mutation payloads, typed-address geocoding
+   behavior, delete confirmation, and API error rendering.
+
+Acceptance:
+
+- auth screens match the smoked-sage/clay customer palette and keep a single
+  clear submit path
+- profile fields and language controls do not overflow on mobile
+- saved-address cards keep full address details readable without cramped action
+  columns
+- address create/edit form fields stack safely on small screens
+- no API endpoint, auth-token storage, OTP resend/verify, profile mutation,
+  address mutation, geocoding, logging, or backend behavior changes
+
+Verification:
+
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm test -- src/pages/LoginPage.test.tsx src/pages/VerifyPage.test.tsx src/pages/VerifyPage.otp409.test.tsx src/components/auth/PhoneInput.test.tsx src/components/auth/OTPInput.test.tsx src/pages/ProfilePage.test.tsx src/pages/Profile/LoyaltyCard.test.tsx src/pages/Profile/Addresses/AddressesPage.test.tsx src/pages/Profile/Addresses/AddressForm.test.tsx src/components/AddressAutocomplete/AddressAutocomplete.test.tsx`
+- `cd web/customer && npm run build`
+- Playwright browser smoke on the canonical nginx URL for `/login`,
+  authenticated `/profile`, and authenticated `/profile/addresses`.
+- Browser smoke captured 320px, 390px, and 1280px screenshots under
+  `/tmp/aura-customer-auth-profile-polish-screenshots`.
+- Browser smoke asserted no horizontal overflow on `/login`, `/profile`, and
+  `/profile/addresses`, protected routes stayed on their expected paths, and no
+  protected-route API 4xx/5xx responses or page errors occurred.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -631,7 +700,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-11 complete.
+Packet status: Packets 0-12 complete.
 
 Safety double-check:
 
@@ -672,6 +741,7 @@ Verification commands run:
 - Playwright stronger non-white screenshot checks listed under Packet 9.
 - Playwright bold taupe/cream screenshot and computed-color gate listed under
   Packet 10.
+- Packet 12 focused verification listed under Packet 12.
 
 Residual test cleanup:
 

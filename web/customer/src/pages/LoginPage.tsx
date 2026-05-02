@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Coffee } from 'lucide-react';
 import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
 import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
@@ -72,11 +73,22 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="aura-surface w-full max-w-sm space-y-6 rounded-lg p-5">
-        <h1 className="text-center font-display text-2xl font-bold">{t('auth.phone.title')}</h1>
+      <div className="aura-surface w-full max-w-sm overflow-hidden rounded-lg bg-card/95">
+        <div className="border-b border-border/60 bg-muted/75 px-5 py-6 text-center">
+          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.18)]">
+            <Coffee className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="font-display text-2xl font-bold">
+            {t('auth.phone.title')}
+          </h1>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <PhoneInput value={phone} onChange={setPhone} disabled={isSubmitting} />
+        <form onSubmit={handleSubmit} className="space-y-4 p-5">
+          <PhoneInput
+            value={phone}
+            onChange={setPhone}
+            disabled={isSubmitting}
+          />
 
           {error && (
             <p className="text-center text-sm text-destructive">{error}</p>
