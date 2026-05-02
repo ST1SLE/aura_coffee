@@ -1,6 +1,6 @@
 """RED: тесты RBAC-матрицы для admin-users-api (PDD §6.5, INV-010).
 
-Проверяем, что GREEN добавит 5 строк ROUTE_MATRIX под /api/v1/admin/users/*
+Проверяем, что GREEN добавит строки ROUTE_MATRIX под /api/v1/admin/users/*
 c ролью {ADMIN} и НЕ добавит их в PUBLIC_ROUTES. Заодно сторожим
 существующие customer-scoped /api/v1/profile/* маршруты — они не должны
 расшириться ролями.
@@ -24,6 +24,7 @@ ADMIN_USERS_ROUTES = [
     ("GET", "/api/v1/admin/users/{user_id}"),
     ("POST", "/api/v1/admin/users/{user_id}/block"),
     ("POST", "/api/v1/admin/users/{user_id}/unblock"),
+    ("DELETE", "/api/v1/admin/users/{user_id}"),
     ("POST", "/api/v1/admin/users/{user_id}/loyalty/adjust"),
 ]
 
@@ -48,6 +49,11 @@ def test_admin_users_unblock_row_is_admin_only() -> None:
     assert ROUTE_MATRIX[("POST", "/api/v1/admin/users/{user_id}/unblock")] == {ADMIN}
 
 
+def test_admin_users_delete_row_is_admin_only() -> None:
+    """7.4a — ROUTE_MATRIX[('DELETE', '/api/v1/admin/users/{user_id}')] == {ADMIN}."""
+    assert ROUTE_MATRIX[("DELETE", "/api/v1/admin/users/{user_id}")] == {ADMIN}
+
+
 def test_admin_users_loyalty_adjust_row_is_admin_only() -> None:
     """7.5 — ROUTE_MATRIX[('POST', '/api/v1/admin/users/{user_id}/loyalty/adjust')] == {ADMIN}."""
     assert ROUTE_MATRIX[
@@ -66,6 +72,13 @@ def test_admin_users_routes_not_public() -> None:
 def test_existing_customer_profile_row_untouched() -> None:
     """7.7 — GET /api/v1/profile остаётся {CUSTOMER}."""
     key = ("GET", "/api/v1/profile")
+    assert key in ROUTE_MATRIX
+    assert ROUTE_MATRIX[key] == {CUSTOMER}
+
+
+def test_customer_profile_delete_row_is_customer_only() -> None:
+    """7.7a — DELETE /api/v1/profile остаётся customer-only."""
+    key = ("DELETE", "/api/v1/profile")
     assert key in ROUTE_MATRIX
     assert ROUTE_MATRIX[key] == {CUSTOMER}
 

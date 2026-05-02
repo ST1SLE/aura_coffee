@@ -221,7 +221,7 @@ PostgreSQL — единственный источник истины. Redis —
 ### 5.1. Принципы
 
 1. **Иммутабельность заказов.** Order и Order Items после создания НЕ обновляются через `UPDATE`. Статус Order меняется через отдельное поле `status`, но содержимое заказа (позиции, цены, модификаторы) — неизменяемо. Это гарантирует, что изменение меню не искажает историю.
-2. **PII-изоляция (INV-013).** Персональные данные (телефон, имя, адреса) хранятся в отдельных таблицах (`user_profiles`, `delivery_addresses`). Таблицы заказов, платежей и лояльности ссылаются на пользователя по `user_id` (UUID, opaque). При удалении аккаунта PII-таблицы очищаются, `user_id` заменяется на tombstone-заглушку.
+2. **PII-изоляция (INV-013).** Персональные данные (телефон, имя, адреса) хранятся в отдельных таблицах (`user_profiles`, `delivery_addresses`). Таблицы заказов, платежей и лояльности ссылаются на пользователя по `user_id` (UUID, opaque). При удалении аккаунта PII-таблицы очищаются, а строка `users` становится in-place tombstone: тот же opaque `id` сохраняет исторические FK, `phone_hash` заменяется необратимой tombstone-заглушкой, `status=DELETED`, `deleted_at=now()`.
 3. **Цены в копейках.** Все денежные значения хранятся как `INTEGER` в копейках (1₽ = 100). Это исключает ошибки округления с `FLOAT`. Отображение в рублях — ответственность фронтенда.
 4. **Двуязычные поля.** Текстовые поля с переводами (название позиции, описание, название категории) хранятся парами: `name_ru`, `name_en`. Не JSONB, не отдельная таблица переводов — два явных столбца. Причина: всего 2 языка, простота запросов, типизация.
 5. **Soft delete.** Удаление пользователей — через `deleted_at` timestamp + anonymization. Удаление позиций меню — через `available = false` (стоп-лист) или `archived = true` (скрыта из меню навсегда, но Order Items на неё ссылаются). Физический `DELETE` на бизнес-таблицах ЗАПРЕЩЁН.
@@ -514,7 +514,7 @@ PostgreSQL — единственный источник истины. Redis —
 | BLOCKED | DELETED | Админ удаляет заблокированного пользователя | PII удаляется, баллы обнуляются |
 
 **Terminal states:**
-- `DELETED` — необратимо. PII удалены, `user_id` заменён на tombstone
+- `DELETED` — необратимо. PII удалены, строка `users` превращена в tombstone с тем же opaque `id`; `phone_hash` больше не пригоден для lookup исходного телефона
 
 **Forbidden transitions:**
 - `DELETED → any`
@@ -522,6 +522,8 @@ PostgreSQL — единственный источник истины. Redis —
 - `PENDING_VERIFICATION → DELETED` (нет PII для удаления, запись просто не создаётся)
 - `BLOCKED → PENDING_VERIFICATION` (нельзя откатить верификацию)
 - `ACTIVE → PENDING_VERIFICATION` (нельзя откатить верификацию)
+
+**Deletion note:** account deletion uses the existing §7.6 cancellation chain for `CREATED`, `PAID`, `PREPARING`, and `READY` orders. If an order is already `IN_DELIVERY`, deletion is rejected until the order reaches a terminal state because §6.1 explicitly forbids `IN_DELIVERY → CANCELLED`.
 
 ### 6.6. Promocode Lifecycle (Жизненный цикл промокода)
 

@@ -12,10 +12,10 @@ from __future__ import annotations
 
 # START_MODULE_CONTRACT
 #   PURPOSE: HTTP routes for admin user management under
-#            /api/v1/admin/users — list, detail, block/unblock, loyalty
-#            adjustment.
+#            /api/v1/admin/users — list, detail, block/unblock, delete blocked
+#            users, and loyalty adjustment.
 #   SCOPE:   User lifecycle transitions (PDD §6.5) and ADMIN_ADJUSTMENT
-#            loyalty mutations. Cascading order cancellation on block
+#            loyalty mutations. Cascading order cancellation on block/delete
 #            (PDD §7.6).
 #   DEPENDS: M-DATABASE (Session), Redis, core_api.services.admin_users,
 #            core_api.services.auth, RBACMiddleware (ADMIN-only via
@@ -34,6 +34,7 @@ from __future__ import annotations
 #   block_admin_user             - POST /api/v1/admin/users/{user_id}/block
 #   unblock_admin_user           - POST /api/v1/admin/users/{user_id}/unblock
 #   adjust_admin_user_loyalty    - POST /api/v1/admin/users/{user_id}/loyalty/adjust
+#   delete_admin_user            - DELETE /api/v1/admin/users/{user_id}
 # END_MODULE_MAP
 
 import uuid
@@ -52,6 +53,13 @@ from core_api.schemas.admin_users import (
     UserDetailResponse,
     UserListResponse,
 )
+from core_api.schemas.account_deletion import AccountDeletionResponse
+from core_api.services.account_deletion import (
+    AccountDeletionActiveOrderError,
+    AccountDeletionInvalidStateError,
+    AccountDeletionNotFoundError,
+    delete_blocked_customer_account,
+)
 from core_api.services.auth import AuthService
 from core_api.services.admin_users import (
     InsufficientBalanceError,
@@ -63,8 +71,10 @@ from core_api.services.admin_users import (
     list_users,
     unblock_user,
 )
+from shared.grace.logging import get_grace_logger
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin-users"])
+_grace_log = get_grace_logger("CoreApi")
 
 
 # Обёртка для patch-friendly dep resolution (см. routers/admin_orders.py)
@@ -218,4 +228,46 @@ def adjust_admin_user_loyalty(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="insufficient_balance",
+        ) from exc
+
+
+# START_CONTRACT: delete_admin_user
+#   PURPOSE: Admin deletion of a BLOCKED customer account via PDD §6.5
+#            BLOCKED→DELETED, preserving order history while removing PII.
+#   INPUTS:  user_id: UUID, Session, Redis client.
+#   OUTPUTS: 200 AccountDeletionResponse; 404 not found; 409 invalid state or
+#            active_order_not_deletable.
+#   SIDE_EFFECTS: DB tombstone/PII cleanup, cancellable order cancellations,
+#                 loyalty zeroing, Redis session revocation.
+#   LINKS:   PDD §6.5, INV-002, INV-010, INV-013, INV-016,
+#            services.account_deletion.
+# END_CONTRACT: delete_admin_user
+@router.delete("/{user_id}", response_model=AccountDeletionResponse)
+def delete_admin_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(_get_session),
+    r: redis.Redis = Depends(_get_redis),
+) -> AccountDeletionResponse:
+    _grace_log.block(
+        "admin.users.delete",
+        "BLOCK_AUTH_VERIFY",
+        "admin account deletion authorized",
+        user_id=str(user_id),
+    )
+    try:
+        response = delete_blocked_customer_account(db=db, user_id=user_id)
+        AuthService(r).revoke_user_sessions(user_id)
+        return response
+    except AccountDeletionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found"
+        ) from exc
+    except AccountDeletionActiveOrderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="active_order_not_deletable",
+        ) from exc
+    except AccountDeletionInvalidStateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="invalid_user_state"
         ) from exc

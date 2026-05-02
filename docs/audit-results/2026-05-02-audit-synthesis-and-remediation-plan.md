@@ -253,6 +253,11 @@ Required LDD:
 - Cancellation/refund markers when active orders exist.
 - Redaction assertions for phone, name, address, JWT, refresh token.
 
+Status:
+
+- Backend packet landed in this worktree: customer `DELETE /api/v1/profile`, admin `DELETE /api/v1/admin/users/{user_id}` for blocked users, in-place tombstone strategy, session revocation, loyalty zeroing, profile/address PII removal, cancellable active-order cancellation, and LDD/redaction tests.
+- `IN_DELIVERY` orders intentionally block deletion until terminal state because PDD §6.1 forbids `IN_DELIVERY -> CANCELLED`; PDD §6.5 now documents that deletion note.
+
 ## Verification and Release Gate Work
 
 Primary source: verification audit.
@@ -295,4 +300,3 @@ Start with Wave 0:
 3. Commit them in scoped commits.
 
 Then implement Wave 1 as a single GRACE packet with LDD assertions. Do not start Wave 2 customer order pages until backend checkout validation is real enough to trust the order/payment state the UI will display.
-

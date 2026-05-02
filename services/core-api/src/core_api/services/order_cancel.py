@@ -55,6 +55,7 @@ from shared.models import (
     PromocodeUsage,
 )
 from shared.models.menu import MenuItem
+from shared.grace.logging import get_grace_logger
 
 from core_api import celery_app as _celery_mod
 from core_api.services.delivery_assignment import cancel_assignment_for_order
@@ -62,6 +63,7 @@ from core_api.services.order_notifications import send_order_notification
 
 # Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
 celery_app = _celery_mod.celery_app
+_grace_log = get_grace_logger("CoreApi")
 
 
 # START_CONTRACT: OrderCancelError
@@ -207,6 +209,13 @@ def cancel_order(
             - `not_cancellable_in_this_status` (для админа на
               IN_DELIVERY / COMPLETED / CANCELLED).
     """
+    _grace_log.block(
+        "orders.cancel",
+        "BLOCK_TX_BEGIN",
+        "order cancellation begin",
+        order_id=str(order_id),
+        actor=cancelled_by,
+    )
     order = db_session.get(Order, order_id)
     if order is None:
         raise OrderCancelError(reason="order_not_found")
@@ -228,6 +237,14 @@ def cancel_order(
     order.cancelled_by = cancelled_by
     order.cancelled_at = datetime.now(UTC)
     db_session.flush()
+    _grace_log.belief(
+        "orders.cancel",
+        "BLOCK_STATE_TRANSITION",
+        belief=OrderStatus.CANCELLED.value,
+        actual=order.status.value,
+        order_id=str(order.id),
+        actor=cancelled_by,
+    )
 
     # 4a. Каскадная отмена DeliveryAssignment в той же транзакции (PDD §6.3, INV-004).
     #     No-op для PICKUP-заказов / PICKED_UP / DELIVERED.
@@ -242,4 +259,11 @@ def cancel_order(
 
     # 7. Фиксация
     db_session.commit()
+    _grace_log.block(
+        "orders.cancel",
+        "BLOCK_TX_COMMIT",
+        "order cancellation committed",
+        order_id=str(order.id),
+        actor=cancelled_by,
+    )
     return order

@@ -39,6 +39,7 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # Профиль — только customer
     ("GET", "/api/v1/profile"): {CUSTOMER},
     ("PATCH", "/api/v1/profile"): {CUSTOMER},
+    ("DELETE", "/api/v1/profile"): {CUSTOMER},
     # Лояльность личного кабинета (PDD §3, §7.1 Phase 5 item 2) — только customer
     ("GET", "/api/v1/profile/loyalty"):              {CUSTOMER},
     ("GET", "/api/v1/profile/loyalty/transactions"): {CUSTOMER},
@@ -104,6 +105,7 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("GET",  "/api/v1/admin/users/{user_id}"):                         {ADMIN},
     ("POST", "/api/v1/admin/users/{user_id}/block"):                   {ADMIN},
     ("POST", "/api/v1/admin/users/{user_id}/unblock"):                 {ADMIN},
+    ("DELETE", "/api/v1/admin/users/{user_id}"):                       {ADMIN},
     ("POST", "/api/v1/admin/users/{user_id}/loyalty/adjust"):          {ADMIN},
     # ── Admin promocodes (PDD §6.6, INV-010, INV-011) — только ADMIN ──────
     ("POST",  "/api/v1/admin/promocodes"):                            {ADMIN},
