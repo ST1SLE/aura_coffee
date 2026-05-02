@@ -67,7 +67,7 @@ describe('AvailableTab', () => {
     vi.restoreAllMocks();
   });
 
-  it('рендерит карточки для заказов из listAvailable', async () => {
+  it('рендерит карточки из listAvailable без адресов до назначения', async () => {
     vi.mocked(courierApi.listAvailable).mockResolvedValue([
       makeAssignment({ id: 'a-1', delivery_address: { address_line: 'адрес-1' } }),
       makeAssignment({ id: 'a-2', delivery_address: { address_line: 'адрес-2' } }),
@@ -76,9 +76,12 @@ describe('AvailableTab', () => {
     renderTab();
 
     await waitFor(() => {
-      expect(screen.getByText('адрес-1')).toBeDefined();
-      expect(screen.getByText('адрес-2')).toBeDefined();
+      expect(
+        screen.getAllByText(/Адрес будет доступен после назначения/i),
+      ).toHaveLength(2);
     });
+    expect(screen.queryByText('адрес-1')).toBeNull();
+    expect(screen.queryByText('адрес-2')).toBeNull();
   });
 
   it('рендерит fallback вместо адреса, если available feed редактирует PII', async () => {

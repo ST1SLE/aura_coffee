@@ -96,6 +96,7 @@ export function AvailableTab() {
         <AssignmentCard
           key={a.id}
           assignment={a}
+          showAddress={false}
           action={
             <Button
               type="button"

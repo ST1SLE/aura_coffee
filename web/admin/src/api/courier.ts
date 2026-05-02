@@ -10,8 +10,8 @@ import { authenticatedFetch, ApiError } from './client';
 //   SCOPE:   Wraps /api/v1/courier/assignments/*; mirrors core-api Pydantic
 //            schemas in services/core-api/core_api/schemas/courier.py.
 //   DEPENDS: ./client (authenticatedFetch, ApiError).
-//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.5 delivery flow,
-//            INV-002 (server enforces courier scope; admin may also call),
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.3 delivery flow,
+//            INV-002 (server enforces courier scope),
 //            INV-010 (courier sees only delivery orders, no customer PII beyond address),
 //            INV-016 (PICKED_UP / DELIVERED transitions are state-machine moves).
 //   ROLE:    RUNTIME

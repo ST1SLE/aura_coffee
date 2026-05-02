@@ -185,6 +185,15 @@ Required LDD:
 - No mismatched delivery/order state beliefs.
 - Redaction assertions for address payload/log paths.
 
+Status:
+
+- Current backend already normalizes the courier assignment contract across available, mine, take, pickup, and deliver responses in `services/core-api/src/core_api/routers/courier.py`; RBAC keeps the courier API courier-only, and `web/admin/src/App.tsx` now mounts `/courier` behind a courier-only `ProtectedRoute`.
+- Current delivery-assignment service already filters available assignments to `AWAITING_COURIER` rows whose parent order is `READY`, blocks `take` for non-READY orders with `order_not_ready`, and redacts `delivery_address` on the available feed while keeping full delivery details on assigned rows.
+- Added frontend defense-in-depth for INV-013: `AvailableTab` now passes `showAddress={false}` so available courier cards hide delivery addresses even if an upstream payload accidentally includes one; `MineTab` still renders assigned-order address details.
+- Focused frontend verification passed: `npm --prefix web/admin test -- CourierPage.test.tsx AvailableTab.test.tsx MineTab.test.tsx api/courier.test.ts --run` (`19` tests) and `npm --prefix web/admin run typecheck`.
+- Focused backend verification passed: `docker compose exec -T core-api pytest services/core-api/tests/test_delivery_assignment_state_machine.py services/core-api/tests/test_courier_endpoints.py -q` (`52` tests).
+- LDD/redaction gate: asserted `delivery.accept`, `delivery.pickup`, and `delivery.deliver` `BLOCK_STATE_TRANSITION` trajectories with no mismatched beliefs; asserted available-feed redaction by checking no full address/comment appears in the service row, plus frontend coverage that available cards do not render address text before assignment.
+
 ### Wave 4 - Notification Boundary Cleanup
 
 Primary source: business-logic audit P0-3.

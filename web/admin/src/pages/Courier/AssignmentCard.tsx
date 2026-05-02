@@ -4,7 +4,8 @@ import type { CourierAssignmentResponse } from '@/api/courier';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Card representation of one courier assignment — requested time,
-//            total, optional address line, optional action slot. Pure presentation.
+//            total, optional address line visibility, optional action slot.
+//            Pure presentation.
 //   SCOPE:   Used by AvailableTab and MineTab.
 //   DEPENDS: react-i18next, @/api/courier type.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (courier views).
@@ -13,12 +14,13 @@ import type { CourierAssignmentResponse } from '@/api/courier';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   AssignmentCard - single-assignment card with time, total, address, action slot
+//   AssignmentCard - single-assignment card with time, total, optional address, action slot
 // END_MODULE_MAP
 
 interface AssignmentCardProps {
   assignment: CourierAssignmentResponse;
   action?: ReactNode;
+  showAddress?: boolean;
 }
 
 function formatRoubles(kopecks: number): string {
@@ -39,12 +41,28 @@ function formatRequestedTime(iso: string | null, asapLabel: string): string {
   return `${hh}:${mm}`;
 }
 
-export function AssignmentCard({ assignment, action }: AssignmentCardProps) {
+// START_CONTRACT: AssignmentCard
+//   PURPOSE: Render one courier assignment card while allowing the caller to
+//            suppress delivery address details for pre-assignment feeds.
+//   INPUTS:  assignment: CourierAssignmentResponse — normalized backend DTO
+//            action?: ReactNode — optional footer action button
+//            showAddress?: boolean — false hides address even if DTO contains it.
+//   OUTPUTS: JSX.Element — courier assignment card.
+//   SIDE_EFFECTS: none.
+//   LINKS:   INV-010, INV-013 (available feed must minimize delivery PII).
+// END_CONTRACT: AssignmentCard
+export function AssignmentCard({
+  assignment,
+  action,
+  showAddress = true,
+}: AssignmentCardProps) {
   const { t } = useTranslation();
   const asapLabel = t('courier.fields.requestedAsap');
   const time = formatRequestedTime(assignment.requested_time, asapLabel);
   const address =
-    assignment.delivery_address.address_line ?? t('courier.fields.addressHidden');
+    showAddress && assignment.delivery_address.address_line
+      ? assignment.delivery_address.address_line
+      : t('courier.fields.addressHidden');
 
   return (
     <article className="w-full md:w-1/2 rounded-md border bg-card text-card-foreground p-4 flex flex-col gap-3 shadow-sm">
