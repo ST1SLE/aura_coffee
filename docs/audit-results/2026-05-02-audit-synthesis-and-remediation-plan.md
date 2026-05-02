@@ -248,6 +248,13 @@ Required LDD:
 - `auth.otp_verify BLOCK_AUTH_VERIFY`
 - redaction for phone, OTP, JWT, password, refresh token.
 
+Status:
+
+- Backend Wave 5 controls are present and verified in the current worktree: customer refresh uses DB-backed status checks and indexed session revocation, protected Bearer access rejects blocked/deleted customers and inactive/role-mismatched staff, staff refresh re-reads `staff_accounts`, OTP send-code uses atomic `reserve_rate_limit`, send-code no longer returns public `phone_hash`, and staff login has Redis-backed failed-login throttling.
+- Focused backend verification passed: `docker compose exec -T core-api pytest services/core-api/tests/test_auth_endpoints.py services/core-api/tests/test_staff_auth.py services/core-api/tests/test_admin_users_block.py -q` (`43` tests) plus `ruff check` for the auth/router/service/test files.
+- LDD/redaction gate: auth tests assert `auth.otp_request` `BLOCK_OTP_GEN`, `auth.otp_verify` `BLOCK_AUTH_VERIFY`, and `staff.auth_login` `BLOCK_AUTH_VERIFY`; captured logs are checked for no raw phone, OTP code, JWT, password, refresh token, or deterministic `phone_hash`.
+- Remaining Wave 5 item: browser token-storage migration is intentionally not mixed into this backend packet. Customer refresh tokens and staff tokens still use localStorage; replacing them with HttpOnly/SameSite cookies plus CSRF protections needs a dedicated frontend/backend design packet and regression plan.
+
 ### Wave 6 - Payment Webhook Ingress and Secret Safety
 
 Primary sources: security audit P1-3, P1-4 and business-logic payment state guard findings.
