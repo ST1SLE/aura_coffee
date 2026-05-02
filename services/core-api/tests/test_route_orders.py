@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import fakeredis
 import pytest
@@ -96,6 +96,30 @@ def _seed_cart(cart_redis: fakeredis.FakeRedis, user_id: uuid.UUID, items: list[
     cart_redis.set(f"cart:{user_id}", json.dumps(payload), ex=300)
 
 
+def _ensure_shop_settings(db_session) -> None:
+    from shared.models.shop_settings import ShopSettings
+
+    if db_session.get(ShopSettings, 1) is not None:
+        return
+    db_session.add(
+        ShopSettings(
+            id=1,
+            shop_lat=55.751244,
+            shop_lon=37.618423,
+            delivery_radius_km=10,
+            min_delivery_amount=0,
+            free_delivery_threshold=100000,
+            delivery_fee=0,
+            loyalty_percent=5,
+            default_prep_time_minutes=10,
+            estimated_delivery_time_minutes=30,
+            auto_close_minutes=60,
+            working_hours={},
+        )
+    )
+    db_session.flush()
+
+
 # ===========================================================================
 # 11. RED: POST /api/v1/orders
 # ===========================================================================
@@ -155,6 +179,7 @@ def test_post_orders_happy_path_returns_201(db_client, db_session, cart_redis) -
 
     from shared.models import LoyaltyAccount, User, UserProfile
 
+    _ensure_shop_settings(db_session)
     user = User(phone_hash=uuid.uuid4().hex[:32])
     db_session.add(user)
     db_session.flush()
@@ -206,6 +231,7 @@ def test_post_orders_validator_failure_returns_409(db_client, db_session, cart_r
 
     from shared.models import LoyaltyAccount, User, UserProfile
 
+    _ensure_shop_settings(db_session)
     user = User(phone_hash=uuid.uuid4().hex[:32])
     db_session.add(user)
     db_session.flush()
@@ -281,6 +307,7 @@ def test_post_orders_total_zero_returns_paid_status(db_client, db_session, cart_
 
     from shared.models import LoyaltyAccount, User, UserProfile
 
+    _ensure_shop_settings(db_session)
     user = User(phone_hash=uuid.uuid4().hex[:32])
     db_session.add(user)
     db_session.flush()

@@ -76,6 +76,30 @@ def _seed_menu_item(db: Session, *, base_price: int = 50000) -> int:
     return item.id
 
 
+def _ensure_shop_settings(db: Session) -> None:
+    from shared.models.shop_settings import ShopSettings
+
+    if db.get(ShopSettings, 1) is not None:
+        return
+    db.add(
+        ShopSettings(
+            id=1,
+            shop_lat=55.751244,
+            shop_lon=37.618423,
+            delivery_radius_km=10,
+            min_delivery_amount=0,
+            free_delivery_threshold=100000,
+            delivery_fee=0,
+            loyalty_percent=5,
+            default_prep_time_minutes=10,
+            estimated_delivery_time_minutes=30,
+            auto_close_minutes=60,
+            working_hours={},
+        )
+    )
+    db.flush()
+
+
 def _seed_cart(
     redis_client: fakeredis.FakeRedis, user_id: uuid.UUID, menu_item_id: int
 ) -> None:
@@ -98,6 +122,11 @@ def fake_redis() -> fakeredis.FakeRedis:
     r = fakeredis.FakeRedis()
     yield r
     r.flushall()
+
+
+@pytest.fixture(autouse=True)
+def shop_settings(db_session: Session) -> None:
+    _ensure_shop_settings(db_session)
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +158,9 @@ def test_race_loss_raises_validation_error_and_does_not_overshoot_max_uses(
     with patch(
         "core_api.services.checkout.validate_promocode",
         MagicMock(return_value=promo_stale),
+    ), patch(
+        "core_api.services.checkout.validate_time_slot",
+        MagicMock(return_value=datetime.now(UTC)),
     ):
         # Симулируем winner: current_uses=1 до инкремента lose-пути.
         db_session.execute(
@@ -187,6 +219,9 @@ def test_unlimited_promocode_still_increments(
     with patch(
         "core_api.services.checkout.validate_promocode",
         MagicMock(return_value=promo),
+    ), patch(
+        "core_api.services.checkout.validate_time_slot",
+        MagicMock(return_value=datetime.now(UTC)),
     ), patch("core_api.services.checkout.enqueue_payment_task", MagicMock()):
         create_order(
             uid,
@@ -224,6 +259,9 @@ def test_under_quota_single_row_match(
     with patch(
         "core_api.services.checkout.validate_promocode",
         MagicMock(return_value=promo),
+    ), patch(
+        "core_api.services.checkout.validate_time_slot",
+        MagicMock(return_value=datetime.now(UTC)),
     ), patch("core_api.services.checkout.enqueue_payment_task", MagicMock()):
         create_order(
             uid,
