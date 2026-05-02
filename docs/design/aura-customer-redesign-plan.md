@@ -442,6 +442,61 @@ Verification:
 - Browser computed color check confirmed body `rgb(224, 217, 204)`, cards/modal
   panel `rgb(240, 233, 219)`, and nested panels `rgb(218, 207, 190)`.
 
+### Packet 10 - Bold Taupe/Cream Palette
+
+Status: complete
+
+Files:
+
+- `web/customer/src/index.css`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+Packet 9 still stayed too restrained in live review. Packet 10 intentionally
+moves the customer UI from subtle warmth to a visibly branded warm-neutral
+scheme:
+
+- taupe/oat page canvas
+- cream menu/order/checkout cards
+- biscuit nested controls and placeholder media
+- coffee-toned borders
+
+Steps:
+
+1. Lower page canvas from `38 24% 84%` to `35 27% 72%`.
+2. Lower card/popover surfaces from `39 40% 90%` to `39 38% 84%`.
+3. Lower nested surface fills from the low-80s/high-70s to `34 34% 68%` and
+   `36 30% 74%`.
+4. Lower border/input color to `32 24% 54%` so cards and form fields separate
+   clearly on the stronger background.
+5. Preserve sage actions and espresso text for brand continuity and contrast.
+
+Acceptance:
+
+- the app no longer reads as white or near-white in menu, modal, checkout, or
+  order-detail screenshots
+- checked surface colors have RGB max channel below 233
+- empty page space recedes as an intentional taupe canvas
+- cards remain cream and readable rather than becoming brown-heavy
+- no API, cart, order, checkout, auth, pricing, or persistence behavior changes
+
+Verification:
+
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/pages/OrderDetailPage.test.tsx src/pages/CheckoutPage.test.tsx src/components/Layout.test.tsx`
+- `cd web/customer && npm run build`
+- `./scripts/up.sh`
+- Playwright browser pass against `http://localhost:240/` with authenticated QA
+  customer state; captured `/menu`, item-detail viewport, `/checkout`, and
+  `/orders/:orderId` screenshots under
+  `/tmp/aura-customer-bold-palette-screenshots`.
+- Browser computed color gate confirmed body `rgb(203, 187, 164)`,
+  cards/modal panel `rgb(230, 219, 199)`, and nested panels
+  `rgb(209, 193, 169)`; the smoke fails if checked surfaces are still
+  near-white.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -481,7 +536,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-9 complete.
+Packet status: Packets 0-10 complete.
 
 Safety double-check:
 
@@ -520,6 +575,8 @@ Verification commands run:
 - Playwright browser overflow/screenshot checks listed under Packet 7.
 - Playwright warm-neutral screenshot checks listed under Packet 8.
 - Playwright stronger non-white screenshot checks listed under Packet 9.
+- Playwright bold taupe/cream screenshot and computed-color gate listed under
+  Packet 10.
 
 Residual test cleanup:
 
