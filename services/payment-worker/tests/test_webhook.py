@@ -6,9 +6,10 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from shared.grace.testing import GraceLogCapture
 
 
 WHITELISTED_IP = "127.0.0.1"
@@ -99,12 +100,24 @@ def test_payment_succeeded_advances_payment_and_order(
     fake_redis.set(f"cart:{user.id}", "{}")
 
     client = _make_client(sqlite_engine, fake_redis)
-    resp = client.post(
-        "/webhooks/yukassa",
-        json={"event": "payment.succeeded", "object": {"id": "pay_xyz"}},
-        headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ok"},
-    )
+    sms_task = MagicMock()
+    with (
+        patch("payment_worker.webhook.celery_app.send_task", sms_task),
+        GraceLogCapture() as grace_logs,
+    ):
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={"event": "payment.succeeded", "object": {"id": "pay_xyz"}},
+            headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ok"},
+        )
     assert resp.status_code == 200
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+        ("process_webhook", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    assert all('"object"' not in line for line in grace_logs.lines)
 
     db_session.refresh(payment)
     db_session.refresh(order)
@@ -127,7 +140,7 @@ def test_payment_succeeded_advances_payment_and_order(
     )
     assert len(redemptions) >= 1
 
-    # Уведомления: sms + in_app, тело содержит «Заказ оплачен»
+    # Уведомления: sms + in_app, SMS ставится в зарегистрированную задачу.
     from shared.models.notification import Notification
 
     notifs = (
@@ -138,7 +151,11 @@ def test_payment_succeeded_advances_payment_and_order(
     channels = {n.channel for n in notifs}
     assert NotificationChannel.SMS in channels
     assert NotificationChannel.IN_APP in channels
-    assert any("Заказ оплачен" in (n.message_ru or "") for n in notifs)
+    assert any("оплачен" in (n.message_ru or "") for n in notifs)
+    sms_task.assert_called_once()
+    args, kwargs = sms_task.call_args
+    assert args[0] == "sms_worker.send_order_notification_sms"
+    assert kwargs["queue"] == "sms"
 
 
 def test_payment_canceled_cancels_order_and_unreserves(
@@ -160,12 +177,24 @@ def test_payment_canceled_cancels_order_and_unreserves(
     db_session.commit()
 
     client = _make_client(sqlite_engine, fake_redis)
-    resp = client.post(
-        "/webhooks/yukassa",
-        json={"event": "payment.canceled", "object": {"id": "pay_xyz"}},
-        headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-cancel"},
-    )
+    sms_task = MagicMock()
+    with (
+        patch("payment_worker.webhook.celery_app.send_task", sms_task),
+        GraceLogCapture() as grace_logs,
+    ):
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={"event": "payment.canceled", "object": {"id": "pay_xyz"}},
+            headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-cancel"},
+        )
     assert resp.status_code == 200
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+        ("process_webhook", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    assert all('"object"' not in line for line in grace_logs.lines)
 
     db_session.refresh(payment)
     db_session.refresh(order)
@@ -199,6 +228,11 @@ def test_payment_canceled_cancels_order_and_unreserves(
         and "Платёж не прошёл" in (n.message_ru or "")
         for n in notifs
     )
+    assert any(n.channel == NotificationChannel.SMS for n in notifs)
+    sms_task.assert_called_once()
+    args, kwargs = sms_task.call_args
+    assert args[0] == "sms_worker.send_order_notification_sms"
+    assert kwargs["queue"] == "sms"
 
 
 def test_refund_succeeded_marks_refunded(
@@ -264,7 +298,7 @@ def test_refund_canceled_marks_refund_failed_and_notifies_admin(
 def test_unknown_event_type_returns_200_no_mutation(
     seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
 ) -> None:
-    from shared.enums import OrderStatus, PaymentStatus
+    from shared.enums import PaymentStatus
 
     payment = seed_user_order_payment["payment"]
     order = seed_user_order_payment["order"]

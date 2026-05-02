@@ -221,7 +221,7 @@ def transition_order(
     # pickup-autoclose): §6.1 row "Автозакрытие по таймеру" явно требует
     # отсутствия уведомлений для этого перехода.
     if actor_role != "system":
-        send_order_notification(order, new_status)
+        send_order_notification(order, new_status, actor_role=actor_role)
     db_session.commit()
     _grace_log.belief(
         "order_lifecycle.transition_order",

@@ -36,8 +36,6 @@ if TYPE_CHECKING:
 
 def _make_user(db: "Session", *, preferred_language: str = "ru") -> tuple[object, object]:
     """Создаёт User + UserProfile c зашифрованным телефоном. Возвращает (user, profile)."""
-    import os
-
     from core_api.settings import settings
     from core_api.utils.crypto import encrypt_phone, hash_phone
     from shared.models.user import User
@@ -429,6 +427,35 @@ def test_celery_task_is_dispatched_by_registered_name() -> None:
 
     task = notification_module.send_order_notification_sms
     assert getattr(task, "name", None) == "sms_worker.send_order_notification_sms"
+
+
+def test_legacy_lifecycle_wrapper_uses_canonical_notification_service(db_session) -> None:
+    """4.6a — старый lifecycle import path пишет rows и ставит зарегистрированную SMS task."""
+    from core_api.services.order_notifications import send_order_notification
+    from shared.models.notification import Notification
+
+    user, profile = _make_user(db_session)
+    order = _make_order(db_session, user.id, order_type=OrderType.PICKUP)
+
+    mock_task = MagicMock()
+    with patch("core_api.services.notification.send_order_notification_sms", mock_task):
+        send_order_notification(order, OrderStatus.PREPARING, actor_role="barista")
+
+    rows = (
+        db_session.query(Notification)
+        .filter(Notification.order_id == order.id)
+        .all()
+    )
+    assert {row.channel for row in rows} == {
+        NotificationChannel.IN_APP,
+        NotificationChannel.SMS,
+    }
+    assert mock_task.delay.call_count == 1
+    flat_args = list(mock_task.delay.call_args.args) + list(
+        mock_task.delay.call_args.kwargs.values()
+    )
+    assert "+79991234567" not in " ".join(str(arg) for arg in flat_args)
+    assert profile.phone.hex() in [arg for arg in flat_args if isinstance(arg, str)]
 
 
 def test_plaintext_phone_never_passed_to_task(db_session) -> None:

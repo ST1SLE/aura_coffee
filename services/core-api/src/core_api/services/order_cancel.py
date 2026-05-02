@@ -125,7 +125,7 @@ def _enqueue_refund(order: Order, db: Session) -> None:
     if payment is None or payment.amount <= 0:
         return
     celery_app.send_task(
-        "payment_worker.initiate_refund",
+        "payment_worker.tasks.initiate_refund",
         args=[str(payment.id), payment.amount],
     )
 

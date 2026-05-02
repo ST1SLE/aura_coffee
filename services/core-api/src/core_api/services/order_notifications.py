@@ -1,44 +1,66 @@
 # START_MODULE_CONTRACT
-#   PURPOSE: Thin wrapper around Celery dispatch for order status change
-#            notifications. Tests monkey-patch send_order_notification on this
-#            module so the lifecycle code stays pure.
+#   PURPOSE: Backwards-compatible wrapper around the canonical order-status
+#            notification service. Lifecycle modules import this stable patch
+#            point; production calls delegate to services.notification, which
+#            writes IN_APP/SMS rows and enqueues the registered sms-worker task.
 #   SCOPE:   single send_order_notification helper.
-#   DEPENDS: M-SHARED (OrderStatus), celery_app
-#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.4
+#   DEPENDS: M-SHARED (OrderStatus), SQLAlchemy object_session,
+#            services.notification
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §7.8, INV-013
 #   ROLE:    RUNTIME
 #   MAP_MODE: EXPORTS
 # END_MODULE_CONTRACT
 #
 # START_MODULE_MAP
-#   send_order_notification - dispatch sms_worker.order_status_changed task
+#   send_order_notification - delegate to services.notification boundary
 # END_MODULE_MAP
-"""Тонкий модуль постановки SMS-уведомлений о смене статуса заказа.
+"""Compatibility wrapper for order-status notifications.
 
-Конкретная реализация sms-worker шлёт из Phase 5; здесь — только enqueue.
-Тесты monkey-patch’ат `send_order_notification`.
+Historically lifecycle services imported this module and it sent an obsolete
+`sms_worker.order_status_changed` task. Keep the import/patch point, but route
+real runtime behavior through `core_api.services.notification`.
 """
 from __future__ import annotations
 
+from sqlalchemy.orm import object_session
+
 from shared.enums import OrderStatus
 
-from core_api.celery_app import celery_app
+from core_api.services import notification as notification_service
 
 
 # START_CONTRACT: send_order_notification
-#   PURPOSE: Enqueue an sms_worker.order_status_changed task carrying order id,
-#            new status, and optional reason.
+#   PURPOSE: Delegate a lifecycle/cancellation/delivery status notification to
+#            the canonical notification service while preserving the legacy
+#            call signature used by lifecycle modules and tests.
 #   INPUTS:  order: Order — only `id` is read (kept un-typed for test fakes)
 #            new_status: OrderStatus
 #            reason: str | None
+#            actor_role: str | None — used to classify admin CANCELLED
 #   OUTPUTS: None
-#   SIDE_EFFECTS: Celery .send_task() to default queue; raises broker error to caller.
-#   LINKS:   PDD §6.1, §6.4
+#   SIDE_EFFECTS: DB INSERT on notifications via services.notification; SMS
+#                 enqueue to registered `sms_worker.send_order_notification_sms`.
+#   LINKS:   PDD §6.1, §7.8, INV-013
 # END_CONTRACT: send_order_notification
 def send_order_notification(
-    order, new_status: OrderStatus, reason: str | None = None
+    order,
+    new_status: OrderStatus,
+    reason: str | None = None,
+    actor_role: str | None = None,
 ) -> None:
-    """Ставит задачу в sms-worker на отправку уведомления о новом статусе."""
-    celery_app.send_task(
-        "sms_worker.order_status_changed",
-        args=[str(order.id), new_status.value, reason],
+    """Persist in-app/SMS notification rows and enqueue SMS when required."""
+    session = object_session(order)
+    if session is None:
+        raise ValueError("Order notification requires an attached SQLAlchemy session")
+
+    cancelled_by = None
+    if new_status == OrderStatus.CANCELLED:
+        cancelled_by = getattr(order, "cancelled_by", None) or actor_role
+
+    notification_service.send_order_notification(
+        order_id=order.id,
+        user_id=order.user_id,
+        new_status=new_status,
+        db_session=session,
+        cancelled_by=cancelled_by,
     )

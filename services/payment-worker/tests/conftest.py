@@ -122,6 +122,7 @@ def seed_user_order_payment(db_session):
     from shared.models.payment import Payment
     from shared.models.promocode import Promocode
     from shared.models.user import User
+    from shared.models.user_profile import UserProfile
 
     user = User(
         id=uuid.uuid4(),
@@ -130,6 +131,14 @@ def seed_user_order_payment(db_session):
     )
     db_session.add(user)
     db_session.flush()
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            phone=b"encrypted-phone-bytes",
+            display_name="Test",
+            preferred_language="ru",
+        )
+    )
 
     loyalty = LoyaltyAccount(user_id=user.id, balance=0)
     db_session.add(loyalty)

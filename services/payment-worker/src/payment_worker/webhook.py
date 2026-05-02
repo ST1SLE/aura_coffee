@@ -54,9 +54,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from payment_worker.db import get_engine, session_scope  # noqa: F401  (patch target)
+from payment_worker.main import celery_app
 from payment_worker.redis_client import get_redis  # noqa: F401  (patch target)
 from payment_worker.settings import Settings
+from shared.enums import NotificationChannel, NotificationStatus, NotificationType
 from shared.grace.logging import get_grace_logger
+from shared.notifications import build_sms_body, resolve_notification_text
 
 _grace_log = get_grace_logger("PaymentWorker")
 
@@ -70,6 +73,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 _EVENT_TTL_SECONDS = 86_400
+_ORDER_SMS_TASK = "sms_worker.send_order_notification_sms"
 
 
 # START_CONTRACT: health
@@ -181,19 +185,91 @@ def mark_event_processed(redis_client: Any, event_id: str) -> None:
 # --- event handlers ---------------------------------------------------
 
 
+def _encrypted_phone_hex(profile_phone: bytes | bytearray | str) -> str:
+    if isinstance(profile_phone, (bytes, bytearray)):
+        return profile_phone.hex()
+    return profile_phone
+
+
+def _send_order_notification(
+    session: Session,
+    order: Any,
+    new_status: Any,
+    *,
+    cancelled_by: str | None = None,
+) -> None:
+    """Write canonical order notification rows and enqueue SMS when required."""
+    from shared.models.notification import Notification
+    from shared.models.user_profile import UserProfile
+
+    short_id = order.id.hex[:8]
+    text = resolve_notification_text(
+        new_status=new_status,
+        order_type=order.type,
+        cancelled_by=cancelled_by,
+        short_id=short_id,
+    )
+
+    session.add(
+        Notification(
+            user_id=order.user_id,
+            order_id=order.id,
+            channel=NotificationChannel.IN_APP,
+            type=NotificationType.ORDER_STATUS_CHANGE,
+            status=NotificationStatus.SENT,
+            message_ru=text.message_ru,
+            message_en=text.message_en,
+        )
+    )
+    session.flush()
+
+    if not text.requires_sms:
+        return
+
+    profile = session.get(UserProfile, order.user_id)
+    if profile is None:
+        raise ValueError(f"UserProfile for user {order.user_id} not found")
+
+    sms_row = Notification(
+        user_id=order.user_id,
+        order_id=order.id,
+        channel=NotificationChannel.SMS,
+        type=NotificationType.ORDER_STATUS_CHANGE,
+        status=NotificationStatus.PENDING,
+        message_ru=text.message_ru,
+        message_en=text.message_en,
+    )
+    session.add(sms_row)
+    session.flush()
+
+    assert text.sms_status_ru is not None
+    try:
+        celery_app.send_task(
+            _ORDER_SMS_TASK,
+            args=[
+                str(sms_row.id),
+                _encrypted_phone_hex(profile.phone),
+                build_sms_body(text.sms_status_ru, short_id),
+            ],
+            queue="sms",
+        )
+    except Exception:
+        logger.exception(
+            "failed to enqueue order SMS notification",
+            extra={"notification_id": str(sms_row.id)[:8], "order_id": short_id},
+        )
+
+
 def _handle_payment_succeeded(
     session: Session, redis_client: Any, obj: dict[str, Any]
 ) -> UUID | None:
     """Возвращает user_id, чтобы вызывающий мог почистить Redis-корзину вне транзакции."""
     from shared.enums import (
         LoyaltyTransactionType,
-        NotificationChannel,
-        NotificationType,
         OrderStatus,
         PaymentStatus,
     )
     from shared.models.loyalty_transaction import LoyaltyTransaction
-    from shared.models.notification import Notification
     from shared.models.order import Order
     from shared.models.payment import Payment
 
@@ -230,7 +306,7 @@ def _handle_payment_succeeded(
         "process_webhook",
         "BLOCK_STATE_TRANSITION",
         belief="PAID",
-        actual=str(order.status),
+        actual=order.status.name,
     )
 
     # RESERVATION -> REDEMPTION: конвертируем тип существующей записи.
@@ -245,20 +321,7 @@ def _handle_payment_succeeded(
     if reservation is not None:
         reservation.type = LoyaltyTransactionType.REDEMPTION
 
-    # Уведомления: SMS + IN_APP, RU/EN.
-    body_ru = f"Заказ оплачен. Номер заказа: {order.id}"
-    body_en = f"Order paid. Order ID: {order.id}"
-    for channel in (NotificationChannel.SMS, NotificationChannel.IN_APP):
-        session.add(
-            Notification(
-                user_id=order.user_id,
-                order_id=order.id,
-                channel=channel,
-                type=NotificationType.ORDER_STATUS_CHANGE,
-                message_ru=body_ru,
-                message_en=body_en,
-            )
-        )
+    _send_order_notification(session, order, OrderStatus.PAID)
 
     return order.user_id
 
@@ -268,13 +331,10 @@ def _handle_payment_canceled(
 ) -> None:
     from shared.enums import (
         LoyaltyTransactionType,
-        NotificationChannel,
-        NotificationType,
         OrderStatus,
         PaymentStatus,
     )
     from shared.models.loyalty_transaction import LoyaltyTransaction
-    from shared.models.notification import Notification
     from shared.models.order import Order
     from shared.models.payment import Payment
 
@@ -302,7 +362,7 @@ def _handle_payment_canceled(
         "process_webhook",
         "BLOCK_STATE_TRANSITION",
         belief="CANCELLED",
-        actual=str(order.status),
+        actual=order.status.name,
     )
 
     if order.points_used and order.points_used > 0:
@@ -332,15 +392,11 @@ def _handle_payment_canceled(
         if promo is not None and promo.current_uses > 0:
             promo.current_uses -= 1
 
-    session.add(
-        Notification(
-            user_id=order.user_id,
-            order_id=order.id,
-            channel=NotificationChannel.IN_APP,
-            type=NotificationType.ORDER_STATUS_CHANGE,
-            message_ru="Платёж не прошёл. Заказ отменён.",
-            message_en="Payment failed. Order canceled.",
-        )
+    _send_order_notification(
+        session,
+        order,
+        OrderStatus.CANCELLED,
+        cancelled_by="payment",
     )
 
 

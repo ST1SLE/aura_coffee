@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -47,11 +46,24 @@ from shared.enums import (
     NotificationStatus,
     NotificationType,
     OrderStatus,
-    OrderType,
 )
 from shared.models.notification import Notification
 from shared.models.order import Order
 from shared.models.user_profile import UserProfile
+from shared.notifications import (
+    NotificationText,
+    build_sms_body,
+    resolve_notification_text,
+)
+
+__all__ = [
+    "NotificationText",
+    "build_sms_body",
+    "resolve_display_text",
+    "resolve_notification_text",
+    "send_order_notification",
+    "send_order_notification_sms",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -85,173 +97,6 @@ def send_order_notification_sms(
     raise NotImplementedError(
         "send_order_notification_sms executes in sms-worker, not core-api"
     )
-
-
-# ─────────────────────────────────────────────
-# Матрица текстов §6.1 (IN_APP + SMS status phrase + requires_sms)
-# ─────────────────────────────────────────────
-
-
-# START_CONTRACT: NotificationText
-#   PURPOSE: Resolved notification text bundle — bilingual messages plus an
-#            SMS-status phrase and `requires_sms` flag.
-#   INPUTS:  message_ru, message_en, sms_status_ru, sms_status_en, requires_sms
-#   OUTPUTS: frozen dataclass instance.
-#   SIDE_EFFECTS: none
-# END_CONTRACT: NotificationText
-@dataclass(frozen=True)
-class NotificationText:
-    """Результат `resolve_notification_text` — тексты + флаг SMS."""
-
-    message_ru: str
-    message_en: str
-    sms_status_ru: str | None
-    sms_status_en: str | None
-    requires_sms: bool
-
-
-# Ключ: (new_status, order_type, cancelled_by).
-# Значение: (template_ru, template_en, sms_status_ru, sms_status_en, requires_sms).
-# `{short_id}` — плейсхолдер, подставляется в resolve_notification_text.
-_MATRIX: dict[
-    tuple[OrderStatus, OrderType | None, str | None],
-    tuple[str, str, str | None, str | None, bool],
-] = {
-    (OrderStatus.PAID, None, None): (
-        "Заказ №{short_id} оплачен",
-        "Order #{short_id} paid",
-        "Оплачен",
-        "Paid",
-        True,
-    ),
-    (OrderStatus.PREPARING, None, None): (
-        "Заказ №{short_id} готовится",
-        "Order #{short_id} is being prepared",
-        "Готовится",
-        "Being prepared",
-        True,
-    ),
-    (OrderStatus.READY, OrderType.PICKUP, None): (
-        "Заказ №{short_id} готов, заберите",
-        "Order #{short_id} is ready, please pick it up",
-        "Готов, заберите",
-        "Ready, pick up",
-        True,
-    ),
-    (OrderStatus.READY, OrderType.DELIVERY, None): (
-        "Заказ №{short_id} готов",
-        "Order #{short_id} is ready",
-        "Готов",
-        "Ready",
-        True,
-    ),
-    (OrderStatus.IN_DELIVERY, None, None): (
-        "Курьер забрал заказ №{short_id}",
-        "Courier picked up order #{short_id}",
-        None,
-        None,
-        False,
-    ),
-    (OrderStatus.COMPLETED, OrderType.PICKUP, None): (
-        "Заказ №{short_id} завершён",
-        "Order #{short_id} completed",
-        None,
-        None,
-        False,
-    ),
-    (OrderStatus.COMPLETED, OrderType.DELIVERY, None): (
-        "Заказ №{short_id} доставлен",
-        "Order #{short_id} delivered",
-        "Доставлен",
-        "Delivered",
-        True,
-    ),
-    (OrderStatus.CANCELLED, None, "customer"): (
-        "Заказ №{short_id} отменён, средства возвращены",
-        "Order #{short_id} cancelled, funds refunded",
-        "Отменён, средства возвращены",
-        "Cancelled, funds refunded",
-        True,
-    ),
-    (OrderStatus.CANCELLED, None, "admin"): (
-        "Заказ №{short_id} отменён кофейней",
-        "Order #{short_id} cancelled by the coffee shop",
-        "Отменён кофейней",
-        "Cancelled by the coffee shop",
-        True,
-    ),
-}
-
-# Статусы, где order_type влияет на текст.
-_TYPE_DEPENDENT_STATUSES = {OrderStatus.READY, OrderStatus.COMPLETED}
-
-
-# START_CONTRACT: resolve_notification_text
-#   PURPOSE: Look up the §6.1 cell for (new_status, order_type, cancelled_by)
-#            and return formatted bilingual texts. Unknown transitions raise
-#            ValueError → enforces INV-016.
-#   INPUTS:  new_status: OrderStatus
-#            order_type: OrderType
-#            cancelled_by: "customer" | "admin" | None
-#            short_id: str
-#   OUTPUTS: NotificationText
-#   SIDE_EFFECTS: none (pure lookup); raises ValueError on missing entry.
-#   LINKS:   PDD §6.1, INV-016
-# END_CONTRACT: resolve_notification_text
-def resolve_notification_text(
-    new_status: OrderStatus,
-    order_type: OrderType,
-    cancelled_by: Literal["customer", "admin"] | None,
-    short_id: str,
-) -> NotificationText:
-    """Ищет §6.1-кейс и возвращает тексты + флаг SMS.
-
-    Raises:
-        ValueError: если переход не описан в §6.1 (INV-016) или
-            CANCELLED без cancelled_by.
-    """
-    if new_status == OrderStatus.CANCELLED:
-        if cancelled_by not in ("customer", "admin"):
-            raise ValueError(
-                "CANCELLED requires cancelled_by in ('customer', 'admin')"
-            )
-        key = (new_status, None, cancelled_by)
-    elif new_status in _TYPE_DEPENDENT_STATUSES:
-        key = (new_status, order_type, None)
-    else:
-        key = (new_status, None, None)
-
-    entry = _MATRIX.get(key)
-    if entry is None:
-        raise ValueError(
-            f"No notification defined for transition: "
-            f"status={new_status}, order_type={order_type}, cancelled_by={cancelled_by}"
-        )
-
-    tpl_ru, tpl_en, sms_ru, sms_en, requires_sms = entry
-    return NotificationText(
-        message_ru=tpl_ru.format(short_id=short_id),
-        message_en=tpl_en.format(short_id=short_id),
-        sms_status_ru=sms_ru,
-        sms_status_en=sms_en,
-        requires_sms=requires_sms,
-    )
-
-
-# START_CONTRACT: build_sms_body
-#   PURPOSE: Format the canonical SMS body `{status}. Заказ №{short_id}. Aura Coffee`,
-#            guaranteed ≤ 70 chars for all matrix entries.
-#   INPUTS:  status_text: str, short_id: str
-#   OUTPUTS: str
-#   SIDE_EFFECTS: none
-#   LINKS:   PDD §8.2
-# END_CONTRACT: build_sms_body
-def build_sms_body(status_text: str, short_id: str) -> str:
-    """PDD §8.2 — формат SMS: `{status_text}. Заказ №{short_id}. Aura Coffee`.
-
-    Гарантирует ≤ 70 символов для всех sms_status_ru из `_MATRIX`.
-    """
-    return f"{status_text}. Заказ №{short_id}. Aura Coffee"
 
 
 # START_CONTRACT: resolve_display_text

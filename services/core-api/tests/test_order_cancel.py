@@ -242,7 +242,7 @@ def test_customer_cancels_paid_order_full_chain(
     # 4. refund task enqueued with correct args
     assert send_task_mock.call_count == 1
     args, kwargs = send_task_mock.call_args
-    assert args[0] == "payment_worker.initiate_refund"
+    assert args[0] == "payment_worker.tasks.initiate_refund"
     # args/kwargs могут быть разными формами вызова — собираем обе стороны
     payload = list(args[1:]) + list(kwargs.get("args", []))
     assert str(pid) in (str(x) for x in payload[0] if isinstance(payload[0], list)) \
