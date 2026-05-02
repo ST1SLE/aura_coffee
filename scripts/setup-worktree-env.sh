@@ -2,9 +2,9 @@
 # Bootstrap a per-worktree .env with a collision-free host port offset.
 #
 # - Derives a deterministic starting offset from sha1(worktree path).
-# - Probes POSTGRES/REDIS/CORE_API/WEB_CUSTOMER/WEB_ADMIN/NGINX ports against
-#   127.0.0.1 via bash /dev/tcp; if any is bound, bumps offset by +10 and
-#   retries up to MAX_ATTEMPTS times.
+# - Probes POSTGRES/REDIS/CORE_API/WEB_CUSTOMER/WEB_ADMIN/NGINX and
+#   PAYMENT_WEBHOOK ports against 127.0.0.1 via bash /dev/tcp; if any is bound,
+#   bumps offset by +10 and retries up to MAX_ATTEMPTS times.
 # - On success, writes .env from .env.example with every port replaced and
 #   CORS_ORIGINS patched to match the new WEB_CUSTOMER_PORT / WEB_ADMIN_PORT.
 # - Idempotent: re-run to pick a fresh offset if your current .env starts
@@ -54,6 +54,7 @@ BASE_CORE_API=8000
 BASE_WEB_CUSTOMER=5173
 BASE_WEB_ADMIN=5174
 BASE_NGINX=80
+BASE_PAYMENT_WEBHOOK=8241
 
 # Deterministic starting offset from sha1(worktree path), in steps of 10.
 seed_hex="$(printf '%s' "$REPO_ROOT" | sha1sum | cut -c1-8)"
@@ -80,6 +81,7 @@ set_is_free() {
         $((BASE_WEB_CUSTOMER + offset))
         $((BASE_WEB_ADMIN + offset))
         $((BASE_NGINX + offset))
+        $((BASE_PAYMENT_WEBHOOK + offset))
     )
     for p in "${ports[@]}"; do
         if ! port_is_free "$p"; then
@@ -113,6 +115,7 @@ CORE_API_PORT=$((BASE_CORE_API + chosen_offset))
 WEB_CUSTOMER_PORT=$((BASE_WEB_CUSTOMER + chosen_offset))
 WEB_ADMIN_PORT=$((BASE_WEB_ADMIN + chosen_offset))
 NGINX_PORT=$((BASE_NGINX + chosen_offset))
+PAYMENT_WEBHOOK_PORT=$((BASE_PAYMENT_WEBHOOK + chosen_offset))
 
 echo "Chosen offset: +$chosen_offset"
 echo "  POSTGRES_PORT=$POSTGRES_PORT"
@@ -121,6 +124,7 @@ echo "  CORE_API_PORT=$CORE_API_PORT"
 echo "  WEB_CUSTOMER_PORT=$WEB_CUSTOMER_PORT"
 echo "  WEB_ADMIN_PORT=$WEB_ADMIN_PORT"
 echo "  NGINX_PORT=$NGINX_PORT"
+echo "  PAYMENT_WEBHOOK_PORT=$PAYMENT_WEBHOOK_PORT"
 
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
@@ -135,6 +139,7 @@ sed -i \
     -e "s|^WEB_CUSTOMER_PORT=.*|WEB_CUSTOMER_PORT=$WEB_CUSTOMER_PORT|" \
     -e "s|^WEB_ADMIN_PORT=.*|WEB_ADMIN_PORT=$WEB_ADMIN_PORT|" \
     -e "s|^NGINX_PORT=.*|NGINX_PORT=$NGINX_PORT|" \
+    -e "s|^PAYMENT_WEBHOOK_PORT=.*|PAYMENT_WEBHOOK_PORT=$PAYMENT_WEBHOOK_PORT|" \
     -e "s|^CORS_ORIGINS=.*|CORS_ORIGINS=http://localhost:$WEB_CUSTOMER_PORT,http://localhost:$WEB_ADMIN_PORT|" \
     "$tmp"
 

@@ -15,13 +15,8 @@ from __future__ import annotations
 
 import enum
 
-import pytest
 import sqlalchemy as sa
 from sqlalchemy import inspect as sa_inspect
-
-from tests.conftest import _TEST_DB_URL as TEST_DB_URL
-
-_IS_SQLITE = TEST_DB_URL.startswith("sqlite")
 
 
 # ---------------------------------------------------------------------------
@@ -246,14 +241,14 @@ def test_order_item_model_declares_columns() -> None:
     assert "orders" in _fk_referred_tables(OrderItem)
 
 
-def test_order_item_order_fk_cascade() -> None:
+def test_order_item_order_fk_restricts_physical_delete() -> None:
     from shared.models import OrderItem
 
     order_col = _col_by_name(OrderItem, "order_id")
     assert len(order_col.foreign_keys) >= 1
     fk = next(iter(order_col.foreign_keys))
     assert fk.column.table.name == "orders"
-    assert (fk.ondelete or "").upper() == "CASCADE"
+    assert (fk.ondelete or "").upper() == "RESTRICT"
 
 
 def test_order_item_menu_item_id_is_not_fk() -> None:

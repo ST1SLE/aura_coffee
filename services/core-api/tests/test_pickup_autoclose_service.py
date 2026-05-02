@@ -167,7 +167,7 @@ def notify_mock(monkeypatch):
 def test_no_stale_orders_returns_zero(db: Session, notify_mock: MagicMock) -> None:
     from core_api.services.pickup_autoclose import close_stale_pickups
 
-    _seed_shop_settings(db, auto_close_minutes=60)
+    _seed_shop_settings(db, auto_close_minutes=10_000_000)
     now = datetime.now(UTC)
 
     closed = close_stale_pickups(db, now)

@@ -334,17 +334,19 @@ Status:
   - Alembic metadata drift: shared ORM metadata now declares the indexes and unique constraints already applied by migrations, so `alembic check` reports `No new upgrade operations detected`.
   - Stale Core API test assumptions: admin-user list service tests now isolate their rows by display-name prefix under a non-empty Postgres test DB, and the router registration count test reflects the current 19 routers.
   - Environment-only issue: the Core API image was rebuilt because `respx` was already declared in the dev extra but the running container predated that dependency; nginx was restarted after Core API recreation so it re-resolved the upstream container IP.
+  - Final release-readiness rerun fixed two stale test assumptions: `order_items.order_id` now expects `ON DELETE RESTRICT`, and the pickup autoclose no-op test no longer depends on an empty shared Postgres test database.
 
 ## Remaining May 2 P1/P2 Review
 
 Release-significant items still open after the implemented waves and green full gate:
 
-1. Browser E2E and tracked CI remain open from the verification audit. The local scripted gate is now green, but there is still no tracked CI workflow or Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
+1. Browser E2E remains open from the verification audit. The local scripted gate is green and tracked CI now exists, but there is still no Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
 
 Additional release-readiness items completed after the green full gate:
 
 1. Customer checkout input completeness is now implemented: `web/customer/src/pages/CheckoutPage.tsx` sends `promocode_code`, `points_to_use`, and `requested_time`, and renders server-owned checkout estimates/free-delivery guidance from `POST /api/v1/orders/estimate`.
 2. DB-level `order_items` immutability is now enforced by migration `0011_order_items_immutability.py`: the `orders -> order_items` FK is `ON DELETE RESTRICT`, and Postgres triggers reject direct `UPDATE` and `DELETE` on `order_items`.
+3. Tracked CI now exists at `.github/workflows/verify.yml`: on `push` to `main`/`dev` and on pull requests it installs `uv`, generates a dev `.env`, builds/starts the Compose stack, runs `./scripts/verify-full.sh`, uploads Docker logs on failure, and shuts the stack down. `scripts/setup-worktree-env.sh` now offsets `PAYMENT_WEBHOOK_PORT` too, so the workflow and local parallel worktrees do not share that host binding.
 
 Items that look downgraded to polish/backlog, not immediate release blockers:
 
@@ -375,5 +377,5 @@ Reason: these touch shared invariants, transaction boundaries, RBAC, PII, and LD
 
 Open one final release-readiness follow-up before calling the May 2 remediation ship-ready:
 
-1. Add a small Playwright smoke or tracked CI follow-up if production release discipline requires an automated browser gate.
+1. Add a small Playwright smoke follow-up if production release discipline still requires automated browser-path coverage before shipping.
 2. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.
