@@ -36,7 +36,7 @@
 
     <M-DATABASE NAME="database" TYPE="DATA_LAYER" LAYER="1" ORDER="1" STATUS="implemented">
       <contract>
-        <purpose>Alembic migrations and seed data. Schema changes go through MIGRATE tasks, including menu media fields. INV-014 enforces immutable order_items.</purpose>
+        <purpose>Alembic migrations and seed data. Schema changes go through MIGRATE tasks, including menu media fields and finite menu inventory fields. INV-014 enforces immutable order_items.</purpose>
         <outputs><param name="migrations" type="alembic-revision-files" /></outputs>
       </contract>
       <interface>
@@ -80,7 +80,8 @@
       <notes>
         <note-1>All endpoints enforce INV-002 via FastAPI Depends(require_role(...)).</note-1>
         <note-2>Atomic flows (payment + points + promo) wrap in a single SQLAlchemy session per INV-004.</note-2>
-        <note-3>Public menu media fields are presentational; they do not affect pricing, availability, cart validation, order creation, or state transitions.</note-3>
+        <note-3>Public menu media fields are presentational; they do not affect pricing, availability, cart validation, order creation, inventory, or state transitions.</note-3>
+        <note-4>Finite inventory is PostgreSQL-backed on menu_items.inventory_quantity. Cart checks are UX/server validation; checkout owns atomic row locking and decrement inside orders.create.</note-4>
       </notes>
     </M-CORE-API>
 
@@ -146,7 +147,7 @@
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" LAYER="3" ORDER="2" STATUS="implemented">
       <contract>
-        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
+        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing and operational finite-inventory updates. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
       </contract>
       <interface>
         <export-pages PURPOSE="Routed top-level pages by role" />
@@ -169,8 +170,8 @@
   <DataFlow>
     <DF-Order-Place NAME="Order placement" TRIGGER="Customer submits checkout">
       <step-1>web-customer POSTs /orders with cart payload</step-1>
-      <step-2>core-api validates auth (INV-002), validates menu items, computes total in kopecks</step-2>
-      <step-3>core-api opens DB transaction (INV-004): create Order(CREATED) + OrderItems(immutable) + Payment(PENDING)</step-3>
+      <step-2>core-api validates auth (INV-002), validates menu items, checks finite inventory caps, computes total in kopecks</step-2>
+      <step-3>core-api opens DB transaction (INV-004): lock finite-inventory menu rows, create Order(CREATED) + OrderItems(immutable) + Payment(PENDING), decrement finite inventory</step-3>
       <step-4>core-api dispatches Celery task to payment-worker for YuKassa intent</step-4>
       <step-5>core-api dispatches Celery task to sms-worker for confirmation SMS</step-5>
       <step-6>response 201 with order_id and payment_url</step-6>

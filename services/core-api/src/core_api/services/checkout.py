@@ -17,6 +17,7 @@
 #
 # START_MODULE_MAP
 #   EmptyCartError              - raised when Redis cart is missing or empty
+#   InventoryInsufficientError  - raised when finite stock cannot satisfy cart
 #   validate_stop_list          - INV-006 stub (test-patchable)
 #   validate_time_slot          - working-hours validator stub
 #   validate_delivery_address   - delegates to validators.delivery (Haversine)
@@ -113,6 +114,18 @@ _grace_log = get_grace_logger("CoreApi")
 # END_CONTRACT: EmptyCartError
 class EmptyCartError(Exception):
     """Пустая корзина — отображается в HTTP 400."""
+
+
+# START_CONTRACT: InventoryInsufficientError
+#   PURPOSE: Raised when checkout cannot satisfy finite MenuItem inventory for
+#            the aggregated cart quantity; routers map it to HTTP 409.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §7.1, INV-004, INV-014
+# END_CONTRACT: InventoryInsufficientError
+class InventoryInsufficientError(Exception):
+    """Недостаточно конечного остатка для оформления корзины."""
 
 
 # ---------------------------------------------------------------------------
@@ -440,20 +453,73 @@ def _read_cart(redis_client: Any, user_id: uuid.UUID) -> list[dict]:
     return items
 
 
+def _aggregate_cart_quantities(cart_items: list[dict]) -> dict[int, int]:
+    quantities: dict[int, int] = {}
+    for line in cart_items:
+        item_id = int(line["menu_item_id"])
+        quantity = int(line.get("quantity", 0))
+        if quantity <= 0:
+            raise InventoryInsufficientError("invalid cart quantity")
+        quantities[item_id] = quantities.get(item_id, 0) + quantity
+    return quantities
+
+
+def _lock_finite_inventory_rows(
+    cart_items: list[dict], db_session: Session
+) -> tuple[dict[int, int], dict[int, MenuItem]]:
+    quantities = _aggregate_cart_quantities(cart_items)
+    if not quantities:
+        return quantities, {}
+
+    stmt = (
+        select(MenuItem)
+        .where(
+            MenuItem.id.in_(list(quantities)),
+            MenuItem.inventory_quantity.is_not(None),
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    finite_items = {
+        item.id: item
+        for item in db_session.execute(stmt).scalars().all()
+    }
+    for item_id, item in finite_items.items():
+        requested = quantities[item_id]
+        if item.inventory_quantity is not None and item.inventory_quantity < requested:
+            raise InventoryInsufficientError("inventory_insufficient")
+    return quantities, finite_items
+
+
+def _decrement_finite_inventory(
+    quantities: dict[int, int],
+    finite_items: dict[int, MenuItem],
+    db_session: Session,
+) -> None:
+    for item_id, item in finite_items.items():
+        current = int(item.inventory_quantity or 0)
+        item.inventory_quantity = current - quantities[item_id]
+    if finite_items:
+        db_session.flush()
+
+
 # START_CONTRACT: create_order
 #   PURPOSE: Atomic checkout — read cart, run validators, compute pricing chain,
-#            persist Order/OrderItems/Payment plus optional LoyaltyTransaction
-#            and PromocodeUsage in one DB transaction, then dispatch payment
-#            task or clean Redis cart for zero-total flow.
+#            lock/decrement finite inventory, persist Order/OrderItems/Payment
+#            plus optional LoyaltyTransaction and PromocodeUsage in one DB
+#            transaction, then dispatch payment task or clean Redis cart for
+#            zero-total flow.
 #   INPUTS:  user_id: UUID
 #            request: CreateOrderRequest — type/address/promocode/points
 #            redis_client: Any — Redis-like for cart read/cleanup
 #            db_session: Session
 #   OUTPUTS: OrderResponse — populated from persisted rows.
-#   SIDE_EFFECTS: DB INSERTs (orders, order_items per INV-014 immutability,
-#                 payments, loyalty_transactions, promocode_usages) + UPDATE of
-#                 promocodes.current_uses via conditional WHERE; commit; then
-#                 either Celery dispatch (paid path) or Redis DEL (zero-total).
+#   SIDE_EFFECTS: DB UPDATE of menu_items.inventory_quantity for finite-stock
+#                 rows + DB INSERTs (orders, order_items per INV-014
+#                 immutability, payments, loyalty_transactions,
+#                 promocode_usages) + UPDATE of promocodes.current_uses via
+#                 conditional WHERE; commit; then either Celery dispatch
+#                 (paid path) or Redis DEL (zero-total).
 #                 Source state: n/a → CREATED (paid path) or PAID (zero-total).
 #                 Empty cart → EmptyCartError.
 #   LINKS:   PDD §6.1 (initial state), §7.1, §7.2, INV-002, INV-004, INV-006,
@@ -527,6 +593,11 @@ def create_order(
     accrual = compute_estimated_accrual(after_points, account, shop_settings)
 
     # 4. Атомарные записи (single logical transaction, INV-004)
+    inventory_quantities, finite_inventory = _lock_finite_inventory_rows(
+        cart_items, db_session
+    )
+    _decrement_finite_inventory(inventory_quantities, finite_inventory, db_session)
+
     idempotency_key = str(uuid.uuid4())
     order_status = OrderStatus.PAID if total == 0 else OrderStatus.CREATED
 

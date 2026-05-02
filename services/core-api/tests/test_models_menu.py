@@ -38,7 +38,7 @@ def test_menu_item_model_declares_columns() -> None:
         "id", "category_id", "name_ru", "name_en",
         "description_ru", "description_en", "base_price",
         "image_url", "media_type", "media_url", "media_poster_url",
-        "available", "archived", "sort_order",
+        "inventory_quantity", "available", "archived", "sort_order",
         "created_at", "updated_at",
     }
     assert col_names >= required
@@ -61,6 +61,7 @@ def test_menu_item_model_media_fields_are_nullable() -> None:
     assert cols["media_type"].nullable is True
     assert cols["media_url"].nullable is True
     assert cols["media_poster_url"].nullable is True
+    assert cols["inventory_quantity"].nullable is True
 
 
 # ---------------------------------------------------------------------------

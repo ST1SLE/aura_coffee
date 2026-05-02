@@ -10,7 +10,7 @@
       <verification-ref>V-M-CORE-API</verification-ref>
       <annotations>
         <export-routers PURPOSE="HTTP route handlers (auth, menu, orders, payment, delivery, addresses, admin/*)" />
-        <export-services PURPOSE="Business logic services (order, payment, delivery, notification, admin_users)" />
+        <export-services PURPOSE="Business logic services (order, payment, delivery, notification, admin_users, finite inventory enforcement)" />
         <export-models PURPOSE="SQLAlchemy ORM models (User, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
         <export-schemas PURPOSE="Pydantic request/response schemas per router, including public menu media fields" />
         <export-deps PURPOSE="FastAPI dependency injection (get_current_user, require_role, get_db)" />
@@ -38,7 +38,7 @@
     </M-SMS-WORKER>
 
     <M-WEB-CUSTOMER NAME="web-customer" TYPE="UI_COMPONENT" STATUS="implemented">
-      <purpose>React SPA — customer-facing media-led menu/cart/checkout/profile</purpose>
+      <purpose>React SPA — customer-facing media-led menu/cart/checkout/profile with visible cart and finite-inventory hints</purpose>
       <path>web/customer/src</path>
       <depends>M-CORE-API</depends>
       <verification-ref>V-M-WEB-CUSTOMER</verification-ref>
@@ -50,13 +50,13 @@
     </M-WEB-CUSTOMER>
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" STATUS="implemented">
-      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing</purpose>
+      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing, finite inventory controls</purpose>
       <path>web/admin/src</path>
       <depends>M-CORE-API</depends>
       <verification-ref>V-M-WEB-ADMIN</verification-ref>
       <annotations>
         <export-pages PURPOSE="Top-level routed pages (orders feed, kitchen, delivery, users, settings)" />
-        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields" />
+        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields and inventory controls" />
       </annotations>
     </M-WEB-ADMIN>
 
@@ -77,8 +77,8 @@
       <depends>M-SHARED</depends>
       <verification-ref>V-M-DATABASE</verification-ref>
       <annotations>
-        <export-migrations PURPOSE="Versioned Alembic schema migrations" />
-        <export-seeds PURPOSE="Seed data scripts for menu, roles, default shop settings" />
+        <export-migrations PURPOSE="Versioned Alembic schema migrations including menu inventory fields" />
+        <export-seeds PURPOSE="Seed data scripts for menu, finite QA stock, roles, default shop settings" />
       </annotations>
     </M-DATABASE>
 

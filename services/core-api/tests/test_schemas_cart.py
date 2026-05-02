@@ -51,10 +51,12 @@ def test_cart_item_create_quantity_bounds() -> None:
 
 def test_cart_item_response_has_server_computed_fields() -> None:
     from core_api.schemas.cart import CartItemResponse
+    from core_api.schemas.cart import MenuItemCartSnapshot
 
     fields = set(CartItemResponse.model_fields.keys())
     for required in ("unit_price", "line_total", "menu_item_snapshot", "size_snapshot", "modifiers_snapshot"):
         assert required in fields, f"Поле {required!r} отсутствует в CartItemResponse"
+    assert "inventory_quantity" in MenuItemCartSnapshot.model_fields
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,42 @@ from shared.grace.testing import GraceLogCapture
 WHITELISTED_IP = "127.0.0.1"
 
 
+def _seed_finite_inventory_line(
+    db_session, order, *, inventory: int = 1, quantity: int = 2
+):
+    from shared.models.menu import Category, MenuItem
+    from shared.models.order_item import OrderItem
+
+    category = Category(type="food", name_ru="Еда", name_en="Food")
+    db_session.add(category)
+    db_session.flush()
+    item = MenuItem(
+        category_id=category.id,
+        name_ru="Круассан",
+        name_en="Croissant",
+        base_price=20000,
+        inventory_quantity=inventory,
+    )
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(
+        OrderItem(
+            order_id=order.id,
+            menu_item_id=item.id,
+            menu_item_name_ru=item.name_ru,
+            menu_item_name_en=item.name_en,
+            size_option_id=None,
+            size_label=None,
+            unit_price=item.base_price,
+            modifiers_snapshot=[],
+            quantity=quantity,
+            line_total=item.base_price * quantity,
+        )
+    )
+    db_session.commit()
+    return item
+
+
 def _make_client(sqlite_engine, fake_redis):
     """Поднимает TestClient с подкинутыми sqlite + fakeredis."""
     from fastapi.testclient import TestClient
@@ -171,6 +207,7 @@ def test_payment_canceled_cancels_order_and_unreserves(
     payment = seed_user_order_payment["payment"]
     order = seed_user_order_payment["order"]
     promo = seed_user_order_payment["promocode"]
+    item = _seed_finite_inventory_line(db_session, order, inventory=1, quantity=2)
     payment.status = PaymentStatus.AWAITING_CONFIRMATION
     payment.yukassa_payment_id = "pay_xyz"
     order.points_used = 50
@@ -199,9 +236,11 @@ def test_payment_canceled_cancels_order_and_unreserves(
     db_session.refresh(payment)
     db_session.refresh(order)
     db_session.refresh(promo)
+    db_session.refresh(item)
     assert payment.status == PaymentStatus.PAYMENT_FAILED
     assert order.status == OrderStatus.CANCELLED
     assert promo.current_uses == 0
+    assert item.inventory_quantity == 3
 
     from shared.models.loyalty_transaction import LoyaltyTransaction
 
@@ -233,6 +272,67 @@ def test_payment_canceled_cancels_order_and_unreserves(
     args, kwargs = sms_task.call_args
     assert args[0] == "sms_worker.send_order_notification_sms"
     assert kwargs["queue"] == "sms"
+
+
+def test_payment_canceled_duplicate_payload_does_not_restore_inventory_twice(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import PaymentStatus
+
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    item = _seed_finite_inventory_line(db_session, order, inventory=1, quantity=2)
+    payment.status = PaymentStatus.AWAITING_CONFIRMATION
+    payment.yukassa_payment_id = "pay_xyz"
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    sms_task = MagicMock()
+    with patch("payment_worker.webhook.celery_app.send_task", sms_task):
+        for event_id in ("evt-cancel-once", "evt-cancel-twice"):
+            resp = client.post(
+                "/webhooks/yukassa",
+                json={"event": "payment.canceled", "object": {"id": "pay_xyz"}},
+                headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": event_id},
+            )
+            assert resp.status_code == 200
+
+    db_session.refresh(payment)
+    db_session.refresh(item)
+    assert payment.status == PaymentStatus.PAYMENT_FAILED
+    assert item.inventory_quantity == 3
+
+
+def test_payment_canceled_after_order_cancel_marks_payment_failed_without_restore(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    item = _seed_finite_inventory_line(db_session, order, inventory=3, quantity=2)
+    payment.status = PaymentStatus.AWAITING_CONFIRMATION
+    payment.yukassa_payment_id = "pay_xyz"
+    order.status = OrderStatus.CANCELLED
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    resp = client.post(
+        "/webhooks/yukassa",
+        json={"event": "payment.canceled", "object": {"id": "pay_xyz"}},
+        headers={
+            "X-Forwarded-For": WHITELISTED_IP,
+            "X-Event-Id": "evt-cancel-after-order",
+        },
+    )
+    assert resp.status_code == 200
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    db_session.refresh(item)
+    assert payment.status == PaymentStatus.PAYMENT_FAILED
+    assert order.status == OrderStatus.CANCELLED
+    assert item.inventory_quantity == 3
 
 
 def test_refund_succeeded_marks_refunded(

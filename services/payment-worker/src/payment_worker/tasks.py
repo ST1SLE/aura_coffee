@@ -12,8 +12,8 @@
 #            YuKassa; initiate_refund performs SUCCEEDED -> REFUND_PENDING.
 #            On terminal create-payment failure the private compensation
 #            helper executes Payment -> PAYMENT_FAILED + Order -> CANCELLED
-#            + loyalty REVERSAL + promocode decrement in a single
-#            transaction (INV-004).
+#            + finite inventory restore + loyalty REVERSAL + promocode
+#            decrement in a single transaction (INV-004).
 #   SCOPE:   Celery task definitions + a YuKassa client factory. Webhook-side
 #            transitions (SUCCEEDED, REFUNDED, REFUND_FAILED) live in
 #            webhook.py.
@@ -129,11 +129,44 @@ def _decrement_promocode(session: Session, promocode_id: UUID) -> None:
         promo.current_uses -= 1
 
 
+def _restore_inventory(session: Session, order) -> None:
+    """Restore finite menu inventory from immutable order item snapshots."""
+    from sqlalchemy import func, select
+
+    from shared.models.menu import MenuItem
+    from shared.models.order_item import OrderItem
+
+    rows = session.execute(
+        select(OrderItem.menu_item_id, func.sum(OrderItem.quantity))
+        .where(
+            OrderItem.order_id == order.id,
+            OrderItem.menu_item_id.is_not(None),
+        )
+        .group_by(OrderItem.menu_item_id)
+    ).all()
+    quantities = {int(item_id): int(quantity or 0) for item_id, quantity in rows}
+    if not quantities:
+        return
+
+    stmt = (
+        select(MenuItem)
+        .where(
+            MenuItem.id.in_(list(quantities)),
+            MenuItem.inventory_quantity.is_not(None),
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    for item in session.execute(stmt).scalars().all():
+        item.inventory_quantity = int(item.inventory_quantity or 0) + quantities[item.id]
+    session.flush()
+
+
 def _fail_payment_and_cancel_order(order_id: str, payment_id: str) -> None:
     """Атомарная компенсация провалившегося платежа (INV-004).
 
     Всё в одной транзакции: Payment→PAYMENT_FAILED, Order→CANCELLED,
-    REVERSAL лояльности, decrement промокода.
+    restore finite inventory, REVERSAL лояльности, decrement промокода.
     """
     from shared.enums import LoyaltyTransactionType, OrderStatus, PaymentStatus
     from shared.models.loyalty_transaction import LoyaltyTransaction
@@ -149,9 +182,24 @@ def _fail_payment_and_cancel_order(order_id: str, payment_id: str) -> None:
                 extra={"order_id": order_id, "payment_id": payment_id},
             )
             return
+        if payment.status == PaymentStatus.PAYMENT_FAILED:
+            return
 
         payment.status = PaymentStatus.PAYMENT_FAILED
+        _grace_log.block(
+            "create_intent", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+        )
+        if order.status == OrderStatus.CANCELLED:
+            return
+
         order.status = OrderStatus.CANCELLED
+        _restore_inventory(session, order)
+        _grace_log.belief(
+            "create_intent",
+            "BLOCK_STATE_TRANSITION",
+            belief="CANCELLED",
+            actual=order.status.name,
+        )
 
         if order.points_used and order.points_used > 0:
             base = _latest_balance(session, order.user_id)
@@ -176,8 +224,9 @@ def _fail_payment_and_cancel_order(order_id: str, payment_id: str) -> None:
 #            an idempotency key, then persisting `yukassa_payment_id` and
 #            `confirmation_url` on the Payment row. On terminal RequestError
 #            (after 3 retries) runs the atomic compensation
-#            (Payment -> PAYMENT_FAILED, Order -> CANCELLED, loyalty REVERSAL,
-#            promocode decrement) in a single DB transaction.
+#            (Payment -> PAYMENT_FAILED, Order -> CANCELLED, finite inventory
+#            restore, loyalty REVERSAL, promocode decrement) in a single DB
+#            transaction.
 #   INPUTS:  self: Celery task binding (bind=True)
 #            order_id: str — UUID string of the Order
 #            amount_kopecks: int — gross amount in kopecks
@@ -185,8 +234,8 @@ def _fail_payment_and_cancel_order(order_id: str, payment_id: str) -> None:
 #   OUTPUTS: None
 #   SIDE_EFFECTS: DB write to `payments` (status, yukassa_payment_id,
 #                 confirmation_url); on terminal failure also writes
-#                 `payments`, `orders`, `loyalty_transactions`, `promocodes`
-#                 atomically. External HTTP POST to YuKassa /v3/payments.
+#                 `payments`, `orders`, `menu_items`, `loyalty_transactions`,
+#                 `promocodes` atomically. External HTTP POST to YuKassa /v3/payments.
 #                 Triggers Payment lifecycle transition PENDING ->
 #                 AWAITING_CONFIRMATION (or PENDING -> PAYMENT_FAILED on
 #                 terminal failure).

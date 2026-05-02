@@ -11,6 +11,43 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from shared.grace.testing import GraceLogCapture
+
+
+def _seed_finite_inventory_line(
+    db_session, order, *, inventory: int = 1, quantity: int = 2
+):
+    from shared.models.menu import Category, MenuItem
+    from shared.models.order_item import OrderItem
+
+    category = Category(type="food", name_ru="Еда", name_en="Food")
+    db_session.add(category)
+    db_session.flush()
+    item = MenuItem(
+        category_id=category.id,
+        name_ru="Круассан",
+        name_en="Croissant",
+        base_price=20000,
+        inventory_quantity=inventory,
+    )
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(
+        OrderItem(
+            order_id=order.id,
+            menu_item_id=item.id,
+            menu_item_name_ru=item.name_ru,
+            menu_item_name_en=item.name_en,
+            size_option_id=None,
+            size_label=None,
+            unit_price=item.base_price,
+            modifiers_snapshot=[],
+            quantity=quantity,
+            line_total=item.base_price * quantity,
+        )
+    )
+    db_session.commit()
+    return item
 
 
 def test_create_payment_happy_path_marks_awaiting_confirmation(
@@ -63,13 +100,23 @@ def test_create_payment_compensation_on_exhausted_retries(
 ) -> None:
     from shared.enums import LoyaltyTransactionType, OrderStatus, PaymentStatus
 
+    item = _seed_finite_inventory_line(
+        db_session, seed_user_order_payment["order"], inventory=1, quantity=2
+    )
+
     with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
         from payment_worker.tasks import _fail_payment_and_cancel_order
 
-        _fail_payment_and_cancel_order(
-            order_id=str(seed_user_order_payment["order"].id),
-            payment_id=str(seed_user_order_payment["payment"].id),
-        )
+        with GraceLogCapture() as grace_logs:
+            _fail_payment_and_cancel_order(
+                order_id=str(seed_user_order_payment["order"].id),
+                payment_id=str(seed_user_order_payment["payment"].id),
+            )
+    grace_logs.assert_trajectory(
+        ("create_intent", "BLOCK_TX_PAYMENT"),
+        ("create_intent", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
 
     from shared.models.loyalty_transaction import LoyaltyTransaction
     from shared.models.order import Order
@@ -82,10 +129,12 @@ def test_create_payment_compensation_on_exhausted_retries(
     db_session.refresh(payment)
     db_session.refresh(order)
     db_session.refresh(promo)
+    db_session.refresh(item)
 
     assert payment.status == PaymentStatus.PAYMENT_FAILED
     assert order.status == OrderStatus.CANCELLED
     assert promo.current_uses == 0
+    assert item.inventory_quantity == 3
 
     reversals = [
         tx
@@ -97,6 +146,65 @@ def test_create_payment_compensation_on_exhausted_retries(
     assert len(reversals) == 1
     assert reversals[0].amount == 100
     assert reversals[0].balance_after == 100
+
+
+def test_create_payment_compensation_is_idempotent_for_inventory(
+    seed_user_order_payment, db_session, sqlite_engine
+) -> None:
+    from shared.enums import PaymentStatus
+
+    item = _seed_finite_inventory_line(
+        db_session, seed_user_order_payment["order"], inventory=1, quantity=2
+    )
+
+    with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
+        from payment_worker.tasks import _fail_payment_and_cancel_order
+
+        _fail_payment_and_cancel_order(
+            order_id=str(seed_user_order_payment["order"].id),
+            payment_id=str(seed_user_order_payment["payment"].id),
+        )
+        _fail_payment_and_cancel_order(
+            order_id=str(seed_user_order_payment["order"].id),
+            payment_id=str(seed_user_order_payment["payment"].id),
+        )
+
+    from shared.models.payment import Payment
+
+    payment = db_session.get(Payment, seed_user_order_payment["payment"].id)
+    db_session.refresh(payment)
+    db_session.refresh(item)
+    assert payment.status == PaymentStatus.PAYMENT_FAILED
+    assert item.inventory_quantity == 3
+
+
+def test_create_payment_compensation_marks_payment_failed_after_order_cancel(
+    seed_user_order_payment, db_session, sqlite_engine
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    order = seed_user_order_payment["order"]
+    item = _seed_finite_inventory_line(db_session, order, inventory=3, quantity=2)
+    order.status = OrderStatus.CANCELLED
+    db_session.commit()
+
+    with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
+        from payment_worker.tasks import _fail_payment_and_cancel_order
+
+        _fail_payment_and_cancel_order(
+            order_id=str(order.id),
+            payment_id=str(seed_user_order_payment["payment"].id),
+        )
+
+    from shared.models.payment import Payment
+
+    payment = db_session.get(Payment, seed_user_order_payment["payment"].id)
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    db_session.refresh(item)
+    assert payment.status == PaymentStatus.PAYMENT_FAILED
+    assert order.status == OrderStatus.CANCELLED
+    assert item.inventory_quantity == 3
 
 
 def test_create_payment_compensation_is_atomic(

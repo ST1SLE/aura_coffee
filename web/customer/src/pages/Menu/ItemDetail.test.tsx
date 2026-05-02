@@ -153,6 +153,48 @@ describe('ItemDetail — Add-to-Cart actions (task 6.8)', () => {
     });
   });
 
+  it('finite stock quantity stepper caps the add payload', async () => {
+    const addItem = vi.fn().mockResolvedValue(undefined);
+    (useCartStore as unknown as Mock).mockReturnValue(addItem);
+
+    render(
+      <ItemDetail
+        item={baseItem({ inventory_quantity: 2 })}
+        lang="ru"
+        onClose={vi.fn()}
+      />,
+    );
+
+    const inc = screen.getByRole('button', { name: 'cart.increment' });
+    fireEvent.click(inc);
+    expect((inc as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'menu.addToCart' }));
+
+    await waitFor(() => {
+      expect(addItem).toHaveBeenCalledWith({
+        menu_item_id: 1,
+        size_option_id: null,
+        modifier_ids: [],
+        quantity: 2,
+      });
+    });
+  });
+
+  it('sold-out finite stock disables add-to-cart', () => {
+    render(
+      <ItemDetail
+        item={baseItem({ inventory_quantity: 0 })}
+        lang="ru"
+        onClose={vi.fn()}
+      />,
+    );
+
+    const addBtn = screen.getByRole('button', { name: 'menu.addToCart' });
+    expect((addBtn as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('menu.soldOut')).toBeDefined();
+  });
+
   it('failure: keeps view open and shows error toast', async () => {
     const addItem = vi.fn().mockRejectedValue(new Error('HTTP 409'));
     (useCartStore as unknown as Mock).mockReturnValue(addItem);

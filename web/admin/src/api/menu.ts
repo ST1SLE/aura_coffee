@@ -5,14 +5,15 @@ import { authenticatedFetch, ApiError } from './client';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Typed client for admin menu management — categories, items,
-//            sizes, modifiers — plus per-item availability toggles used by
-//            barista stop-list UX.
+//            sizes, modifiers — plus per-item availability/inventory controls
+//            used by barista daily-operations UX.
 //   SCOPE:   Wraps /api/v1/admin/menu/*; mirrors core-api Pydantic schemas in
 //            services/core-api/core_api/schemas/menu.py.
 //   DEPENDS: ./client (authenticatedFetch, ApiError).
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.4 menu CRUD,
-//            INV-002 (admin scope enforced server-side; barista may only toggle
-//            stop-list, full CRUD restricted at server).
+//            INV-002 (admin scope enforced server-side; barista may only use
+//            operational availability/inventory endpoints, full CRUD restricted
+//            at server).
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
 // END_MODULE_CONTRACT
@@ -28,6 +29,7 @@ import { authenticatedFetch, ApiError } from './client';
 //   ModifierResponse/...     - modifier DTOs
 //   MenuItemResponse/...     - menu item DTOs
 //   AvailabilityPatch        - PATCH body for stop-list toggle
+//   InventoryPatch           - PATCH body for finite inventory tracking
 //   listCategories           - GET /api/v1/admin/menu/categories
 //   createCategory           - POST category (admin only server-side)
 //   updateCategory           - PUT category (admin only)
@@ -38,6 +40,7 @@ import { authenticatedFetch, ApiError } from './client';
 //   updateItem               - PUT menu item (admin only)
 //   deleteItem               - DELETE menu item (admin only)
 //   setItemAvailability      - PATCH availability (admin OR barista — stop-list)
+//   setItemInventory         - PATCH inventory quantity (admin OR barista)
 //   setItemModifiers         - PUT item-modifier link set (admin only)
 //   listModifiers            - GET modifiers
 //   createModifier           - POST modifier (admin only)
@@ -152,6 +155,7 @@ export interface MenuItemResponse {
   media_type: MenuMediaType | null;
   media_url: string | null;
   media_poster_url: string | null;
+  inventory_quantity: number | null;
   available: boolean;
   archived: boolean;
   availability: Availability;
@@ -173,6 +177,7 @@ export interface MenuItemCreate {
   media_type?: MenuMediaType | null;
   media_url?: string | null;
   media_poster_url?: string | null;
+  inventory_quantity?: number | null;
   available?: boolean;
   archived?: boolean;
   sort_order?: number;
@@ -189,6 +194,7 @@ export interface MenuItemUpdate {
   media_type?: MenuMediaType | null;
   media_url?: string | null;
   media_poster_url?: string | null;
+  inventory_quantity?: number | null;
   available?: boolean;
   archived?: boolean;
   sort_order?: number;
@@ -198,6 +204,12 @@ export interface MenuItemUpdate {
 
 export interface AvailabilityPatch {
   available: boolean;
+}
+
+// ── Inventory PATCH ──────────────────────────────────────────────────────────
+
+export interface InventoryPatch {
+  inventory_quantity: number | null;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -355,6 +367,20 @@ export const setItemAvailability = (
   available: boolean,
 ): Promise<MenuItemResponse> =>
   patch(`/api/v1/admin/menu/items/${id}/availability`, { available });
+
+// START_CONTRACT: setItemInventory
+//   PURPOSE: Update the finite inventory quantity for a menu item — null means
+//            unlimited/not tracked, 0 means out of stock.
+//   INPUTS:  id: number, inventory_quantity: number | null
+//   OUTPUTS: Promise<MenuItemResponse> — fresh inventory state from server.
+//   SIDE_EFFECTS: PATCH.
+//   LINKS:   INV-002 (server allows only authorized staff roles).
+// END_CONTRACT: setItemInventory
+export const setItemInventory = (
+  id: number,
+  inventory_quantity: number | null,
+): Promise<MenuItemResponse> =>
+  patch(`/api/v1/admin/menu/items/${id}/inventory`, { inventory_quantity });
 
 // START_CONTRACT: setItemModifiers
 //   PURPOSE: Replace the modifier set linked to a menu item (admin only).

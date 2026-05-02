@@ -102,7 +102,7 @@ def test_public_menu_item_exposes_flat_and_raw_bilingual_fields() -> None:
         "name", "name_ru", "name_en",
         "description", "description_ru", "description_en",
         "base_price", "image_url", "media_type", "media_url", "media_poster_url",
-        "available", "sort_order",
+        "inventory_quantity", "available", "sort_order",
         "size_options", "modifiers",
     }
     for field in expected:

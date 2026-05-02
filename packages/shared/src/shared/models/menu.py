@@ -6,7 +6,9 @@
 #   SCOPE:   Pure schema. Repeat-Order Chain (PDD §7.7) and INV-014 require
 #            that order_items keep their own snapshot, so changes to menu
 #            rows must never mutate historical orders. Includes price
-#            non-negative CHECK constraints.
+#            non-negative CHECK constraints. MenuItem.inventory_quantity is
+#            nullable finite-stock tracking: NULL means unlimited/not tracked,
+#            0 means out of stock; available remains stop-list only.
 #   DEPENDS: M-SHARED enums (CategoryType, SizeLabel); SQLAlchemy 2.x ORM;
 #            M-DATABASE Base.
 #   LINKS:   PDD §5.2 (menu tables), PDD §7.7 (Repeat Order Chain),
@@ -159,6 +161,14 @@ class MenuItem(Base):
     )
     media_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
     media_poster_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    inventory_quantity: Mapped[int | None] = mapped_column(
+        sa.Integer(),
+        sa.CheckConstraint(
+            "inventory_quantity >= 0",
+            name="ck_menu_items_inventory_quantity_non_negative",
+        ),
+        nullable=True,
+    )
     available: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=True)
     archived: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(sa.Integer(), nullable=False, default=0)

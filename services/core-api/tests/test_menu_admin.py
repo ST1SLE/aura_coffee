@@ -50,6 +50,7 @@ _REQUIRED_METHODS = [
     "list_items",
     "get_item",
     "set_item_availability",
+    "set_item_inventory",
     "create_modifier",
     "update_modifier",
     "delete_modifier",
@@ -70,7 +71,7 @@ def test_menu_admin_service_importable() -> None:
 
 
 def test_menu_admin_service_has_required_methods() -> None:
-    """MenuAdminService должен экспонировать все 18 методов."""
+    """MenuAdminService должен экспонировать все обязательные методы."""
     from core_api.services.menu_admin import MenuAdminService  # ModuleNotFoundError → red
 
     missing = [m for m in _REQUIRED_METHODS if not callable(getattr(MenuAdminService, m, None))]
@@ -246,6 +247,7 @@ def test_admin_creates_menu_item(
         "name_ru": "Латте",
         "name_en": "Latte",
         "base_price": 35000,
+        "inventory_quantity": 12,
         "media_type": "video",
         "media_url": "/media/menu/latte/hero.mp4",
         "media_poster_url": "/media/menu/latte/poster.webp",
@@ -253,6 +255,7 @@ def test_admin_creates_menu_item(
     resp = db_client.post("/api/v1/admin/menu/items", json=body, headers=admin_headers)
     assert resp.status_code == 201, resp.text
     assert resp.json()["availability"] == "available"
+    assert resp.json()["inventory_quantity"] == 12
     assert resp.json()["media_type"] == "video"
     assert resp.json()["media_url"] == "/media/menu/latte/hero.mp4"
     assert resp.json()["media_poster_url"] == "/media/menu/latte/poster.webp"
@@ -315,6 +318,7 @@ def test_admin_updates_item_media_fields(
             "media_type": "video",
             "media_url": "/media/menu/latte/hero.mp4",
             "media_poster_url": "/media/menu/latte/poster.webp",
+            "inventory_quantity": 5,
         },
         headers=admin_headers,
     )
@@ -323,6 +327,108 @@ def test_admin_updates_item_media_fields(
     assert body["media_type"] == "video"
     assert body["media_url"] == "/media/menu/latte/hero.mp4"
     assert body["media_poster_url"] == "/media/menu/latte/poster.webp"
+    assert body["inventory_quantity"] == 5
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_barista_updates_item_inventory_without_touching_stop_list(
+    db_client: TestClient, migrated_db_session: Session, barista_headers: dict
+) -> None:
+    from shared.models.menu import Category, MenuItem
+
+    cat = Category(type="food", name_ru="Еда", name_en="Food")
+    migrated_db_session.add(cat)
+    migrated_db_session.flush()
+    item = MenuItem(
+        category_id=cat.id,
+        name_ru="Круассан",
+        name_en="Croissant",
+        base_price=20000,
+        inventory_quantity=3,
+        available=True,
+    )
+    migrated_db_session.add(item)
+    migrated_db_session.flush()
+
+    resp = db_client.patch(
+        f"/api/v1/admin/menu/items/{item.id}/inventory",
+        json={"inventory_quantity": 0},
+        headers=barista_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["inventory_quantity"] == 0
+    assert body["available"] is True
+    assert body["availability"] == "available"
+
+    migrated_db_session.expire_all()
+    refreshed = migrated_db_session.get(MenuItem, item.id)
+    assert refreshed.inventory_quantity == 0
+    assert refreshed.available is True
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
+def test_admin_sets_item_inventory_to_untracked(
+    db_client: TestClient, migrated_db_session: Session, admin_headers: dict
+) -> None:
+    from shared.models.menu import Category, MenuItem
+
+    cat = Category(type="food", name_ru="Еда", name_en="Food")
+    migrated_db_session.add(cat)
+    migrated_db_session.flush()
+    item = MenuItem(
+        category_id=cat.id,
+        name_ru="Сэндвич",
+        name_en="Sandwich",
+        base_price=25000,
+        inventory_quantity=2,
+    )
+    migrated_db_session.add(item)
+    migrated_db_session.flush()
+
+    resp = db_client.patch(
+        f"/api/v1/admin/menu/items/{item.id}/inventory",
+        json={"inventory_quantity": None},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["inventory_quantity"] is None
+
+
+def test_customer_blocked_from_item_inventory(client: TestClient, customer_headers: dict) -> None:
+    resp = client.patch(
+        "/api/v1/admin/menu/items/1/inventory",
+        json={"inventory_quantity": 1},
+        headers=customer_headers,
+    )
+    assert resp.status_code == 403
+
+
+def test_courier_blocked_from_item_inventory(client: TestClient, courier_headers: dict) -> None:
+    resp = client.patch(
+        "/api/v1/admin/menu/items/1/inventory",
+        json={"inventory_quantity": 1},
+        headers=courier_headers,
+    )
+    assert resp.status_code == 403
+
+
+def test_item_inventory_patch_rejects_negative_and_extra_fields(
+    client: TestClient, admin_headers: dict
+) -> None:
+    negative = client.patch(
+        "/api/v1/admin/menu/items/1/inventory",
+        json={"inventory_quantity": -1},
+        headers=admin_headers,
+    )
+    assert negative.status_code == 422
+
+    extra = client.patch(
+        "/api/v1/admin/menu/items/1/inventory",
+        json={"inventory_quantity": 1, "available": False},
+        headers=admin_headers,
+    )
+    assert extra.status_code == 422
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL (TEST_DATABASE_URL)")
@@ -807,6 +913,7 @@ _EXPECTED_MATRIX_ENTRIES: list[tuple[str, str]] = [
     ("PUT",    "/api/v1/admin/menu/items/{item_id}"),
     ("DELETE", "/api/v1/admin/menu/items/{item_id}"),
     ("PATCH",  "/api/v1/admin/menu/items/{item_id}/availability"),
+    ("PATCH",  "/api/v1/admin/menu/items/{item_id}/inventory"),
     ("POST",   "/api/v1/admin/menu/modifiers"),
     ("GET",    "/api/v1/admin/menu/modifiers"),
     ("PUT",    "/api/v1/admin/menu/modifiers/{modifier_id}"),
@@ -826,38 +933,40 @@ def test_rbac_matrix_contains_admin_menu_routes() -> None:
     assert not missing, f"Отсутствующие записи в ROUTE_MATRIX: {missing}"
 
 
-def test_rbac_matrix_availability_routes_allow_barista() -> None:
-    """Только PATCH .../availability должны иметь barista в ролях."""
+def test_rbac_matrix_operational_routes_allow_barista() -> None:
+    """PATCH operational menu routes should allow barista and admin."""
     from core_api.rbac_matrix import ROUTE_MATRIX
 
-    availability_entries = [
+    operational_entries = [
         ("PATCH", "/api/v1/admin/menu/items/{item_id}/availability"),
+        ("PATCH", "/api/v1/admin/menu/items/{item_id}/inventory"),
         ("PATCH", "/api/v1/admin/menu/modifiers/{modifier_id}/availability"),
     ]
-    for entry in availability_entries:
+    for entry in operational_entries:
         roles = ROUTE_MATRIX.get(entry, set())
         assert "barista" in roles, f"{entry} должен допускать barista"
         assert "admin" in roles, f"{entry} должен допускать admin"
 
-    non_availability_mutation = [
+    non_operational_mutation = [
         (method, path) for (method, path), _roles in ROUTE_MATRIX.items()
         if path.startswith("/api/v1/admin/menu")
         and method != "GET"
         and not path.endswith("/availability")
+        and not path.endswith("/inventory")
     ]
-    for entry in non_availability_mutation:
+    for entry in non_operational_mutation:
         roles = ROUTE_MATRIX[entry]
         assert "barista" not in roles, f"{entry} не должен допускать barista"
 
 
 def test_rbac_matrix_mutations_admin_only() -> None:
-    """Каждый мутирующий (не-GET, не /availability) маршрут admin menu → только admin."""
+    """Each non-operational mutating admin menu route is admin-only."""
     from core_api.rbac_matrix import ROUTE_MATRIX
 
     for (method, path), roles in ROUTE_MATRIX.items():
         if not path.startswith("/api/v1/admin/menu"):
             continue
-        if method == "GET" or path.endswith("/availability"):
+        if method == "GET" or path.endswith("/availability") or path.endswith("/inventory"):
             continue
         assert roles == {"admin"}, f"{method} {path} → ожидался {{'admin'}}, получили {roles}"
 
@@ -885,6 +994,7 @@ _EXPECTED_PATHS = {
     "/api/v1/admin/menu/items": {"post", "get"},
     "/api/v1/admin/menu/items/{item_id}": {"get", "put", "delete"},
     "/api/v1/admin/menu/items/{item_id}/availability": {"patch"},
+    "/api/v1/admin/menu/items/{item_id}/inventory": {"patch"},
     "/api/v1/admin/menu/modifiers": {"post", "get"},
     "/api/v1/admin/menu/modifiers/{modifier_id}": {"put", "delete"},
     "/api/v1/admin/menu/modifiers/{modifier_id}/availability": {"patch"},

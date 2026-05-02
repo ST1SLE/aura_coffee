@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShoppingBag, X } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import type {
   PublicMenuItem,
   PublicMenuSizeOption,
@@ -13,8 +13,9 @@ import { MenuMedia } from './MenuMedia';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Bottom-sheet modal that lets the user pick a size + modifiers for
-//            a menu item, shows the running price (display-only — server
-//            recomputes on add), and adds the configured item to the cart.
+//            a menu item, shows finite-stock quantity controls and the running
+//            price (display-only — server recomputes on add), and adds the
+//            configured item to the cart.
 //   SCOPE:   ItemDetail component.
 //   DEPENDS: react, react-i18next, @/api/menuTypes, @/lib/formatPrice,
 //            @/components/ui/button, @/store/cart, ./MenuMedia.
@@ -35,12 +36,14 @@ interface Props {
 }
 
 // START_CONTRACT: ItemDetail
-//   PURPOSE: Render the size/modifier picker and call useCartStore.addItem on
-//            confirm.
+//   PURPOSE: Render the size/modifier/quantity picker and call
+//            useCartStore.addItem on confirm.
 //   INPUTS:  Props — item: PublicMenuItem, lang: 'ru'|'en', onClose: () => void.
 //   OUTPUTS: JSX — modal dialog (role="dialog" aria-modal).
 //   SIDE_EFFECTS: cart store addItem (HTTP POST /cart/items); shows
-//                 success/error toast and auto-closes after success.
+//                 success/error toast and auto-closes after success. Quantity
+//                 is capped by server-provided inventory_quantity for UX only;
+//                 Core API enforces the cap.
 //                 NOTE: currentPrice in the UI is display-only — the server
 //                 re-prices on the back end (AGENTS.md "Prices always from server").
 //   LINKS:   PDD §3 / §5; consumed by MenuPage.
@@ -56,6 +59,9 @@ export function ItemDetail({ item, lang, onClose }: Props) {
   const [selectedModifiers, setSelectedModifiers] = useState<
     PublicMenuModifier[]
   >([]);
+  const inventoryCap = item.inventory_quantity ?? 99;
+  const maxQuantity = Math.max(0, Math.min(99, inventoryCap));
+  const [quantity, setQuantity] = useState(maxQuantity > 0 ? 1 : 0);
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState<{
     type: 'success' | 'error';
@@ -68,7 +74,8 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     (selectedSize?.price ?? item.base_price) +
     selectedModifiers.reduce((s, m) => s + m.price, 0);
 
-  const canAdd = item.size_options.length === 0 || selectedSize !== null;
+  const hasRequiredSize = item.size_options.length === 0 || selectedSize !== null;
+  const canAdd = hasRequiredSize && item.available && quantity > 0;
 
   function toggleModifier(mod: PublicMenuModifier) {
     setSelectedModifiers((prev) =>
@@ -85,7 +92,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
         menu_item_id: item.id,
         size_option_id: selectedSize?.id ?? null,
         modifier_ids: selectedModifiers.map((m) => m.id),
-        quantity: 1,
+        quantity,
       });
       setToastMsg({ type: 'success', text: t('menu.added') });
       setTimeout(onClose, 800);
@@ -193,6 +200,46 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                 </div>
               </div>
             )}
+
+            <div className="aura-surface-soft flex items-center justify-between gap-3 rounded-lg p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t('menu.quantity')}</p>
+                {item.inventory_quantity != null && (
+                  <p className="text-xs text-muted-foreground">
+                    {item.inventory_quantity > 0
+                      ? t('menu.stockLeft', { count: item.inventory_quantity })
+                      : t('menu.soldOut')}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 rounded-full bg-secondary/70 p-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('cart.decrement')}
+                  disabled={quantity <= 1}
+                  className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+                  onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                >
+                  <Minus className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <span className="w-8 text-center text-sm font-semibold">
+                  {quantity}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('cart.increment')}
+                  disabled={quantity >= maxQuantity}
+                  className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+                  onClick={() =>
+                    setQuantity((current) => Math.min(maxQuantity, current + 1))
+                  }
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
 
             {toastMsg && (
               <p

@@ -6,6 +6,7 @@ import {
   createModifier,
   createSize,
   setItemAvailability,
+  setItemInventory,
   deleteCategory,
   ApiError,
 } from './menu';
@@ -68,6 +69,7 @@ describe('api/menu', () => {
       name_ru: 'Латте',
       name_en: 'Latte',
       base_price: 35000,
+      inventory_quantity: null,
       available: true,
       archived: false,
       sort_order: 0,
@@ -99,6 +101,34 @@ describe('api/menu', () => {
     expect(url).toContain('/items/5/availability');
     expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body as string)).toEqual({ available: false });
+  });
+
+  it('setItemInventory — PATCH с телом { inventory_quantity: null }', async () => {
+    const updated = { id: 5, inventory_quantity: null };
+    mockJson(updated);
+
+    await setItemInventory(5, null);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/items/5/inventory');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body as string)).toEqual({
+      inventory_quantity: null,
+    });
+  });
+
+  it('setItemInventory — PATCH с конечным остатком', async () => {
+    const updated = { id: 5, inventory_quantity: 7 };
+    mockJson(updated);
+
+    await setItemInventory(5, 7);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/items/5/inventory');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body as string)).toEqual({
+      inventory_quantity: 7,
+    });
   });
 
   it('deleteCategory 409 — бросает ApiError(409)', async () => {
@@ -160,9 +190,11 @@ describe('api/menu', () => {
       media_type: 'video',
       media_url: '/media/menu/latte/hero.mp4',
       media_poster_url: '/media/menu/latte/poster.webp',
+      inventory_quantity: 12,
     };
     expect(_good.base_price).toBe(35000);
     expect(_good.media_type).toBe('video');
+    expect(_good.inventory_quantity).toBe(12);
   });
 
   // ── 2.2 createItem отправляет билингвальный payload с base_price ─────────────
@@ -176,6 +208,7 @@ describe('api/menu', () => {
       media_type: 'video',
       media_url: '/media/menu/latte/hero.mp4',
       media_poster_url: '/media/menu/latte/poster.webp',
+      inventory_quantity: 12,
     };
     mockJson(
       {
@@ -201,6 +234,7 @@ describe('api/menu', () => {
       media_type: 'video',
       media_url: '/media/menu/latte/hero.mp4',
       media_poster_url: '/media/menu/latte/poster.webp',
+      inventory_quantity: 12,
     });
     expect(sent).not.toHaveProperty('name');
     expect(sent).not.toHaveProperty('price_kopecks');

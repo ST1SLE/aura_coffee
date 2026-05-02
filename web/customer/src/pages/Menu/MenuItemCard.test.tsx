@@ -96,4 +96,31 @@ describe('MenuItemCard', () => {
     );
     expect(screen.getByText('menu.unavailable')).toBeDefined();
   });
+
+  it('sold-out finite stock disables the card and renders sold-out badge', () => {
+    const onOpen = vi.fn();
+    render(
+      <MenuItemCard
+        item={makeItem({ inventory_quantity: 0 })}
+        lang="ru"
+        onOpen={onOpen}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByText('menu.soldOut')).toBeDefined();
+  });
+
+  it('finite stock count renders when item is available', () => {
+    render(
+      <MenuItemCard
+        item={makeItem({ inventory_quantity: 6 })}
+        lang="ru"
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('menu.stockLeft')).toBeDefined();
+  });
 });

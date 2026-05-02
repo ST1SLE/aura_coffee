@@ -44,16 +44,25 @@ describe('suggest', () => {
     expect(url).toContain('lang=ru_RU');
   });
 
-  it('returns items from server response', async () => {
+  it('returns items from bare-array server response', async () => {
     const items: SuggestResult[] = [
       { text: 'Невский пр., 1', lat: 59.93, lon: 30.36 },
       { text: 'Невский пр., 2', lat: 59.93, lon: 30.37 },
     ];
-    (authenticatedFetch as Mock).mockResolvedValue(asOk({ items }));
+    (authenticatedFetch as Mock).mockResolvedValue(asOk(items));
 
     const result = await suggest('Нев', 'ru_RU');
 
     expect(result).toEqual(items);
+  });
+
+  it('tolerates legacy {items} server response', async () => {
+    const items: SuggestResult[] = [
+      { text: 'Невский пр., 1', lat: 59.93, lon: 30.36 },
+    ];
+    (authenticatedFetch as Mock).mockResolvedValue(asOk({ items }));
+
+    await expect(suggest('Нев', 'ru_RU')).resolves.toEqual(items);
   });
 
   it('signals MapsUnavailable on 503', async () => {

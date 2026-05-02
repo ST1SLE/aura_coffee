@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: One row in the cart list — renders the menu item name, optional
-//            size + modifier list, qty stepper (with auto-remove at 0), and
-//            line totals. Delegates persistence to its onUpdateQuantity /
+//            size + modifier list, finite-stock hint, qty stepper (with
+//            auto-remove at 0), and line totals. Delegates persistence to its
+//            onUpdateQuantity /
 //            onRemove props (CartPage owns the store + error handling).
 //   SCOPE:   CartLine component.
 //   DEPENDS: react-i18next, @/api/cartTypes (CartItemResponse), @/lib/formatPrice,
@@ -38,6 +39,8 @@ interface Props {
 //            itemId: string.
 //   OUTPUTS: JSX — full row (name + variants + stepper + price).
 //   SIDE_EFFECTS: only via the callbacks. Auto-remove when decrementing from 1.
+//                 Increment is capped by server-provided inventory_quantity
+//                 for UX only; Core API enforces the cap.
 //                 INV-014 — prices/snapshot fields rendered as-is (no client math).
 //   LINKS:   PDD §5; consumed by Cart/CartPage.
 // END_CONTRACT: CartLine
@@ -58,6 +61,8 @@ export function CartLine({
   const modifierNames = item.modifiers_snapshot
     .map((m) => (lang === 'ru' ? m.name_ru : m.name_en))
     .join(t('cart.modifierSeparator'));
+  const inventoryCap = item.menu_item_snapshot.inventory_quantity;
+  const maxQuantity = Math.min(99, inventoryCap ?? 99);
 
   return (
     <div className="aura-surface flex flex-col gap-4 rounded-lg p-4">
@@ -72,6 +77,11 @@ export function CartLine({
           {modifierNames && (
             <span className="text-xs text-muted-foreground">
               {modifierNames}
+            </span>
+          )}
+          {inventoryCap != null && (
+            <span className="text-xs text-muted-foreground">
+              {t('cart.stockLeft', { count: inventoryCap })}
             </span>
           )}
         </div>
@@ -105,7 +115,7 @@ export function CartLine({
             variant="outline"
             size="icon"
             aria-label={t('cart.increment')}
-            disabled={item.quantity >= 99}
+            disabled={item.quantity >= maxQuantity}
             className="h-8 w-8 rounded-full border-white/10 bg-background/70"
             onClick={() => onUpdateQuantity(itemId, item.quantity + 1)}
           >

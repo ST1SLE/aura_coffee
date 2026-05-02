@@ -113,6 +113,31 @@ describe('CartLine', () => {
     expect(inc.disabled).toBe(true);
   });
 
+  it('increment button is disabled at finite inventory cap', () => {
+    render(
+      <CartLine
+        item={makeItem({
+          quantity: 2,
+          line_total: 40000,
+          menu_item_snapshot: {
+            name_ru: 'Круассан',
+            name_en: 'Croissant',
+            availability: 'available',
+            inventory_quantity: 2,
+          },
+        })}
+        lang="ru"
+        itemId="item-1"
+        onUpdateQuantity={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    const inc = screen.getByRole('button', { name: 'cart.increment' }) as HTMLButtonElement;
+    expect(inc.disabled).toBe(true);
+    expect(screen.getByText('cart.stockLeft')).toBeDefined();
+  });
+
   it('clicking + at quantity 1 calls onUpdateQuantity with 2', () => {
     const onUpdate = vi.fn();
     render(

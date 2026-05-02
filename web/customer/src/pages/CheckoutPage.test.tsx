@@ -36,7 +36,11 @@ vi.mock('@/api/yandex_maps', async () => {
     await vi.importActual<typeof import('@/api/yandex_maps')>(
       '@/api/yandex_maps',
     );
-  return { ...actual, suggest: vi.fn().mockResolvedValue([]) };
+  return {
+    ...actual,
+    suggest: vi.fn().mockResolvedValue([]),
+    geocode: vi.fn(),
+  };
 });
 
 import { createOrder, OrderApiError } from '@/api/orders';
@@ -45,6 +49,7 @@ import {
   createAddress,
   type AddressResponse,
 } from '@/api/addresses';
+import { geocode, MapsUnavailableError } from '@/api/yandex_maps';
 import { CheckoutPage } from './CheckoutPage';
 
 const order = {
@@ -96,6 +101,14 @@ const savedB: AddressResponse = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (geocode as Mock).mockImplementation((text: string) =>
+    Promise.resolve({
+      canonical_text: text,
+      lat: 55.75,
+      lon: 37.61,
+      precision: 'exact',
+    }),
+  );
 });
 
 describe('CheckoutPage default pickup', () => {
@@ -161,8 +174,14 @@ describe('CheckoutPage delivery with saved', () => {
 });
 
 describe('CheckoutPage delivery with new address', () => {
-  it('submits with delivery_address only', async () => {
+  it('geocodes typed address before createOrder and submits numbers', async () => {
     (listAddresses as Mock).mockResolvedValue([]);
+    (geocode as Mock).mockResolvedValue({
+      canonical_text: 'Россия, Санкт-Петербург, Новый адрес 5',
+      lat: 59.93,
+      lon: 30.36,
+      precision: 'exact',
+    });
     (createOrder as Mock).mockResolvedValue(order);
     renderPage();
 
@@ -179,11 +198,21 @@ describe('CheckoutPage delivery with new address', () => {
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
     await waitFor(() => expect(createOrder).toHaveBeenCalled());
+    expect(geocode).toHaveBeenCalledWith('Новый адрес 5', expect.any(String));
+    expect((geocode as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      (createOrder as Mock).mock.invocationCallOrder[0],
+    );
     const payload = (createOrder as Mock).mock.calls[0][0];
     expect(payload.type).toBe('delivery');
-    expect(payload.delivery_address).toBeDefined();
-    expect(payload.delivery_address.text).toBe('Новый адрес 5');
-    expect(payload.delivery_address.apartment).toBe('10');
+    expect(payload.delivery_address).toEqual({
+      text: 'Россия, Санкт-Петербург, Новый адрес 5',
+      lat: 59.93,
+      lon: 30.36,
+      apartment: '10',
+      entrance: null,
+      floor: null,
+      comment: null,
+    });
     expect(payload.delivery_address_id).toBeUndefined();
   });
 
@@ -256,6 +285,29 @@ describe('CheckoutPage delivery with new address', () => {
 
     await waitFor(() => expect(createOrder).toHaveBeenCalled());
     expect(createAddress).not.toHaveBeenCalled();
+  });
+
+  it('shows localized maps-unavailable error when typed address cannot geocode', async () => {
+    (listAddresses as Mock).mockResolvedValue([]);
+    (geocode as Mock).mockRejectedValue(new MapsUnavailableError());
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
+    await waitFor(() => expect(listAddresses).toHaveBeenCalled());
+
+    const textboxes = screen.getAllByRole('textbox');
+    fireEvent.change(textboxes[0], {
+      target: { value: 'Адрес без координат' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(
+        /сервис проверки адреса|address validation service/i,
+      );
+    });
+    expect(createOrder).not.toHaveBeenCalled();
   });
 });
 

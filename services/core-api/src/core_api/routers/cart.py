@@ -3,8 +3,10 @@
 #            Cart lives in Redis with TTL; this router is the thin transport
 #            layer over services.cart.CartService.
 #   SCOPE:   GET/POST/PATCH/DELETE on cart and cart line items. Error
-#            mapping CartValidationError → 404/409. No DB writes; Redis
-#            reads/writes via CartService.
+#            mapping CartValidationError → 404/409. Finite inventory is
+#            enforced by CartService as a UX/server pre-check; checkout remains
+#            the atomic decrement owner. No DB writes; Redis reads/writes via
+#            CartService.
 #   DEPENDS: M-DATABASE (Session), core_api.services.cart,
 #            core_api.deps.{auth,database,redis}.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.1 cart,
@@ -80,7 +82,8 @@ def get_cart(
 #            matching line_id (qty += 1).
 #   INPUTS:  item: CartItemCreate, current_user, Session, Redis client.
 #   OUTPUTS: 201 CartResponse; 404 menu item not found;
-#            409 stop-list / size mismatch (CartValidationError).
+#            409 stop-list / size mismatch / finite inventory
+#            (CartValidationError).
 #   SIDE_EFFECTS: Redis write of cart payload, TTL refresh.
 #   LINKS:   PDD §7.1, INV-002, INV-006 (server-side stop-list), services.cart.
 # END_CONTRACT: add_cart_item

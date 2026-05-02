@@ -130,6 +130,7 @@
         "newItem": "New item",
         "name": "Name",
         "price": "Price",
+        "inventory": "Inventory",
         "availability": "Availability",
         "actions": "Actions",
         "edit": "Edit",
@@ -137,10 +138,20 @@
         "deleteConfirm": "Delete item?",
         "deleteConfirmDesc": "This action cannot be undone.",
         "empty": "No items in this category",
+        "inventoryPlaceholder": "Qty",
+        "inventoryQuantityAria": "Inventory quantity for {{name}}",
+        "inventorySaveAria": "Save inventory for {{name}}",
+        "inventoryUnlimitedAria": "Set unlimited inventory for {{name}}",
+        "errorInventory": "Could not update inventory.",
         "badge": {
           "available": "Available",
           "stopList": "Stop",
           "archived": "Archived"
+        },
+        "inventoryBadge": {
+          "unlimited": "Unlimited",
+          "finite": "Finite: {{count}}",
+          "outOfStock": "Out of stock"
         }
       },
       "itemForm": {
@@ -163,6 +174,10 @@
         "categoryPlaceholder": "Select a category",
         "price": "Price (₽)",
         "pricePlaceholder": "0.00",
+        "inventoryMode": "Inventory",
+        "inventoryUnlimited": "Unlimited / not tracked",
+        "inventoryFinite": "Finite quantity",
+        "inventoryQuantity": "Quantity",
         "archived": "Archived",
         "save": "Save",
         "saving": "Saving...",
@@ -170,6 +185,7 @@
         "validationNameRu": "Please enter a name (RU)",
         "validationNameEn": "Please enter a name (EN)",
         "validationBasePrice": "Price must be ≥ 0",
+        "validationInventoryQuantity": "Inventory must be an integer ≥ 0",
         "validationCategory": "Please select a category",
         "validationMediaType": "Select a media type or clear the media paths",
         "validationMediaUrlRequired": "Media path is required",

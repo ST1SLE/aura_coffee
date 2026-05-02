@@ -1,9 +1,10 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Admin CRUD for menu domain — Categories, MenuItems, Modifiers,
-#            SizeOptions, plus availability toggles (stop-list) and modifier
-#            link management. Translates IntegrityError into HTTP 409.
-#   SCOPE:   create/update/delete/list/get + availability + relations across
-#            four menu aggregates.
+#            SizeOptions, plus availability toggles (stop-list), finite-stock
+#            inventory updates, and modifier link management. Translates
+#            IntegrityError into HTTP 409.
+#   SCOPE:   create/update/delete/list/get + availability + inventory +
+#            relations across four menu aggregates.
 #   DEPENDS: M-SHARED (Category/MenuItem/Modifier/SizeOption), M-DATABASE,
 #            schemas.menu, FastAPI HTTPException
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.3, INV-006, INV-010
@@ -245,6 +246,25 @@ class MenuAdminService:
         item.available = available
         self.db.commit()
         # Перезагружаем вместе со связями для вычисляемого поля availability
+        return self.get_item(item_id)
+
+    # START_CONTRACT: MenuAdminService.set_item_inventory
+    #   PURPOSE: Operationally set finite stock for a menu item without
+    #            touching the stop-list flag. NULL means unlimited/not tracked;
+    #            0 means out of stock.
+    #   INPUTS:  item_id: int, inventory_quantity: int | None
+    #   OUTPUTS: MenuItem (with eager relations)
+    #   SIDE_EFFECTS: DB UPDATE + commit; missing → HTTP 404.
+    #   LINKS:   PDD §5.3, INV-002, INV-010
+    # END_CONTRACT: MenuAdminService.set_item_inventory
+    def set_item_inventory(
+        self, item_id: int, inventory_quantity: int | None
+    ) -> MenuItem:
+        item = self.db.get(MenuItem, item_id)
+        if item is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item not found")
+        item.inventory_quantity = inventory_quantity
+        self.db.commit()
         return self.get_item(item_id)
 
     # START_CONTRACT: MenuAdminService.set_item_modifiers

@@ -43,6 +43,7 @@ const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
 const VIDEO_EXTENSIONS = ['.mp4', '.webm'];
 
 type MediaTypeFormValue = '' | MenuMediaType;
+type InventoryMode = 'unlimited' | 'finite';
 
 interface Props {
   open: boolean;
@@ -61,6 +62,8 @@ interface FormState {
   description_en: string;
   category_id: string;
   price: string;
+  inventory_mode: InventoryMode;
+  inventory_quantity: string;
   sort_order: string;
   image_url: string;
   media_type: MediaTypeFormValue;
@@ -70,6 +73,7 @@ interface FormState {
 }
 
 function makeForm(item?: MenuItemResponse | null): FormState {
+  const inventoryQuantity = item?.inventory_quantity ?? null;
   return {
     name_ru: item?.name_ru ?? '',
     name_en: item?.name_en ?? '',
@@ -77,6 +81,9 @@ function makeForm(item?: MenuItemResponse | null): FormState {
     description_en: item?.description_en ?? '',
     category_id: item ? String(item.category_id) : '',
     price: item ? kopecksToRublesStr(item.base_price) : '',
+    inventory_mode: inventoryQuantity == null ? 'unlimited' : 'finite',
+    inventory_quantity:
+      inventoryQuantity == null ? '' : String(inventoryQuantity),
     sort_order: item ? String(item.sort_order) : '0',
     image_url: item?.image_url ?? '',
     media_type: item?.media_type ?? '',
@@ -102,6 +109,13 @@ function isPublicMenuMediaPath(value: string): boolean {
 function hasExtension(value: string, extensions: string[]): boolean {
   const path = value.trim().toLowerCase();
   return extensions.some((extension) => path.endsWith(extension));
+}
+
+function normalizeInventoryQuantityInput(value: string): string {
+  if (value.trim() === '') return '';
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity)) return '';
+  return String(Math.max(0, Math.floor(quantity)));
 }
 
 // START_CONTRACT: MenuItemFormDialog
@@ -156,6 +170,18 @@ export function MenuItemFormDialog({
       e.name_en = t('pages.menu.itemForm.validationNameEn');
     if (form.price === '' || parseFloat(form.price) < 0)
       e.price = t('pages.menu.itemForm.validationBasePrice');
+    if (form.inventory_mode === 'finite') {
+      const inventoryQuantity = Number(form.inventory_quantity);
+      if (
+        form.inventory_quantity === '' ||
+        !Number.isInteger(inventoryQuantity) ||
+        inventoryQuantity < 0
+      ) {
+        e.inventory_quantity = t(
+          'pages.menu.itemForm.validationInventoryQuantity',
+        );
+      }
+    }
     if (!form.category_id)
       e.category_id = t('pages.menu.itemForm.validationCategory');
     const mediaUrl = form.media_url.trim();
@@ -209,6 +235,10 @@ export function MenuItemFormDialog({
         description_en: form.description_en.trim() || null,
         category_id: parseInt(form.category_id),
         base_price: rublesToKopecks(form.price),
+        inventory_quantity:
+          form.inventory_mode === 'finite'
+            ? parseInt(form.inventory_quantity, 10)
+            : null,
         sort_order: parseInt(form.sort_order) || 0,
         image_url: form.image_url.trim() || null,
         media_type: form.media_type || null,
@@ -367,6 +397,64 @@ export function MenuItemFormDialog({
             {errors.price && (
               <p className="text-xs text-destructive">{errors.price}</p>
             )}
+          </div>
+
+          {/* Остатки */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="item-inventory-mode">
+                {t('pages.menu.itemForm.inventoryMode')}
+              </Label>
+              <select
+                id="item-inventory-mode"
+                value={form.inventory_mode}
+                onChange={(e) => {
+                  const inventoryMode = e.target.value as InventoryMode;
+                  setForm((prev) => ({
+                    ...prev,
+                    inventory_mode: inventoryMode,
+                    inventory_quantity:
+                      inventoryMode === 'finite'
+                        ? prev.inventory_quantity || '0'
+                        : '',
+                  }));
+                }}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="unlimited">
+                  {t('pages.menu.itemForm.inventoryUnlimited')}
+                </option>
+                <option value="finite">
+                  {t('pages.menu.itemForm.inventoryFinite')}
+                </option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="item-inventory-quantity">
+                {t('pages.menu.itemForm.inventoryQuantity')}
+              </Label>
+              <Input
+                id="item-inventory-quantity"
+                type="number"
+                min="0"
+                step="1"
+                value={form.inventory_quantity}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    inventory_quantity: normalizeInventoryQuantityInput(
+                      e.target.value,
+                    ),
+                  })
+                }
+                disabled={form.inventory_mode === 'unlimited'}
+              />
+              {errors.inventory_quantity && (
+                <p className="text-xs text-destructive">
+                  {errors.inventory_quantity}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Порядок сортировки */}

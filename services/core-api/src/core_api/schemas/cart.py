@@ -48,6 +48,7 @@ class MenuItemCartSnapshot(BaseModel):
     name_ru: str
     name_en: str
     availability: MenuItemAvailability
+    inventory_quantity: Annotated[int, Field(ge=0)] | None = None
 
 
 class SizeSnapshot(BaseModel):

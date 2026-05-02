@@ -14,9 +14,13 @@ import {
 import {
   createOrder,
   OrderApiError,
-  type CreateOrderPayload,
   type InlineDeliveryAddress,
 } from '@/api/orders';
+import {
+  geocode,
+  MapsUnavailableError,
+  type MapsLang,
+} from '@/api/yandex_maps';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Checkout route page — choose pickup vs delivery, pick a saved
@@ -25,7 +29,8 @@ import {
 //            radius), and navigate to the order status page on success.
 //   SCOPE:   CheckoutPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/components/ui/button,
-//            @/components/AddressAutocomplete, @/api/addresses, @/api/orders.
+//            @/components/AddressAutocomplete, @/api/addresses, @/api/orders,
+//            @/api/yandex_maps.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §7 checkout;
 //            INV-013 (raw address text + comment are PII, never logged);
 //            INV-014 (server returns order_items snapshot; UI does not recompute).
@@ -51,6 +56,16 @@ type DeliveryChoice =
       saveForFuture: boolean;
     };
 
+type ResolvedInlineDeliveryAddress = InlineDeliveryAddress & {
+  lat: number;
+  lon: number;
+};
+
+type CheckoutPayload =
+  | { type: 'pickup' }
+  | { type: 'delivery'; delivery_address_id: string }
+  | { type: 'delivery'; delivery_address: ResolvedInlineDeliveryAddress };
+
 const emptyNew: Extract<DeliveryChoice, { kind: 'new' }> = {
   kind: 'new',
   address: { text: '', lat: null, lon: null },
@@ -72,6 +87,7 @@ const optionClassName =
 //   INPUTS:  none.
 //   OUTPUTS: JSX — full form with pickup/delivery + saved/new address subforms.
 //   SIDE_EFFECTS: HTTP listAddresses() when DELIVERY is selected; HTTP
+//                 geocode() for typed inline delivery addresses without coords;
 //                 createOrder() on submit; HTTP createAddress() best-effort if
 //                 "save for future" is checked; navigate(`/orders/:id`) on success.
 //                 INV-013 — payload contains PII, do not log raw values.
@@ -81,7 +97,7 @@ const optionClassName =
 export function CheckoutPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const lang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
+  const lang: MapsLang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
 
   const [orderType, setOrderType] = useState<OrderType>('pickup');
   const [saved, setSaved] = useState<AddressResponse[]>([]);
@@ -107,24 +123,59 @@ export function CheckoutPage() {
       });
   }, [orderType]);
 
-  function buildPayload(): CreateOrderPayload | null {
+  async function resolveInlineAddress(
+    nextChoice: Extract<DeliveryChoice, { kind: 'new' }>,
+  ): Promise<ResolvedInlineDeliveryAddress | null> {
+    const text = nextChoice.address.text.trim();
+    if (!text) {
+      setError(t('errors.delivery.generic'));
+      return null;
+    }
+
+    let resolvedText = text;
+    let lat = nextChoice.address.lat;
+    let lon = nextChoice.address.lon;
+
+    if (lat === null || lon === null) {
+      try {
+        const resolved = await geocode(text, lang);
+        if (!resolved) {
+          setError(t('errors.delivery.geocodePrecision'));
+          return null;
+        }
+        resolvedText = resolved.canonical_text || text;
+        lat = resolved.lat;
+        lon = resolved.lon;
+      } catch (err) {
+        setError(
+          err instanceof MapsUnavailableError
+            ? t('errors.delivery.mapsUnavailable')
+            : t('errors.delivery.geocodePrecision'),
+        );
+        return null;
+      }
+    }
+
+    return {
+      text: resolvedText,
+      lat,
+      lon,
+      apartment: nextChoice.apartment.trim() || null,
+      entrance: nextChoice.entrance.trim() || null,
+      floor: nextChoice.floor.trim() || null,
+      comment: nextChoice.comment.trim() || null,
+    };
+  }
+
+  async function buildPayload(): Promise<CheckoutPayload | null> {
     if (orderType === 'pickup') return { type: 'pickup' };
     if (choice.kind === 'saved') {
       return { type: 'delivery', delivery_address_id: choice.address_id };
     }
-    if (!choice.address.text.trim()) {
-      setError(t('errors.delivery.generic'));
-      return null;
-    }
-    const delivery_address: InlineDeliveryAddress = {
-      text: choice.address.text,
-      lat: choice.address.lat,
-      lon: choice.address.lon,
-      apartment: choice.apartment.trim() || null,
-      entrance: choice.entrance.trim() || null,
-      floor: choice.floor.trim() || null,
-      comment: choice.comment.trim() || null,
-    };
+
+    const delivery_address = await resolveInlineAddress(choice);
+    if (!delivery_address) return null;
+
     return { type: 'delivery', delivery_address };
   }
 
@@ -144,31 +195,34 @@ export function CheckoutPage() {
     e.preventDefault();
     if (submitting) return;
     setError(null);
-    const payload = buildPayload();
-    if (!payload) return;
 
     setSubmitting(true);
     try {
+      const payload = await buildPayload();
+      if (!payload) return;
+
       const order = await createOrder(payload);
 
       if (
         orderType === 'delivery' &&
         choice.kind === 'new' &&
-        choice.saveForFuture
+        choice.saveForFuture &&
+        'delivery_address' in payload
       ) {
+        const address = payload.delivery_address;
         // Сохранение — best-effort: ошибка не блокирует переход к статусу заказа.
         // label обязателен (server min_length=1, max_length=100); у checkout нет
         // отдельного поля — используем сам адрес, обрезанный до серверного лимита.
         try {
           await createAddress({
-            label: choice.address.text.slice(0, 100),
-            address_text: choice.address.text,
-            lat: choice.address.lat,
-            lon: choice.address.lon,
-            apartment: choice.apartment.trim() || null,
-            entrance: choice.entrance.trim() || null,
-            floor: choice.floor.trim() || null,
-            comment: choice.comment.trim() || null,
+            label: address.text.slice(0, 100),
+            address_text: address.text,
+            lat: address.lat,
+            lon: address.lon,
+            apartment: address.apartment ?? null,
+            entrance: address.entrance ?? null,
+            floor: address.floor ?? null,
+            comment: address.comment ?? null,
           });
         } catch {
           console.warn('Failed to save address for future');

@@ -4,6 +4,7 @@
 #            and stop-list availability flips (INV-006).
 #   SCOPE:   Full CRUD over MenuCategory, MenuItem, Modifier, SizeOption.
 #            Availability PATCHes implement server-side stop-list (INV-006).
+#            Inventory PATCHes update finite stock without changing stop-list.
 #   DEPENDS: M-DATABASE (Session), core_api.services.menu_admin,
 #            core_api.deps.database, RBACMiddleware (ADMIN-only).
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5, §6, §7.1 menu,
@@ -24,6 +25,7 @@
 #   update_item                  - PUT    /api/v1/admin/menu/items/{item_id}
 #   delete_item                  - DELETE /api/v1/admin/menu/items/{item_id}
 #   set_item_availability        - PATCH  /api/v1/admin/menu/items/{item_id}/availability
+#   set_item_inventory           - PATCH  /api/v1/admin/menu/items/{item_id}/inventory
 #   set_item_modifiers           - PUT    /api/v1/admin/menu/items/{item_id}/modifiers
 #   create_modifier              - POST   /api/v1/admin/menu/modifiers
 #   list_modifiers               - GET    /api/v1/admin/menu/modifiers
@@ -47,6 +49,7 @@ from core_api.schemas.menu import (
     CategoryCreate,
     CategoryResponse,
     CategoryUpdate,
+    InventoryPatch,
     MenuItemCreate,
     MenuItemModifierSet,
     MenuItemResponse,
@@ -243,6 +246,26 @@ def delete_item(item_id: int, svc: _Svc) -> None:
 )
 def set_item_availability(item_id: int, body: AvailabilityPatch, svc: _Svc) -> MenuItemResponse:
     return MenuItemResponse.model_validate(svc.set_item_availability(item_id, body.available))
+
+
+# START_CONTRACT: set_item_inventory
+#   PURPOSE: Operational stock update — set MenuItem.inventory_quantity while
+#            preserving MenuItem.available as stop-list only.
+#   INPUTS:  item_id: int, body: InventoryPatch, MenuAdminService.
+#   OUTPUTS: 200 MenuItemResponse.
+#   SIDE_EFFECTS: DB update on menu_items.inventory_quantity.
+#   LINKS:   PDD §5, INV-002, INV-010, services.menu_admin.
+# END_CONTRACT: set_item_inventory
+@router.patch(
+    "/items/{item_id}/inventory",
+    response_model=MenuItemResponse,
+    summary="Обновить остаток позиции меню",
+    description="Устанавливает `inventory_quantity`; null означает не отслеживать остаток.",
+)
+def set_item_inventory(item_id: int, body: InventoryPatch, svc: _Svc) -> MenuItemResponse:
+    return MenuItemResponse.model_validate(
+        svc.set_item_inventory(item_id, body.inventory_quantity)
+    )
 
 
 # START_CONTRACT: set_item_modifiers

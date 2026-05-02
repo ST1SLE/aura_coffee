@@ -5,6 +5,8 @@ import type { MenuItemAvailability, SizeLabel } from './menuTypes';
 //            CartItemCreate body. Snapshot fields (menu_item_snapshot, size_*,
 //            modifiers_*) preserve historical names/prices on the server side
 //            so a renamed/edited menu does not retroactively rewrite carts.
+//            menu_item_snapshot.inventory_quantity is current stock metadata
+//            for UX caps, not a historical price/name snapshot.
 //   SCOPE:   Pure types; no runtime behavior.
 //   DEPENDS: ./menuTypes (MenuItemAvailability, SizeLabel).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart;
@@ -34,6 +36,8 @@ export interface MenuItemCartSnapshot {
   name_ru: string;
   name_en: string;
   availability: MenuItemAvailability;
+  /** Current finite stock. null/undefined means unlimited/not tracked. */
+  inventory_quantity?: number | null;
 }
 
 export interface SizeSnapshot {

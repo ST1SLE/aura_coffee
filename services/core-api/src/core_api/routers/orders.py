@@ -10,7 +10,8 @@ from __future__ import annotations
 # START_MODULE_CONTRACT
 #   PURPOSE: HTTP routes for order creation and detail under /api/v1/orders
 #            (customer surface). Order placement is the single atomic flow
-#            of INV-004 (cart → order + items + payment + points).
+#            of INV-004 (cart → inventory decrement + order + items +
+#            payment + points).
 #   SCOPE:   POST creates an order from the Redis cart and dispatches
 #            payment-worker / sms-worker tasks. GET returns own-order
 #            detail for confirmation_url polling.
@@ -19,7 +20,7 @@ from __future__ import annotations
 #            core_api.deps.{auth,database,redis}.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.2, §7.1,
 #            §7.2 pricing, §7.3 address, §7.4 delivery fee, §7.5 time slot,
-#            INV-002, INV-004 (atomic), INV-006 (stop-list),
+#            INV-002, INV-004 (atomic), INV-006 (stop-list/finite inventory),
 #            INV-013 (own-order only), INV-014 (order_items immutable),
 #            INV-016 (state-machine).
 #   ROLE:    RUNTIME
@@ -46,7 +47,11 @@ from core_api.schemas.order import (
     OrderItemResponse,
     OrderResponse,
 )
-from core_api.services.checkout import EmptyCartError, create_order
+from core_api.services.checkout import (
+    EmptyCartError,
+    InventoryInsufficientError,
+    create_order,
+)
 from core_api.services.delivery_addresses import DeliveryAddressNotFound
 from shared.models import Order, OrderItem, Payment
 
@@ -81,10 +86,11 @@ def _get_session():
 #            Redis client.
 #   OUTPUTS: 201 OrderResponse; 400 empty cart; 404 unknown delivery
 #            address (foreign or missing — INV-013 prevents 403 leak);
-#            409 validator failure (stop-list / delivery / promocode /
-#            time-slot); 422 schema validation.
-#   SIDE_EFFECTS: Atomic DB writes (orders, order_items, payment, points
-#                 reservation) per INV-004; Celery dispatches to
+#            409 validator failure (stop-list / finite inventory / delivery /
+#            promocode / time-slot); 422 schema validation.
+#   SIDE_EFFECTS: Atomic DB writes (menu inventory decrement, orders,
+#                 order_items, payment, points reservation) per INV-004;
+#                 Celery dispatches to
 #                 payment-worker (create_payment_intent) and sms-worker
 #                 (send_order_notification); Redis cart cleared.
 #   LINKS:   PDD §6.1, §6.2, §7.1–§7.5, INV-002, INV-004, INV-006,
@@ -116,6 +122,8 @@ def post_order(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
         )
+    except InventoryInsufficientError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except HTTPException:
         raise
     except Exception as exc:

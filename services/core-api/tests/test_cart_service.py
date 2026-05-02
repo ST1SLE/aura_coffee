@@ -95,7 +95,7 @@ def test_get_hydrates_line_with_fresh_prices(cart_redis, db_session) -> None:
     from core_api.services.cart import CartService
     from tests._factories.menu import make_menu_item
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=15000, inventory_quantity=6)
     db_session.flush()
 
     payload = json.dumps({
@@ -115,6 +115,7 @@ def test_get_hydrates_line_with_fresh_prices(cart_redis, db_session) -> None:
     assert line.line_total == 30000
     assert cart.subtotal == 30000
     assert line.menu_item_snapshot.name_ru == item.name_ru
+    assert line.menu_item_snapshot.inventory_quantity == 6
 
 
 def test_get_reflects_updated_menu_price(cart_redis, db_session) -> None:
@@ -477,6 +478,44 @@ def test_add_item_rejects_merge_exceeding_cap(cart_redis, db_session) -> None:
     assert stored["items"][0]["quantity"] == 95
 
 
+def test_add_item_rejects_new_line_above_finite_inventory(cart_redis, db_session) -> None:
+    """Finite inventory caps a new cart line without changing Redis."""
+    from core_api.schemas.cart import CartItemCreate
+    from core_api.services.cart import CartService, CartValidationError
+    from tests._factories.menu import make_menu_item
+
+    item = make_menu_item(db_session, base_price=15000, inventory_quantity=2)
+    db_session.flush()
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+
+    with pytest.raises(CartValidationError) as excinfo:
+        svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=3))
+
+    assert excinfo.value.reason == "inventory_insufficient"
+    assert cart_redis.exists("cart:1") == 0
+
+
+def test_add_item_rejects_merge_above_finite_inventory(cart_redis, db_session) -> None:
+    """Merge checks the merged quantity before writing Redis."""
+    from core_api.schemas.cart import CartItemCreate
+    from core_api.services.cart import CartService, CartValidationError
+    from tests._factories.menu import make_menu_item
+
+    item = make_menu_item(db_session, base_price=15000, inventory_quantity=3)
+    db_session.flush()
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+    svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=2))
+
+    with pytest.raises(CartValidationError) as excinfo:
+        svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=2))
+
+    assert excinfo.value.reason == "inventory_insufficient"
+    stored = json.loads(cart_redis.get("cart:1"))
+    assert stored["items"][0]["quantity"] == 2
+
+
 def test_add_item_no_partial_write_on_rejection(cart_redis, db_session) -> None:
     """При отклонении Redis остаётся без изменений."""
     from core_api.schemas.cart import CartItemCreate
@@ -660,6 +699,37 @@ def test_update_item_quantity_rejects_stop_listed(cart_redis, db_session) -> Non
 
     stored = json.loads(cart_redis.get("cart:1"))
     assert stored["items"][0]["quantity"] == 2
+
+
+def test_update_item_quantity_rejects_aggregate_above_finite_inventory(
+    cart_redis, db_session
+) -> None:
+    """Quantity updates cap aggregate quantity across all lines for one item."""
+    from core_api.schemas.cart import CartItemCreate
+    from core_api.services.cart import CartService, CartValidationError
+    from tests._factories.menu import make_menu_item, make_modifier
+
+    mod = make_modifier(db_session, name_ru="Сироп", name_en="Syrup")
+    item = make_menu_item(
+        db_session,
+        base_price=15000,
+        inventory_quantity=3,
+        modifiers=[mod],
+    )
+    db_session.flush()
+
+    svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
+    first = svc.add_item(CartItemCreate(menu_item_id=item.id, quantity=2))
+    svc.add_item(CartItemCreate(menu_item_id=item.id, modifier_ids=[mod.id], quantity=1))
+    line_id = first.items[0].line_id
+
+    with pytest.raises(CartValidationError) as excinfo:
+        svc.update_item_quantity(line_id, 3)
+
+    assert excinfo.value.reason == "inventory_insufficient"
+    stored = json.loads(cart_redis.get("cart:1"))
+    quantities = sorted(line["quantity"] for line in stored["items"])
+    assert quantities == [1, 2]
 
 
 def test_delete_item_removes_one_line(cart_redis, db_session) -> None:

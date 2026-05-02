@@ -6,6 +6,8 @@ import { authenticatedFetch } from './client';
 //            browser, see AGENTS.md "must not"). Wraps suggest + geocode
 //            calls and maps 503/network failures into MapsUnavailableError so
 //            AddressAutocomplete can drop into degraded plain-text mode.
+//            Suggest accepts the current backend bare-array response and the
+//            older {items: [...]} wrapper for compatibility.
 //   SCOPE:   MapsLang, SuggestResult, GeocodeResult types, MapsUnavailableError,
 //            suggest, geocode.
 //   DEPENDS: M-CORE-API (HTTP /api/v1/maps/*), ./client (authenticatedFetch).
@@ -86,8 +88,18 @@ export async function suggest(
   if (!res.ok) {
     throw new Error(`Suggest failed: HTTP ${res.status}`);
   }
-  const body = (await res.json()) as { items?: SuggestResult[] };
-  return body.items ?? [];
+  const body = (await res.json()) as unknown;
+  if (Array.isArray(body)) {
+    return body as SuggestResult[];
+  }
+  if (
+    body &&
+    typeof body === 'object' &&
+    Array.isArray((body as { items?: unknown }).items)
+  ) {
+    return (body as { items: SuggestResult[] }).items;
+  }
+  return [];
 }
 
 // START_CONTRACT: geocode

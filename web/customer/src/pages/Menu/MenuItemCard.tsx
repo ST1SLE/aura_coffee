@@ -5,9 +5,10 @@ import { formatPrice } from '@/lib/formatPrice';
 import { MenuMedia } from './MenuMedia';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Menu grid card — media, name, base price, "unavailable" badge.
-//            Pure presentation: dispatches one onOpen callback when the user
-//            clicks/keyboard-activates an available item.
+//   PURPOSE: Menu grid card — media, name, base price, finite-stock hint, and
+//            unavailable/sold-out badge. Pure presentation: dispatches one
+//            onOpen callback when the user clicks/keyboard-activates an
+//            available stocked item.
 //   SCOPE:   MenuItemCard component.
 //   DEPENDS: react-i18next, @/api/menuTypes (PublicMenuItem), @/lib/formatPrice,
 //            ./MenuMedia.
@@ -28,7 +29,8 @@ interface Props {
 
 export function MenuItemCard({ item, lang, onOpen }: Props) {
   const { t } = useTranslation();
-  const unavailable = !item.available;
+  const soldOut = item.inventory_quantity === 0;
+  const unavailable = !item.available || soldOut;
 
   return (
     <div
@@ -70,9 +72,14 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
           )}
         </div>
       </div>
+      {item.inventory_quantity != null && item.inventory_quantity > 0 && (
+        <span className="absolute left-2 top-2 rounded-full bg-background/85 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur">
+          {t('menu.stockLeft', { count: item.inventory_quantity })}
+        </span>
+      )}
       {unavailable && (
         <span className="absolute right-2 top-2 rounded-full bg-destructive px-2.5 py-1 text-xs font-medium text-destructive-foreground">
-          {t('menu.unavailable')}
+          {soldOut ? t('menu.soldOut') : t('menu.unavailable')}
         </span>
       )}
     </div>

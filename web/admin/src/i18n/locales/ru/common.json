@@ -130,6 +130,7 @@
         "newItem": "Новая позиция",
         "name": "Название",
         "price": "Цена",
+        "inventory": "Остатки",
         "availability": "Доступность",
         "actions": "Действия",
         "edit": "Редактировать",
@@ -137,10 +138,20 @@
         "deleteConfirm": "Удалить позицию?",
         "deleteConfirmDesc": "Это действие нельзя отменить.",
         "empty": "Нет позиций в этой категории",
+        "inventoryPlaceholder": "Кол-во",
+        "inventoryQuantityAria": "Остаток для {{name}}",
+        "inventorySaveAria": "Сохранить остаток для {{name}}",
+        "inventoryUnlimitedAria": "Сделать остаток безлимитным для {{name}}",
+        "errorInventory": "Не удалось обновить остаток.",
         "badge": {
           "available": "Доступно",
           "stopList": "Стоп",
           "archived": "Архив"
+        },
+        "inventoryBadge": {
+          "unlimited": "Без лимита",
+          "finite": "Остаток: {{count}}",
+          "outOfStock": "Нет в наличии"
         }
       },
       "itemForm": {
@@ -163,6 +174,10 @@
         "categoryPlaceholder": "Выберите категорию",
         "price": "Цена (₽)",
         "pricePlaceholder": "0.00",
+        "inventoryMode": "Остатки",
+        "inventoryUnlimited": "Без лимита / не учитывать",
+        "inventoryFinite": "Конечное количество",
+        "inventoryQuantity": "Количество",
         "archived": "В архиве",
         "save": "Сохранить",
         "saving": "Сохранение...",
@@ -170,6 +185,7 @@
         "validationNameRu": "Введите название (RU)",
         "validationNameEn": "Введите название (EN)",
         "validationBasePrice": "Цена должна быть ≥ 0",
+        "validationInventoryQuantity": "Остаток должен быть целым числом ≥ 0",
         "validationCategory": "Выберите категорию",
         "validationMediaType": "Выберите тип медиа или очистите пути медиа",
         "validationMediaUrlRequired": "Укажите путь медиа",

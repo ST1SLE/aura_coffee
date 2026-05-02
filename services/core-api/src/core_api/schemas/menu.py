@@ -15,6 +15,7 @@
 #
 # START_MODULE_MAP
 #   PriceKopecks            - alias type Annotated[int, Field(ge=0)]
+#   InventoryQuantity       - alias type Annotated[int, Field(ge=0)]
 #   MediaPath               - alias type Annotated[str, Field(...)]
 #   CategoryBase            - shared category fields
 #   CategoryCreate          - POST body for /admin/menu/categories
@@ -33,6 +34,7 @@
 #   MenuItemUpdate          - PUT body (partial)
 #   MenuItemResponse        - admin projection w/ size_options + modifiers
 #   AvailabilityPatch       - PATCH body for stop-list toggle (extra=forbid)
+#   InventoryPatch          - PATCH body for stock update (extra=forbid)
 #   MenuItemModifierSet     - PUT body for setting an item's modifier list
 #   PublicMenuSizeOption    - public projection of SizeOption
 #   PublicMenuModifier      - public projection of Modifier
@@ -59,6 +61,7 @@ from shared.enums import CategoryType, MenuItemAvailability, MenuMediaType, Size
 
 # Общий тип для цен в копейках (>= 0)
 PriceKopecks = Annotated[int, Field(ge=0)]
+InventoryQuantity = Annotated[int, Field(ge=0)]
 MediaPath = Annotated[str, Field(min_length=1, max_length=500)]
 
 _MEDIA_PATH_PREFIX = "/media/menu/"
@@ -239,6 +242,7 @@ class MenuItemBase(BaseModel):
     media_type: MenuMediaType | None = None
     media_url: MediaPath | None = None
     media_poster_url: MediaPath | None = None
+    inventory_quantity: InventoryQuantity | None = None
     available: bool = True
     archived: bool = False
     sort_order: int = 0
@@ -273,6 +277,7 @@ class MenuItemUpdate(BaseModel):
     media_type: MenuMediaType | None = None
     media_url: MediaPath | None = None
     media_poster_url: MediaPath | None = None
+    inventory_quantity: InventoryQuantity | None = None
     available: bool | None = None
     archived: bool | None = None
     sort_order: int | None = None
@@ -310,6 +315,12 @@ class AvailabilityPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     available: bool
+
+
+class InventoryPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    inventory_quantity: InventoryQuantity | None
 
 
 class MenuItemModifierSet(BaseModel):
@@ -358,6 +369,7 @@ class PublicMenuItem(BaseModel):
     media_type: MenuMediaType | None = None
     media_url: str | None = None
     media_poster_url: str | None = None
+    inventory_quantity: InventoryQuantity | None = None
     available: bool
     sort_order: int
     size_options: list[PublicMenuSizeOption] = []

@@ -186,6 +186,9 @@
     "error": "Failed to load menu",
     "retry": "Try again",
     "unavailable": "Unavailable",
+    "soldOut": "Sold out",
+    "stockLeft": "{{count}} left",
+    "quantity": "Quantity",
     "addToCart": "Add to Cart",
     "added": "Added to cart",
     "price": "Price",
@@ -206,6 +209,7 @@
     "repeatSkippedFallback": "This item is currently unavailable.",
     "decrement": "Decrease",
     "increment": "Increase",
+    "stockLeft": "{{count}} left",
     "modifierSeparator": ", ",
     "clearCart": "Clear cart"
   },

@@ -78,11 +78,43 @@ def test_menu_item_create_accepts_video_media_contract() -> None:
         media_type="video",
         media_url="/media/menu/latte/hero.mp4",
         media_poster_url="/media/menu/latte/poster.webp",
+        inventory_quantity=7,
     )
 
     assert item.media_type == MenuMediaType.VIDEO
     assert item.media_url == "/media/menu/latte/hero.mp4"
     assert item.media_poster_url == "/media/menu/latte/poster.webp"
+    assert item.inventory_quantity == 7
+
+
+def test_menu_item_inventory_schema_contract() -> None:
+    from core_api.schemas.menu import InventoryPatch, MenuItemCreate, MenuItemUpdate
+
+    create = MenuItemCreate(
+        category_id=1,
+        name_ru="Круассан",
+        name_en="Croissant",
+        base_price=20000,
+        inventory_quantity=None,
+    )
+    assert create.inventory_quantity is None
+
+    update = MenuItemUpdate(inventory_quantity=0)
+    assert update.inventory_quantity == 0
+
+    patch = InventoryPatch(inventory_quantity=None)
+    assert patch.inventory_quantity is None
+
+    with pytest.raises(ValidationError):
+        MenuItemCreate(
+            category_id=1,
+            name_ru="Круассан",
+            name_en="Croissant",
+            base_price=20000,
+            inventory_quantity=-1,
+        )
+    with pytest.raises(ValidationError):
+        InventoryPatch(inventory_quantity=1, available=False)  # type: ignore[call-arg]
 
 
 def test_menu_item_create_rejects_malformed_media_contracts() -> None:
@@ -140,6 +172,7 @@ def test_menu_item_response_derives_availability() -> None:
             "media_type": None,
             "media_url": None,
             "media_poster_url": None,
+            "inventory_quantity": None,
             "sort_order": 0,
             "created_at": None,
             "updated_at": None,
@@ -214,6 +247,7 @@ def test_menu_item_response_from_orm_roundtrip() -> None:
         media_type="video",
         media_url="/media/menu/latte/hero.mp4",
         media_poster_url="/media/menu/latte/poster.webp",
+        inventory_quantity=4,
         available=True,
         archived=False,
         sort_order=0,
@@ -229,3 +263,4 @@ def test_menu_item_response_from_orm_roundtrip() -> None:
     assert resp.media_type == "video"
     assert resp.media_url == "/media/menu/latte/hero.mp4"
     assert resp.media_poster_url == "/media/menu/latte/poster.webp"
+    assert resp.inventory_quantity == 4

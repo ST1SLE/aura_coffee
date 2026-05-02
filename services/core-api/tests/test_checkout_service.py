@@ -234,6 +234,167 @@ def test_create_order_success_asserts_ldd_and_uses_shop_settings_pricing(
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_decrements_finite_inventory_and_asserts_ldd(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """GRACE-LDD: checkout decrements finite inventory in the order transaction."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import create_order
+    from shared.enums import OrderType
+    from shared.models import OrderItem
+
+    user_id, _ = _checkout_user
+    item = make_menu_item(db_session, base_price=20000, inventory_quantity=3)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 2,
+            }
+        ],
+    )
+
+    with patch("core_api.services.checkout.enqueue_payment_task"):
+        resp = create_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    db_session.refresh(item)
+    assert item.inventory_quantity == 1
+    order_item = db_session.query(OrderItem).filter_by(order_id=resp.id).one()
+    assert order_item.menu_item_id == item.id
+    assert order_item.quantity == 2
+
+    grace_logs.assert_trajectory(
+        ("orders.create", "BLOCK_TX_BEGIN"),
+        ("orders.create", "BLOCK_STATE_TRANSITION"),
+        ("orders.create", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    lines = "\n".join(grace_logs.lines)
+    assert "test-phone-bytes" not in lines
+    assert "Test Customer" not in lines
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_rejects_insufficient_inventory_before_persistence(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """GRACE-LDD: insufficient finite stock leaves no order/payment rows."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest, DeliveryAddress
+    from core_api.services.checkout import InventoryInsufficientError, create_order
+    from shared.enums import OrderType
+    from shared.models import Order, Payment
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session, min_delivery_amount=10000)
+    item = make_menu_item(db_session, base_price=20000, inventory_quantity=1)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 2,
+            }
+        ],
+    )
+
+    with pytest.raises(InventoryInsufficientError):
+        create_order(
+            user_id,
+            CreateOrderRequest(
+                type=OrderType.DELIVERY,
+                delivery_address=DeliveryAddress(
+                    text="Secret Inventory Address",
+                    lat=55.7558,
+                    lon=37.6173,
+                ),
+            ),
+            cart_redis,
+            db_session,
+        )
+
+    db_session.refresh(item)
+    assert item.inventory_quantity == 1
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_BEGIN")
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    assert "Secret Inventory Address" not in "\n".join(grace_logs.lines)
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_aggregates_inventory_by_menu_item_id(
+    cart_redis, db_session, _checkout_user
+) -> None:
+    """Different cart line shapes for one item share the same finite stock."""
+    from tests._factories.menu import make_menu_item, make_modifier
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import InventoryInsufficientError, create_order
+    from shared.enums import OrderType
+
+    user_id, _ = _checkout_user
+    mod = make_modifier(db_session, name_ru="Сироп", name_en="Syrup")
+    item = make_menu_item(
+        db_session,
+        base_price=20000,
+        inventory_quantity=2,
+        modifiers=[mod],
+    )
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            },
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [mod.id],
+                "quantity": 2,
+            },
+        ],
+    )
+
+    with pytest.raises(InventoryInsufficientError):
+        create_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    db_session.refresh(item)
+    assert item.inventory_quantity == 2
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
 def test_create_order_stale_stop_list_fails_before_persistence(
     cart_redis, db_session, _checkout_user, grace_logs
 ) -> None:

@@ -17,12 +17,13 @@
 #            marker is only written after a successful commit (PDD §7.9).
 #            Drives PDD §6.2 transitions: payment.succeeded ->
 #            Payment.SUCCEEDED + Order.PAID, payment.canceled ->
-#            Payment.PAYMENT_FAILED + Order.CANCELLED, refund.succeeded ->
-#            Payment.REFUNDED, refund.canceled -> Payment.REFUND_FAILED.
+#            Payment.PAYMENT_FAILED + Order.CANCELLED + finite inventory
+#            restore, refund.succeeded -> Payment.REFUNDED, refund.canceled ->
+#            Payment.REFUND_FAILED.
 #   SCOPE:   FastAPI app + dispatcher + Redis idempotency helpers. Per-event
 #            handlers are private and live in this file.
-#   DEPENDS: M-SHARED (shared.enums, shared.models.{order,payment,
-#            loyalty_transaction,notification,promocode}), M-DATABASE,
+#   DEPENDS: M-SHARED (shared.enums, shared.models.{menu,order,order_item,
+#            payment,loyalty_transaction,notification,promocode}), M-DATABASE,
 #            payment_worker.db, payment_worker.redis_client,
 #            payment_worker.settings, FastAPI
 #   LINKS:   docs/development-plan.xml M-PAYMENT-WORKER, PDD §4.2, §7.9,
@@ -260,6 +261,39 @@ def _send_order_notification(
         )
 
 
+def _restore_inventory(session: Session, order: Any) -> None:
+    """Restore finite menu inventory from immutable order item snapshots."""
+    from sqlalchemy import func, select
+
+    from shared.models.menu import MenuItem
+    from shared.models.order_item import OrderItem
+
+    rows = session.execute(
+        select(OrderItem.menu_item_id, func.sum(OrderItem.quantity))
+        .where(
+            OrderItem.order_id == order.id,
+            OrderItem.menu_item_id.is_not(None),
+        )
+        .group_by(OrderItem.menu_item_id)
+    ).all()
+    quantities = {int(item_id): int(quantity or 0) for item_id, quantity in rows}
+    if not quantities:
+        return
+
+    stmt = (
+        select(MenuItem)
+        .where(
+            MenuItem.id.in_(list(quantities)),
+            MenuItem.inventory_quantity.is_not(None),
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    for item in session.execute(stmt).scalars().all():
+        item.inventory_quantity = int(item.inventory_quantity or 0) + quantities[item.id]
+    session.flush()
+
+
 def _handle_payment_succeeded(
     session: Session, redis_client: Any, obj: dict[str, Any]
 ) -> UUID | None:
@@ -352,9 +386,18 @@ def _handle_payment_canceled(
     order = session.get(Order, payment.order_id)
     if order is None:
         return
+    if payment.status == PaymentStatus.PAYMENT_FAILED:
+        return
 
     payment.status = PaymentStatus.PAYMENT_FAILED
+    if order.status == OrderStatus.CANCELLED:
+        _grace_log.block(
+            "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+        )
+        return
+
     order.status = OrderStatus.CANCELLED
+    _restore_inventory(session, order)
     _grace_log.block(
         "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
     )
@@ -467,12 +510,14 @@ def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
 #   OUTPUTS: UUID | None — user_id whose Redis cart should be cleared
 #                          (only for payment.succeeded), else None
 #   SIDE_EFFECTS: DB writes via the called handler — `payments` (status),
-#                 `orders` (status), `loyalty_transactions`, `promocodes`,
-#                 `notifications`. Drives PDD §6.2 transitions:
+#                 `orders` (status), `menu_items` (finite inventory restore),
+#                 `loyalty_transactions`, `promocodes`, `notifications`.
+#                 Drives PDD §6.2 transitions:
 #                 payment.succeeded -> Payment.SUCCEEDED + Order.PAID;
 #                 payment.canceled -> Payment.PAYMENT_FAILED +
-#                 Order.CANCELLED + loyalty REVERSAL + promocode decrement;
-#                 refund.succeeded -> Payment.REFUNDED;
+#                 Order.CANCELLED + finite inventory restore + loyalty
+#                 REVERSAL + promocode decrement; refund.succeeded ->
+#                 Payment.REFUNDED;
 #                 refund.canceled -> Payment.REFUND_FAILED. Exceptions
 #                 propagate so the webhook returns 500 and YuKassa retries.
 #   LINKS:   PDD §6.2, §7.9, INV-004 (atomic), INV-016 (explicit transitions)
@@ -518,7 +563,7 @@ def dispatch_event(
 #   OUTPUTS: JSONResponse — 200 {"ok": True} on success or dedup,
 #                           403 on untrusted IP
 #   SIDE_EFFECTS: DB writes (orders, payments, loyalty_transactions,
-#                 promocodes, notifications) via dispatch_event; Redis
+#                 menu_items, promocodes, notifications) via dispatch_event; Redis
 #                 SET on `yukassa:event:*`; Redis DELETE on `cart:{user_id}`
 #                 for payment.succeeded; potentially dispatches downstream
 #                 notifications consumed by sms-worker. Drives the PDD §6.2

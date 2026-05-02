@@ -1,7 +1,8 @@
 // START_MODULE_CONTRACT
 //   PURPOSE: Public menu DTOs — wire-format types returned by GET /api/v1/menu.
-//            Includes both bilingual fields (name_ru/name_en) and a
-//            server-pre-resolved `name`/`description` per current locale.
+//            Includes both bilingual fields (name_ru/name_en), finite-stock
+//            inventory metadata, and a server-pre-resolved `name`/`description`
+//            per current locale.
 //   SCOPE:   Pure types; no runtime behavior.
 //   DEPENDS: none.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §3 menu.
@@ -62,6 +63,8 @@ export interface PublicMenuItem {
   media_type: MenuMediaType | null;
   media_url: string | null;
   media_poster_url: string | null;
+  /** Current finite stock. null/undefined means unlimited/not tracked. */
+  inventory_quantity?: number | null;
   available: boolean;
   sort_order: number;
   size_options: PublicMenuSizeOption[];

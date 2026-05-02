@@ -86,6 +86,7 @@ def _map_item(item: MenuItem, language: Language, *, only_available: bool) -> Pu
         media_type=item.media_type,
         media_url=item.media_url,
         media_poster_url=item.media_poster_url,
+        inventory_quantity=item.inventory_quantity,
         available=item.available,
         sort_order=item.sort_order,
         size_options=[

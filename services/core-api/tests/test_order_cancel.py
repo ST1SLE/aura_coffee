@@ -14,6 +14,10 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.orm import Session
 
+from tests.conftest import _TEST_DB_URL as TEST_DB_URL
+
+_IS_SQLITE = TEST_DB_URL.startswith("sqlite")
+
 
 # ---------------------------------------------------------------------------
 # Seeding helpers
@@ -388,6 +392,77 @@ def test_zero_payment_amount_skips_refund(
 
     assert send_task_mock.call_count == 0
     assert db.get(Order, oid).status == OrderStatus.CANCELLED
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_customer_cancel_restores_finite_inventory_without_mutating_order_items(
+    migrated_db_session: Session, notify_mock: MagicMock, send_task_mock: MagicMock
+) -> None:
+    from core_api.services.order_cancel import cancel_order
+    from shared.models import OrderItem
+    from tests._factories.menu import make_menu_item
+
+    db = migrated_db_session
+    item = make_menu_item(db, base_price=20000, inventory_quantity=1)
+    oid, _, _ = _seed_order_full(db, status="paid", payment_amount=0)
+    order_item = OrderItem(
+        order_id=oid,
+        menu_item_id=item.id,
+        menu_item_name_ru=item.name_ru,
+        menu_item_name_en=item.name_en,
+        size_option_id=None,
+        size_label=None,
+        unit_price=item.base_price,
+        modifiers_snapshot=[],
+        quantity=2,
+        line_total=item.base_price * 2,
+    )
+    db.add(order_item)
+    db.flush()
+    order_item_id = order_item.id
+
+    cancel_order(oid, "customer", None, db)
+
+    db.refresh(item)
+    assert item.inventory_quantity == 3
+    persisted_item = db.get(OrderItem, order_item_id)
+    assert persisted_item is not None
+    assert persisted_item.quantity == 2
+    assert persisted_item.menu_item_id == item.id
+    assert send_task_mock.call_count == 0
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_admin_cancel_preparing_does_not_restore_inventory(
+    migrated_db_session: Session, notify_mock: MagicMock, send_task_mock: MagicMock
+) -> None:
+    from core_api.services.order_cancel import cancel_order
+    from shared.models import OrderItem
+    from tests._factories.menu import make_menu_item
+
+    db = migrated_db_session
+    item = make_menu_item(db, base_price=20000, inventory_quantity=1)
+    oid, _, _ = _seed_order_full(db, status="preparing", payment_amount=0)
+    db.add(
+        OrderItem(
+            order_id=oid,
+            menu_item_id=item.id,
+            menu_item_name_ru=item.name_ru,
+            menu_item_name_en=item.name_en,
+            size_option_id=None,
+            size_label=None,
+            unit_price=item.base_price,
+            modifiers_snapshot=[],
+            quantity=2,
+            line_total=item.base_price * 2,
+        )
+    )
+    db.flush()
+
+    cancel_order(oid, "admin", None, db)
+
+    db.refresh(item)
+    assert item.inventory_quantity == 1
 
 
 # ---------------------------------------------------------------------------

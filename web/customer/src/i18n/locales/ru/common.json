@@ -186,6 +186,9 @@
     "error": "Не удалось загрузить меню",
     "retry": "Попробовать снова",
     "unavailable": "Недоступно",
+    "soldOut": "Распродано",
+    "stockLeft": "Осталось: {{count}}",
+    "quantity": "Количество",
     "addToCart": "В корзину",
     "added": "Добавлено в корзину",
     "price": "Цена",
@@ -206,6 +209,7 @@
     "repeatSkippedFallback": "Эта позиция сейчас недоступна.",
     "decrement": "Уменьшить",
     "increment": "Увеличить",
+    "stockLeft": "Осталось: {{count}}",
     "modifierSeparator": ", ",
     "clearCart": "Очистить корзину"
   },

@@ -1,9 +1,11 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Atomic order cancellation chain (PDD §7.6) — restores promo quota
-#            and loyalty points, transitions Order to CANCELLED, cascade-cancels
-#            DeliveryAssignment, fires notification, dispatches refund task.
+#            and loyalty points, restores finite inventory for pre-kitchen
+#            cancellations where order_items still reference menu_item_id,
+#            transitions Order to CANCELLED, cascade-cancels DeliveryAssignment,
+#            fires notification, dispatches refund task.
 #   SCOPE:   single entry-point cancel_order with inner private helpers.
-#   DEPENDS: M-SHARED (Order, Payment, Promocode, PromocodeUsage,
+#   DEPENDS: M-SHARED (Order, OrderItem, Payment, Promocode, PromocodeUsage,
 #            LoyaltyAccount/Transaction), M-DATABASE, services.delivery_assignment,
 #            services.order_notifications, celery_app
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.1, §6.3, §7.6,
@@ -39,7 +41,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from shared.enums import LoyaltyTransactionType, OrderStatus
@@ -47,10 +49,12 @@ from shared.models import (
     LoyaltyAccount,
     LoyaltyTransaction,
     Order,
+    OrderItem,
     Payment,
     Promocode,
     PromocodeUsage,
 )
+from shared.models.menu import MenuItem
 
 from core_api import celery_app as _celery_mod
 from core_api.services.delivery_assignment import cancel_assignment_for_order
@@ -79,6 +83,7 @@ class OrderCancelError(Exception):
 
 # Статусы, при которых админ НЕ может отменить: INV-005 + §7.6.
 _ADMIN_FORBIDDEN = {OrderStatus.IN_DELIVERY, OrderStatus.COMPLETED, OrderStatus.CANCELLED}
+_INVENTORY_RESTORE_STATUSES = {OrderStatus.CREATED, OrderStatus.PAID}
 
 
 def _return_promocode(order: Order, db: Session) -> None:
@@ -120,6 +125,33 @@ def _reverse_points(order: Order, db: Session) -> None:
     db.flush()
 
 
+def _restore_inventory(order: Order, db: Session) -> None:
+    rows = db.execute(
+        select(OrderItem.menu_item_id, func.sum(OrderItem.quantity))
+        .where(
+            OrderItem.order_id == order.id,
+            OrderItem.menu_item_id.is_not(None),
+        )
+        .group_by(OrderItem.menu_item_id)
+    ).all()
+    quantities = {int(item_id): int(quantity or 0) for item_id, quantity in rows}
+    if not quantities:
+        return
+
+    stmt = (
+        select(MenuItem)
+        .where(
+            MenuItem.id.in_(list(quantities)),
+            MenuItem.inventory_quantity.is_not(None),
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    for item in db.execute(stmt).scalars().all():
+        item.inventory_quantity = int(item.inventory_quantity or 0) + quantities[item.id]
+    db.flush()
+
+
 def _enqueue_refund(order: Order, db: Session) -> None:
     payment = db.query(Payment).filter_by(order_id=order.id).one_or_none()
     if payment is None or payment.amount <= 0:
@@ -132,16 +164,18 @@ def _enqueue_refund(order: Order, db: Session) -> None:
 
 # START_CONTRACT: cancel_order
 #   PURPOSE: Atomically transition an order to CANCELLED with full financial
-#            unwind: restore promocode quota, refund loyalty points, set
-#            cancelled_by/cancelled_at, cascade-cancel DeliveryAssignment,
-#            send notification, dispatch refund Celery task, commit.
+#            unwind: restore finite inventory for CREATED/PAID orders,
+#            promocode quota/loyalty points, set cancelled_by/cancelled_at,
+#            cascade-cancel DeliveryAssignment, send notification, dispatch
+#            refund Celery task, commit.
 #   INPUTS:  order_id: UUID
 #            cancelled_by: str — "customer" or "admin"
 #            reason: str | None — passed through to notification
 #            db_session: Session
 #   OUTPUTS: Order (status=CANCELLED, refreshed)
 #   SIDE_EFFECTS: DB UPDATE/INSERT/DELETE across promocodes, promocode_usages,
-#                 loyalty_accounts, loyalty_transactions, orders, delivery_assignments,
+#                 menu_items.inventory_quantity, loyalty_accounts,
+#                 loyalty_transactions, orders, delivery_assignments,
 #                 notifications — all in a single txn (INV-004); commit at end;
 #                 post-validation Celery dispatch of payment_worker.initiate_refund
 #                 when payment exists. Source: PAID/PREPARING/READY (admin) or
@@ -183,7 +217,9 @@ def cancel_order(
     if cancelled_by == "admin" and order.status in _ADMIN_FORBIDDEN:
         raise OrderCancelError(reason="not_cancellable_in_this_status")
 
-    # 2–3. Промокод и баллы
+    # 2–3. Остатки (до кухни), промокод и баллы
+    if order.status in _INVENTORY_RESTORE_STATUSES:
+        _restore_inventory(order, db_session)
     _return_promocode(order, db_session)
     _reverse_points(order, db_session)
 
