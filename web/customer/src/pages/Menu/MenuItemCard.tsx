@@ -27,6 +27,15 @@ interface Props {
   onOpen: () => void;
 }
 
+// START_CONTRACT: MenuItemCard
+//   PURPOSE: Render a media-first menu card that opens an available item detail
+//            view while keeping price/name overlays readable on image/video.
+//   INPUTS:  Props { item, lang, onOpen }.
+//   OUTPUTS: JSX.Element — clickable/keyboard-activatable product tile.
+//   SIDE_EFFECTS: Calls onOpen for available stocked items; no cart/order/API
+//                 mutation and no logging.
+//   LINKS:   PDD §5.2 menu media; INV-014 server-owned item snapshots.
+// END_CONTRACT: MenuItemCard
 export function MenuItemCard({ item, lang, onOpen }: Props) {
   const { t } = useTranslation();
   const soldOut = item.inventory_quantity === 0;
@@ -42,36 +51,38 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
         if (!unavailable && (e.key === 'Enter' || e.key === ' ')) onOpen();
       }}
       className={[
-        'group relative flex min-h-[17rem] cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-border/75 bg-card shadow-[0_16px_34px_rgba(58,46,37,0.10)] transition duration-200',
+        'group relative flex min-h-[18rem] cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-border/75 bg-secondary shadow-[0_16px_34px_rgba(30,24,19,0.22)] transition duration-200 sm:min-h-[17rem]',
         unavailable
           ? 'opacity-60 cursor-not-allowed pointer-events-none'
-          : 'hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-[0_18px_38px_rgba(58,46,37,0.14)]',
+          : 'hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-[0_20px_42px_rgba(30,24,19,0.28)]',
       ].join(' ')}
     >
       <MenuMedia
         item={item}
         alt={item.name}
-        className="h-48 w-full bg-secondary sm:h-44"
+        className="absolute inset-0 h-full w-full bg-secondary"
         controls={false}
       />
-      <div className="flex flex-1 flex-col gap-3 p-3">
-        <span className="font-display min-h-10 text-base font-semibold leading-tight text-foreground">
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-foreground/85 via-foreground/35 to-transparent p-3 pt-24 text-primary-foreground">
+        <span className="font-display line-clamp-2 min-h-10 text-base font-semibold leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
           {item.name}
         </span>
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="aura-numeric rounded-full bg-secondary px-3 py-1 text-sm font-semibold text-primary">
+        <div className="flex items-end justify-between gap-2">
+          <span className="aura-numeric rounded-full border border-primary-foreground/20 bg-card/90 px-3 py-1 text-sm font-semibold text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.20)] backdrop-blur-md">
             {formatPrice(item.base_price, lang === 'ru' ? 'ru' : 'en')}
           </span>
           {!unavailable && (
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_12px_26px_rgba(0,0,0,0.24)] transition-transform group-hover:scale-105"
             >
               <Plus className="h-4 w-4" />
             </span>
           )}
         </div>
       </div>
+
       {item.inventory_quantity != null && item.inventory_quantity > 0 && (
         <span className="font-display absolute left-2 top-2 rounded-full border border-border/70 bg-card/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-[0_8px_18px_rgba(58,46,37,0.10)] backdrop-blur">
           {t('menu.stockLeft', { count: item.inventory_quantity })}

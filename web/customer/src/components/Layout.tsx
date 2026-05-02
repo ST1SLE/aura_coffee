@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   Outlet,
   Link,
@@ -10,12 +11,14 @@ import { Coffee, LogOut, ReceiptText, ShoppingBag, User } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/auth/useAuth';
 import { useCartStore } from '@/store/cart';
+import { formatPrice } from '@/lib/formatPrice';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Soft botanical mobile-first app shell — sticky brand/ordering
 //            header with nav links + logout + LanguageSwitcher, the <main>
 //            outlet, mobile bottom nav, and cart-count affordances when the
-//            cart has items. Wraps all authenticated routes (see App.tsx).
+//            cart has items. Refreshes cart state after auth is resolved so the
+//            browsing menu exposes an existing cart after reload.
 //   SCOPE:   Layout component.
 //   DEPENDS: react-router-dom (Outlet/Link/NavLink/useLocation/useNavigate),
 //            react-i18next, lucide-react, @/components/LanguageSwitcher,
@@ -36,20 +39,32 @@ import { useCartStore } from '@/store/cart';
 //            Cart links include count labels/badges when itemCount > 0.
 //   SIDE_EFFECTS: handleLogout calls useAuth().logout (which clears tokens +
 //                 calls /auth/logout) then navigates to /login.
+//                 After auth resolves, refreshes idle cart state through
+//                 GET /cart via the cart store.
 //                 INV-002 — server enforces auth; this nav is UX only.
 //   LINKS:   App.tsx wraps protected routes with this layout.
 // END_CONTRACT: Layout
 export function Layout() {
-  const { t } = useTranslation();
-  const { logout } = useAuth();
+  const { t, i18n } = useTranslation();
+  const { logout, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const itemCount = useCartStore((state) => state.itemCount);
+  const subtotal = useCartStore((state) => state.subtotal);
+  const cartStatus = useCartStore((state) => state.status);
+  const refreshCart = useCartStore((state) => state.refresh);
   const cartBadge = itemCount > 99 ? '99+' : String(itemCount);
+  const cartTotal = formatPrice(subtotal, i18n.language === 'ru' ? 'ru' : 'en');
   const showCartAffordance = itemCount > 0;
   const showFloatingCart =
     showCartAffordance &&
     (location.pathname === '/menu' || location.pathname.startsWith('/menu/'));
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    if (cartStatus !== 'idle') return;
+    void refreshCart().catch(() => undefined);
+  }, [cartStatus, isAuthenticated, isLoading, refreshCart]);
 
   const handleLogout = async () => {
     await logout();
@@ -140,14 +155,23 @@ export function Layout() {
         <Link
           to="/cart"
           aria-label={`${t('nav.cart')}: ${itemCount}`}
-          className="font-display fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-50 inline-flex min-h-11 -translate-x-1/2 items-center gap-3 rounded-full border border-primary/20 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_18px_38px_rgba(108,122,85,0.24)] backdrop-blur-xl transition-colors hover:bg-primary/95 md:hidden"
+          className="font-display fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 mx-auto inline-flex min-h-14 max-w-sm items-center justify-between gap-3 rounded-full border border-primary-foreground/15 bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_18px_42px_rgba(30,24,19,0.34)] backdrop-blur-xl transition-colors hover:bg-foreground/95 md:hidden"
           data-testid="floating-cart-link"
         >
-          <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-          <span>{t('nav.cart')}</span>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 text-left">
+              <span className="block truncate">{t('nav.cart')}</span>
+              <span className="aura-numeric block truncate text-xs font-medium text-primary-foreground/75">
+                {cartTotal}
+              </span>
+            </span>
+          </span>
           <span
             aria-hidden="true"
-            className="inline-flex min-w-6 items-center justify-center rounded-full bg-card px-2 text-xs font-semibold leading-6 text-primary"
+            className="inline-flex min-w-7 items-center justify-center rounded-full bg-card/90 px-2 text-xs font-semibold leading-7 text-foreground"
           >
             {cartBadge}
           </span>

@@ -107,7 +107,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 backdrop-blur-md md:items-center"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-foreground/35 backdrop-blur-md md:items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

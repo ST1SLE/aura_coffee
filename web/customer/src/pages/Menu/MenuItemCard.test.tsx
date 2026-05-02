@@ -72,6 +72,22 @@ describe('MenuItemCard', () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps name and price on the media overlay rather than a separate panel', () => {
+    const { container } = render(
+      <MenuItemCard
+        item={makeItem({ name: 'Раф таро', base_price: 37500 })}
+        lang="ru"
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Раф таро')).toBeDefined();
+    expect(screen.getByText(/375/)).toBeDefined();
+    expect(
+      container.querySelector('.bg-gradient-to-t.from-foreground\\/85'),
+    ).toBeDefined();
+  });
+
   it('clicking unavailable card (available=false) does not fire onOpen', () => {
     const onOpen = vi.fn();
     render(

@@ -3,8 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './Layout';
 
-const mockCartState = vi.hoisted(() => ({ itemCount: 0 }));
-const mockLogout = vi.hoisted(() => vi.fn());
+const mockCartState = vi.hoisted(() => ({
+  itemCount: 0,
+  subtotal: 0,
+  status: 'ready',
+  refresh: vi.fn(),
+}));
+const mockAuthState = vi.hoisted(() => ({
+  logout: vi.fn(),
+  isAuthenticated: true,
+  isLoading: false,
+}));
 const mockChangeLanguage = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
@@ -15,7 +24,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/auth/useAuth', () => ({
-  useAuth: () => ({ logout: mockLogout }),
+  useAuth: () => mockAuthState,
 }));
 
 vi.mock('@/store/cart', () => ({
@@ -40,7 +49,12 @@ function renderLayout(initialRoute = '/menu') {
 
 beforeEach(() => {
   mockCartState.itemCount = 0;
+  mockCartState.subtotal = 0;
+  mockCartState.status = 'ready';
+  mockAuthState.isAuthenticated = true;
+  mockAuthState.isLoading = false;
   vi.clearAllMocks();
+  mockCartState.refresh.mockResolvedValue(undefined);
 });
 
 describe('Layout cart affordances', () => {
@@ -57,13 +71,15 @@ describe('Layout cart affordances', () => {
 
   it('renders fixed floating cart link over menu when cart has items', () => {
     mockCartState.itemCount = 2;
+    mockCartState.subtotal = 37500;
     renderLayout('/menu');
 
     const floating = screen.getByTestId('floating-cart-link');
     expect(floating.getAttribute('href')).toBe('/cart');
     expect(floating.getAttribute('aria-label')).toBe('nav.cart: 2');
     expect(floating.className).toContain('fixed');
-    expect(floating.className).toContain('min-h-11');
+    expect(floating.className).toContain('min-h-14');
+    expect(screen.getByText(/375/)).toBeDefined();
   });
 
   it('hides cart badges and floating link when cart is empty', () => {
@@ -72,5 +88,20 @@ describe('Layout cart affordances', () => {
     expect(screen.getAllByRole('link', { name: 'nav.cart' }).length).toBe(2);
     expect(screen.queryByRole('link', { name: /nav\.cart: / })).toBeNull();
     expect(screen.queryByTestId('floating-cart-link')).toBeNull();
+  });
+
+  it('refreshes cart once when the shell mounts with idle cart state', () => {
+    mockCartState.status = 'idle';
+    renderLayout('/menu');
+
+    expect(mockCartState.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refresh cart before auth state has resolved', () => {
+    mockCartState.status = 'idle';
+    mockAuthState.isLoading = true;
+    renderLayout('/menu');
+
+    expect(mockCartState.refresh).not.toHaveBeenCalled();
   });
 });

@@ -497,6 +497,101 @@ Verification:
   `rgb(209, 193, 169)`; the smoke fails if checked surfaces are still
   near-white.
 
+### Packet 11 - Media-First Menu Browsing And Cart CTA
+
+Status: complete
+
+Files:
+
+- `web/customer/src/index.css`
+- `web/customer/src/pages/Menu/MenuItemCard.tsx`
+- `web/customer/src/pages/Menu/MenuItemCard.test.tsx`
+- `web/customer/src/pages/Menu/ItemDetail.tsx`
+- `web/customer/src/components/Layout.tsx`
+- `web/customer/src/components/Layout.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+Live review still showed two problems in the browsing menu state:
+
+- menu cards reserve a large light content block below the media, which blocks
+  the video/photo from becoming the product surface
+- the palette still has too much light-card energy in screenshots
+- cart reachability should feel like the Drinkit reference:
+  `docs/design/screenshots/main_menu_cart_at_the_bottom.png`
+
+Source checks:
+
+- Material imagery guidance supports large imagery and local text-protection
+  scrims rather than blanket overlays:
+  https://m1.material.io/style/imagery.html
+- Material image-list guidance treats text protection as a scrim over the image
+  when supporting text overlays media:
+  https://www.npmjs.com/package/@material/image-list
+- Material FAB guidance says one promoted floating action can be used for the
+  primary screen action, and lists need bottom padding so content is not blocked:
+  https://m1.material.io/components/buttons-floating-action-button.html
+- WCAG 2.1 non-text contrast requires UI component boundaries and meaningful
+  graphical objects to keep at least 3:1 contrast against adjacent colors:
+  https://w3c.github.io/wcag21/understanding/non-text-contrast
+
+Decision:
+
+Use a media-first card instead of a white/cream information tray. The card media
+fills the tile, product name and price float over a targeted espresso scrim, and
+the price becomes a warm oval badge. For the broader palette, move away from
+taupe-on-cream into a stronger smoked-sage canvas with clay/linen cards and
+coffee borders. This removes white-white surfaces without turning every surface
+into the same brown hue.
+
+Steps:
+
+1. Rework `MenuItemCard` so `MenuMedia` fills the card and the bottom content is
+   an overlay scrim, not a separate light panel.
+2. Move the price into a rounded warm oval over the media, near the product
+   name, and keep the whole available card as the click target.
+3. Preserve finite-stock and unavailable/sold-out badges as overlays.
+4. Refresh the global customer tokens to smoked sage canvas, clay/linen cards,
+   biscuit nested panels, dark olive primary actions, and coffee borders.
+5. Make the floating menu cart link an extended bottom CTA with count and total,
+   and refresh cart state on shell mount so existing carts show after reload.
+6. Keep the item-detail dialog above the browsing cart CTA so the CTA does not
+   cover modal configuration controls.
+7. Preserve protected routes, cart API contracts, add-to-cart behavior, checkout
+   payloads, order states, and backend-owned pricing.
+
+Acceptance:
+
+- menu browsing cards no longer have a light block underneath media
+- product name and price remain readable over image/video via a targeted scrim
+- price appears as a floating oval on the media
+- large surfaces no longer read as white in menu/order/checkout screenshots
+- cart CTA appears on `/menu` when the cart has items, including after reload
+- no backend, API, auth enforcement, pricing, payment, or order-state behavior
+  changes
+
+Verification:
+
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm test -- src/pages/Menu/MenuItemCard.test.tsx src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/components/Layout.test.tsx src/pages/CheckoutPage.test.tsx src/pages/OrderDetailPage.test.tsx`
+- `cd web/customer && npm run build`
+- `./scripts/up.sh`
+- Playwright browser smoke on the canonical nginx URL with authenticated QA
+  customer, seeded cart, `/menu`, item-detail, `/checkout`, and
+  `/orders/:orderId` captures.
+- Browser smoke captured screenshots under
+  `/tmp/aura-customer-menu-media-card-screenshots`.
+- Computed browser tokens confirmed smoked-sage canvas `rgb(135, 143, 112)`,
+  clay card/placeholder surface `rgb(182, 159, 129)`, espresso floating cart
+  CTA `rgb(27, 23, 19)`, and card scrim
+  `linear-gradient(to top, rgba(27, 23, 19, 0.85), rgba(27, 23, 19, 0.35), transparent)`.
+- Reload smoke confirmed the floating menu cart CTA appears after cart refresh
+  without visiting `/cart` first.
+- Layer smoke confirmed item-detail dialog z-index `70` sits above the floating
+  cart CTA z-index `50`.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -536,7 +631,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-10 complete.
+Packet status: Packets 0-11 complete.
 
 Safety double-check:
 
