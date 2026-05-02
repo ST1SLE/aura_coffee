@@ -40,7 +40,6 @@ from core_api.schemas.promocode import (
     PromocodeCreate,
     PromocodeListResponse,
     PromocodeResponse,
-    PromocodeState,
     PromocodeUpdate,
 )
 from core_api.services.admin_promocodes import (

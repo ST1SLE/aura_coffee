@@ -117,7 +117,7 @@ def post_order(
         )
     except EmptyCartError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    except DeliveryAddressNotFound as exc:
+    except DeliveryAddressNotFound:
         # INV-013: чужой/неизвестный delivery_address_id → 404 (НЕ 403, иначе утечка ID).
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"

@@ -16,12 +16,16 @@
 # END_MODULE_MAP
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, LargeBinary, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models import Base
+
+if TYPE_CHECKING:
+    from shared.models.user import User
 
 
 class UserProfile(Base):
