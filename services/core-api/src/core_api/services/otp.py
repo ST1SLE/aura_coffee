@@ -260,7 +260,7 @@ class OTPService:
         _grace_log.belief(
             "auth.otp_verify",
             "BLOCK_AUTH_VERIFY",
-            belief="VERIFIED",
+            belief=VerifyResult.VERIFIED.value,
             actual=str(result.value),
         )
 

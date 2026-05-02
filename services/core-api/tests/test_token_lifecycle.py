@@ -1,9 +1,12 @@
 import json
 import uuid
+from unittest.mock import MagicMock
 
 import fakeredis
 
 from core_api.services.auth import AuthService
+from shared.enums import UserStatus
+from shared.models.user import User
 
 
 class TestIssueTokens:
@@ -23,6 +26,7 @@ class TestIssueTokens:
         assert raw is not None
         data = json.loads(raw)
         assert data["user_id"] == str(user_id)
+        assert pair.refresh_token.encode() in r.smembers(f"user_sessions:{user_id}")
 
 
 class TestRefreshTokenRotation:
@@ -54,6 +58,48 @@ class TestRefreshTokenRotation:
         result = auth_svc.refresh_tokens(pair.refresh_token)
         assert result is None
 
+    def test_blocked_user_refresh_revokes_all_sessions(
+        self, auth_svc: AuthService, r: fakeredis.FakeRedis
+    ) -> None:
+        """BLOCKED customer cannot refresh; indexed sessions are revoked."""
+        user_id = uuid.uuid4()
+        first = auth_svc.issue_tokens(user_id)
+        second = auth_svc.issue_tokens(user_id)
+        db = MagicMock()
+        db.get.return_value = User(
+            id=user_id,
+            phone_hash="a" * 64,
+            status=UserStatus.BLOCKED,
+        )
+
+        result = auth_svc.refresh_tokens(first.refresh_token, db=db)
+
+        assert result is None
+        assert r.get(f"session:{first.refresh_token}") is None
+        assert r.get(f"session:{second.refresh_token}") is None
+        assert r.smembers(f"user_sessions:{user_id}") == set()
+
+    def test_blocked_user_refresh_deletes_unindexed_legacy_session(
+        self, auth_svc: AuthService, r: fakeredis.FakeRedis
+    ) -> None:
+        user_id = uuid.uuid4()
+        refresh_token = str(uuid.uuid4())
+        r.set(
+            f"session:{refresh_token}",
+            json.dumps({"user_id": str(user_id), "issued_at": "legacy"}),
+        )
+        db = MagicMock()
+        db.get.return_value = User(
+            id=user_id,
+            phone_hash="d" * 64,
+            status=UserStatus.BLOCKED,
+        )
+
+        result = auth_svc.refresh_tokens(refresh_token, db=db)
+
+        assert result is None
+        assert r.get(f"session:{refresh_token}") is None
+
 
 class TestLogout:
     def test_logout_deletes_session(self, auth_svc: AuthService, r: fakeredis.FakeRedis) -> None:
@@ -63,6 +109,7 @@ class TestLogout:
         result = auth_svc.logout(pair.refresh_token)
         assert result is True
         assert r.get(f"session:{pair.refresh_token}") is None
+        assert pair.refresh_token.encode() not in r.smembers(f"user_sessions:{user_id}")
 
     def test_logout_nonexistent_returns_false(self, auth_svc: AuthService) -> None:
         """logout с несуществующим токеном → False."""

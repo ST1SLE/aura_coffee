@@ -1,10 +1,12 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Centralised ASGI middleware that enforces the route-level RBAC
 #            matrix on every non-OPTIONS request. Decodes the Bearer JWT,
-#            looks up the longest-matching matrix rule, and replies with 401
-#            (no/invalid auth) or 403 (role denied / unmapped route).
+#            rejects known blocked/deactivated subjects, looks up the
+#            longest-matching matrix rule, and replies with 401 (no/invalid
+#            auth) or 403 (role denied / unmapped route).
 #   SCOPE:   RBACMiddleware class + private route-matching helpers.
-#   DEPENDS: M-CORE-API (rbac_matrix, services.auth), Starlette.
+#   DEPENDS: M-CORE-API (rbac_matrix, services.auth, services.session_subjects,
+#            deps.database), Starlette.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.1, INV-002,
 #            INV-010 (role isolation), INV-011
 #   ROLE:    RUNTIME
@@ -16,13 +18,16 @@
 # END_MODULE_MAP
 
 import re
+import uuid
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from core_api.deps.database import SessionLocal
 from core_api.rbac_matrix import PUBLIC_ROUTES, ROUTE_MATRIX
 from core_api.services.auth import AuthService
+from core_api.services.session_subjects import is_subject_active
 
 
 def _compile_pattern(path_pattern: str) -> re.Pattern[str]:
@@ -79,6 +84,18 @@ _INTERNAL_PREFIXES = ("/docs", "/redoc", "/openapi.json")
 class RBACMiddleware(BaseHTTPMiddleware):
     """Middleware для централизованной проверки ролей по матрице доступа."""
 
+    def _subject_allowed(self, payload: dict) -> bool:
+        try:
+            subject_id = uuid.UUID(payload["sub"])
+            role = str(payload["role"])
+        except (KeyError, TypeError, ValueError):
+            return False
+
+        with SessionLocal() as db:
+            return is_subject_active(
+                db, subject_id, role, require_present=False
+            )
+
     async def dispatch(self, request: Request, call_next) -> Response:
         method = request.method
         path = request.url.path
@@ -114,6 +131,11 @@ class RBACMiddleware(BaseHTTPMiddleware):
             )
 
         role = payload.get("role", "")
+        if not self._subject_allowed(payload):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Not authenticated"},
+            )
 
         # Поиск правила в матрице
         allowed_roles = _match_route(method, path, ROUTE_MATRIX)

@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core_api.main import app
+from core_api.services.auth import AuthService
 from shared.enums import OrderStatus, OrderType, UserStatus
 from shared.models.order import Order
 from shared.models.user import User
@@ -50,6 +51,7 @@ def admin_users_client(db_session):
         patch("core_api.deps.database.get_db", side_effect=_override_db),
     ):
         with TestClient(app) as c:
+            c.fake_redis = fake_redis
             yield c
     fake_redis.flushall()
 
@@ -74,7 +76,7 @@ def test_invalid_user_state_error_symbol_absent() -> None:
 
 
 def test_block_user_happy_path_with_three_active_orders(
-    db_session, celery_send_task_mock
+    db_session, celery_send_task_mock, grace_logs
 ) -> None:
     """4.3 — ACTIVE user + 3 активных заказа → BLOCKED + cancelled_orders_count=3."""
     from core_api.services.admin_users import block_user
@@ -100,6 +102,8 @@ def test_block_user_happy_path_with_three_active_orders(
 
     refreshed_user = db_session.get(User, user.id)
     assert refreshed_user.status == UserStatus.BLOCKED
+    grace_logs.assert_trajectory(("admin.users.block", "BLOCK_STATE_TRANSITION"))
+    assert grace_logs.beliefs(status="MISMATCH") == []
 
     orders = db_session.query(Order).filter(Order.user_id == user.id).all()
     for order in orders:
@@ -258,7 +262,7 @@ def test_block_user_route_rejects_barista(admin_users_client, barista_headers) -
 
 
 def test_block_user_route_happy_path_returns_200_and_count(
-    admin_users_client, admin_headers, db_session, celery_send_task_mock
+    admin_users_client, admin_headers, db_session, celery_send_task_mock, grace_logs
 ) -> None:
     """4.13 — ADMIN POST /block ACTIVE-user с 3 активными orders → 200, count=3."""
     user = make_user_with_profile(
@@ -274,6 +278,7 @@ def test_block_user_route_happy_path_returns_200_and_count(
         },
     )
     db_session.commit()
+    pair = AuthService(admin_users_client.fake_redis).issue_tokens(user.id)
 
     response = admin_users_client.post(
         f"/api/v1/admin/users/{user.id}/block", headers=admin_headers
@@ -283,6 +288,9 @@ def test_block_user_route_happy_path_returns_200_and_count(
     body = response.json()
     assert body["status"] == "blocked"
     assert body["cancelled_orders_count"] == 3
+    assert admin_users_client.fake_redis.get(f"session:{pair.refresh_token}") is None
+    grace_logs.assert_trajectory(("admin.users.block", "BLOCK_STATE_TRANSITION"))
+    assert pair.refresh_token not in "\n".join(grace_logs.lines)
 
 
 def test_block_user_route_409_on_pending_verification(

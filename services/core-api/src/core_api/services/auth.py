@@ -1,8 +1,9 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Customer JWT auth — issues HS256 access tokens + opaque UUID refresh
-#            tokens stored in Redis with TTL. Owns token rotation and logout.
-#   SCOPE:   create/issue/refresh/decode access+refresh tokens for customers.
-#   DEPENDS: M-SHARED (settings via core_api.settings), Redis, PyJWT
+#            tokens stored in Redis with TTL. Owns token rotation, indexed
+#            session revocation, logout, and optional DB status checks.
+#   SCOPE:   create/issue/refresh/decode/revoke access+refresh tokens for customers.
+#   DEPENDS: M-SHARED (settings via core_api.settings), M-DATABASE, Redis, PyJWT
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.4 (OTP→ACTIVE issues
 #            tokens), INV-002 (server-side auth on every mutation), INV-013
 #   ROLE:    RUNTIME
@@ -11,7 +12,7 @@
 #
 # START_MODULE_MAP
 #   TokenPair    - dataclass holding (access_token, refresh_token)
-#   AuthService  - JWT issuance, refresh rotation, logout, decode
+#   AuthService  - JWT issuance, refresh rotation, revoke, logout, decode
 # END_MODULE_MAP
 import json
 import uuid
@@ -20,8 +21,10 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import redis
+from sqlalchemy.orm import Session
 
 from core_api.settings import settings
+from core_api.services.session_subjects import is_customer_active
 
 
 # START_CONTRACT: TokenPair
@@ -50,6 +53,27 @@ class TokenPair:
 class AuthService:
     def __init__(self, redis_client: redis.Redis) -> None:
         self._redis = redis_client
+
+    def _session_key(self, refresh_token: str) -> str:
+        return f"session:{refresh_token}"
+
+    def _sessions_index_key(self, user_id: uuid.UUID) -> str:
+        return f"user_sessions:{user_id}"
+
+    def _remember_refresh_token(self, user_id: uuid.UUID, refresh_token: str) -> None:
+        index_key = self._sessions_index_key(user_id)
+        self._redis.sadd(index_key, refresh_token)
+        self._redis.expire(index_key, settings.refresh_token_ttl)
+
+    def _forget_refresh_token(
+        self,
+        refresh_token: str,
+        user_id: uuid.UUID | None,
+    ) -> bool:
+        deleted = bool(self._redis.delete(self._session_key(refresh_token)))
+        if user_id is not None:
+            self._redis.srem(self._sessions_index_key(user_id), refresh_token)
+        return deleted
 
     # START_CONTRACT: AuthService.create_access_token
     #   PURPOSE: Mint a short-lived HS256 JWT carrying user_id + role.
@@ -84,11 +108,8 @@ class AuthService:
             "user_id": str(user_id),
             "issued_at": datetime.now(UTC).isoformat(),
         })
-        self._redis.set(
-            f"session:{token}",
-            session_data,
-            ex=settings.refresh_token_ttl,
-        )
+        self._redis.set(self._session_key(token), session_data, ex=settings.refresh_token_ttl)
+        self._remember_refresh_token(user_id, token)
         return token
 
     # START_CONTRACT: AuthService.issue_tokens
@@ -107,21 +128,52 @@ class AuthService:
     # START_CONTRACT: AuthService.refresh_tokens
     #   PURPOSE: Refresh-token rotation: validate old token, delete it, issue
     #            a fresh pair (single-use semantics).
-    #   INPUTS:  refresh_token: str
+    #   INPUTS:  refresh_token: str, db: optional Session for current user-state check.
     #   OUTPUTS: TokenPair on success, None when token unknown/expired.
     #   SIDE_EFFECTS: Redis GET + DEL on old session key, SET on new one.
     # END_CONTRACT: AuthService.refresh_tokens
-    def refresh_tokens(self, refresh_token: str) -> TokenPair | None:
+    def refresh_tokens(
+        self,
+        refresh_token: str,
+        db: Session | None = None,
+    ) -> TokenPair | None:
         """Ротация: валидация старого refresh → удаление → выпуск новой пары."""
-        key = f"session:{refresh_token}"
+        key = self._session_key(refresh_token)
         raw = self._redis.get(key)
         if raw is None:
             return None
 
-        self._redis.delete(key)
         session_data = json.loads(raw)
         user_id = uuid.UUID(session_data["user_id"])
+
+        if db is not None and not is_customer_active(
+            db, user_id, require_present=True
+        ):
+            self._forget_refresh_token(refresh_token, user_id)
+            self.revoke_user_sessions(user_id)
+            return None
+
+        self._forget_refresh_token(refresh_token, user_id)
         return self.issue_tokens(user_id)
+
+    # START_CONTRACT: AuthService.revoke_user_sessions
+    #   PURPOSE: Revoke every indexed customer refresh session for a user,
+    #            used by admin block/delete flows.
+    #   INPUTS:  user_id: UUID
+    #   OUTPUTS: int — number of session keys deleted.
+    #   SIDE_EFFECTS: Redis SMEMBERS + DEL on `session:*`, DEL on
+    #                 `user_sessions:<user_id>`.
+    #   LINKS:   PDD §6.5, INV-002.
+    # END_CONTRACT: AuthService.revoke_user_sessions
+    def revoke_user_sessions(self, user_id: uuid.UUID) -> int:
+        index_key = self._sessions_index_key(user_id)
+        tokens = self._redis.smembers(index_key)
+        deleted = 0
+        for raw_token in tokens:
+            token = raw_token.decode() if isinstance(raw_token, bytes) else str(raw_token)
+            deleted += int(self._redis.delete(self._session_key(token)))
+        self._redis.delete(index_key)
+        return deleted
 
     # START_CONTRACT: AuthService.logout
     #   PURPOSE: Invalidate a refresh token (cooperative logout — access token
@@ -132,7 +184,11 @@ class AuthService:
     # END_CONTRACT: AuthService.logout
     def logout(self, refresh_token: str) -> bool:
         """Удаление refresh token из Redis."""
-        return bool(self._redis.delete(f"session:{refresh_token}"))
+        raw = self._redis.get(self._session_key(refresh_token))
+        user_id = None
+        if isinstance(raw, (str, bytes, bytearray)):
+            user_id = uuid.UUID(json.loads(raw)["user_id"])
+        return self._forget_refresh_token(refresh_token, user_id)
 
     # START_CONTRACT: AuthService.decode_access_token
     #   PURPOSE: Verify HS256 signature + expiry on access token, return claims.

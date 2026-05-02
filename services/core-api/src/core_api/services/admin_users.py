@@ -67,8 +67,10 @@ from core_api.schemas.admin_users import (
     UserSummary,
 )
 from core_api.services.order_cancel import cancel_order
+from shared.grace.logging import get_grace_logger
 
 logger = logging.getLogger(__name__)
+_grace_log = get_grace_logger("CoreApi")
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +353,13 @@ def block_user(db: Session, user_id: uuid.UUID) -> BlockUserResponse:
     user.status = UserStatus.BLOCKED
     db.flush()
     db.commit()
+    _grace_log.belief(
+        "admin.users.block",
+        "BLOCK_STATE_TRANSITION",
+        belief=UserStatus.BLOCKED.value,
+        actual=user.status.value,
+        user_id=str(user.id),
+    )
 
     orders_to_cancel = db.scalars(
         select(Order).where(

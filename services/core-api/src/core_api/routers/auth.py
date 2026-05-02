@@ -76,8 +76,8 @@ def send_code(
 
     user_svc = UserService(db)
     user_status = user_svc.get_user_status(phone_hash)
-    if user_status == UserStatus.BLOCKED:
-        raise HTTPException(status_code=403, detail="Account is blocked")
+    if user_status in {UserStatus.BLOCKED, UserStatus.DELETED}:
+        raise HTTPException(status_code=403, detail="Account is unavailable")
 
     otp_svc = OTPService(r)
 
@@ -159,6 +159,9 @@ def verify_code(
     user_svc = UserService(db)
     user_info = user_svc.get_or_create_user(phone, phone_hash)
 
+    if user_info.status in {UserStatus.BLOCKED, UserStatus.DELETED}:
+        raise HTTPException(status_code=403, detail="Account is unavailable")
+
     if user_info.status == UserStatus.PENDING_VERIFICATION:
         user_svc.activate_user(user_info.user_id)
 
@@ -173,7 +176,7 @@ def verify_code(
 
 # START_CONTRACT: refresh
 #   PURPOSE: Rotate access/refresh tokens for an authenticated session.
-#   INPUTS:  body: RefreshRequest (JSON), Redis client.
+#   INPUTS:  body: RefreshRequest (JSON), Redis client, Session.
 #   OUTPUTS: 200 TokenResponse on success; 401 invalid/expired refresh.
 #   SIDE_EFFECTS: Redis write — old refresh token revoked, new pair stored.
 #   LINKS:   PDD §6.4, INV-002 (server-side validation), services.auth.
@@ -186,9 +189,10 @@ def verify_code(
 def refresh(
     body: RefreshRequest,
     r: redis.Redis = Depends(get_redis),
+    db: Session = Depends(get_db),
 ) -> TokenResponse:
     auth_svc = AuthService(r)
-    tokens = auth_svc.refresh_tokens(body.refresh_token)
+    tokens = auth_svc.refresh_tokens(body.refresh_token, db=db)
 
     if tokens is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")

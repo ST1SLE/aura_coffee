@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import bcrypt
+import fakeredis
 import jwt
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 from core_api.deps.database import get_db
 from core_api.deps.redis import get_redis
 from core_api.main import app
+from core_api.services.staff_auth import StaffAuthService
 
 
 @pytest.fixture
@@ -122,14 +124,18 @@ class TestStaffLogin:
 
 class TestStaffRefresh:
     def test_valid_refresh(self, client: TestClient) -> None:
+        staff_id = uuid.uuid4()
         session_data = json.dumps({
-            "staff_id": str(uuid.uuid4()),
+            "staff_id": str(staff_id),
             "role": "barista",
             "issued_at": "2026-01-01T00:00:00+00:00",
         })
         mock_redis = MagicMock()
         mock_redis.get.return_value = session_data.encode()
         mock_db = MagicMock()
+        staff = _make_staff_account(role_value="barista")
+        staff.id = staff_id
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
 
         with _override_deps(mock_db, mock_redis):
             response = client.post(
@@ -141,6 +147,52 @@ class TestStaffRefresh:
         assert "access_token" in data
         assert "refresh_token" in data
         mock_redis.delete.assert_called_once()
+
+    def test_inactive_staff_refresh_revokes_sessions(self) -> None:
+        staff_id = uuid.uuid4()
+        refresh_token = "stale-staff-refresh"
+        redis_client = fakeredis.FakeRedis()
+        redis_client.set(
+            f"staff_refresh:{refresh_token}",
+            json.dumps({
+                "staff_id": str(staff_id),
+                "role": "barista",
+                "issued_at": "2026-01-01T00:00:00+00:00",
+            }),
+        )
+        redis_client.sadd(f"staff_sessions:{staff_id}", refresh_token)
+        staff = _make_staff_account(role_value="barista", is_active=False)
+        staff.id = staff_id
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+
+        result = StaffAuthService(mock_db, redis_client).refresh_tokens(refresh_token)
+
+        assert result is None
+        assert redis_client.get(f"staff_refresh:{refresh_token}") is None
+        assert redis_client.smembers(f"staff_sessions:{staff_id}") == set()
+
+    def test_inactive_staff_refresh_deletes_unindexed_legacy_session(self) -> None:
+        staff_id = uuid.uuid4()
+        refresh_token = "legacy-staff-refresh"
+        redis_client = fakeredis.FakeRedis()
+        redis_client.set(
+            f"staff_refresh:{refresh_token}",
+            json.dumps({
+                "staff_id": str(staff_id),
+                "role": "courier",
+                "issued_at": "legacy",
+            }),
+        )
+        staff = _make_staff_account(role_value="courier", is_active=False)
+        staff.id = staff_id
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = staff
+
+        result = StaffAuthService(mock_db, redis_client).refresh_tokens(refresh_token)
+
+        assert result is None
+        assert redis_client.get(f"staff_refresh:{refresh_token}") is None
 
     def test_expired_token(self, client: TestClient) -> None:
         mock_redis = MagicMock()

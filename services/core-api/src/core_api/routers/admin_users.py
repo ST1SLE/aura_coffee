@@ -17,8 +17,9 @@ from __future__ import annotations
 #   SCOPE:   User lifecycle transitions (PDD §6.5) and ADMIN_ADJUSTMENT
 #            loyalty mutations. Cascading order cancellation on block
 #            (PDD §7.6).
-#   DEPENDS: M-DATABASE (Session), core_api.services.admin_users,
-#            RBACMiddleware (ADMIN-only via rbac_matrix.ROUTE_MATRIX).
+#   DEPENDS: M-DATABASE (Session), Redis, core_api.services.admin_users,
+#            core_api.services.auth, RBACMiddleware (ADMIN-only via
+#            rbac_matrix.ROUTE_MATRIX).
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §6.5, §7.1 item 2,
 #            §7.6, INV-002, INV-004 (atomic loyalty), INV-010, INV-013
 #            (PII isolation), INV-016.
@@ -38,10 +39,12 @@ from __future__ import annotations
 import uuid
 from typing import Literal
 
+import redis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core_api.deps import database as _db_dep
+from core_api.deps import redis as _redis_dep
 from core_api.schemas.admin_users import (
     BlockUserResponse,
     LoyaltyAdjustRequest,
@@ -49,6 +52,7 @@ from core_api.schemas.admin_users import (
     UserDetailResponse,
     UserListResponse,
 )
+from core_api.services.auth import AuthService
 from core_api.services.admin_users import (
     InsufficientBalanceError,
     InvalidUserStateError,
@@ -66,6 +70,10 @@ router = APIRouter(prefix="/api/v1/admin/users", tags=["admin-users"])
 # Обёртка для patch-friendly dep resolution (см. routers/admin_orders.py)
 def _get_session():
     yield from _db_dep.get_session()
+
+
+def _get_redis():
+    yield from _redis_dep.get_redis()
 
 
 StatusFilter = Literal[
@@ -123,20 +131,23 @@ def get_admin_user_detail(
 # START_CONTRACT: block_admin_user
 #   PURPOSE: ACTIVE → BLOCKED transition + cascade-cancel of all active
 #            orders for that user (PDD §6.5 + §7.6).
-#   INPUTS:  user_id: UUID, Session.
+#   INPUTS:  user_id: UUID, Session, Redis client.
 #   OUTPUTS: 200 BlockUserResponse; 404 not found; 409 invalid_user_state.
-#   SIDE_EFFECTS: DB updates — user.status, plus cascade order cancellations
-#                 (single transaction, INV-004).
+#   SIDE_EFFECTS: DB updates — user.status, plus cascade order cancellations;
+#                 Redis session revocation for the blocked customer.
 #   LINKS:   PDD §6.5, §7.6, INV-002, INV-010, INV-016, services.admin_users.
 # END_CONTRACT: block_admin_user
 @router.post("/{user_id}/block", response_model=BlockUserResponse)
 def block_admin_user(
     user_id: uuid.UUID,
     db: Session = Depends(_get_session),
+    r: redis.Redis = Depends(_get_redis),
 ) -> BlockUserResponse:
     """ACTIVE → BLOCKED + каскад отмены заказов (PDD §6.5, §7.6)."""
     try:
-        return block_user(db=db, user_id=user_id)
+        response = block_user(db=db, user_id=user_id)
+        AuthService(r).revoke_user_sessions(user_id)
+        return response
     except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found"

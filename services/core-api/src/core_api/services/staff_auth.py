@@ -1,8 +1,9 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Staff (admin/barista/courier) authentication — login + bcrypt
 #            password verification, JWT access + opaque refresh tokens with
-#            Redis storage. Tokens carry role for INV-002 / INV-010 enforcement.
-#   SCOPE:   authenticate, refresh_tokens, logout.
+#            Redis storage and indexed revocation. Tokens carry role for
+#            INV-002 / INV-010 enforcement.
+#   SCOPE:   authenticate, refresh_tokens, revoke_staff_sessions, logout.
 #   DEPENDS: M-SHARED (StaffAccount), M-DATABASE, Redis, PyJWT, bcrypt
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, INV-002, INV-010, INV-013
 #   ROLE:    RUNTIME
@@ -11,7 +12,7 @@
 #
 # START_MODULE_MAP
 #   StaffTokenPair    - dataclass (access_token, refresh_token, role)
-#   StaffAuthService  - login + token issuance + refresh rotation + logout
+#   StaffAuthService  - login + token issuance + refresh rotation + revocation + logout
 # END_MODULE_MAP
 import json
 import uuid
@@ -54,6 +55,41 @@ class StaffAuthService:
         self._db = db
         self._redis = redis_client
 
+    def _refresh_key(self, refresh_token: str) -> str:
+        return f"staff_refresh:{refresh_token}"
+
+    def _sessions_index_key(self, staff_id: uuid.UUID) -> str:
+        return f"staff_sessions:{staff_id}"
+
+    def _remember_refresh_token(
+        self,
+        staff_id: uuid.UUID,
+        refresh_token: str,
+    ) -> None:
+        index_key = self._sessions_index_key(staff_id)
+        self._redis.sadd(index_key, refresh_token)
+        self._redis.expire(index_key, settings.refresh_token_ttl)
+
+    def _forget_refresh_token(
+        self,
+        refresh_token: str,
+        staff_id: uuid.UUID | None,
+    ) -> bool:
+        deleted = bool(self._redis.delete(self._refresh_key(refresh_token)))
+        if staff_id is not None:
+            self._redis.srem(self._sessions_index_key(staff_id), refresh_token)
+        return deleted
+
+    def _current_staff_allows_refresh(self, staff_id: uuid.UUID, role: str) -> bool:
+        staff = (
+            self._db.query(StaffAccount)
+            .filter(StaffAccount.id == staff_id)
+            .first()
+        )
+        if staff is None or not staff.is_active:
+            return False
+        return staff.role.value == role
+
     # START_CONTRACT: StaffAuthService.authenticate
     #   PURPOSE: Verify staff credentials with bcrypt; on success, issue token pair.
     #   INPUTS:  login: str, password: str
@@ -89,16 +125,41 @@ class StaffAuthService:
     # END_CONTRACT: StaffAuthService.refresh_tokens
     def refresh_tokens(self, refresh_token: str) -> StaffTokenPair | None:
         """Ротация refresh token: валидация → удаление → новая пара."""
-        key = f"staff_refresh:{refresh_token}"
+        key = self._refresh_key(refresh_token)
         raw = self._redis.get(key)
         if raw is None:
             return None
 
-        self._redis.delete(key)
         session_data = json.loads(raw)
         staff_id = uuid.UUID(session_data["staff_id"])
         role = session_data["role"]
+
+        if not self._current_staff_allows_refresh(staff_id, role):
+            self._forget_refresh_token(refresh_token, staff_id)
+            self.revoke_staff_sessions(staff_id)
+            return None
+
+        self._forget_refresh_token(refresh_token, staff_id)
         return self._issue_tokens(staff_id, role)
+
+    # START_CONTRACT: StaffAuthService.revoke_staff_sessions
+    #   PURPOSE: Revoke every indexed staff refresh session for a staff account,
+    #            used by future deactivate/delete flows and failed status checks.
+    #   INPUTS:  staff_id: UUID
+    #   OUTPUTS: int — number of session keys deleted.
+    #   SIDE_EFFECTS: Redis SMEMBERS + DEL on `staff_refresh:*`, DEL on
+    #                 `staff_sessions:<staff_id>`.
+    #   LINKS:   INV-002, INV-010.
+    # END_CONTRACT: StaffAuthService.revoke_staff_sessions
+    def revoke_staff_sessions(self, staff_id: uuid.UUID) -> int:
+        index_key = self._sessions_index_key(staff_id)
+        tokens = self._redis.smembers(index_key)
+        deleted = 0
+        for raw_token in tokens:
+            token = raw_token.decode() if isinstance(raw_token, bytes) else str(raw_token)
+            deleted += int(self._redis.delete(self._refresh_key(token)))
+        self._redis.delete(index_key)
+        return deleted
 
     # START_CONTRACT: StaffAuthService.logout
     #   PURPOSE: Invalidate the staff refresh token session.
@@ -108,7 +169,11 @@ class StaffAuthService:
     # END_CONTRACT: StaffAuthService.logout
     def logout(self, refresh_token: str) -> bool:
         """Удаление staff refresh token из Redis."""
-        return bool(self._redis.delete(f"staff_refresh:{refresh_token}"))
+        raw = self._redis.get(self._refresh_key(refresh_token))
+        staff_id = None
+        if isinstance(raw, (str, bytes, bytearray)):
+            staff_id = uuid.UUID(json.loads(raw)["staff_id"])
+        return self._forget_refresh_token(refresh_token, staff_id)
 
     def _issue_tokens(self, staff_id: uuid.UUID, role: str) -> StaffTokenPair:
         """Выпуск пары access + refresh токенов для сотрудника."""
@@ -141,9 +206,6 @@ class StaffAuthService:
             "role": role,
             "issued_at": datetime.now(UTC).isoformat(),
         })
-        self._redis.set(
-            f"staff_refresh:{token}",
-            session_data,
-            ex=settings.refresh_token_ttl,
-        )
+        self._redis.set(self._refresh_key(token), session_data, ex=settings.refresh_token_ttl)
+        self._remember_refresh_token(staff_id, token)
         return token
