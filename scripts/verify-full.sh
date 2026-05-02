@@ -56,18 +56,8 @@ run_compose() {
   docker compose exec -T "$service" "$@"
 }
 
-run_optional_python_audit() {
-  echo ""
-  echo "=== optional Python dependency audit ==="
-  if docker compose exec -T core-api sh -lc 'command -v pip-audit >/dev/null 2>&1'; then
-    docker compose exec -T core-api pip-audit
-  else
-    echo "skip: pip-audit is not installed in the core-api image."
-    echo "      Install it in the verification image before making this gate mandatory."
-  fi
-}
-
 require_command docker
+require_command uvx
 require_env_file
 
 required_services=(
@@ -109,7 +99,7 @@ run_compose web-admin npm run typecheck
 run_compose web-admin npm run test
 run_compose web-admin npm audit --audit-level=high
 
-run_optional_python_audit
+./scripts/check-python-deps.sh
 
 echo ""
 echo "Full verification passed."

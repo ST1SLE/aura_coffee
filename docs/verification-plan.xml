@@ -213,7 +213,7 @@
     </Gate-Local-Fast>
 
     <Gate-Local-Full PHASE="Local-Full">
-      <goal>Full local verification against an already-running non-destructive Compose stack: migrations, backend ruff, Python pytest suites, frontend lint/typecheck/Vitest, and dependency audit gates where available.</goal>
+      <goal>Full local verification against an already-running non-destructive Compose stack: migrations, backend ruff, Python pytest suites, frontend lint/typecheck/Vitest, and mandatory dependency audit gates.</goal>
       <commands>
         <command-1>./scripts/verify-full.sh</command-1>
       </commands>
@@ -221,7 +221,7 @@
         <evidence-1>Alembic check and upgrade head pass in the core-api container.</evidence-1>
         <evidence-2>Shared, core-api, payment-worker, and sms-worker pytest suites pass.</evidence-2>
         <evidence-3>Both frontend lint, typecheck, Vitest, and npm audit gates pass.</evidence-3>
-        <evidence-4>Python dependency audit runs when pip-audit is present in the verification image, or is reported as skipped.</evidence-4>
+        <evidence-4>Host-side pip-audit via uvx passes for core-api, payment-worker, sms-worker, and shared packages.</evidence-4>
         <evidence-5>Core API, payment-webhook, nginx canonical /health, and Celery workers pass non-destructive readiness checks.</evidence-5>
       </required-evidence>
     </Gate-Local-Full>

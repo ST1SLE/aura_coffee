@@ -279,6 +279,7 @@ Status:
 - Item 3 continued with the order lifecycle slice: `services/core-api/tests/test_order_lifecycle.py` now asserts `order_lifecycle.transition_order` transaction/state/commit markers and no state/commit marker on forbidden transition validation.
 - `./scripts/verify-fast.sh` now passes after cleaning up existing ruff drift in shared ORM forward references and two Core API route imports/exception bindings.
 - Item 5 is covered by `scripts/check-readiness.sh`, now wired into `scripts/verify-full.sh`: it checks direct Core API health, direct payment-webhook health, nginx canonical `/health`, and Celery worker pings.
+- Item 6 is covered by `cryptography>=46.0.7,<47.0` in core-api and sms-worker, a regenerated core-api lock pinned to `cryptography 46.0.7`, and mandatory `scripts/check-python-deps.sh` execution from `scripts/verify-full.sh`; host-side `pip-audit` now reports no known vulnerabilities for core-api, payment-worker, sms-worker, and shared.
 
 ## Parallelization Guidance
 
