@@ -57,19 +57,23 @@ Inserts / upserts:
 |--------|-------|
 | Admin staff | `admin` / `admin123` (from `initial_admin.py`, distinct seed) |
 | Barista staff | `barista` / `barista123` |
-| Courier staff | `courier` / `courier123` |
-| Customer | `+79991234567`, one default delivery address "Дом (QA)", loyalty balance = 0 |
-| Menu | 1 category, 1 drink "Капучино (QA)" 600 ₽ + size M; media fields start empty and are set during §2.1-A |
+| Courier staff | `courier` / `courier123`, plus `courier2` / `courier2123` for assignment-conflict checks |
+| Customers | Active `+79991234567`, blocked `+79990000001`, pending `+79990000002` |
+| Addresses | Active customer has "Дом (QA)" default, "Офис (QA)", and "Вне зоны (QA)" |
+| Loyalty | Active customer has at least 1200 points and seeded transaction history |
+| Menu | Drinks/food/merch/hidden QA categories; available, unavailable, archived items; sizes, modifiers, and media URL fields |
+| Promocodes | `QA10`, `QA100`, `QAPAUSED`, `QAEXPIRED`, `QAUSED` |
+| Orders | Representative pickup/delivery orders across created/paid/preparing/ready/in_delivery/completed/cancelled |
+| Courier assignments | Awaiting, assigned, picked-up, delivered, and cancelled QA assignments |
 | Shop settings | default working hours, delivery fee, loyalty percent |
-
-No promocodes, no prior orders. You create those during the walk.
 
 ### 0.3-B Prepare optional local media fixtures
 
-The video-media change stores **paths only** in the database. It does not upload
-or commit binaries from the admin UI. For a visual smoke test, place one small
-Aura-owned/generated video and one poster image under the Vite public tree before
-§2.1-A:
+The seed stores **paths only** in the database for `Капучино (QA)`:
+`/media/menu/cappuccino-qa/hero.mp4` and
+`/media/menu/cappuccino-qa/poster.webp`. It does not upload or commit binaries
+from the admin UI. For a visual smoke test, place one small
+Aura-owned/generated video and one poster image under the Vite public tree:
 
 ```bash
 mkdir -p web/customer/public/media/menu/cappuccino-qa
@@ -373,21 +377,22 @@ This is the fastest end-to-end path — no Yandex, no courier, one actor. Use it
 
 **UI.** `/menu` (customer SPA home). The customer shell is dark and mobile-first:
 bottom nav on phone widths, horizontal category tabs, and media-led item cards.
-Before §2.1-A the seeded "Капучино (QA)" has no media fields, so the card shows
-the neutral no-media panel rather than a broken image. Click the card → the
-bottom-sheet detail opens with size options (M, 600 ₽), any modifiers, and a
-fixed add-to-cart bar that remains visible at the bottom.
+The seeded "Капучино (QA)" has media URL fields; if the optional public files
+from §0.3-B are absent, the card/detail should degrade without blocking cart or
+checkout. Click the card → the bottom-sheet detail opens with size options
+(S/M/L), modifiers, and a fixed add-to-cart bar that remains visible at the
+bottom.
 
 **API.**
 
 ```bash
 curl -s $BASE/api/v1/menu | jq '.categories | map({id, name_ru, items: (.items|length)})'
-# Expect: [{ id:1, name_ru:"Phase4 QA — Напитки", items:1 }]
+# Expect visible QA categories for drinks, food, merch; hidden/archived rows stay out of public menu.
 
 curl -s $BASE/api/v1/menu \
   | jq '.categories[].items[] | select(.name_ru=="Капучино (QA)") |
         {image_url, media_type, media_url, media_poster_url, available, base_price}'
-# Before §2.1-A expect media_* = null and image_url = null.
+# Expect media_type="video" and the seeded public media paths.
 ```
 
 ### 2.1-A Admin sets menu media for the QA item
@@ -1172,7 +1177,7 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 
 - **Customer promocode input in cart/checkout** — no UI field yet. `promocode_code` is accepted on the order-create API (§2.5) but the SPA does not expose it. Planned for a later phase.
 - **Menu media binary workflow** — the admin form edits `media_type`, `media_url`, `media_poster_url`, and legacy `image_url` only. It does not upload files or verify that a referenced static asset exists. Preparing/committing product media remains a content/deploy step.
-- **Seeded QA drink has no media by default** — §2.1-A is the intentional setup step for media testing. This keeps the seed idempotent and avoids committing ad hoc binaries.
+- **Seeded media paths are references only** — the seed points `Капучино (QA)` at `/media/menu/cappuccino-qa/*`, but missing local binaries should degrade gracefully. Do not commit ad hoc QA media unless those files are approved product assets.
 - **Barista realtime feed** — orders table refreshes on poll / manual click, not push. New-order sound / badge is out of scope.
 - **`ADMIN_ADJUSTMENT` UI on customer page** — the row appears in `/profile/loyalty` history but has no link (no owning order). Intentional.
 - **YuKassa real backend** — `YUKASSA_BACKEND=live` requires production credentials; `services/payment-worker/src/payment_worker/main.py` refuses to start if `YUKASSA_BASE_URL` contains "test" / "sandbox" / "localhost" when `live` is set. Do not attempt to flip it during manual QA.
