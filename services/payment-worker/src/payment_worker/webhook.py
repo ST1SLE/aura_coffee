@@ -444,8 +444,9 @@ def _handle_payment_canceled(
 
 
 def _handle_refund_succeeded(session: Session, obj: dict[str, Any]) -> None:
-    from shared.enums import PaymentStatus
+    from shared.enums import PaymentStatus, RefundStatus
     from shared.models.payment import Payment
+    from shared.models.refund import Refund
 
     yukassa_id = obj.get("payment_id") or obj.get("id")
     if not yukassa_id:
@@ -457,7 +458,35 @@ def _handle_refund_succeeded(session: Session, obj: dict[str, Any]) -> None:
     )
     if payment is None:
         return
+    refund_id = obj.get("id")
+    refund = None
+    if refund_id:
+        refund = (
+            session.query(Refund)
+            .filter(Refund.yukassa_refund_id == refund_id)
+            .first()
+        )
+    if refund is None:
+        refund = (
+            session.query(Refund)
+            .filter(Refund.payment_id == payment.id)
+            .order_by(Refund.created_at.desc())
+            .first()
+        )
+    if refund is not None:
+        if refund_id:
+            refund.yukassa_refund_id = refund_id
+        refund.status = RefundStatus.SUCCEEDED
     payment.status = PaymentStatus.REFUNDED
+    _grace_log.block(
+        "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+    )
+    _grace_log.belief(
+        "process_webhook",
+        "BLOCK_STATE_TRANSITION",
+        belief="REFUNDED",
+        actual=payment.status.name,
+    )
 
 
 def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
@@ -465,10 +494,12 @@ def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
         NotificationChannel,
         NotificationType,
         PaymentStatus,
+        RefundStatus,
     )
     from shared.models.notification import Notification
     from shared.models.order import Order
     from shared.models.payment import Payment
+    from shared.models.refund import Refund
 
     yukassa_id = obj.get("payment_id") or obj.get("id")
     if not yukassa_id:
@@ -480,7 +511,35 @@ def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
     )
     if payment is None:
         return
+    refund_id = obj.get("id")
+    refund = None
+    if refund_id:
+        refund = (
+            session.query(Refund)
+            .filter(Refund.yukassa_refund_id == refund_id)
+            .first()
+        )
+    if refund is None:
+        refund = (
+            session.query(Refund)
+            .filter(Refund.payment_id == payment.id)
+            .order_by(Refund.created_at.desc())
+            .first()
+        )
+    if refund is not None:
+        if refund_id:
+            refund.yukassa_refund_id = refund_id
+        refund.status = RefundStatus.FAILED
     payment.status = PaymentStatus.REFUND_FAILED
+    _grace_log.block(
+        "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+    )
+    _grace_log.belief(
+        "process_webhook",
+        "BLOCK_STATE_TRANSITION",
+        belief="REFUND_FAILED",
+        actual=payment.status.name,
+    )
 
     # Админское уведомление: user_id обязан быть not-null, берём владельца заказа.
     order = session.get(Order, payment.order_id)

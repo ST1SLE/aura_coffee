@@ -9,8 +9,8 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from shared.grace.testing import GraceLogCapture
 
+from shared.grace.testing import GraceLogCapture
 
 WHITELISTED_IP = "127.0.0.1"
 
@@ -55,11 +55,13 @@ def _make_client(sqlite_engine, fake_redis):
     """Поднимает TestClient с подкинутыми sqlite + fakeredis."""
     from fastapi.testclient import TestClient
 
-    with patch("payment_worker.webhook.get_engine", return_value=sqlite_engine, create=True):
-        with patch("payment_worker.webhook.get_redis", return_value=fake_redis, create=True):
-            from payment_worker.webhook import app
+    with (
+        patch("payment_worker.webhook.get_engine", return_value=sqlite_engine, create=True),
+        patch("payment_worker.webhook.get_redis", return_value=fake_redis, create=True),
+    ):
+        from payment_worker.webhook import app
 
-            return TestClient(app)
+        return TestClient(app)
 
 
 def test_reject_request_from_untrusted_ip(
@@ -338,51 +340,85 @@ def test_payment_canceled_after_order_cancel_marks_payment_failed_without_restor
 def test_refund_succeeded_marks_refunded(
     seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
 ) -> None:
-    from shared.enums import PaymentStatus
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.refund import Refund
 
     payment = seed_user_order_payment["payment"]
     payment.status = PaymentStatus.REFUND_PENDING
     payment.yukassa_payment_id = "pay_xyz"
+    refund = Refund(
+        payment_id=payment.id,
+        yukassa_refund_id="ref_ok",
+        amount=payment.amount,
+        status=RefundStatus.PENDING,
+    )
+    db_session.add(refund)
     db_session.commit()
 
     client = _make_client(sqlite_engine, fake_redis)
-    resp = client.post(
-        "/webhooks/yukassa",
-        json={
-            "event": "refund.succeeded",
-            "object": {"payment_id": "pay_xyz"},
-        },
-        headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ref-ok"},
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "refund.succeeded",
+                "object": {"id": "ref_ok", "payment_id": "pay_xyz"},
+            },
+            headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ref-ok"},
+        )
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+        ("process_webhook", "BLOCK_STATE_TRANSITION"),
     )
+    assert grace_logs.beliefs(status="MISMATCH") == []
     assert resp.status_code == 200
 
     db_session.refresh(payment)
+    db_session.refresh(refund)
     assert payment.status == PaymentStatus.REFUNDED
+    assert refund.status == RefundStatus.SUCCEEDED
 
 
 def test_refund_canceled_marks_refund_failed_and_notifies_admin(
     seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
 ) -> None:
-    from shared.enums import PaymentStatus
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.refund import Refund
 
     payment = seed_user_order_payment["payment"]
     payment.status = PaymentStatus.REFUND_PENDING
     payment.yukassa_payment_id = "pay_xyz"
+    refund = Refund(
+        payment_id=payment.id,
+        yukassa_refund_id="ref_fail",
+        amount=payment.amount,
+        status=RefundStatus.PENDING,
+    )
+    db_session.add(refund)
     db_session.commit()
 
     client = _make_client(sqlite_engine, fake_redis)
-    resp = client.post(
-        "/webhooks/yukassa",
-        json={
-            "event": "refund.canceled",
-            "object": {"payment_id": "pay_xyz"},
-        },
-        headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ref-fail"},
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "refund.canceled",
+                "object": {"id": "ref_fail", "payment_id": "pay_xyz"},
+            },
+            headers={"X-Forwarded-For": WHITELISTED_IP, "X-Event-Id": "evt-ref-fail"},
+        )
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+        ("process_webhook", "BLOCK_STATE_TRANSITION"),
     )
+    assert grace_logs.beliefs(status="MISMATCH") == []
     assert resp.status_code == 200
 
     db_session.refresh(payment)
+    db_session.refresh(refund)
     assert payment.status == PaymentStatus.REFUND_FAILED
+    assert refund.status == RefundStatus.FAILED
 
     from shared.models.notification import Notification
 
@@ -439,16 +475,15 @@ def test_processing_exception_surfaces_as_500(
         "payment_worker.webhook.dispatch_event",
         side_effect=RuntimeError("kaboom"),
         create=True,
-    ):
-        with pytest.raises(RuntimeError):  # TestClient по умолчанию прокидывает
-            client.post(
-                "/webhooks/yukassa",
-                json={"event": "payment.succeeded", "object": {"id": "pay_xyz"}},
-                headers={
-                    "X-Forwarded-For": WHITELISTED_IP,
-                    "X-Event-Id": "evt-crash",
-                },
-            )
+    ), pytest.raises(RuntimeError):  # TestClient по умолчанию прокидывает
+        client.post(
+            "/webhooks/yukassa",
+            json={"event": "payment.succeeded", "object": {"id": "pay_xyz"}},
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-crash",
+            },
+        )
 
     # event_id НЕ должен быть помечен как обработанный — ЮKassa повторит
     assert fake_redis.get("yukassa:event:evt-crash") is None

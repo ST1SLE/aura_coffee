@@ -36,6 +36,8 @@ function makeOrder(
     items: overrides.items ?? [],
     customer_display_name: overrides.customer_display_name ?? null,
     customer_contact_phone: overrides.customer_contact_phone ?? null,
+    payment_status: overrides.payment_status ?? null,
+    can_retry_refund: overrides.can_retry_refund ?? false,
   };
 }
 
@@ -205,6 +207,20 @@ describe('OrderDetailDialog', () => {
         'order-action-ready',
         'order-action-handout',
         'order-action-cancel',
+        'order-action-retry-refund',
+      ],
+    },
+    {
+      label: 'admin on CANCELLED with failed refund: sees retry refund',
+      role: 'admin',
+      status: 'cancelled',
+      type: 'pickup',
+      visible: ['order-action-retry-refund'],
+      hidden: [
+        'order-action-accept',
+        'order-action-ready',
+        'order-action-handout',
+        'order-action-cancel',
       ],
     },
   ];
@@ -212,7 +228,14 @@ describe('OrderDetailDialog', () => {
   for (const c of cases) {
     test(c.label, () => {
       currentRole = c.role;
-      const order = makeOrder({ status: c.status, type: c.type });
+      const order = makeOrder({
+        status: c.status,
+        type: c.type,
+        payment_status: c.visible.includes('order-action-retry-refund')
+          ? 'refund_failed'
+          : null,
+        can_retry_refund: c.visible.includes('order-action-retry-refund'),
+      });
       render(
         <OrderDetailDialog
           order={order}
@@ -298,5 +321,62 @@ describe('OrderDetailDialog', () => {
       expect(screen.queryByTestId('order-cancel-confirm')).not.toBeInTheDocument(),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // ── 8.x refund retry ──────────────────────────────────────────────────────
+
+  test('renders payment status and lets admin retry failed refund', async () => {
+    currentRole = 'admin';
+    mockFetchJson(
+      fetchMock,
+      {
+        order_id: 'order-uuid-1',
+        payment_id: 'payment-uuid-1',
+        payment_status: 'refund_failed',
+        queued: true,
+      },
+      202,
+    );
+    const onAction = vi.fn();
+    const order = makeOrder({
+      id: 'order-uuid-1',
+      status: 'cancelled',
+      payment_status: 'refund_failed',
+      can_retry_refund: true,
+    });
+    render(
+      <OrderDetailDialog
+        order={order}
+        open={true}
+        onClose={vi.fn()}
+        onAction={onAction}
+      />,
+    );
+    expect(screen.getByTestId('order-payment-status')).toHaveTextContent(
+      'Возврат не прошёл',
+    );
+    fireEvent.click(screen.getByTestId('order-action-retry-refund'));
+    await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/admin/orders/order-uuid-1/refund/retry');
+    expect(init.method).toBe('POST');
+  });
+
+  test('barista cannot see retry refund action', () => {
+    currentRole = 'barista';
+    const order = makeOrder({
+      status: 'cancelled',
+      payment_status: 'refund_failed',
+      can_retry_refund: true,
+    });
+    render(
+      <OrderDetailDialog
+        order={order}
+        open={true}
+        onClose={vi.fn()}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('order-action-retry-refund')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 // Типы зеркалят Pydantic-схемы из services/core-api/src/core_api/schemas/order_history.py
-// (admin-orders-api: list + staff contact detail) и schemas/order.py
+// (admin-orders-api: list + staff contact/detail/refund retry) и schemas/order.py
 // (staff-transitions + cancel).
 // Клиент — тонкий, без state-machine: UI решает какую кнопку показать,
 // сервер решает легитимность перехода (INV-016).
@@ -7,15 +7,15 @@
 import { authenticatedFetch, ApiError } from './client';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Typed client for admin-only order endpoints — list/get detail with
-//            contact projection/transition/cancel.
+//   PURPOSE: Typed client for admin order endpoints — list/get detail with
+//            contact projection/refund retry plus transition/cancel commands.
 //   SCOPE:   Wraps /api/v1/admin/orders/* and /api/v1/orders/{id}/{status,cancel};
 //            UI decides which button to show, server enforces transition legality.
 //   DEPENDS: ./client (authenticatedFetch, ApiError); mirrors core-api Pydantic schemas.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
 //            INV-002 (admin scope enforced server-side), INV-014 (order_items
 //            include menu_item_name snapshot for historical fidelity), INV-013
-//            (contact phone only on staff detail payload),
+//            (contact phone only on staff detail payload), PDD §6.2 refund retry,
 //            INV-016 (state-machine transitions).
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -33,6 +33,7 @@ import { authenticatedFetch, ApiError } from './client';
 //   ListAdminOrdersParams     - query params for listAdminOrders
 //   listAdminOrders           - GET /api/v1/admin/orders
 //   getAdminOrder             - GET /api/v1/admin/orders/{id}
+//   retryRefund               - POST /api/v1/admin/orders/{id}/refund/retry
 //   updateOrderStatus         - PATCH /api/v1/orders/{id}/status (INV-016)
 //   cancelAdminOrder          - POST /api/v1/orders/{id}/cancel (INV-016)
 // END_MODULE_MAP
@@ -51,6 +52,15 @@ export type OrderStatus =
   | 'cancelled';
 
 export type OrderType = 'pickup' | 'delivery';
+
+export type PaymentStatus =
+  | 'pending'
+  | 'awaiting_confirmation'
+  | 'succeeded'
+  | 'payment_failed'
+  | 'refund_pending'
+  | 'refunded'
+  | 'refund_failed';
 
 // UI-шный фильтр: 'active' и конкретный OrderStatus — серверные значения,
 // 'all' — клиентский sentinel, означающий "не передавать status=" (будет
@@ -89,6 +99,8 @@ export interface OrderResponse {
 export interface StaffOrderDetailResponse extends OrderResponse {
   customer_display_name: string | null;
   customer_contact_phone: string | null;
+  payment_status: PaymentStatus | null;
+  can_retry_refund: boolean;
 }
 
 export interface OrderListResponse {
@@ -151,6 +163,28 @@ export const listAdminOrders = (
 // END_CONTRACT: getAdminOrder
 export const getAdminOrder = (orderId: string): Promise<StaffOrderDetailResponse> =>
   json(`/api/v1/admin/orders/${orderId}`);
+
+// START_CONTRACT: retryRefund
+//   PURPOSE: Enqueue an admin retry for a failed refund. Server verifies ADMIN
+//            role and Payment.REFUND_FAILED; payment-worker performs the actual
+//            REFUND_FAILED -> REFUND_PENDING transition.
+//   INPUTS:  orderId: string — UUID of the order
+//   OUTPUTS: Promise<{queued: true, order_id, payment_id, payment_status}>
+//   SIDE_EFFECTS: POST request; 202 when queued, 409 when not retryable,
+//                 403 when non-admin.
+//   LINKS:   PDD §6.2, INV-002, INV-016.
+// END_CONTRACT: retryRefund
+export const retryRefund = (
+  orderId: string,
+): Promise<{
+  order_id: string;
+  payment_id: string;
+  payment_status: PaymentStatus;
+  queued: boolean;
+}> =>
+  json(`/api/v1/admin/orders/${orderId}/refund/retry`, {
+    method: 'POST',
+  });
 
 // START_CONTRACT: updateOrderStatus
 //   PURPOSE: Drive the order state machine forward (paid→preparing→ready→completed).

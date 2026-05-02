@@ -1,14 +1,15 @@
 """Pydantic-схемы истории заказов и repeat-order (PDD §7.7)."""
 # START_MODULE_CONTRACT
 #   PURPOSE: DTOs for the customer order-history feed, staff order detail, and
-#            repeat-order result. Models expose immutable order_item snapshots
-#            (INV-014) and accept both attribute and subscript access for
-#            fallback test patterns.
+#            repeat-order result. Staff detail also carries payment retry
+#            metadata. Models expose immutable order_item snapshots (INV-014)
+#            and accept both attribute and subscript access for fallback test
+#            patterns.
 #   SCOPE:   Pydantic models + private _SubscriptMixin for getitem support.
 #   DEPENDS: pydantic v2.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.7,
 #            INV-013 (staff contact phone is a read-only detail projection),
-#            INV-014 (order_items are immutable snapshots)
+#            INV-014 (order_items are immutable snapshots), INV-016
 #   ROLE:    TYPES
 #   MAP_MODE: EXPORTS
 # END_MODULE_CONTRACT
@@ -24,8 +25,8 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
+import uuid  # noqa: TC003
+from datetime import datetime  # noqa: TC003
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -91,6 +92,8 @@ class StaffOrderDetailResponse(OrderResponse):
 
     customer_display_name: str | None = None
     customer_contact_phone: str | None = None
+    payment_status: str | None = None
+    can_retry_refund: bool = False
 
 
 class RepeatOrderSkippedEntry(_SubscriptMixin, BaseModel):

@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core_api.main import app
-from shared.enums import OrderStatus, OrderType
+from shared.enums import OrderStatus, OrderType, PaymentStatus
 from tests._factories.orders import make_user, seed_orders_across_statuses
 
 
@@ -31,9 +31,9 @@ def admin_feed_client(db_session):
         patch("core_api.deps.redis.get_redis", side_effect=_override_redis),
         patch("core_api.deps.database.get_session", side_effect=_override_db),
         patch("core_api.deps.database.get_db", side_effect=_override_db),
+        TestClient(app) as c,
     ):
-        with TestClient(app) as c:
-            yield c
+        yield c
     fake_redis.flushall()
 
 
@@ -140,6 +140,41 @@ def test_admin_orders_detail_returns_other_users_order(
     body = response.json()
     assert body["id"] == str(order_id)
     assert body["user_id"] == str(user_b.id)
+
+
+def test_admin_orders_detail_includes_refund_retry_state(
+    admin_feed_client, admin_headers, db_session
+) -> None:
+    """5.4a — staff detail exposes payment status and retry eligibility."""
+    from shared.models.payment import Payment
+
+    user_b = make_user(db_session)
+    db_session.commit()
+
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user_b,
+        counts={(OrderStatus.CANCELLED, OrderType.PICKUP): 1},
+    )
+    [order_id] = seed.order_ids_by_bucket[(OrderStatus.CANCELLED, OrderType.PICKUP)]
+    db_session.add(
+        Payment(
+            order_id=order_id,
+            amount=50000,
+            status=PaymentStatus.REFUND_FAILED,
+            yukassa_payment_id="pay_refund_failed",
+        )
+    )
+    db_session.commit()
+
+    response = admin_feed_client.get(
+        f"/api/v1/admin/orders/{order_id}", headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["payment_status"] == "refund_failed"
+    assert body["can_retry_refund"] is True
 
 
 def test_admin_orders_detail_barista_sees_other_users_order(

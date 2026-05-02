@@ -122,12 +122,15 @@
       <scenarios>
         <scenario-1 kind="success">YuKassa webhook with valid signature transitions Payment to SUCCEEDED.</scenario-1>
         <scenario-2 kind="failure">Invalid signature webhook is rejected without DB writes.</scenario-2>
+        <scenario-3 kind="recovery">Admin refund retry creates a new refunds row and drives REFUND_FAILED to REFUND_PENDING only after YuKassa accepts the retry.</scenario-3>
       </scenarios>
       <required-log-markers>
         <marker-1>[PaymentWorker][process_webhook][BLOCK_WEBHOOK_VERIFY]</marker-1>
         <marker-2>[PaymentWorker][process_webhook][BLOCK_TX_PAYMENT]</marker-2>
         <marker-3>[PaymentWorker][create_intent][BLOCK_TX_PAYMENT]</marker-3>
         <marker-4>[PaymentWorker][create_intent][BLOCK_STATE_TRANSITION]</marker-4>
+        <marker-5>[PaymentWorker][initiate_refund][BLOCK_TX_PAYMENT]</marker-5>
+        <marker-6>[PaymentWorker][initiate_refund][BLOCK_STATE_TRANSITION]</marker-6>
       </required-log-markers>
     </V-M-PAYMENT-WORKER>
 

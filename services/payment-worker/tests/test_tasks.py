@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+
 from shared.grace.testing import GraceLogCapture
 
 
@@ -215,19 +216,21 @@ def test_create_payment_compensation_is_atomic(
     """
     from shared.enums import OrderStatus, PaymentStatus
 
-    with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
-        with patch(
+    with (
+        patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True),
+        patch(
             "payment_worker.tasks._decrement_promocode",
             side_effect=RuntimeError("boom"),
             create=True,
-        ):
-            from payment_worker.tasks import _fail_payment_and_cancel_order
+        ),
+    ):
+        from payment_worker.tasks import _fail_payment_and_cancel_order
 
-            with pytest.raises(RuntimeError):
-                _fail_payment_and_cancel_order(
-                    order_id=str(seed_user_order_payment["order"].id),
-                    payment_id=str(seed_user_order_payment["payment"].id),
-                )
+        with pytest.raises(RuntimeError):
+            _fail_payment_and_cancel_order(
+                order_id=str(seed_user_order_payment["order"].id),
+                payment_id=str(seed_user_order_payment["payment"].id),
+            )
 
     from shared.models.order import Order
     from shared.models.payment import Payment
@@ -263,17 +266,90 @@ def test_initiate_refund_success_marks_refund_pending(
         "status": "pending",
         "payment_id": "pay_xyz",
     }
-    with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
-        with patch("payment_worker.tasks.YukassaClient", return_value=fake_client, create=True):
-            from payment_worker.tasks import initiate_refund
+    with (
+        patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True),
+        patch("payment_worker.tasks.YukassaClient", return_value=fake_client, create=True),
+    ):
+        from payment_worker.tasks import initiate_refund
 
+        with GraceLogCapture() as grace_logs:
             initiate_refund.run(
                 payment_id=str(payment.id),
                 amount_kopecks=payment.amount,
             )
 
+    grace_logs.assert_trajectory(
+        ("initiate_refund", "BLOCK_TX_PAYMENT"),
+        ("initiate_refund", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+
     db_session.refresh(payment)
     assert payment.status == PaymentStatus.REFUND_PENDING
+    fake_client.create_refund.assert_called_once_with(
+        payment_id="pay_xyz",
+        amount_kopecks=payment.amount,
+        idempotency_key=f"refund-{payment.id}",
+    )
+
+    from shared.enums import RefundStatus
+    from shared.models.refund import Refund
+
+    refund = db_session.query(Refund).filter_by(payment_id=payment.id).one()
+    assert refund.amount == payment.amount
+    assert refund.status == RefundStatus.PENDING
+    assert refund.reason == "order_cancel"
+    assert refund.yukassa_refund_id == "ref_abc"
+
+
+def test_initiate_refund_retry_from_refund_failed_uses_fresh_key(
+    seed_user_order_payment, db_session, sqlite_engine
+) -> None:
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.payment import Payment
+    from shared.models.refund import Refund
+
+    payment = db_session.get(Payment, seed_user_order_payment["payment"].id)
+    payment.status = PaymentStatus.REFUND_FAILED
+    payment.yukassa_payment_id = "pay_xyz"
+    db_session.commit()
+
+    fake_client = MagicMock()
+    fake_client.create_refund.return_value = {
+        "id": "ref_retry",
+        "status": "pending",
+        "payment_id": "pay_xyz",
+    }
+    with (
+        patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True),
+        patch("payment_worker.tasks.YukassaClient", return_value=fake_client, create=True),
+    ):
+        from payment_worker.tasks import initiate_refund
+
+        with GraceLogCapture() as grace_logs:
+            initiate_refund.run(
+                payment_id=str(payment.id),
+                amount_kopecks=payment.amount,
+                idempotency_key="refund-retry-key",
+            )
+
+    grace_logs.assert_trajectory(
+        ("initiate_refund", "BLOCK_TX_PAYMENT"),
+        ("initiate_refund", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+
+    db_session.refresh(payment)
+    assert payment.status == PaymentStatus.REFUND_PENDING
+    fake_client.create_refund.assert_called_once_with(
+        payment_id="pay_xyz",
+        amount_kopecks=payment.amount,
+        idempotency_key="refund-retry-key",
+    )
+    refund = db_session.query(Refund).filter_by(payment_id=payment.id).one()
+    assert refund.status == RefundStatus.PENDING
+    assert refund.reason == "admin_retry"
+    assert refund.yukassa_refund_id == "ref_retry"
 
 
 def test_initiate_refund_failure_does_not_mutate(
@@ -294,15 +370,23 @@ def test_initiate_refund_failure_does_not_mutate(
     fake_client = MagicMock()
     fake_client.create_refund.side_effect = httpx.RequestError("boom")
 
-    with patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True):
-        with patch("payment_worker.tasks.YukassaClient", return_value=fake_client, create=True):
-            from payment_worker.tasks import initiate_refund
+    with (
+        patch("payment_worker.tasks.get_engine", return_value=sqlite_engine, create=True),
+        patch("payment_worker.tasks.YukassaClient", return_value=fake_client, create=True),
+    ):
+        from payment_worker.tasks import initiate_refund
 
-            # Задача не должна падать наружу — ошибка поглощается и логируется
-            initiate_refund.run(
-                payment_id=str(payment.id),
-                amount_kopecks=payment.amount,
-            )
+        # Задача не должна падать наружу — ошибка поглощается и логируется
+        initiate_refund.run(
+            payment_id=str(payment.id),
+            amount_kopecks=payment.amount,
+        )
 
     db_session.refresh(payment)
     assert payment.status == PaymentStatus.SUCCEEDED
+
+    from shared.enums import RefundStatus
+    from shared.models.refund import Refund
+
+    refund = db_session.query(Refund).filter_by(payment_id=payment.id).one()
+    assert refund.status == RefundStatus.FAILED

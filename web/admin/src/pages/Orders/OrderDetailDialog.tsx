@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Phone } from 'lucide-react';
+import { Phone, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,15 +14,17 @@ import { useCurrentRole } from '@/lib/auth';
 import {
   updateOrderStatus,
   cancelAdminOrder,
+  retryRefund,
   ApiError,
 } from '@/api/admin-orders';
 import type { OrderStatus, StaffOrderDetailResponse } from '@/api/admin-orders';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Modal dialog showing full order detail (items, totals, customer
-//            contact), and exposing role-gated state-machine actions — Accept
-//            (paid→preparing), Mark Ready (preparing→ready), Hand Out
-//            (ready→completed for pickup), Cancel (admin only).
+//            contact/payment recovery state), and exposing role-gated
+//            state-machine actions — Accept (paid→preparing), Mark Ready
+//            (preparing→ready), Hand Out (ready→completed for pickup), Cancel
+//            (admin only), Retry Refund (admin only).
 //   SCOPE:   Mounted by OrdersPage with the currently selected order.
 //   DEPENDS: react, react-i18next, ui primitives, @/lib/auth (useCurrentRole),
 //            lucide-react, @/api/admin-orders, ./StatusBadge.
@@ -67,10 +69,17 @@ interface StaffActionsProps {
   order: StaffOrderDetailResponse;
   onTransition: (next: OrderStatus) => Promise<void>;
   onCancelClick: () => void;
+  onRefundRetry: () => Promise<void>;
   inFlight: boolean;
 }
 
-function StaffActions({ order, onTransition, onCancelClick, inFlight }: StaffActionsProps) {
+function StaffActions({
+  order,
+  onTransition,
+  onCancelClick,
+  onRefundRetry,
+  inFlight,
+}: StaffActionsProps) {
   const { t } = useTranslation();
   const role = useCurrentRole();
 
@@ -85,8 +94,9 @@ function StaffActions({ order, onTransition, onCancelClick, inFlight }: StaffAct
     order.type === 'pickup' &&
     (role === 'admin' || role === 'barista');
   const canCancel = role === 'admin' && !isFinalized;
+  const canRetryRefund = role === 'admin' && order.can_retry_refund;
 
-  const any = canAccept || canReady || canHandout || canCancel;
+  const any = canAccept || canReady || canHandout || canCancel || canRetryRefund;
   if (!any) return null;
 
   return (
@@ -128,21 +138,32 @@ function StaffActions({ order, onTransition, onCancelClick, inFlight }: StaffAct
           {t('pages.orders.actions.cancel')}
         </Button>
       )}
+      {canRetryRefund && (
+        <Button
+          variant="outline"
+          onClick={onRefundRetry}
+          disabled={inFlight}
+          data-testid="order-action-retry-refund"
+        >
+          <RefreshCw aria-hidden="true" />
+          <span>{t('pages.orders.actions.retry_refund')}</span>
+        </Button>
+      )}
     </div>
   );
 }
 
 // START_CONTRACT: OrderDetailDialog
 //   PURPOSE: Render the order detail modal with role-gated action buttons that
-//            drive the order state machine forward, and an admin-only cancel
-//            confirmation. Reports successful transitions via onAction so the
+//            drive the order/payment state machines, and an admin-only cancel
+//            confirmation. Reports successful commands via onAction so the
 //            parent re-fetches; routes 409/other errors to onError for unified
 //            handling.
 //   INPUTS:  Props { order, open, onClose, onAction, onError? }
 //   OUTPUTS: JSX.Element | null (null when no order selected).
-//   SIDE_EFFECTS: PATCH updateOrderStatus / POST cancelAdminOrder; transitions
-//            are server-validated (INV-016). Reads useCurrentRole solely to
-//            decide which buttons to render.
+//   SIDE_EFFECTS: PATCH updateOrderStatus / POST cancelAdminOrder /
+//            POST retryRefund; transitions are server-validated (INV-016).
+//            Reads useCurrentRole solely to decide which buttons to render.
 //   LINKS:   INV-002 (server is the security boundary; this component only
 //            controls UX visibility of buttons),
 //            INV-013 (renders contact phone only from staff detail projection),
@@ -193,6 +214,19 @@ export function OrderDetailDialog({
       if (err instanceof ApiError && err.status === 409) {
         setConfirmOpen(false);
       }
+      onError?.(err);
+    } finally {
+      setInFlight(false);
+    }
+  }
+
+  async function runRefundRetry() {
+    if (!order) return;
+    setInFlight(true);
+    try {
+      await retryRefund(order.id);
+      onAction();
+    } catch (err) {
       onError?.(err);
     } finally {
       setInFlight(false);
@@ -300,10 +334,27 @@ export function OrderDetailDialog({
             </div>
           </section>
 
+          {order.payment_status && (
+            <section className="rounded-md border p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {t('pages.orders.detail.payment_status')}
+                </span>
+                <span
+                  className="font-medium"
+                  data-testid="order-payment-status"
+                >
+                  {t(`pages.orders.payment_status.${order.payment_status}`)}
+                </span>
+              </div>
+            </section>
+          )}
+
           <StaffActions
             order={order}
             onTransition={runTransition}
             onCancelClick={() => setConfirmOpen(true)}
+            onRefundRetry={runRefundRetry}
             inFlight={inFlight}
           />
         </DialogContent>

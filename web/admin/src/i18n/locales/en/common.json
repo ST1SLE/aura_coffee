@@ -70,7 +70,17 @@
         "ready": "Ready",
         "handout": "Hand out",
         "cancel": "Cancel",
+        "retry_refund": "Retry refund",
         "details": "Details"
+      },
+      "payment_status": {
+        "pending": "Pending",
+        "awaiting_confirmation": "Awaiting confirmation",
+        "succeeded": "Paid",
+        "payment_failed": "Payment failed",
+        "refund_pending": "Refund pending",
+        "refunded": "Refunded",
+        "refund_failed": "Refund failed"
       },
       "cancel_confirm": {
         "title": "Cancel order?",
@@ -85,6 +95,7 @@
         "customer_unknown": "No name",
         "contact_phone": "Phone",
         "contact_unavailable": "Unavailable",
+        "payment_status": "Payment",
         "items": "Items",
         "subtotal": "Subtotal",
         "discount": "Discount",
@@ -101,6 +112,7 @@
       },
       "errors": {
         "illegal_transition": "Transition not allowed — order status refreshed",
+        "refund_retry_not_allowed": "Refund can no longer be retried",
         "forbidden": "You don't have permission for this action",
         "not_found": "Order not found"
       }

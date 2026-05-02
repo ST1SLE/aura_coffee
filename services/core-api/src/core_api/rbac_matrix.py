@@ -95,6 +95,8 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # ── Admin orders feed (PDD §4.5, INV-010) — admin + barista ───────────
     ("GET", "/api/v1/admin/orders"):              {ADMIN, BARISTA},
     ("GET", "/api/v1/admin/orders/{order_id}"):   {ADMIN, BARISTA},
+    # ── Admin refund recovery (PDD §6.2, INV-016) — только ADMIN ──────────
+    ("POST", "/api/v1/admin/orders/{order_id}/refund/retry"): {ADMIN},
     # ── Admin dashboard stats (PDD §4.5, §7.1 Phase 6 item 1, INV-010) — только ADMIN ──
     ("GET", "/api/v1/admin/stats"): {ADMIN},
     # ── Admin users (PDD §6.5, §7.1 Phase 6 item 2, INV-010) — только ADMIN ──

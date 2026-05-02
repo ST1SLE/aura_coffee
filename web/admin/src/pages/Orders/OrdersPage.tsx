@@ -23,12 +23,14 @@ import { OrderDetailDialog } from './OrderDetailDialog';
 //   PURPOSE: Admin/barista orders feed — status filter tabs (incl. 'active'
 //            aggregate), type filter, paginated list, polling on 'active' tab
 //            (paused when document.hidden), and an OrderDetailDialog for
-//            inspecting, contacting, and transitioning orders.
+//            inspecting, contacting, transitioning orders, and retrying failed
+//            refunds.
 //   SCOPE:   Mounted at /orders under the admin/barista layout. Visible to both
 //            roles; the dialog hides destructive controls for non-admin roles.
 //   DEPENDS: react, react-router-dom, react-i18next, ui primitives,
 //            @/api/admin-orders, sibling OrdersTable + OrderDetailDialog.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
+//            PDD §6.2 payment refund retry,
 //            AGENTS.md (real-time feed within 5s — implemented as 10s polling),
 //            INV-002 (server enforces role on every transition),
 //            INV-013 (contact phone appears only after staff detail fetch),
@@ -77,6 +79,15 @@ function parseStatus(raw: string | null): AdminOrderStatusFilter {
 function parseType(raw: string | null): OrderType | 'all' {
   if (raw === 'pickup' || raw === 'delivery') return raw;
   return 'all';
+}
+
+function isApiErrorDetail(body: unknown, detail: string): boolean {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    'detail' in body &&
+    (body as { detail?: unknown }).detail === detail
+  );
 }
 
 function parsePage(raw: string | null): number {
@@ -165,7 +176,12 @@ export function OrdersPage() {
           reload();
           return;
         case 409:
-          notify(t('pages.orders.errors.illegal_transition'), 'error');
+          notify(
+            isApiErrorDetail(err.body, 'refund_not_retryable')
+              ? t('pages.orders.errors.refund_retry_not_allowed')
+              : t('pages.orders.errors.illegal_transition'),
+            'error',
+          );
           if (ctx.orderId) {
             try {
               const fresh = await getAdminOrder(ctx.orderId);

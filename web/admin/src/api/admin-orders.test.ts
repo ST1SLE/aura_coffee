@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   listAdminOrders,
   getAdminOrder,
+  retryRefund,
   updateOrderStatus,
   cancelAdminOrder,
   ApiError,
@@ -92,6 +93,23 @@ describe('api/admin-orders', () => {
     expect(url).toContain('/api/v1/admin/orders/00000000-0000-0000-0000-000000000001');
     // GET не передаёт init.method — это дефолт fetch.
     expect(init?.method ?? 'GET').toBe('GET');
+  });
+
+  // ── retryRefund ───────────────────────────────────────────────────────────
+
+  it('retryRefund POSTs to the admin refund retry endpoint', async () => {
+    mockJson({
+      order_id: 'order-uuid-1',
+      payment_id: 'payment-uuid-1',
+      payment_status: 'refund_failed',
+      queued: true,
+    }, 202);
+
+    await retryRefund('order-uuid-1');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/admin/orders/order-uuid-1/refund/retry');
+    expect(init.method).toBe('POST');
   });
 
   // ── updateOrderStatus ──────────────────────────────────────────────────────

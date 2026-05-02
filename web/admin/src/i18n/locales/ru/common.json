@@ -70,7 +70,17 @@
         "ready": "Готов",
         "handout": "Выдан",
         "cancel": "Отменить",
+        "retry_refund": "Повторить возврат",
         "details": "Детали"
+      },
+      "payment_status": {
+        "pending": "Ожидает",
+        "awaiting_confirmation": "Ждёт подтверждения",
+        "succeeded": "Оплачен",
+        "payment_failed": "Оплата не прошла",
+        "refund_pending": "Возврат в процессе",
+        "refunded": "Возвращён",
+        "refund_failed": "Возврат не прошёл"
       },
       "cancel_confirm": {
         "title": "Отменить заказ?",
@@ -85,6 +95,7 @@
         "customer_unknown": "Без имени",
         "contact_phone": "Телефон",
         "contact_unavailable": "Недоступен",
+        "payment_status": "Платёж",
         "items": "Позиции",
         "subtotal": "Сумма позиций",
         "discount": "Скидка",
@@ -101,6 +112,7 @@
       },
       "errors": {
         "illegal_transition": "Недопустимый переход — статус заказа обновлён",
+        "refund_retry_not_allowed": "Возврат уже нельзя повторить",
         "forbidden": "Недостаточно прав для этого действия",
         "not_found": "Заказ не найден"
       }

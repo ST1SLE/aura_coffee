@@ -9,7 +9,8 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Celery tasks driving the Payment lifecycle (PDD §6.2):
 #            create_payment performs PENDING -> AWAITING_CONFIRMATION via
-#            YuKassa; initiate_refund performs SUCCEEDED -> REFUND_PENDING.
+#            YuKassa; initiate_refund performs SUCCEEDED/REFUND_FAILED ->
+#            REFUND_PENDING.
 #            On terminal create-payment failure the private compensation
 #            helper executes Payment -> PAYMENT_FAILED + Order -> CANCELLED
 #            + finite inventory restore + loyalty REVERSAL + promocode
@@ -34,8 +35,8 @@
 #   create_payment     - Celery task: PENDING -> AWAITING_CONFIRMATION; on
 #                        terminal failure compensates to PAYMENT_FAILED + order
 #                        CANCELLED (INV-004)
-#   initiate_refund    - Celery task: SUCCEEDED -> REFUND_PENDING (full refund
-#                        only, per INV-005)
+#   initiate_refund    - Celery task: SUCCEEDED/REFUND_FAILED -> REFUND_PENDING
+#                        (full refund only, per INV-005)
 #   logger             - module logger
 # END_MODULE_MAP
 
@@ -53,7 +54,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 from payment_worker.main import celery_app
 from payment_worker.yukassa_client import YukassaClient
-
 from shared.grace.logging import get_grace_logger
 
 _grace_log = get_grace_logger("PaymentWorker")
@@ -304,20 +304,25 @@ def create_payment(
 
 
 # START_CONTRACT: initiate_refund
-#   PURPOSE: Drive the PDD §6.2 transition Payment.SUCCEEDED ->
-#            REFUND_PENDING by calling YuKassa POST /v3/refunds. Full refund
-#            only (per INV-005). Refund finalization (REFUNDED /
+#   PURPOSE: Drive the PDD §6.2 transitions Payment.SUCCEEDED ->
+#            REFUND_PENDING and Payment.REFUND_FAILED -> REFUND_PENDING by
+#            creating a new refunds row and calling YuKassa POST /v3/refunds.
+#            Full refund only (per INV-005). Refund finalization (REFUNDED /
 #            REFUND_FAILED) lands later via webhook.
 #   INPUTS:  self: Celery task binding (bind=True)
 #            payment_id: str — UUID string of the local Payment row
 #            amount_kopecks: int — refund amount in kopecks (must equal the
 #                                  original gross amount, INV-005)
+#            idempotency_key: str | None — optional caller-provided key; admin
+#                                  retries pass a fresh key, cancellation uses
+#                                  the deterministic payment-level key
 #   OUTPUTS: None
-#   SIDE_EFFECTS: DB write to `payments` (status -> REFUND_PENDING). External
-#                 HTTP POST to YuKassa /v3/refunds with a derived
-#                 idempotency-key. YuKassa errors are swallowed (admin
-#                 follow-up) — Payment status stays SUCCEEDED in that case so
-#                 the state machine never silently regresses (INV-016).
+#   SIDE_EFFECTS: DB INSERT to `refunds`; DB write to `payments`
+#                 (status -> REFUND_PENDING after YuKassa accepts). External
+#                 HTTP POST to YuKassa /v3/refunds. YuKassa errors are
+#                 swallowed (admin follow-up) — Payment status stays at the
+#                 source state in that case so the state machine never silently
+#                 regresses (INV-016), and the refund attempt is marked failed.
 #   LINKS:   PDD §6.2, INV-004 (atomic), INV-005 (full refund only),
 #            INV-016 (explicit transitions)
 # END_CONTRACT: initiate_refund
@@ -330,12 +335,18 @@ def initiate_refund(
     self,
     payment_id: str,
     amount_kopecks: int,
+    idempotency_key: str | None = None,
 ) -> None:
     """Инициирует возврат в ЮKassa. Ошибки ЮKassa глушатся (админ ручками)."""
-    from shared.enums import PaymentStatus
+    from shared.enums import PaymentStatus, RefundStatus
     from shared.models.payment import Payment
+    from shared.models.refund import Refund
 
-    # Достаём yukassa_payment_id для вызова ЮKassa
+    refund_id: UUID | None = None
+    key = idempotency_key or f"refund-{payment_id}"
+    allowed_sources = {PaymentStatus.SUCCEEDED, PaymentStatus.REFUND_FAILED}
+
+    # Достаём yukassa_payment_id и создаём новую попытку возврата.
     with session_scope(get_engine()) as session:
         payment = session.get(Payment, UUID(payment_id))
         if payment is None or not payment.yukassa_payment_id:
@@ -344,16 +355,63 @@ def initiate_refund(
                 extra={"payment_id": payment_id},
             )
             return
+        if payment.status not in allowed_sources:
+            logger.warning(
+                "initiate_refund: payment status is not retryable",
+                extra={"payment_id": payment_id, "status": payment.status.value},
+            )
+            return
+        if amount_kopecks <= 0 or amount_kopecks != payment.amount:
+            logger.error(
+                "initiate_refund: invalid refund amount",
+                extra={"payment_id": payment_id, "amount_kopecks": amount_kopecks},
+            )
+            return
+        pending_refund = (
+            session.query(Refund)
+            .filter(
+                Refund.payment_id == payment.id,
+                Refund.status == RefundStatus.PENDING,
+            )
+            .first()
+        )
+        if pending_refund is not None:
+            logger.info(
+                "initiate_refund: pending refund already exists",
+                extra={
+                    "payment_id": payment_id,
+                    "refund_id": str(pending_refund.id),
+                },
+            )
+            return
+        refund = Refund(
+            payment_id=payment.id,
+            amount=amount_kopecks,
+            status=RefundStatus.PENDING,
+            reason=(
+                "admin_retry"
+                if payment.status == PaymentStatus.REFUND_FAILED
+                else "order_cancel"
+            ),
+        )
+        session.add(refund)
+        session.flush()
+        refund_id = refund.id
         yukassa_id = payment.yukassa_payment_id
 
     client = get_yukassa_client()
     try:
-        client.create_refund(
+        result = client.create_refund(
             payment_id=yukassa_id,
             amount_kopecks=amount_kopecks,
-            idempotency_key=f"refund-{payment_id}",
+            idempotency_key=key,
         )
     except Exception:
+        if refund_id is not None:
+            with session_scope(get_engine()) as session:
+                refund = session.get(Refund, refund_id)
+                if refund is not None:
+                    refund.status = RefundStatus.FAILED
         logger.exception(
             "initiate_refund: refund call failed — admin follow-up required",
             extra={"payment_id": payment_id},
@@ -364,4 +422,24 @@ def initiate_refund(
         payment = session.get(Payment, UUID(payment_id))
         if payment is None:
             return
+        refund = session.get(Refund, refund_id) if refund_id is not None else None
+        if refund is not None:
+            refund.yukassa_refund_id = (
+                result.get("id") or result.get("refund_id") or refund.yukassa_refund_id
+            )
+        if payment.status not in allowed_sources | {PaymentStatus.REFUND_PENDING}:
+            logger.warning(
+                "initiate_refund: payment status changed before refund persist",
+                extra={"payment_id": payment_id, "status": payment.status.value},
+            )
+            return
         payment.status = PaymentStatus.REFUND_PENDING
+        _grace_log.block(
+            "initiate_refund", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+        )
+        _grace_log.belief(
+            "initiate_refund",
+            "BLOCK_STATE_TRANSITION",
+            belief="REFUND_PENDING",
+            actual=payment.status.name,
+        )
