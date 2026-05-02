@@ -51,6 +51,9 @@ docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 # → phase4_manual_test seed applied
 ```
 
+For a clean QA loop after mutating seeded orders, assignments, carts, or users,
+prefer the guarded reset wrapper in §0.7 over volume deletion.
+
 Inserts / upserts:
 
 | Entity | Value |
@@ -276,18 +279,22 @@ Optional fifth: `docker compose logs -f nginx` if you suspect routing issues.
 ### 0.7 Reset cheat-sheet
 
 ```bash
-# DESTRUCTIVE: wipe DB, Redis, and all Compose volumes, then rebuild.
-# Confirm you really want to lose local QA data before running this block.
+# routine local QA reset: deletes deterministic QA fixture rows only, then reseeds.
+# Refuses outside dev/test/local unless ALLOW_QA_RESET=1 is set intentionally.
+./scripts/reset-qa-data.sh
+
+# DESTRUCTIVE full-stack wipe: removes DB, Redis, and all Compose volumes.
+# Use only when intentionally throwing away the whole local dev stack.
 docker compose down -v
 ./scripts/up.sh
 docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 
-# softer — just reset the OTP rate-limiter for the QA phone
+# narrower — just reset the OTP rate-limiter for the QA phone
 PH=$(echo -n "+79991234567" | sha256sum | cut -d' ' -f1)
 docker compose exec -T redis redis-cli DEL \
   "sms_rate:$PH:min" "sms_rate:$PH:hour" "sms_rate:$PH:day" "otp:$PH"
 
-# softer still — clear a single customer's cart
+# narrower still — clear a single customer's cart
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN"
 ```
 
