@@ -178,7 +178,7 @@ export function CategoryList({
   const typeOptions: CategoryType[] = ['drink', 'food', 'merch', 'modifier'];
 
   return (
-    <div className="w-56 shrink-0 space-y-2">
+    <div className="w-full space-y-2 lg:w-56 lg:shrink-0">
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
         {t('pages.menu.categories.title')}
       </h2>
@@ -201,7 +201,7 @@ export function CategoryList({
         </p>
       )}
 
-      <ul className="space-y-1">
+      <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:block lg:space-y-1">
         {categories.map((cat) =>
           editId === cat.id ? (
             <li key={cat.id} className="space-y-1 p-1 border rounded-md">
@@ -273,7 +273,7 @@ export function CategoryList({
               </span>
               {isAdmin && (
                 <span
-                  className="hidden group-hover:flex gap-0.5"
+                  className="flex gap-0.5 lg:opacity-0 lg:group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button

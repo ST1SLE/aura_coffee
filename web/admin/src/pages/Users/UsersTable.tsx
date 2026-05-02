@@ -40,6 +40,13 @@ function formatCreatedAt(iso: string, locale: string): string {
   }
 }
 
+const mobileLabelClass =
+  'text-xs font-medium uppercase tracking-wide text-muted-foreground md:hidden';
+const responsiveRowClass =
+  'block rounded-lg border bg-card p-3 shadow-sm md:table-row md:rounded-none md:border-b md:bg-transparent md:p-0 md:shadow-none';
+const responsiveCellClass =
+  'flex items-center justify-between gap-4 py-2 text-sm md:table-cell md:p-2';
+
 export function UsersTable({ items, onSelect, emptyLabel }: Props) {
   const { t, i18n } = useTranslation();
 
@@ -58,8 +65,8 @@ export function UsersTable({ items, onSelect, emptyLabel }: Props) {
   const balanceUnit = t('pages.users.balance_unit_short');
 
   return (
-    <Table>
-      <TableHeader>
+    <Table className="block md:table">
+      <TableHeader className="hidden md:table-header-group">
         <TableRow>
           <TableHead>{t('pages.users.columns.name')}</TableHead>
           <TableHead>{t('pages.users.columns.status')}</TableHead>
@@ -70,28 +77,51 @@ export function UsersTable({ items, onSelect, emptyLabel }: Props) {
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody className="block space-y-3 md:table-row-group md:space-y-0">
         {items.map((user) => (
           <TableRow
             key={user.id}
             data-testid={`user-row-${user.id}`}
-            className="cursor-pointer"
+            className={`${responsiveRowClass} cursor-pointer`}
             onClick={() => onSelect(user.id)}
           >
-            <TableCell className="font-medium">{user.display_name}</TableCell>
-            <TableCell>
-              <UserStatusBadge status={user.status} />
+            <TableCell className={responsiveCellClass}>
+              <span className={mobileLabelClass}>
+                {t('pages.users.columns.name')}
+              </span>
+              <span className="font-medium">{user.display_name}</span>
+            </TableCell>
+            <TableCell className={responsiveCellClass}>
+              <span className={mobileLabelClass}>
+                {t('pages.users.columns.status')}
+              </span>
+              <span>
+                <UserStatusBadge status={user.status} />
+              </span>
+            </TableCell>
+            <TableCell className={responsiveCellClass}>
+              <span className={mobileLabelClass}>
+                {t('pages.users.columns.balance')}
+              </span>
+              <span data-testid={`user-balance-${user.id}`}>
+                {`${balanceFormatter.format(user.loyalty_balance)} ${balanceUnit}`}
+              </span>
+            </TableCell>
+            <TableCell className={responsiveCellClass}>
+              <span className={mobileLabelClass}>
+                {t('pages.users.columns.created_at')}
+              </span>
+              <span className="text-right md:text-left">
+                {formatCreatedAt(user.created_at, i18n.language)}
+              </span>
             </TableCell>
             <TableCell
-              data-testid={`user-balance-${user.id}`}
-            >{`${balanceFormatter.format(user.loyalty_balance)} ${balanceUnit}`}</TableCell>
-            <TableCell>
-              {formatCreatedAt(user.created_at, i18n.language)}
-            </TableCell>
-            <TableCell
-              className="text-right"
+              className={`${responsiveCellClass} md:text-right`}
               onClick={(e) => e.stopPropagation()}
             >
+              <span className={mobileLabelClass}>
+                {t('pages.users.columns.actions')}
+              </span>
               <Button
                 size="sm"
                 variant="outline"

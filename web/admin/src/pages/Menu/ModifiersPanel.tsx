@@ -175,8 +175,8 @@ export function ModifiersPanel({
 
       {/* Форма добавления */}
       {isAdmin && showAdd && (
-        <div className="flex gap-2 items-end border rounded-md p-3">
-          <div className="space-y-1 flex-1">
+        <div className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-end">
+          <div className="w-full space-y-1 md:flex-1">
             <Label htmlFor="mod-name-ru">
               {t('pages.menu.modifiers.nameRu')}
             </Label>
@@ -188,7 +188,7 @@ export function ModifiersPanel({
               }
             />
           </div>
-          <div className="space-y-1 flex-1">
+          <div className="w-full space-y-1 md:flex-1">
             <Label htmlFor="mod-name-en">
               {t('pages.menu.modifiers.nameEn')}
             </Label>
@@ -200,7 +200,7 @@ export function ModifiersPanel({
               }
             />
           </div>
-          <div className="space-y-1 w-28">
+          <div className="w-full space-y-1 md:w-28">
             <Label htmlFor="mod-price">{t('pages.menu.modifiers.price')}</Label>
             <Input
               id="mod-price"
@@ -213,12 +213,20 @@ export function ModifiersPanel({
               placeholder="0.00"
             />
           </div>
-          <Button disabled={adding} onClick={handleAdd}>
+          <Button
+            className="w-full md:w-auto"
+            disabled={adding}
+            onClick={handleAdd}
+          >
             {adding
               ? t('pages.menu.modifiers.saving')
               : t('pages.menu.modifiers.save')}
           </Button>
-          <Button variant="ghost" onClick={() => setShowAdd(false)}>
+          <Button
+            variant="ghost"
+            className="w-full md:w-auto"
+            onClick={() => setShowAdd(false)}
+          >
             {t('pages.menu.modifiers.cancel')}
           </Button>
         </div>
@@ -235,14 +243,14 @@ export function ModifiersPanel({
           editId === m.id ? (
             <li
               key={m.id}
-              className="flex gap-2 items-center border rounded-md p-2"
+              className="flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center"
             >
               <Input
                 value={editForm.name_ru}
                 onChange={(e) =>
                   setEditForm({ ...editForm, name_ru: e.target.value })
                 }
-                className="flex-1"
+                className="w-full sm:flex-1"
                 placeholder="RU"
               />
               <Input
@@ -250,7 +258,7 @@ export function ModifiersPanel({
                 onChange={(e) =>
                   setEditForm({ ...editForm, name_en: e.target.value })
                 }
-                className="flex-1"
+                className="w-full sm:flex-1"
                 placeholder="EN"
               />
               <Input
@@ -260,7 +268,7 @@ export function ModifiersPanel({
                 onChange={(e) =>
                   setEditForm({ ...editForm, price: e.target.value })
                 }
-                className="w-24"
+                className="w-full sm:w-24"
               />
               <Button size="sm" onClick={() => handleSaveEdit(m)}>
                 {t('common.save')}
@@ -272,14 +280,14 @@ export function ModifiersPanel({
           ) : (
             <li
               key={m.id}
-              className="flex items-center gap-3 rounded-md border px-3 py-2"
+              className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
             >
               <Switch
                 checked={m.available}
                 disabled={togglingId === m.id}
                 onCheckedChange={(checked) => handleToggle(m, checked)}
               />
-              <span className="flex-1 text-sm font-medium">
+              <span className="min-w-0 flex-1 text-sm font-medium">
                 {pickLang(m.name_ru, m.name_en, i18n.language)}
               </span>
               <span className="text-sm text-muted-foreground">

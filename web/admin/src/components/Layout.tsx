@@ -109,7 +109,7 @@ export function Layout() {
         </Button>
       </aside>
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b px-4 py-3 flex items-center justify-between">
           <span className="text-lg font-bold text-brand-700 md:hidden">
             {t('appTitle')}
@@ -130,7 +130,7 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-24 md:pb-4">
+        <main className="min-w-0 flex-1 p-4 pb-24 md:pb-4">
           <Outlet />
         </main>
       </div>

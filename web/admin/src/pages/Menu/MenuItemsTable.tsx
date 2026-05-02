@@ -110,6 +110,13 @@ function isValidInventoryDraft(value: string): boolean {
   return Number.isInteger(quantity) && quantity >= 0;
 }
 
+const mobileLabelClass =
+  'text-xs font-medium uppercase tracking-wide text-muted-foreground md:hidden';
+const responsiveRowClass =
+  'block rounded-lg border bg-card p-3 shadow-sm md:table-row md:rounded-none md:border-b md:bg-transparent md:p-0 md:shadow-none';
+const responsiveCellClass =
+  'flex items-center justify-between gap-4 py-2 text-sm md:table-cell md:p-2';
+
 // START_CONTRACT: MenuItemsTable
 //   PURPOSE: Fetch items for the selected category, render them as a table,
 //            and wire availability, inventory, delete, and edit controls. Opens
@@ -265,8 +272,8 @@ export function MenuItemsTable({
           {t('pages.menu.items.empty')}
         </p>
       ) : (
-        <Table>
-          <TableHeader>
+        <Table className="block md:table">
+          <TableHeader className="hidden md:table-header-group">
             <TableRow>
               <TableHead>{t('pages.menu.items.name')}</TableHead>
               <TableHead>{t('pages.menu.items.price')}</TableHead>
@@ -277,7 +284,7 @@ export function MenuItemsTable({
               )}
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="block space-y-3 md:table-row-group md:space-y-0">
             {items.map((item) => {
               const itemName = pickLang(
                 item.name_ru,
@@ -294,11 +301,24 @@ export function MenuItemsTable({
                 !isValidInventoryDraft(inventoryDraft);
 
               return (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{itemName}</TableCell>
-                  <TableCell>{formatPrice(item.base_price)}</TableCell>
-                  <TableCell>
-                    <div className="flex min-w-44 flex-col gap-2">
+                <TableRow key={item.id} className={responsiveRowClass}>
+                  <TableCell className={responsiveCellClass}>
+                    <span className={mobileLabelClass}>
+                      {t('pages.menu.items.name')}
+                    </span>
+                    <span className="font-medium">{itemName}</span>
+                  </TableCell>
+                  <TableCell className={responsiveCellClass}>
+                    <span className={mobileLabelClass}>
+                      {t('pages.menu.items.price')}
+                    </span>
+                    <span>{formatPrice(item.base_price)}</span>
+                  </TableCell>
+                  <TableCell className="flex items-start justify-between gap-4 py-2 text-sm md:table-cell md:p-2">
+                    <span className={mobileLabelClass}>
+                      {t('pages.menu.items.inventory')}
+                    </span>
+                    <div className="flex min-w-0 flex-col items-end gap-2 md:min-w-44 md:items-start">
                       <InventoryBadge quantity={item.inventory_quantity} />
                       <div className="flex items-center gap-1">
                         <Input
@@ -365,8 +385,11 @@ export function MenuItemsTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                  <TableCell className={responsiveCellClass}>
+                    <span className={mobileLabelClass}>
+                      {t('pages.menu.items.availability')}
+                    </span>
+                    <div className="flex items-center justify-end gap-2 md:justify-start">
                       <Switch
                         checked={item.availability === 'available'}
                         disabled={
@@ -381,7 +404,10 @@ export function MenuItemsTable({
                     </div>
                   </TableCell>
                   {isAdmin && (
-                    <TableCell>
+                    <TableCell className={responsiveCellClass}>
+                      <span className={mobileLabelClass}>
+                        {t('pages.menu.items.actions')}
+                      </span>
                       <div className="flex gap-1">
                         <Button
                           size="sm"

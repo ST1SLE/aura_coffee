@@ -45,7 +45,9 @@ export function MenuPage() {
   const currentRole = useCurrentRole();
   const { notifications, notify, dismiss } = useNotifier();
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [modifiers, setModifiers] = useState<ModifierResponse[]>([]);
 
@@ -57,7 +59,8 @@ export function MenuPage() {
     listModifiers()
       .then(setModifiers)
       .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) handleError(t('common.sessionExpired'));
+        if (err instanceof ApiError && err.status === 401)
+          handleError(t('common.sessionExpired'));
         else handleError(t('common.error'));
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -70,10 +73,12 @@ export function MenuPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{t('pages.menu.title')}</h1>
-        <p className="text-muted-foreground text-sm">{t('pages.menu.description')}</p>
+        <p className="text-muted-foreground text-sm">
+          {t('pages.menu.description')}
+        </p>
       </div>
 
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* Левая колонка — категории */}
         <CategoryList
           selectedId={selectedCategoryId}
@@ -84,7 +89,7 @@ export function MenuPage() {
         />
 
         {/* Центральная колонка — позиции меню */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <MenuItemsTable
             categoryId={selectedCategoryId}
             categories={categories}
