@@ -40,6 +40,7 @@
       "description": "Order management",
       "filters": {
         "active": "Active",
+        "refund_failed": "Refund issues",
         "type": "Type",
         "type_all": "All",
         "type_pickup": "Pickup",

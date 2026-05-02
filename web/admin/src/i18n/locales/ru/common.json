@@ -40,6 +40,7 @@
       "description": "Управление заказами",
       "filters": {
         "active": "Активные",
+        "refund_failed": "Проблемы возврата",
         "type": "Тип",
         "type_all": "Все",
         "type_pickup": "Самовывоз",

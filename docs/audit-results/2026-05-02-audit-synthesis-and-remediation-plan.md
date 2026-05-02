@@ -353,7 +353,7 @@ Items that look downgraded to polish/backlog, not immediate release blockers:
 
 - Staff mobile navigation and order-feed freshness are now addressed in code: admin/barista layout has a role-filtered mobile bottom nav, and the staff orders feed polls active orders every 5 seconds.
 - SMS.ru redaction, Python dependency auditing, courier available-feed PII minimization, payment webhook ingress/guards, auth/session hardening, account deletion, notification boundary cleanup, and non-destructive QA reset are covered by the completed wave statuses above.
-- Remaining customer visual polish, staff table/card mobile optimization, admin exception queues, customer notification feed, and stale/flaky-test curation should be separate backlog packets unless the release definition expands to include them.
+- Remaining customer visual polish, customer notification feed, and stale/flaky-test curation should be separate backlog packets unless the release definition expands to include them. Staff table/card mobile optimization and the failed-refund admin exception queue have been handled in follow-up backlog packets.
 
 ## Parallelization Guidance
 

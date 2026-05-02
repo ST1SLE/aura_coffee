@@ -25,7 +25,8 @@ import { authenticatedFetch, ApiError } from './client';
 //   ApiError                  - re-export from ./client
 //   OrderStatus               - PDD §6.1 state union
 //   OrderType                 - 'pickup' | 'delivery'
-//   AdminOrderStatusFilter    - server statuses + 'active' aggregate + 'all'
+//   AdminOrderStatusFilter    - server statuses + 'active' aggregate +
+//                               failed-refund exception + 'all'
 //   OrderItemResponse         - one line of an order, name snapshot per INV-014
 //   OrderResponse             - order list/customer-history base shape
 //   StaffOrderDetailResponse  - admin detail shape with customer contact fields
@@ -62,11 +63,16 @@ export type PaymentStatus =
   | 'refunded'
   | 'refund_failed';
 
-// UI-шный фильтр: 'active' и конкретный OrderStatus — серверные значения,
-// 'all' — клиентский sentinel, означающий "не передавать status=" (будет
-// эквивалентен дефолту сервера). В текущем цикле 'all' не используется
-// таб-бэкой, но клиент умеет корректно отбросить значение.
-export type AdminOrderStatusFilter = OrderStatus | 'active' | 'all';
+// UI-шный фильтр: 'active', конкретный OrderStatus и 'refund_failed' —
+// серверные значения. 'refund_failed' — exception-queue по Payment.status,
+// не Order.status. 'all' — клиентский sentinel, означающий "не передавать
+// status=" (будет эквивалентен дефолту сервера). В текущем цикле 'all' не
+// используется таб-бэкой, но клиент умеет корректно отбросить значение.
+export type AdminOrderStatusFilter =
+  | OrderStatus
+  | 'active'
+  | 'refund_failed'
+  | 'all';
 
 // ── Response shapes (mirror core_api.schemas.order_history) ──────────────────
 

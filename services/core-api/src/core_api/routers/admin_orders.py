@@ -11,13 +11,14 @@ from __future__ import annotations
 # START_MODULE_CONTRACT
 #   PURPOSE: HTTP routes for the staff orders feed under /api/v1/admin/orders
 #            — list and detail. Detail includes staff-only customer contact.
-#   SCOPE:   Pagination + status/type filtering of orders for staff.
-#            No state mutations live here (see order_actions.py for that).
+#   SCOPE:   Pagination + status/type filtering of orders for staff, including
+#            the read-only failed-refund exception filter. No state mutations
+#            live here (see order_actions.py and refund_retry.py for that).
 #   DEPENDS: M-SHARED (enums.OrderStatus/OrderType), M-DATABASE (Session),
 #            core_api.services.order_history, core_api.deps.database,
 #            RBACMiddleware via rbac_matrix.ROUTE_MATRIX (auth enforced
 #            before handler dispatch).
-#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, §6.1,
+#   LINKS:   docs/development-plan.xml M-CORE-API, PDD §4.5, §6.1, §6.2,
 #            INV-002, INV-010 (role isolation), INV-013 (PII contact projection).
 #   ROLE:    RUNTIME
 #   MAP_MODE: EXPORTS
@@ -55,9 +56,9 @@ def _get_session():
 
 
 def _coerce_status(raw: str) -> OrderStatus | str:
-    """Принимает 'active' или любое значение OrderStatus, иначе → 422."""
-    if raw == "active":
-        return "active"
+    """Принимает 'active', 'refund_failed' или OrderStatus, иначе → 422."""
+    if raw in {"active", "refund_failed"}:
+        return raw
     try:
         return OrderStatus(raw)
     except ValueError as exc:

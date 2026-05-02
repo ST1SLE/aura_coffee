@@ -74,6 +74,15 @@ describe('api/admin-orders', () => {
     expect(url).toMatch(/\/api\/v1\/admin\/orders$/);
   });
 
+  it('listAdminOrders sends the failed-refund exception filter', async () => {
+    mockJson({ orders: [], total_count: 0, page: 1, per_page: 20 });
+
+    await listAdminOrders({ status: 'refund_failed' });
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('status=refund_failed');
+  });
+
   it('listAdminOrders propagates 403 as ApiError', async () => {
     mockJson({ detail: 'forbidden' }, 403);
 

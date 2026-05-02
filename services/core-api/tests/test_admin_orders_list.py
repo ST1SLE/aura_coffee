@@ -18,7 +18,8 @@ from fastapi.testclient import TestClient
 from core_api.main import app
 from core_api.settings import settings
 from core_api.utils.crypto import encrypt_phone
-from shared.enums import OrderStatus, OrderType
+from shared.enums import OrderStatus, OrderType, PaymentStatus
+from shared.models.payment import Payment
 from shared.models.user_profile import UserProfile
 from tests._factories.orders import make_user, seed_orders_across_statuses
 
@@ -169,6 +170,79 @@ def test_list_orders_for_staff_type_filter_combines_with_status(db_session) -> N
     for row in result.orders:
         assert row.status == OrderStatus.PREPARING
         assert row.type == OrderType.DELIVERY
+
+
+def test_list_orders_for_staff_refund_failed_filters_payment_state(
+    db_session,
+) -> None:
+    """2.4a — 'refund_failed' builds the admin refund exception queue."""
+    from core_api.services.order_history import list_orders_for_staff
+
+    user = make_user(db_session)
+    db_session.commit()
+
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={
+            (OrderStatus.CANCELLED, OrderType.PICKUP): 1,
+            (OrderStatus.CANCELLED, OrderType.DELIVERY): 1,
+            (OrderStatus.COMPLETED, OrderType.PICKUP): 1,
+        },
+    )
+    failed_pickup_id = seed.order_ids_by_bucket[
+        (OrderStatus.CANCELLED, OrderType.PICKUP)
+    ][0]
+    failed_delivery_id = seed.order_ids_by_bucket[
+        (OrderStatus.CANCELLED, OrderType.DELIVERY)
+    ][0]
+    refunded_id = seed.order_ids_by_bucket[
+        (OrderStatus.COMPLETED, OrderType.PICKUP)
+    ][0]
+    db_session.add_all(
+        [
+            Payment(
+                order_id=failed_pickup_id,
+                amount=10000,
+                status=PaymentStatus.REFUND_FAILED,
+                yukassa_payment_id="pay_failed_pickup",
+            ),
+            Payment(
+                order_id=failed_delivery_id,
+                amount=10000,
+                status=PaymentStatus.REFUND_FAILED,
+                yukassa_payment_id="pay_failed_delivery",
+            ),
+            Payment(
+                order_id=refunded_id,
+                amount=10000,
+                status=PaymentStatus.REFUNDED,
+                yukassa_payment_id="pay_refunded",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    result = list_orders_for_staff(
+        status_filter="refund_failed",
+        type_filter=None,
+        page=1,
+        per_page=50,
+        db_session=db_session,
+    )
+
+    assert result.total_count == 2
+    assert {row.id for row in result.orders} == {failed_pickup_id, failed_delivery_id}
+
+    delivery_result = list_orders_for_staff(
+        status_filter="refund_failed",
+        type_filter=OrderType.DELIVERY,
+        page=1,
+        per_page=50,
+        db_session=db_session,
+    )
+    assert delivery_result.total_count == 1
+    assert [row.id for row in delivery_result.orders] == [failed_delivery_id]
 
 
 def test_list_orders_for_staff_active_orders_by_created_at_desc(db_session) -> None:
@@ -498,6 +572,55 @@ def test_admin_orders_list_type_filter(
     assert body["total_count"] == 3
     for row in body["orders"]:
         assert row["type"] == OrderType.DELIVERY.value
+
+
+def test_admin_orders_list_refund_failed_filter(
+    admin_feed_client, admin_headers, db_session
+) -> None:
+    """4.7a — ?status=refund_failed returns the failed-refund exception queue."""
+    user = make_user(db_session)
+    db_session.commit()
+
+    seed = seed_orders_across_statuses(
+        db_session,
+        user=user,
+        counts={
+            (OrderStatus.CANCELLED, OrderType.PICKUP): 1,
+            (OrderStatus.CANCELLED, OrderType.DELIVERY): 1,
+        },
+    )
+    failed_order_id = seed.order_ids_by_bucket[
+        (OrderStatus.CANCELLED, OrderType.PICKUP)
+    ][0]
+    refunded_order_id = seed.order_ids_by_bucket[
+        (OrderStatus.CANCELLED, OrderType.DELIVERY)
+    ][0]
+    db_session.add_all(
+        [
+            Payment(
+                order_id=failed_order_id,
+                amount=10000,
+                status=PaymentStatus.REFUND_FAILED,
+                yukassa_payment_id="pay_route_failed",
+            ),
+            Payment(
+                order_id=refunded_order_id,
+                amount=10000,
+                status=PaymentStatus.REFUNDED,
+                yukassa_payment_id="pay_route_refunded",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    response = admin_feed_client.get(
+        "/api/v1/admin/orders?status=refund_failed", headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_count"] == 1
+    assert [row["id"] for row in body["orders"]] == [str(failed_order_id)]
 
 
 def test_admin_orders_list_barista_same_access_as_admin(

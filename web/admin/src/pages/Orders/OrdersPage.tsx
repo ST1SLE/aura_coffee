@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { NotificationList, useNotifier } from '@/components/ui/notifier';
 import { listAdminOrders, getAdminOrder, ApiError } from '@/api/admin-orders';
+import { useCurrentRole } from '@/lib/auth';
 import type {
   OrderResponse,
   OrderStatus,
@@ -40,9 +41,12 @@ import { OrderDetailDialog } from './OrderDetailDialog';
 //   OrdersPage - data-fetching admin/barista orders feed with poll + filters
 // END_MODULE_MAP
 
-// Семь табов — серверный фильтр status. 'active' — агрегирующий (paid+preparing+ready+in_delivery).
+// Таб-сет — серверный фильтр status. 'active' — агрегирующий
+// (created+paid+preparing+ready+in_delivery), 'refund_failed' —
+// exception queue по платежу.
 const STATUS_TABS: AdminOrderStatusFilter[] = [
   'active',
+  'refund_failed',
   'paid',
   'preparing',
   'ready',
@@ -68,6 +72,7 @@ function parseStatus(raw: string | null): AdminOrderStatusFilter {
     'in_delivery',
     'completed',
     'cancelled',
+    'refund_failed',
   ];
   return (all as string[]).includes(raw)
     ? (raw as AdminOrderStatusFilter)
@@ -111,8 +116,14 @@ export function OrdersPage() {
   const { t } = useTranslation();
   const { notifications, notify, dismiss } = useNotifier();
   const [searchParams, setSearchParams] = useSearchParams();
+  const currentRole = useCurrentRole();
 
-  const status = parseStatus(searchParams.get('status'));
+  const requestedStatus = parseStatus(searchParams.get('status'));
+  const canViewRefundIssues = currentRole === 'admin';
+  const status =
+    requestedStatus === 'refund_failed' && !canViewRefundIssues
+      ? 'active'
+      : requestedStatus;
   const type = parseType(searchParams.get('type'));
   const page = parsePage(searchParams.get('page'));
 
@@ -158,6 +169,11 @@ export function OrdersPage() {
     },
     [setSearchParams],
   );
+
+  useEffect(() => {
+    if (requestedStatus === status) return;
+    setFilter({ status });
+  }, [requestedStatus, status, setFilter]);
 
   // Классификация ошибок — единая точка принятия решений (spec: "Error handling").
   const handleApiError = useCallback(
@@ -293,9 +309,14 @@ export function OrdersPage() {
   }, [selectedId, handleApiError]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+  const visibleStatusTabs = STATUS_TABS.filter(
+    (s) => s !== 'refund_failed' || canViewRefundIssues,
+  );
 
   function labelForStatusTab(s: AdminOrderStatusFilter): string {
     if (s === 'active') return t('pages.orders.filters.active');
+    if (s === 'all') return t('pages.orders.filters.type_all');
+    if (s === 'refund_failed') return t('pages.orders.filters.refund_failed');
     return t(`pages.orders.status.${s as OrderStatus}`);
   }
 
@@ -317,7 +338,7 @@ export function OrdersPage() {
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist">
-        {STATUS_TABS.map((s) => (
+        {visibleStatusTabs.map((s) => (
           <Button
             key={s}
             role="tab"

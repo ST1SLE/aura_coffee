@@ -46,12 +46,14 @@ describe('OrdersPage polling', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
     vi.useFakeTimers();
+    localStorage.clear();
     vi.mocked(ordersApi.listAdminOrders).mockResolvedValue(emptyOrders());
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   it('polls the active feed every 5 seconds while visible', async () => {
@@ -94,5 +96,43 @@ describe('OrdersPage polling', () => {
 
     expect(ordersApi.listAdminOrders).toHaveBeenCalledTimes(1);
     expect(screen.getByText('No orders')).toBeInTheDocument();
+  });
+
+  it('loads the failed-refund exception queue for admins without polling', async () => {
+    localStorage.setItem('staffRole', 'admin');
+
+    renderOrdersPage('/orders?status=refund_failed');
+
+    await flushEffects();
+    expect(ordersApi.listAdminOrders).toHaveBeenCalledTimes(1);
+    expect(ordersApi.listAdminOrders).toHaveBeenLastCalledWith({
+      status: 'refund_failed',
+      page: 1,
+      per_page: 20,
+    });
+    expect(screen.getByTestId('orders-tab-refund_failed')).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(ordersApi.listAdminOrders).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the failed-refund queue from baristas and falls back to active', async () => {
+    localStorage.setItem('staffRole', 'barista');
+
+    renderOrdersPage('/orders?status=refund_failed');
+
+    await flushEffects();
+    expect(ordersApi.listAdminOrders).toHaveBeenCalledTimes(1);
+    expect(ordersApi.listAdminOrders).toHaveBeenLastCalledWith({
+      status: 'active',
+      page: 1,
+      per_page: 20,
+    });
+    expect(
+      screen.queryByTestId('orders-tab-refund_failed'),
+    ).not.toBeInTheDocument();
   });
 });

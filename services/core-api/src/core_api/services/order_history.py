@@ -1,7 +1,8 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Read-only order feeds for both customer (own history) and staff
 #            (all-orders, INV-010 RBAC enforced upstream). Sort rule: finalized
-#            orders by updated_at DESC, others by created_at DESC. Staff detail
+#            orders by updated_at DESC, others by created_at DESC. Staff can
+#            also filter the feed to failed refund exceptions. Staff detail
 #            includes transient customer contact and payment retry projections
 #            for operations.
 #   SCOPE:   list_orders, list_orders_for_staff, get_order_for_staff.
@@ -40,7 +41,7 @@ from core_api.schemas.order_history import (
 )
 from core_api.settings import settings
 from core_api.utils.crypto import decrypt_phone
-from shared.enums import OrderStatus, OrderType
+from shared.enums import OrderStatus, OrderType, PaymentStatus
 from shared.models.order import Order
 from shared.models.payment import Payment
 from shared.models.user_profile import UserProfile
@@ -143,14 +144,15 @@ def list_orders(
 
 # START_CONTRACT: list_orders_for_staff
 #   PURPOSE: Staff-scoped paginated feed across all users with status filter
-#            ("active" or specific OrderStatus) and optional type filter.
+#            ("active", "refund_failed", or specific OrderStatus) and optional
+#            type filter.
 #   INPUTS:  status_filter: OrderStatus | str
 #            type_filter: OrderType | None
 #            page, per_page: int
 #            db_session: Session
 #   OUTPUTS: OrderListResponse
 #   SIDE_EFFECTS: DB SELECTs only.
-#   LINKS:   PDD §5.4, INV-010 (admin/barista/courier RBAC at router)
+#   LINKS:   PDD §5.4, §6.2, INV-010 (admin/barista RBAC at router)
 # END_CONTRACT: list_orders_for_staff
 def list_orders_for_staff(
     *,
@@ -164,6 +166,7 @@ def list_orders_for_staff(
 
     Семантика status_filter:
     - "active" → status NOT IN (COMPLETED, CANCELLED), хитит partial index из PDD §5.4.
+    - "refund_failed" → Payment.status = REFUND_FAILED (admin exception queue).
     - конкретный OrderStatus → status = <value>.
 
     Сортировка:
@@ -171,9 +174,14 @@ def list_orders_for_staff(
     - остальные (включая "active") → created_at DESC.
     """
     where_clauses = []
+    join_payment = False
     if status_filter == "active":
         where_clauses.append(Order.status.notin_(_FINALIZED_STATUSES))
         order_by = Order.created_at.desc()
+    elif status_filter == "refund_failed":
+        join_payment = True
+        where_clauses.append(Payment.status == PaymentStatus.REFUND_FAILED)
+        order_by = Payment.updated_at.desc()
     else:
         # На этом пути status_filter уже OrderStatus (валидируется в роутере).
         where_clauses.append(Order.status == status_filter)
@@ -185,13 +193,17 @@ def list_orders_for_staff(
     if type_filter is not None:
         where_clauses.append(Order.type == type_filter)
 
-    total = db_session.execute(
-        select(func.count()).select_from(Order).where(*where_clauses)
-    ).scalar_one()
+    count_stmt = select(func.count()).select_from(Order)
+    list_stmt = select(Order)
+    if join_payment:
+        count_stmt = count_stmt.join(Payment, Payment.order_id == Order.id)
+        list_stmt = list_stmt.join(Payment, Payment.order_id == Order.id)
+
+    total = db_session.execute(count_stmt.where(*where_clauses)).scalar_one()
 
     rows = (
         db_session.execute(
-            select(Order)
+            list_stmt
             .where(*where_clauses)
             .options(selectinload(Order.items))
             .order_by(order_by)
