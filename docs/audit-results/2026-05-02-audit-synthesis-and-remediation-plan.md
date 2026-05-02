@@ -328,8 +328,8 @@ Status:
 - `./scripts/verify-fast.sh` now passes after cleaning up existing ruff drift in shared ORM forward references and two Core API route imports/exception bindings.
 - Item 5 is covered by `scripts/check-readiness.sh`, now wired into `scripts/verify-full.sh`: it checks direct Core API health, direct payment-webhook health, nginx canonical `/health`, and Celery worker pings.
 - Item 6 is covered by `cryptography>=46.0.7,<47.0` in core-api and sms-worker, a regenerated core-api lock pinned to `cryptography 46.0.7`, and mandatory `scripts/check-python-deps.sh` execution from `scripts/verify-full.sh`; host-side `pip-audit` now reports no known vulnerabilities for core-api, payment-worker, sms-worker, and shared.
-- Item 7 is covered by guarded `scripts/reset-qa-data.sh` plus `database/seeds/reset_qa_data.py`: it refuses outside dev/test/local unless `ALLOW_QA_RESET=1`, deletes only deterministic Phase 4 QA fixture rows, re-runs the manual seed, and keeps `docker compose down -v` documented as a destructive full-stack wipe rather than routine QA reset.
-- Current release-gate run passed on 2026-05-02 with `./scripts/verify-full.sh`. The gate covered readiness, Alembic drift detection and upgrade, Python ruff, shared/Core API/payment-worker/sms-worker tests, customer/admin lint/typecheck/Vitest/npm audit, and `pip-audit` for core-api, payment-worker, sms-worker, and shared.
+- Item 7 is covered by guarded `scripts/reset-qa-data.sh` plus `database/seeds/reset_qa_data.py`: it refuses outside dev/test/local unless `ALLOW_QA_RESET=1`, deletes rows owned by known Phase 4 QA seed identifiers/users, re-runs the manual seed, and keeps `docker compose down -v` documented as a destructive full-stack wipe rather than routine QA reset.
+- Final release-gate run passed on 2026-05-02 with `AURA_E2E_SKIP_BROWSER_INSTALL=1 ./scripts/verify-full.sh` after Chromium had already been installed by the browser-smoke run. The canonical command remains `./scripts/verify-full.sh`; the gate covered readiness, Alembic drift detection and upgrade, Python ruff, shared/Core API/payment-worker/sms-worker tests, customer/admin lint/typecheck/Vitest/npm audit, Playwright browser smoke, and `pip-audit` for core-api, payment-worker, sms-worker, and shared.
 - Full-gate regressions found and fixed during the release-gate run:
   - Alembic metadata drift: shared ORM metadata now declares the indexes and unique constraints already applied by migrations, so `alembic check` reports `No new upgrade operations detected`.
   - Stale Core API test assumptions: admin-user list service tests now isolate their rows by display-name prefix under a non-empty Postgres test DB, and the router registration count test reflects the current 19 routers.
@@ -338,11 +338,11 @@ Status:
 
 ## Remaining May 2 P1/P2 Review
 
-Release-significant items still open after the implemented waves and green full gate:
+Current status after the implemented waves and final green full gate:
 
 1. No release-significant P1/P2 blockers remain from the May 2 remediation set. Remaining work is polish/backlog unless the release definition expands.
 
-Additional release-readiness items completed after the green full gate:
+Additional release-readiness items completed in follow-up packets:
 
 1. Customer checkout input completeness is now implemented: `web/customer/src/pages/CheckoutPage.tsx` sends `promocode_code`, `points_to_use`, and `requested_time`, and renders server-owned checkout estimates/free-delivery guidance from `POST /api/v1/orders/estimate`.
 2. DB-level `order_items` immutability is now enforced by migration `0011_order_items_immutability.py`: the `orders -> order_items` FK is `ON DELETE RESTRICT`, and Postgres triggers reject direct `UPDATE` and `DELETE` on `order_items`.
@@ -376,7 +376,7 @@ Reason: these touch shared invariants, transaction boundaries, RBAC, PII, and LD
 
 ## Next Recommended Action
 
-Before calling the May 2 remediation ship-ready:
+Before starting the next design-change session:
 
-1. Run `./scripts/verify-full.sh` once after the Playwright packet lands.
-2. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.
+1. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.
+2. Treat new design work as a separate packet from the completed May 2 release-readiness remediation.
