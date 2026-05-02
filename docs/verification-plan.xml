@@ -177,7 +177,7 @@
       </module-checks>
       <scenarios>
         <scenario-1 kind="success">Role-gated routes redirect when JWT role mismatches.</scenario-1>
-        <scenario-2 kind="success">Orders feed updates on websocket/poll without losing scroll position.</scenario-2>
+        <scenario-2 kind="success">Orders feed updates within the 5-second staff expectation via websocket/poll without losing scroll position.</scenario-2>
         <scenario-3 kind="success">Admin menu item form can create/update media_type/media_url/media_poster_url as public local static paths without binary upload handling.</scenario-3>
         <scenario-4 kind="success">Admin/barista inventory controls edit menu_items.inventory_quantity with clear unlimited vs finite stock states; server remains the authorization gate.</scenario-4>
         <scenario-5 kind="success">Order detail renders staff-only customer contact affordance from the staff detail payload without adding phone data to order lists.</scenario-5>

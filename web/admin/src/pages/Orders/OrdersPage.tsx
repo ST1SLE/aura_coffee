@@ -3,11 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { NotificationList, useNotifier } from '@/components/ui/notifier';
-import {
-  listAdminOrders,
-  getAdminOrder,
-  ApiError,
-} from '@/api/admin-orders';
+import { listAdminOrders, getAdminOrder, ApiError } from '@/api/admin-orders';
 import type {
   OrderResponse,
   OrderStatus,
@@ -31,7 +27,7 @@ import { OrderDetailDialog } from './OrderDetailDialog';
 //            @/api/admin-orders, sibling OrdersTable + OrderDetailDialog.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.1 order state machine,
 //            PDD §6.2 payment refund retry,
-//            AGENTS.md (real-time feed within 5s — implemented as 10s polling),
+//            AGENTS.md (real-time feed within 5s — implemented as 5s polling),
 //            INV-002 (server enforces role on every transition),
 //            INV-013 (contact phone appears only after staff detail fetch),
 //            INV-014 (order_items shown carry snapshot names),
@@ -58,7 +54,7 @@ const STATUS_TABS: AdminOrderStatusFilter[] = [
 const TYPE_OPTIONS: Array<OrderType | 'all'> = ['all', 'pickup', 'delivery'];
 
 const PER_PAGE = 20;
-const POLL_INTERVAL_MS = 10_000;
+const POLL_INTERVAL_MS = 5_000;
 
 // Нормализация query-string значений: кривой URL не должен крашить страницу.
 function parseStatus(raw: string | null): AdminOrderStatusFilter {
@@ -73,7 +69,9 @@ function parseStatus(raw: string | null): AdminOrderStatusFilter {
     'completed',
     'cancelled',
   ];
-  return (all as string[]).includes(raw) ? (raw as AdminOrderStatusFilter) : 'active';
+  return (all as string[]).includes(raw)
+    ? (raw as AdminOrderStatusFilter)
+    : 'active';
 }
 
 function parseType(raw: string | null): OrderType | 'all' {
@@ -97,7 +95,7 @@ function parsePage(raw: string | null): number {
 
 // START_CONTRACT: OrdersPage
 //   PURPOSE: Sync filter state with URL query params, fetch the paginated order
-//            list, poll the 'active' filter every 10s while the tab is visible,
+//            list, poll the 'active' filter every 5s while the tab is visible,
 //            and own the selected-order dialog with retry-after-error logic.
 //   INPUTS:  none.
 //   OUTPUTS: JSX.Element.
@@ -122,18 +120,25 @@ export function OrdersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<StaffOrderDetailResponse | null>(null);
+  const [selectedOrder, setSelectedOrder] =
+    useState<StaffOrderDetailResponse | null>(null);
 
   // Последний reload-call должен выигрывать гонку с запоздалым предыдущим.
   const reqSeq = useRef(0);
 
   const setFilter = useCallback(
-    (patch: { status?: AdminOrderStatusFilter; type?: OrderType | 'all'; page?: number }) => {
+    (patch: {
+      status?: AdminOrderStatusFilter;
+      type?: OrderType | 'all';
+      page?: number;
+    }) => {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         // Смена любого фильтра (status/type) → page сбрасывается на 1, если
         // caller не задал page явно.
-        const resetPage = (patch.status !== undefined || patch.type !== undefined) && patch.page === undefined;
+        const resetPage =
+          (patch.status !== undefined || patch.type !== undefined) &&
+          patch.page === undefined;
         if (patch.status !== undefined) {
           if (patch.status === 'active') next.delete('status');
           else next.set('status', patch.status);
@@ -186,7 +191,9 @@ export function OrdersPage() {
             try {
               const fresh = await getAdminOrder(ctx.orderId);
               setSelectedOrder(fresh);
-              setRows((prev) => prev.map((r) => (r.id === fresh.id ? fresh : r)));
+              setRows((prev) =>
+                prev.map((r) => (r.id === fresh.id ? fresh : r)),
+              );
             } catch {
               /* вторичная ошибка — не каскадируем */
             }
@@ -303,7 +310,9 @@ export function OrdersPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t('pages.orders.title')}</h1>
-          <p className="text-muted-foreground text-sm">{t('pages.orders.description')}</p>
+          <p className="text-muted-foreground text-sm">
+            {t('pages.orders.description')}
+          </p>
         </div>
       </div>
 
@@ -324,7 +333,10 @@ export function OrdersPage() {
       </div>
 
       <div className="flex items-center gap-2">
-        <label htmlFor="orders-type-filter" className="text-sm text-muted-foreground">
+        <label
+          htmlFor="orders-type-filter"
+          className="text-sm text-muted-foreground"
+        >
           {t('pages.orders.filters.type')}
         </label>
         <select
@@ -332,7 +344,9 @@ export function OrdersPage() {
           data-testid="orders-type-filter"
           className="h-9 rounded-md border bg-background px-3 text-sm"
           value={type}
-          onChange={(e) => setFilter({ type: e.target.value as OrderType | 'all' })}
+          onChange={(e) =>
+            setFilter({ type: e.target.value as OrderType | 'all' })
+          }
         >
           {TYPE_OPTIONS.map((o) => (
             <option key={o} value={o}>
@@ -343,7 +357,9 @@ export function OrdersPage() {
       </div>
 
       {loading && rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm py-8 text-center">{t('common.loading')}</p>
+        <p className="text-muted-foreground text-sm py-8 text-center">
+          {t('common.loading')}
+        </p>
       ) : (
         <OrdersTable
           rows={rows}
@@ -353,7 +369,10 @@ export function OrdersPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground" data-testid="orders-page-indicator">
+        <span
+          className="text-sm text-muted-foreground"
+          data-testid="orders-page-indicator"
+        >
           {t('pages.orders.pagination.page', { page })}
         </span>
         <div className="flex gap-2">
@@ -394,7 +413,9 @@ export function OrdersPage() {
             }
           }
         }}
-        onError={(err) => handleApiError(err, { orderId: selectedId ?? undefined })}
+        onError={(err) =>
+          handleApiError(err, { orderId: selectedId ?? undefined })
+        }
       />
 
       <NotificationList notifications={notifications} onDismiss={dismiss} />
