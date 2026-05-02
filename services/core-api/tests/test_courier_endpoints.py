@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jwt as pyjwt
@@ -36,6 +37,21 @@ def _make_token(role: str, user_id: uuid.UUID | None = None) -> str:
 
 def _auth(role: str, user_id: uuid.UUID | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {_make_token(role, user_id)}"}
+
+
+def _assignment_stub(assignment_id: uuid.UUID | None = None) -> SimpleNamespace:
+    from shared.enums import DeliveryAssignmentStatus
+
+    return SimpleNamespace(
+        id=assignment_id or uuid.uuid4(),
+        order_id=uuid.uuid4(),
+        status=DeliveryAssignmentStatus.COURIER_ASSIGNED,
+        created_at=None,
+        updated_at=None,
+        assigned_at=None,
+        picked_up_at=None,
+        delivered_at=None,
+    )
 
 
 @pytest.fixture
@@ -246,11 +262,14 @@ def test_available_endpoint_returns_json_list(client: TestClient) -> None:
     import core_api.routers.courier as router_mod
 
     fake_row = {
-        "id": str(uuid.uuid4()),
-        "order_id": str(uuid.uuid4()),
+        "id": uuid.uuid4(),
+        "order_id": uuid.uuid4(),
+        "status": "AWAITING_COURIER",
         "total": 50000,
         "requested_time": None,
-        "delivery_address_snapshot": None,
+        "delivery_address": {},
+        "created_at": None,
+        "updated_at": None,
     }
     stub = MagicMock(return_value=[fake_row])
     with patch.object(router_mod, "list_available_for_courier", stub):
@@ -262,3 +281,35 @@ def test_available_endpoint_returns_json_list(client: TestClient) -> None:
     body = resp.json()
     assert isinstance(body, list), f"Expected top-level list, got: {type(body)}"
     assert len(body) == 1
+    assert set(body[0]) >= {
+        "id",
+        "order_id",
+        "status",
+        "delivery_address",
+        "total",
+        "requested_time",
+    }
+    assert body[0]["status"] == "AWAITING_COURIER"
+    assert body[0]["delivery_address"] == {}
+    assert "delivery_address_snapshot" not in body[0]
+
+
+def test_take_endpoint_returns_normalized_assignment_response(
+    client: TestClient,
+) -> None:
+    import core_api.routers.courier as router_mod
+
+    assignment_id = uuid.uuid4()
+    stub = MagicMock(return_value=_assignment_stub(assignment_id))
+    with patch.object(router_mod, "take_assignment", stub):
+        resp = client.post(
+            f"/api/v1/courier/assignments/{assignment_id}/take",
+            headers=_auth("courier"),
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["id"] == str(assignment_id)
+    assert body["status"] == "COURIER_ASSIGNED"
+    assert body["delivery_address"] == {}
+    assert body["total"] == 0

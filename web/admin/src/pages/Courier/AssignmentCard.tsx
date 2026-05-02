@@ -4,7 +4,7 @@ import type { CourierAssignmentResponse } from '@/api/courier';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Card representation of one courier assignment — requested time,
-//            total, address line, optional action slot. Pure presentation.
+//            total, optional address line, optional action slot. Pure presentation.
 //   SCOPE:   Used by AvailableTab and MineTab.
 //   DEPENDS: react-i18next, @/api/courier type.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (courier views).
@@ -43,6 +43,8 @@ export function AssignmentCard({ assignment, action }: AssignmentCardProps) {
   const { t } = useTranslation();
   const asapLabel = t('courier.fields.requestedAsap');
   const time = formatRequestedTime(assignment.requested_time, asapLabel);
+  const address =
+    assignment.delivery_address.address_line ?? t('courier.fields.addressHidden');
 
   return (
     <article className="w-full md:w-1/2 rounded-md border bg-card text-card-foreground p-4 flex flex-col gap-3 shadow-sm">
@@ -53,7 +55,7 @@ export function AssignmentCard({ assignment, action }: AssignmentCardProps) {
         </div>
       </div>
       <div className="text-sm text-muted-foreground break-words">
-        {assignment.delivery_address.address_line}
+        {address}
       </div>
       {action ? <div className="mt-auto">{action}</div> : null}
     </article>

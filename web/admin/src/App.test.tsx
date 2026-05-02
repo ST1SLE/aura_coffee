@@ -70,6 +70,23 @@ describe('App', () => {
     expect(screen.getAllByRole('tab').length).toBeGreaterThan(0);
   });
 
+  it('/courier с ролью admin не рендерит courier shell', async () => {
+    localStorage.setItem('accessToken', 'tok');
+    localStorage.setItem('staffRole', 'admin');
+
+    renderAt('/courier');
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('tab', { name: /доступные|available/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('tab', { name: /мои|mine/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+    });
+  });
+
   it('/menu с ролью courier редиректит на /courier', async () => {
     localStorage.setItem('accessToken', 'tok');
     localStorage.setItem('staffRole', 'courier');

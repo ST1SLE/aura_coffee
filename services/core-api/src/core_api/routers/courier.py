@@ -52,7 +52,7 @@ from core_api.services.delivery_assignment import (
     take_assignment,
 )
 from shared.enums import DeliveryAssignmentStatus
-from shared.models import DeliveryAssignment
+from shared.models import DeliveryAssignment, Order
 
 router = APIRouter(prefix="/api/v1/courier", tags=["courier"])
 
@@ -80,27 +80,82 @@ def _assignment_error_to_http(exc: AssignmentTransitionError) -> HTTPException:
     )
 
 
+def _iso(value) -> str | None:
+    return value.isoformat() if value else None
+
+
+def _full_delivery_address(order: Order | None) -> dict:
+    if order is None or not isinstance(order.delivery_address_snapshot, dict):
+        return {}
+    snapshot = order.delivery_address_snapshot
+    return {
+        "address_line": snapshot.get("address_line") or snapshot.get("text"),
+        "lat": snapshot.get("lat"),
+        "lon": snapshot.get("lon"),
+        "entrance": snapshot.get("entrance"),
+        "apartment": snapshot.get("apartment"),
+        "floor": snapshot.get("floor"),
+        "comment": snapshot.get("comment"),
+    }
+
+
+def _serialize_assignment(
+    assignment: DeliveryAssignment,
+    db: Session,
+    *,
+    include_delivery_details: bool,
+) -> dict:
+    order = db.get(Order, assignment.order_id)
+    return {
+        "id": str(assignment.id),
+        "order_id": str(assignment.order_id),
+        "status": assignment.status.name,
+        "delivery_address": (
+            _full_delivery_address(order) if include_delivery_details else {}
+        ),
+        "total": order.total if order else 0,
+        "requested_time": _iso(order.requested_time if order else None),
+        "created_at": _iso(assignment.created_at),
+        "updated_at": _iso(assignment.updated_at),
+        "assigned_at": _iso(assignment.assigned_at),
+        "picked_up_at": _iso(assignment.picked_up_at),
+        "delivered_at": _iso(assignment.delivered_at),
+    }
+
+
 # START_CONTRACT: get_available_assignments
-#   PURPOSE: List AWAITING_COURIER assignments visible to any courier.
+#   PURPOSE: List READY + AWAITING_COURIER assignments visible to any courier,
+#            with address details hidden until assignment.
 #   INPUTS:  current_user (get_current_user), Session.
-#   OUTPUTS: 200 list[dict] of available assignments.
+#   OUTPUTS: 200 list[dict] of normalized available assignment DTOs.
 #   SIDE_EFFECTS: none (read-only DB query).
-#   LINKS:   PDD §6.3, INV-002, INV-010, services.delivery_assignment.
+#   LINKS:   PDD §6.1, §6.3, INV-002, INV-010, INV-013,
+#            services.delivery_assignment.
 # END_CONTRACT: get_available_assignments
 @router.get("/assignments/available")
 def get_available_assignments(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(_get_session),
 ) -> list[dict]:
-    """Список AWAITING_COURIER assignments — видит каждый курьер."""
-    return list_available_for_courier(db)
+    """READY + AWAITING_COURIER assignments — address is redacted pre-take."""
+    return [
+        {
+            **row,
+            "id": str(row["id"]),
+            "order_id": str(row["order_id"]),
+            "requested_time": _iso(row.get("requested_time")),
+            "created_at": _iso(row.get("created_at")),
+            "updated_at": _iso(row.get("updated_at")),
+        }
+        for row in list_available_for_courier(db)
+    ]
 
 
 # START_CONTRACT: get_my_assignments
 #   PURPOSE: Return the active assignments (COURIER_ASSIGNED / PICKED_UP)
 #            owned by the current courier.
 #   INPUTS:  current_user, Session.
-#   OUTPUTS: 200 list[dict].
+#   OUTPUTS: 200 list[dict] of normalized assignment DTOs with delivery details.
 #   SIDE_EFFECTS: none.
 #   LINKS:   PDD §6.3, INV-002, INV-010, INV-013 (courier sees only own
 #            delivery rows).
@@ -126,13 +181,7 @@ def get_my_assignments(
         .all()
     )
     return [
-        {
-            "id": str(r.id),
-            "order_id": str(r.order_id),
-            "status": r.status.value,
-            "assigned_at": r.assigned_at.isoformat() if r.assigned_at else None,
-            "picked_up_at": r.picked_up_at.isoformat() if r.picked_up_at else None,
-        }
+        _serialize_assignment(r, db, include_delivery_details=True)
         for r in rows
     ]
 
@@ -141,7 +190,7 @@ def get_my_assignments(
 #   PURPOSE: AWAITING_COURIER → COURIER_ASSIGNED transition with optimistic
 #            lock — only the first courier wins.
 #   INPUTS:  assignment_id: UUID, current_user, Session.
-#   OUTPUTS: 200 {"status": "courier_assigned"}; 404 not found;
+#   OUTPUTS: 200 normalized assignment DTO; 404 not found;
 #            403 not_owner; 409 already_taken / forbidden_transition.
 #   SIDE_EFFECTS: DB update on delivery_assignment row.
 #   LINKS:   PDD §6.3, INV-002, INV-010, INV-016, services.delivery_assignment.
@@ -155,7 +204,7 @@ def post_take_assignment(
     """Забрать AWAITING_COURIER → COURIER_ASSIGNED (optimistic lock)."""
     courier_id = current_user["user_id"]
     try:
-        take_assignment(assignment_id, courier_id, db)
+        assignment = take_assignment(assignment_id, courier_id, db)
     except AssignmentAlreadyTakenError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -163,13 +212,13 @@ def post_take_assignment(
         )
     except AssignmentTransitionError as exc:
         raise _assignment_error_to_http(exc)
-    return {"status": "courier_assigned"}
+    return _serialize_assignment(assignment, db, include_delivery_details=True)
 
 
 # START_CONTRACT: post_pickup_assignment
 #   PURPOSE: COURIER_ASSIGNED → PICKED_UP transition + Order → IN_DELIVERY.
 #   INPUTS:  assignment_id: UUID, current_user, Session.
-#   OUTPUTS: 200 {"status": "picked_up"}; 404; 403; 409.
+#   OUTPUTS: 200 normalized assignment DTO; 404; 403; 409.
 #   SIDE_EFFECTS: DB updates on delivery_assignment + order
 #                 (atomic within service, INV-004 / INV-016).
 #   LINKS:   PDD §6.1, §6.3, INV-002, INV-010, INV-016,
@@ -184,7 +233,7 @@ def post_pickup_assignment(
     """Забрать заказ у бариста — COURIER_ASSIGNED → PICKED_UP (+ Order → IN_DELIVERY)."""
     courier_id = current_user["user_id"]
     try:
-        pickup_assignment(assignment_id, courier_id, db)
+        assignment = pickup_assignment(assignment_id, courier_id, db)
     except AssignmentAlreadyTakenError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -192,14 +241,14 @@ def post_pickup_assignment(
         )
     except AssignmentTransitionError as exc:
         raise _assignment_error_to_http(exc)
-    return {"status": "picked_up"}
+    return _serialize_assignment(assignment, db, include_delivery_details=True)
 
 
 # START_CONTRACT: post_deliver_assignment
 #   PURPOSE: PICKED_UP → DELIVERED transition + Order → COMPLETED + loyalty
 #            accrual.
 #   INPUTS:  assignment_id: UUID, current_user, Session.
-#   OUTPUTS: 200 {"status": "delivered"}; 404; 403; 409.
+#   OUTPUTS: 200 normalized assignment DTO; 404; 403; 409.
 #   SIDE_EFFECTS: Atomic DB writes — assignment, order, loyalty balance,
 #                 loyalty transaction (INV-004 single transaction).
 #   LINKS:   PDD §6.1, §6.3, INV-002, INV-004, INV-010, INV-016,
@@ -214,7 +263,7 @@ def post_deliver_assignment(
     """Вручить клиенту — PICKED_UP → DELIVERED (+ Order → COMPLETED + loyalty)."""
     courier_id = current_user["user_id"]
     try:
-        deliver_assignment(assignment_id, courier_id, db)
+        assignment = deliver_assignment(assignment_id, courier_id, db)
     except AssignmentAlreadyTakenError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -222,4 +271,4 @@ def post_deliver_assignment(
         )
     except AssignmentTransitionError as exc:
         raise _assignment_error_to_http(exc)
-    return {"status": "delivered"}
+    return _serialize_assignment(assignment, db, include_delivery_details=True)

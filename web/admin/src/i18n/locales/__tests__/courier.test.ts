@@ -10,9 +10,12 @@ const COURIER_KEYS = [
   'courier.empty.available',
   'courier.empty.mine',
   'courier.errors.alreadyTaken',
+  'courier.errors.forbidden',
+  'courier.errors.loadFailed',
   'courier.fields.requestedAsap',
   'courier.fields.total',
   'courier.fields.address',
+  'courier.fields.addressHidden',
 ];
 
 beforeAll(async () => {

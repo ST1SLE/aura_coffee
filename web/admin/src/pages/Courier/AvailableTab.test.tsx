@@ -81,6 +81,20 @@ describe('AvailableTab', () => {
     });
   });
 
+  it('рендерит fallback вместо адреса, если available feed редактирует PII', async () => {
+    vi.mocked(courierApi.listAvailable).mockResolvedValue([
+      makeAssignment({ id: 'a-redacted', delivery_address: {} }),
+    ]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Адрес будет доступен после назначения/i),
+      ).toBeDefined();
+    });
+  });
+
   it('клик на "Взять" вызывает takeAssignment с id', async () => {
     vi.mocked(courierApi.listAvailable).mockResolvedValue([
       makeAssignment({ id: 'aid-7' }),
@@ -114,6 +128,20 @@ describe('AvailableTab', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Заказ уже взят другим курьером/i)).toBeDefined();
+    });
+  });
+
+  it('403 на listAvailable показывает явную ошибку доступа', async () => {
+    vi.mocked(courierApi.listAvailable).mockRejectedValue(
+      new ApiError(403, { detail: 'forbidden' }, 'forbidden'),
+    );
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Доступ к курьерским заказам разрешён только курьерам/i),
+      ).toBeDefined();
     });
   });
 

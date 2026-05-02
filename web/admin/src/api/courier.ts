@@ -21,7 +21,7 @@ import { authenticatedFetch, ApiError } from './client';
 // START_MODULE_MAP
 //   ApiError                    - re-export from ./client
 //   CourierAssignmentStatus     - assignment lifecycle union
-//   DeliveryAddressSnapshot     - address shape (no name/phone — INV-010)
+//   DeliveryAddressSnapshot     - address shape; available feed may redact fields
 //   CourierAssignmentResponse   - assignment DTO returned by all courier endpoints
 //   listAvailable               - GET available assignments (poll-driven feed)
 //   takeAssignment              - POST take (claim) an available assignment
@@ -40,7 +40,7 @@ export type CourierAssignmentStatus =
   | 'CANCELLED';
 
 export interface DeliveryAddressSnapshot {
-  address_line: string;
+  address_line?: string | null;
   lat?: number | null;
   lon?: number | null;
   entrance?: string | null;
@@ -58,6 +58,9 @@ export interface CourierAssignmentResponse {
   requested_time: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  assigned_at?: string | null;
+  picked_up_at?: string | null;
+  delivered_at?: string | null;
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
@@ -71,7 +74,8 @@ function post<T>(path: string): Promise<T> {
 }
 
 // START_CONTRACT: listAvailable
-//   PURPOSE: List courier assignments awaiting pickup (status=AWAITING_COURIER).
+//   PURPOSE: List ready courier assignments awaiting pickup (status=AWAITING_COURIER);
+//            address details are redacted until the courier takes one.
 //   INPUTS:  none
 //   OUTPUTS: Promise<CourierAssignmentResponse[]>
 //   SIDE_EFFECTS: GET; polled by AvailableTab every 5s.

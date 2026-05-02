@@ -92,13 +92,15 @@ def _now() -> datetime:
 
 # START_CONTRACT: take_assignment
 #   PURPOSE: Atomic take of an AWAITING assignment via conditional UPDATE,
-#            preventing duplicate assignment under courier contention.
+#            preventing duplicate assignment under courier contention and
+#            hiding not-ready orders from courier handoff.
 #   INPUTS:  assignment_id: UUID
 #            courier_id: UUID
 #            db_session: Session
 #   OUTPUTS: DeliveryAssignment (refreshed)
 #   SIDE_EFFECTS: DB UPDATE assignments SET courier+status+assigned_at WHERE
-#                 status=AWAITING_COURIER + commit. Source: AWAITING_COURIER.
+#                 status=AWAITING_COURIER and order.status=READY + commit.
+#                 Source: AWAITING_COURIER.
 #                 Target: COURIER_ASSIGNED. Race losers → AssignmentAlreadyTakenError.
 #   LINKS:   PDD §6.3, INV-004, INV-016
 # END_CONTRACT: take_assignment
@@ -109,9 +111,11 @@ def take_assignment(
 ) -> DeliveryAssignment:
     """AWAITING_COURIER -> COURIER_ASSIGNED для `courier_id` через optimistic lock.
 
-    Атомарный UPDATE ... WHERE status='awaiting_courier' RETURNING *.
+    Атомарный UPDATE ... WHERE status='awaiting_courier' AND order.status='ready'
+    RETURNING *.
     0 строк:
       - assignment отсутствует → AssignmentTransitionError(assignment_not_found);
+      - assignment AWAITING, но order не READY → AssignmentTransitionError(order_not_ready);
       - status == COURIER_ASSIGNED → AssignmentAlreadyTakenError (race);
       - остальные non-AWAITING → AssignmentTransitionError(forbidden_transition).
     1 строка: commit + возвращаем обновлённый объект.
@@ -122,6 +126,9 @@ def take_assignment(
         .where(
             DeliveryAssignment.id == assignment_id,
             DeliveryAssignment.status == DeliveryAssignmentStatus.AWAITING_COURIER,
+            DeliveryAssignment.order_id.in_(
+                select(Order.id).where(Order.status == OrderStatus.READY)
+            ),
         )
         .values(
             courier_id=courier_id,
@@ -139,6 +146,10 @@ def take_assignment(
         existing = db_session.get(DeliveryAssignment, assignment_id)
         if existing is None:
             raise AssignmentTransitionError(reason="assignment_not_found")
+        if existing.status == DeliveryAssignmentStatus.AWAITING_COURIER:
+            order = db_session.get(Order, existing.order_id)
+            if order is None or order.status != OrderStatus.READY:
+                raise AssignmentTransitionError(reason="order_not_ready")
         if existing.status == DeliveryAssignmentStatus.COURIER_ASSIGNED:
             raise AssignmentAlreadyTakenError()
         raise AssignmentTransitionError(reason="forbidden_transition")
@@ -150,7 +161,7 @@ def take_assignment(
         "delivery.accept",
         "BLOCK_STATE_TRANSITION",
         belief="COURIER_ASSIGNED",
-        actual=str(assignment.status),
+        actual=assignment.status.name,
         assignment_id=str(assignment.id),
     )
     return assignment
@@ -211,7 +222,7 @@ def pickup_assignment(
         "delivery.pickup",
         "BLOCK_STATE_TRANSITION",
         belief="PICKED_UP",
-        actual=str(assignment.status),
+        actual=assignment.status.name,
         assignment_id=str(assignment.id),
     )
     send_order_notification(order, OrderStatus.IN_DELIVERY)
@@ -266,7 +277,7 @@ def deliver_assignment(
         "delivery.deliver",
         "BLOCK_STATE_TRANSITION",
         belief="DELIVERED",
-        actual=str(assignment.status),
+        actual=assignment.status.name,
         assignment_id=str(assignment.id),
     )
     send_order_notification(order, OrderStatus.COMPLETED)
@@ -313,39 +324,48 @@ def cancel_assignment_for_order(
 
 
 # START_CONTRACT: list_available_for_courier
-#   PURPOSE: Return AWAITING-COURIER assignments joined with their orders for
-#            the courier-side feed (id, order_id, total, requested_time, snapshot).
+#   PURPOSE: Return READY + AWAITING-COURIER assignments joined with their orders
+#            for the courier-side feed, with delivery PII redacted until take.
 #   INPUTS:  db_session: Session
-#   OUTPUTS: list[dict] — minimal projection per row.
+#   OUTPUTS: list[dict] — normalized, minimal projection per row.
 #   SIDE_EFFECTS: DB SELECT only.
-#   LINKS:   PDD §6.3, INV-010
+#   LINKS:   PDD §6.1, §6.3, INV-010, INV-013
 # END_CONTRACT: list_available_for_courier
 def list_available_for_courier(db_session: Session) -> list[dict]:
-    """JOIN assignments (AWAITING_COURIER) × orders → view-строки.
+    """JOIN assignments (AWAITING_COURIER + READY order) × orders → view rows.
 
-    Возвращает список dict'ов с полями, которые видит курьер в списке:
-    `id` (assignment), `order_id` (order uuid), `total`, `requested_time`,
-    `delivery_address_snapshot`.
+    Available feed is intentionally redacted before assignment: it carries
+    timing and total, but not the full address line, apartment, floor, entrance,
+    or delivery comment. The assigned courier receives those details through
+    `/mine` and mutation responses.
     """
     stmt = (
         select(
             DeliveryAssignment.id,
+            DeliveryAssignment.status,
+            DeliveryAssignment.created_at,
+            DeliveryAssignment.updated_at,
             Order.id.label("order_id"),
             Order.total,
             Order.requested_time,
-            Order.delivery_address_snapshot,
         )
         .join(Order, Order.id == DeliveryAssignment.order_id)
-        .where(DeliveryAssignment.status == DeliveryAssignmentStatus.AWAITING_COURIER)
+        .where(
+            DeliveryAssignment.status == DeliveryAssignmentStatus.AWAITING_COURIER,
+            Order.status == OrderStatus.READY,
+        )
     )
     rows = db_session.execute(stmt).all()
     return [
         {
             "id": row.id,
             "order_id": row.order_id,
+            "status": row.status.name,
             "total": row.total,
             "requested_time": row.requested_time,
-            "delivery_address_snapshot": row.delivery_address_snapshot,
+            "delivery_address": {},
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
         }
         for row in rows
     ]

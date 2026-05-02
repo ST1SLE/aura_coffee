@@ -460,12 +460,15 @@
       "mine": "You have no assigned deliveries"
     },
     "errors": {
-      "alreadyTaken": "This order has already been taken by another courier"
+      "alreadyTaken": "This order has already been taken by another courier",
+      "forbidden": "Only couriers can access courier assignments",
+      "loadFailed": "Could not load courier assignments"
     },
     "fields": {
       "requestedAsap": "ASAP",
       "total": "Total",
-      "address": "Address"
+      "address": "Address",
+      "addressHidden": "Address available after assignment"
     },
     "status": {
       "COURIER_ASSIGNED": "Assigned",

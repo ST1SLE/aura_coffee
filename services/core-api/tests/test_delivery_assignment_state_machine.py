@@ -202,14 +202,16 @@ def test_delivery_assignment_module_exists() -> None:
 # ---------------------------------------------------------------------------
 
 def test_take_assignment_awaiting_to_assigned_happy_path(
-    db: Session, notify_mock: MagicMock
+    db: Session, notify_mock: MagicMock, grace_logs
 ) -> None:
     from core_api.services.delivery_assignment import take_assignment
     from shared.enums import DeliveryAssignmentStatus
     from shared.models import DeliveryAssignment
 
     cid = _seed_courier(db)
-    aid = _seed_assignment(db, status="awaiting_courier")
+    aid = _seed_assignment(
+        db, status="awaiting_courier", order_status="ready"
+    )
     db.commit()
 
     take_assignment(aid, cid, db)
@@ -218,6 +220,10 @@ def test_take_assignment_awaiting_to_assigned_happy_path(
     assert a.status == DeliveryAssignmentStatus.COURIER_ASSIGNED
     assert a.courier_id == cid
     assert a.assigned_at is not None
+    grace_logs.assert_trajectory(
+        ("delivery.accept", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +231,7 @@ def test_take_assignment_awaiting_to_assigned_happy_path(
 # ---------------------------------------------------------------------------
 
 def test_pickup_assignment_assigned_to_picked_up_happy_path(
-    db: Session, notify_mock: MagicMock, bridge_mock: MagicMock
+    db: Session, notify_mock: MagicMock, bridge_mock: MagicMock, grace_logs
 ) -> None:
     from core_api.services.delivery_assignment import pickup_assignment
     from shared.enums import DeliveryAssignmentStatus
@@ -242,6 +248,10 @@ def test_pickup_assignment_assigned_to_picked_up_happy_path(
     a = db.get(DeliveryAssignment, aid)
     assert a.status == DeliveryAssignmentStatus.PICKED_UP
     assert a.picked_up_at is not None
+    grace_logs.assert_trajectory(
+        ("delivery.pickup", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +259,7 @@ def test_pickup_assignment_assigned_to_picked_up_happy_path(
 # ---------------------------------------------------------------------------
 
 def test_deliver_assignment_picked_up_to_delivered_happy_path(
-    db: Session, notify_mock: MagicMock, bridge_mock: MagicMock
+    db: Session, notify_mock: MagicMock, bridge_mock: MagicMock, grace_logs
 ) -> None:
     from core_api.services.delivery_assignment import deliver_assignment
     from shared.enums import DeliveryAssignmentStatus
@@ -266,6 +276,10 @@ def test_deliver_assignment_picked_up_to_delivered_happy_path(
     a = db.get(DeliveryAssignment, aid)
     assert a.status == DeliveryAssignmentStatus.DELIVERED
     assert a.delivered_at is not None
+    grace_logs.assert_trajectory(
+        ("delivery.deliver", "BLOCK_STATE_TRANSITION"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
 
 
 # ---------------------------------------------------------------------------
@@ -390,6 +404,35 @@ def test_take_assignment_on_non_awaiting_raises_forbidden_transition(
     with pytest.raises(AssignmentTransitionError) as ei:
         take_assignment(aid, other_courier, db)
     assert ei.value.reason == "forbidden_transition"
+
+
+# ---------------------------------------------------------------------------
+# 1.9b — take requires parent order READY
+# ---------------------------------------------------------------------------
+
+def test_take_assignment_awaiting_preparing_order_raises_order_not_ready(
+    db: Session, notify_mock: MagicMock
+) -> None:
+    from core_api.services.delivery_assignment import (
+        AssignmentTransitionError,
+        take_assignment,
+    )
+    from shared.enums import DeliveryAssignmentStatus
+    from shared.models import DeliveryAssignment
+
+    cid = _seed_courier(db)
+    aid = _seed_assignment(
+        db, status="awaiting_courier", order_status="preparing"
+    )
+    db.commit()
+
+    with pytest.raises(AssignmentTransitionError) as ei:
+        take_assignment(aid, cid, db)
+
+    assert ei.value.reason == "order_not_ready"
+    a = db.get(DeliveryAssignment, aid)
+    assert a.status == DeliveryAssignmentStatus.AWAITING_COURIER
+    assert a.courier_id is None
 
 
 # ---------------------------------------------------------------------------
@@ -577,19 +620,32 @@ def test_assignment_not_found_raises(
 
 
 # ---------------------------------------------------------------------------
-# 1.16 — list_available_for_courier returns only AWAITING
+# 1.16 — list_available_for_courier returns only READY + AWAITING
 # ---------------------------------------------------------------------------
 
-def test_list_available_for_courier_returns_only_awaiting(
+def test_list_available_for_courier_returns_only_ready_awaiting_and_redacts_pii(
     db: Session, notify_mock: MagicMock
 ) -> None:
     from core_api.services.delivery_assignment import list_available_for_courier
+    from shared.models import Order
 
     c1 = _seed_courier(db)
-    oid_aw = _seed_order(db, status="preparing", order_type="delivery", total=77000)
+    oid_aw = _seed_order(db, status="ready", order_type="delivery", total=77000)
+    oid_preparing = _seed_order(
+        db, status="preparing", order_type="delivery", total=66000
+    )
     oid_ca = _seed_order(db, status="preparing", order_type="delivery", total=88000)
     oid_dv = _seed_order(db, status="completed", order_type="delivery", total=99000)
+    db.get(Order, oid_aw).delivery_address_snapshot = {
+        "address_line": "Full street 10",
+        "apartment": "42",
+        "floor": "7",
+        "comment": "Call on arrival",
+    }
     aid_aw = _seed_assignment(db, status="awaiting_courier", order_id=oid_aw)
+    aid_preparing = _seed_assignment(
+        db, status="awaiting_courier", order_id=oid_preparing
+    )
     aid_ca = _seed_assignment(
         db, status="courier_assigned", order_id=oid_ca, courier_id=c1
     )
@@ -607,10 +663,16 @@ def test_list_available_for_courier_returns_only_awaiting(
 
     rows_by_id = {_get(row, "id"): row for row in rows}
     assert aid_aw in rows_by_id
+    assert aid_preparing not in rows_by_id
     assert aid_ca not in rows_by_id
     assert aid_dv not in rows_by_id
 
     row = rows_by_id[aid_aw]
     assert _get(row, "id") == aid_aw
     assert _get(row, "order_id") == oid_aw
+    assert _get(row, "status") == "AWAITING_COURIER"
     assert _get(row, "total") == 77000
+    assert _get(row, "delivery_address") == {}
+    row_text = str(row)
+    assert "Full street 10" not in row_text
+    assert "Call on arrival" not in row_text

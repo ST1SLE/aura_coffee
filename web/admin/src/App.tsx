@@ -17,7 +17,8 @@ import { useCurrentRole } from '@/lib/auth';
 //   PURPOSE: Top-level route configuration for the staff SPA — defines the
 //            login route, the admin/barista layout subtree (with admin-only
 //            inner gates for users/promos/settings), and the courier shell
-//            subtree. Mounted under basename="/admin".
+//            subtree. Mounted under basename="/admin"; courier subtree is
+//            courier-only to match backend RBAC.
 //   SCOPE:   Everything routing-related lives here. Uses ProtectedRoute for
 //            client-side role gating; server enforces actual access.
 //   DEPENDS: react-router-dom, all page components, ProtectedRoute, Layout,
@@ -45,7 +46,7 @@ function DashboardIndex() {
 // START_CONTRACT: AppRoutes
 //   PURPOSE: Render the staff SPA route tree. /login is unauthenticated; the
 //            admin+barista layout subtree wraps a default DashboardIndex and
-//            inner admin-only gates; /courier is its own shell.
+//            inner admin-only gates; /courier is its own courier-only shell.
 //   INPUTS:  none.
 //   OUTPUTS: JSX.Element (Routes).
 //   SIDE_EFFECTS: navigation only (declarative routing).
@@ -94,7 +95,7 @@ export function AppRoutes() {
       </Route>
       <Route
         element={
-          <ProtectedRoute allowedRoles={['admin', 'courier']}>
+          <ProtectedRoute allowedRoles={['courier']}>
             <CourierShell />
           </ProtectedRoute>
         }

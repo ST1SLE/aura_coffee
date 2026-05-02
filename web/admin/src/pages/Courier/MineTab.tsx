@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ApiError,
   deliverAssignment,
   listMine,
   pickupAssignment,
@@ -91,6 +92,18 @@ export function MineTab() {
 
   if (query.isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+  }
+
+  if (query.isError) {
+    const message =
+      query.error instanceof ApiError && query.error.status === 403
+        ? t('courier.errors.forbidden')
+        : t('courier.errors.loadFailed');
+    return (
+      <div className="text-sm text-destructive text-center py-8">
+        {message}
+      </div>
+    );
   }
 
   if (items.length === 0) {

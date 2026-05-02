@@ -12,7 +12,7 @@ import {
 //            renders header (language switcher) + main outlet + bottom-corner
 //            notifications.
 //   SCOPE:   Mounted as the parent route of /courier in App.tsx, behind a
-//            ProtectedRoute that allows admin+courier.
+//            ProtectedRoute that allows courier only.
 //   DEPENDS: react-router-dom, @/components/LanguageSwitcher, @/components/ui/notifier,
 //            ./notifier-context.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (courier views),
@@ -48,7 +48,7 @@ function ShellBody() {
 //   INPUTS:  none.
 //   OUTPUTS: JSX.Element.
 //   SIDE_EFFECTS: none beyond context provisioning; the inner notifier owns the timers.
-//   LINKS:   INV-002, INV-010 (this shell is only mounted for courier-or-admin
+//   LINKS:   INV-002, INV-010 (this shell is only mounted for courier
 //            users; ProtectedRoute upstream gates access).
 // END_CONTRACT: CourierShell
 export function CourierShell() {

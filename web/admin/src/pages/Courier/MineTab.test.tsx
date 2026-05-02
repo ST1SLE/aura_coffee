@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n/config';
+import { ApiError } from '@/api/client';
 import * as courierApi from '@/api/courier';
 import { MineTab } from '@/pages/Courier/MineTab';
 import type {
@@ -103,6 +104,20 @@ describe('MineTab', () => {
     await screen.findByText('addr-a-done');
     expect(screen.queryByRole('button', { name: /забрал/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /доставлен/i })).toBeNull();
+  });
+
+  it('403 на listMine показывает явную ошибку доступа', async () => {
+    vi.mocked(courierApi.listMine).mockRejectedValue(
+      new ApiError(403, { detail: 'forbidden' }, 'forbidden'),
+    );
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Доступ к курьерским заказам разрешён только курьерам/i),
+      ).toBeDefined();
+    });
   });
 
   it('пустой список показывает локализованный empty-state', async () => {
