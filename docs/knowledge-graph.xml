@@ -50,13 +50,13 @@
     </M-WEB-CUSTOMER>
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" STATUS="implemented">
-      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing, finite inventory controls, order contact detail, refund retry</purpose>
+      <purpose>React SPA — staff panel: admin, barista, courier views, menu media path editing, finite inventory controls, order contact detail, refund retry, staff session refresh/logout</purpose>
       <path>web/admin/src</path>
       <depends>M-CORE-API</depends>
       <verification-ref>V-M-WEB-ADMIN</verification-ref>
       <annotations>
         <export-pages PURPOSE="Top-level routed pages (orders feed, kitchen, delivery, users, settings)" />
-        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields, inventory controls, staff-only order contact affordance, and admin refund retry" />
+        <export-features PURPOSE="Role-scoped components and hooks (admin, barista, courier), including admin menu media fields, inventory controls, staff-only order contact affordance, admin refund retry, and staff access/refresh token handling" />
       </annotations>
     </M-WEB-ADMIN>
 

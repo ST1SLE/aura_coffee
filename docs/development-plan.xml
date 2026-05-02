@@ -149,11 +149,11 @@
 
     <M-WEB-ADMIN NAME="web-admin" TYPE="UI_COMPONENT" LAYER="3" ORDER="2" STATUS="implemented">
       <contract>
-        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing, operational finite-inventory updates, staff-only order contact affordances, and admin refund retry. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
+        <purpose>Staff SPA — admin/barista/courier surfaces, including admin menu media-path editing, operational finite-inventory updates, staff-only order contact affordances, admin refund retry, and staff access/refresh token rotation. Calls core-api via auto-generated OpenAPI client. INV-002 still applies on the server side; client-side role checks are UX only.</purpose>
       </contract>
       <interface>
         <export-pages PURPOSE="Routed top-level pages by role" />
-        <export-features PURPOSE="Orders feed, kitchen, delivery, users, settings, menu media path editing, order contact detail, refund retry" />
+        <export-features PURPOSE="Orders feed, kitchen, delivery, users, settings, menu media path editing, order contact detail, refund retry, staff session refresh/logout" />
       </interface>
       <depends>M-CORE-API</depends>
       <target>
@@ -166,6 +166,7 @@
       <notes>
         <note-1>Admin menu media controls store public local static asset paths only; binary upload/storage is outside v1.</note-1>
         <note-2>Order contact phone is rendered only from staff order detail and only for operational contact; user/order lists remain PII-minimized.</note-2>
+        <note-3>Admin SPA stores the staff refresh token returned by core-api, retries protected requests once after refresh-token rotation, and calls logout revocation before local cleanup.</note-3>
       </notes>
     </M-WEB-ADMIN>
   </Modules>

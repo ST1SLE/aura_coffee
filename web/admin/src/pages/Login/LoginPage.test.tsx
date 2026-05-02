@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@/i18n/config';
@@ -7,13 +13,14 @@ import { LoginPage } from './LoginPage';
 import * as client from '@/api/client';
 import * as auth from '@/lib/auth';
 
-// Мок модуля client — staffLogin и setAccessToken
+// Мок модуля client — staffLogin и token setters
 vi.mock('@/api/client', async (importOriginal) => {
   const original = await importOriginal<typeof client>();
   return {
     ...original,
     staffLogin: vi.fn(),
     setAccessToken: vi.fn(),
+    setRefreshToken: vi.fn(),
   };
 });
 
@@ -63,28 +70,41 @@ describe('LoginPage', () => {
   // b) Кнопка активна, когда оба поля заполнены
   it('активирует кнопку когда заполнены оба поля', () => {
     renderLoginPage();
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'admin' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     const submitBtn = screen.getByRole('button', { name: /войти/i });
     expect((submitBtn as HTMLButtonElement).disabled).toBe(false);
   });
 
-  // c) Успешный логин: staffLogin вызван, setAccessToken вызван, навигация на /
-  it('при успешном логине вызывает staffLogin, setAccessToken и переходит на /', async () => {
+  // c) Успешный логин: staffLogin вызван, токены сохранены, навигация на /
+  it('при успешном логине вызывает staffLogin, сохраняет токены и переходит на /', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok123',
+      refresh_token: 'ref123',
       role: 'admin',
     });
 
     renderLoginPage('/login');
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'admin' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
-      expect(vi.mocked(client.staffLogin)).toHaveBeenCalledWith('admin', 'pass');
+      expect(vi.mocked(client.staffLogin)).toHaveBeenCalledWith(
+        'admin',
+        'pass',
+      );
     });
     expect(vi.mocked(client.setAccessToken)).toHaveBeenCalledWith('tok123');
+    expect(vi.mocked(client.setRefreshToken)).toHaveBeenCalledWith('ref123');
     await waitFor(() => {
       expect(screen.getByText('dashboard')).toBeDefined();
     });
@@ -94,12 +114,17 @@ describe('LoginPage', () => {
   it('при returnUrl=%2Fmenu переходит на /menu после успешного логина', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok',
+      refresh_token: 'ref',
       role: 'admin',
     });
 
     renderLoginPage('/login?returnUrl=%2Fmenu');
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'admin' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
@@ -107,15 +132,19 @@ describe('LoginPage', () => {
     });
   });
 
-  // e) ApiError(401): показывает инлайн-ошибку, setAccessToken НЕ вызывается
-  it('при ApiError(401) показывает invalidCredentials и не вызывает setAccessToken', async () => {
+  // e) ApiError(401): показывает инлайн-ошибку, token setters НЕ вызываются
+  it('при ApiError(401) показывает invalidCredentials и не сохраняет токены', async () => {
     vi.mocked(client.staffLogin).mockRejectedValueOnce(
       new client.ApiError(401, null, 'HTTP 401: /api/v1/staff/auth/login'),
     );
 
     renderLoginPage();
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'wrong' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'admin' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'wrong' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
@@ -123,18 +152,24 @@ describe('LoginPage', () => {
     });
     expect(screen.getByRole('alert').textContent).toMatch(/неверный логин/i);
     expect(vi.mocked(client.setAccessToken)).not.toHaveBeenCalled();
+    expect(vi.mocked(client.setRefreshToken)).not.toHaveBeenCalled();
   });
 
   // g) Успешный логин курьера: редирект на /courier
   it('при роли courier переходит на /courier', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok-c',
+      refresh_token: 'ref-c',
       role: 'courier',
     });
 
     renderLoginPage('/login');
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'crr' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'crr' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
@@ -146,12 +181,17 @@ describe('LoginPage', () => {
   it('courier-роль игнорирует returnUrl и идёт на /courier', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok-c',
+      refresh_token: 'ref-c',
       role: 'courier',
     });
 
     renderLoginPage('/login?returnUrl=%2Fmenu');
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'crr' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'crr' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
@@ -164,12 +204,17 @@ describe('LoginPage', () => {
   it('вызывает setRole(result.role) после успешного логина', async () => {
     vi.mocked(client.staffLogin).mockResolvedValueOnce({
       access_token: 'tok',
+      refresh_token: 'ref',
       role: 'barista',
     });
 
     renderLoginPage('/login');
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'b' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'p' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'b' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'p' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /войти/i }));
 
     await waitFor(() => {
@@ -179,21 +224,40 @@ describe('LoginPage', () => {
 
   // f) Кнопка отключена во время запроса
   it('кнопка отключена пока выполняется запрос', async () => {
-    let resolveLogin!: (v: { access_token: string; role: string }) => void;
+    let resolveLogin!: (v: {
+      access_token: string;
+      refresh_token: string;
+      role: string;
+    }) => void;
     vi.mocked(client.staffLogin).mockReturnValue(
-      new Promise((res) => { resolveLogin = res; }),
+      new Promise((res) => {
+        resolveLogin = res;
+      }),
     );
 
     renderLoginPage();
-    fireEvent.change(screen.getByLabelText(/логин/i), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/логин/i), {
+      target: { value: 'admin' },
+    });
+    fireEvent.change(screen.getByLabelText(/пароль/i), {
+      target: { value: 'pass' },
+    });
     fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
-      expect(screen.getByRole('button') as HTMLButtonElement).toHaveProperty('disabled', true);
+      expect(screen.getByRole('button') as HTMLButtonElement).toHaveProperty(
+        'disabled',
+        true,
+      );
     });
 
     // Завершаем промис, чтобы не было утечек
-    resolveLogin({ access_token: 'tok', role: 'admin' });
+    await act(async () => {
+      resolveLogin({
+        access_token: 'tok',
+        refresh_token: 'ref',
+        role: 'admin',
+      });
+    });
   });
 });

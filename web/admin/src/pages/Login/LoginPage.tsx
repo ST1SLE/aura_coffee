@@ -4,7 +4,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { staffLogin, setAccessToken, ApiError } from '@/api/client';
+import {
+  staffLogin,
+  setAccessToken,
+  setRefreshToken,
+  ApiError,
+} from '@/api/client';
 import { setRole, type StaffRole } from '@/lib/auth';
 
 // START_MODULE_CONTRACT
@@ -27,14 +32,14 @@ import { setRole, type StaffRole } from '@/lib/auth';
 
 // START_CONTRACT: LoginPage
 //   PURPOSE: Render staff login form, submit credentials to /staff/auth/login,
-//            persist access_token + role hint into localStorage on success,
+//            persist access/refresh tokens + role hint into localStorage on success,
 //            and navigate the user to the appropriate landing page (couriers
 //            always go to /courier; others honour the returnUrl query param
 //            or fall back to /).
 //   INPUTS:  none (reads URL query via useSearchParams).
 //   OUTPUTS: JSX.Element.
-//   SIDE_EFFECTS: network POST via staffLogin; setAccessToken/setRole writes
-//            to localStorage; navigate() updates browser history.
+//   SIDE_EFFECTS: network POST via staffLogin; setAccessToken/setRefreshToken/
+//            setRole writes to localStorage; navigate() updates browser history.
 //   LINKS:   INV-002 (server is authoritative — bad credentials produce 401),
 //            INV-010 (courier role hard-redirects to /courier — UX guard,
 //            not security; even if a courier tampered with localStorage
@@ -59,6 +64,7 @@ export function LoginPage() {
     try {
       const result = await staffLogin(login, password);
       setAccessToken(result.access_token);
+      setRefreshToken(result.refresh_token);
       const role = result.role as StaffRole;
       setRole(role);
       // Курьер всегда попадает на /courier, returnUrl игнорируется (INV-010).
