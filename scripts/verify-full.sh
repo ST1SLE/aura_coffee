@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Full local verification gate for Aura Coffee.
 #
-# This script is intentionally non-destructive: it requires an already-running
-# Docker Compose stack and never stops services, deletes volumes, or resets data.
+# This script requires an already-running Docker Compose stack. It never stops
+# services, deletes volumes, or drops schemas. The browser smoke stage resets
+# rows owned by known Phase 4 QA seed identifiers/users.
 # Backend checks run inside containers to avoid host Python SSL drift.
 
 set -euo pipefail
@@ -98,6 +99,8 @@ run_compose web-admin npm run lint
 run_compose web-admin npm run typecheck
 run_compose web-admin npm run test
 run_compose web-admin npm audit --audit-level=high
+
+./scripts/verify-browser-smoke.sh
 
 ./scripts/check-python-deps.sh
 

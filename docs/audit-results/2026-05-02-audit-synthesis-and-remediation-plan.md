@@ -340,13 +340,14 @@ Status:
 
 Release-significant items still open after the implemented waves and green full gate:
 
-1. Browser E2E remains open from the verification audit. The local scripted gate is green and tracked CI now exists, but there is still no Playwright smoke suite for checkout, barista transitions, courier delivery, and staff role switching.
+1. No release-significant P1/P2 blockers remain from the May 2 remediation set. Remaining work is polish/backlog unless the release definition expands.
 
 Additional release-readiness items completed after the green full gate:
 
 1. Customer checkout input completeness is now implemented: `web/customer/src/pages/CheckoutPage.tsx` sends `promocode_code`, `points_to_use`, and `requested_time`, and renders server-owned checkout estimates/free-delivery guidance from `POST /api/v1/orders/estimate`.
 2. DB-level `order_items` immutability is now enforced by migration `0011_order_items_immutability.py`: the `orders -> order_items` FK is `ON DELETE RESTRICT`, and Postgres triggers reject direct `UPDATE` and `DELETE` on `order_items`.
 3. Tracked CI now exists at `.github/workflows/verify.yml`: on `push` to `main`/`dev` and on pull requests it installs `uv`, generates a dev `.env`, builds/starts the Compose stack, runs `./scripts/verify-full.sh`, uploads Docker logs on failure, and shuts the stack down. `scripts/setup-worktree-env.sh` now offsets `PAYMENT_WEBHOOK_PORT` too, so the workflow and local parallel worktrees do not share that host binding.
+4. Browser smoke now exists under `tests/e2e`: `scripts/verify-browser-smoke.sh` installs Playwright, runs the QA-scoped reset, and verifies customer pickup checkout, admin logout to barista role switching, barista pickup transitions, and courier take/pickup/deliver through the browser. `./scripts/verify-full.sh` now includes this gate.
 
 Items that look downgraded to polish/backlog, not immediate release blockers:
 
@@ -375,7 +376,7 @@ Reason: these touch shared invariants, transaction boundaries, RBAC, PII, and LD
 
 ## Next Recommended Action
 
-Open one final release-readiness follow-up before calling the May 2 remediation ship-ready:
+Before calling the May 2 remediation ship-ready:
 
-1. Add a small Playwright smoke follow-up if production release discipline still requires automated browser-path coverage before shipping.
+1. Run `./scripts/verify-full.sh` once after the Playwright packet lands.
 2. Keep the unrelated untracked `docs/agent-context/` and design-reference files out of remediation commits unless they are deliberately promoted into the release artifact set.

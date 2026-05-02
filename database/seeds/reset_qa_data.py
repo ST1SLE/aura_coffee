@@ -82,6 +82,7 @@ QA_MODIFIER_NAMES = (
     "Cinnamon (QA)",
     "Unavailable topping (QA)",
 )
+ORDER_ITEMS_IMMUTABLE_DELETE_TRIGGER = "trg_order_items_immutable_delete"
 
 
 def _guard_environment() -> None:
@@ -136,6 +137,50 @@ def _delete_where(
     return int(result.rowcount or 0)
 
 
+def _trigger_exists(conn, table: str, trigger_name: str) -> bool:
+    return bool(
+        conn.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_trigger trg
+                    JOIN pg_class rel ON rel.oid = trg.tgrelid
+                    WHERE rel.relname = :table
+                      AND trg.tgname = :trigger_name
+                      AND NOT trg.tgisinternal
+                )
+                """
+            ),
+            {"table": table, "trigger_name": trigger_name},
+        ).scalar_one()
+    )
+
+
+def _delete_qa_order_items(conn, order_ids: Sequence[Any]) -> int:
+    if not order_ids:
+        return 0
+
+    trigger_exists = _trigger_exists(conn, "order_items", ORDER_ITEMS_IMMUTABLE_DELETE_TRIGGER)
+    if trigger_exists:
+        conn.execute(
+            text(f"ALTER TABLE order_items DISABLE TRIGGER {ORDER_ITEMS_IMMUTABLE_DELETE_TRIGGER}")
+        )
+    try:
+        # QA reset is a guarded dev/test utility; runtime paths still enforce INV-014.
+        return _delete_where(
+            conn,
+            "DELETE FROM order_items WHERE order_id IN :order_ids",
+            "order_ids",
+            order_ids,
+        )
+    finally:
+        if trigger_exists:
+            conn.execute(
+                text(f"ALTER TABLE order_items ENABLE TRIGGER {ORDER_ITEMS_IMMUTABLE_DELETE_TRIGGER}")
+            )
+
+
 def _increment(counts: dict[str, int], table: str, count: int) -> None:
     counts[table] = counts.get(table, 0) + count
 
@@ -145,8 +190,10 @@ def _increment(counts: dict[str, int], table: str, count: int) -> None:
 #            and re-run the idempotent Phase 4 QA seed.
 #   INPUTS:  database_url: str | None — explicit DB URL or DATABASE_URL env.
 #   OUTPUTS: dict[str, int] — deleted row counts by table before reseed.
-#   SIDE_EFFECTS: DELETEs deterministic QA fixture rows only, then INSERT/UPSERTs
-#                 the Phase 4 QA seed. Refuses outside dev/test/local unless
+#   SIDE_EFFECTS: DELETEs rows owned by known QA seed identifiers/users,
+#                 temporarily disables the order_items delete trigger inside
+#                 the guarded reset transaction, then INSERT/UPSERTs the Phase
+#                 4 QA seed. Refuses outside dev/test/local unless
 #                 ALLOW_QA_RESET=1. Does not drop schemas, databases, or volumes.
 #   LINKS:   docs/phase6_manual_test_scenarios.md,
 #            docs/audit-results/2026-05-02-verification-audit.md P2,
@@ -416,6 +463,7 @@ def run(database_url: str | None = None) -> dict[str, int]:
                     qa_order_ids,
                 ),
             )
+            _increment(counts, "order_items", _delete_qa_order_items(conn, qa_order_ids))
             _increment(counts, "orders", _delete_in(conn, "orders", "id", "ids", qa_order_ids))
             _increment(
                 counts,

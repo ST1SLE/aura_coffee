@@ -214,7 +214,7 @@
     </Gate-Local-Fast>
 
     <Gate-Local-Full PHASE="Local-Full">
-      <goal>Full local verification against an already-running non-destructive Compose stack: migrations, backend ruff, Python pytest suites, frontend lint/typecheck/Vitest, and mandatory dependency audit gates.</goal>
+      <goal>Full local verification against an already-running Compose stack: migrations, backend ruff, Python pytest suites, frontend lint/typecheck/Vitest/npm audit, browser smoke, and mandatory dependency audit gates. Browser smoke resets rows owned by known Phase 4 QA seed identifiers/users.</goal>
       <commands>
         <command-1>./scripts/verify-full.sh</command-1>
       </commands>
@@ -224,6 +224,7 @@
         <evidence-3>Both frontend lint, typecheck, Vitest, and npm audit gates pass.</evidence-3>
         <evidence-4>Host-side pip-audit via uvx passes for core-api, payment-worker, sms-worker, and shared packages.</evidence-4>
         <evidence-5>Core API, payment-webhook, nginx canonical /health, and Celery workers pass non-destructive readiness checks.</evidence-5>
+        <evidence-6>Playwright browser smoke passes for customer pickup checkout, admin logout to barista role switching, barista pickup transitions, and courier take/pickup/deliver flow.</evidence-6>
       </required-evidence>
     </Gate-Local-Full>
 

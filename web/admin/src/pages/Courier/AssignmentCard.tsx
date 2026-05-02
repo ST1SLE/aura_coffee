@@ -65,7 +65,10 @@ export function AssignmentCard({
       : t('courier.fields.addressHidden');
 
   return (
-    <article className="w-full md:w-1/2 rounded-md border bg-card text-card-foreground p-4 flex flex-col gap-3 shadow-sm">
+    <article
+      data-testid={`courier-assignment-${assignment.id}`}
+      className="w-full md:w-1/2 rounded-md border bg-card text-card-foreground p-4 flex flex-col gap-3 shadow-sm"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-medium">{time}</div>
         <div className="text-sm font-semibold">
