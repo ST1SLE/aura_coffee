@@ -274,6 +274,15 @@ Required LDD:
 - `process_webhook BLOCK_STATE_TRANSITION`
 - redaction for raw webhook body and payment secrets.
 
+Status:
+
+- Wave 6 controls are present and verified in the current worktree: nginx has an exact `/api/webhooks/yukassa` route to `payment-webhook` before the generic `/api/` route, the webhook route overwrites `X-Forwarded-For` with `$remote_addr`, and compose keeps nginx dependent on `payment-webhook`.
+- Payment webhook hardening is present in `services/payment-worker/src/payment_worker/webhook.py`: optional HMAC-SHA256 signature verification rejects invalid or missing signatures before JSON parsing and before dispatch, event idempotency remains commit-bound, and guarded payment/refund handlers reject forbidden source states or duplicate terminal events without mutating rows or emitting a state-transition marker.
+- Core API secret safety rails are present in `services/core-api/src/core_api/settings.py`: outside explicit `AURA_ENV=dev`, placeholder/short JWT secrets and malformed/all-zero PII encryption keys fail fast without echoing raw secret values in validation errors.
+- Focused verification passed: `/usr/bin/python3 -m pytest tests/test_nginx_webhook_route.py -q` (`4` tests), `docker compose exec -T payment-worker pytest services/payment-worker/tests/test_webhook.py services/payment-worker/tests/test_settings.py services/payment-worker/tests/test_settings_safety_rail.py -q` (`35` tests), and `docker compose exec -T core-api pytest services/core-api/tests/test_settings_safety_rail.py -q` (`13` tests).
+- Focused lint passed for the touched payment-worker webhook/settings/tests, Core API settings/tests, and nginx route regression test.
+- LDD/redaction gate: payment webhook tests assert `process_webhook` `BLOCK_WEBHOOK_VERIFY`, `BLOCK_TX_PAYMENT`, and `BLOCK_STATE_TRANSITION` on successful transitions; guarded duplicate/forbidden-source tests assert no state-transition marker and no mismatched beliefs; signature tests assert raw webhook body and signature secret are absent from captured logs. Core settings tests assert rejected secret values are not echoed in validation errors.
+
 ### Wave 7 - Account Deletion and PII Anonymization
 
 Primary sources: business-logic audit P0-2 and customer UX deletion gap.
