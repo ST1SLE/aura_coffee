@@ -293,6 +293,32 @@ def test_admin_cancels_ready_order(
     assert send_task_mock.call_count == 1
 
 
+# GRACE-LDD: cancellation emits required transaction/state markers and does not
+# log free-text cancellation reason content.
+def test_cancel_order_emits_ldd_markers_and_redacts_reason(
+    db: Session,
+    notify_mock: MagicMock,
+    send_task_mock: MagicMock,
+    grace_logs,
+) -> None:
+    from core_api.services.order_cancel import cancel_order
+
+    raw_reason = "customer phone +79991234567 at Secret Street 123"
+    oid, _, _ = _seed_order_full(db, status="preparing", payment_amount=50000)
+
+    cancel_order(oid, "admin", raw_reason, db)
+
+    grace_logs.assert_trajectory(
+        ("orders.cancel", "BLOCK_TX_BEGIN"),
+        ("orders.cancel", "BLOCK_STATE_TRANSITION"),
+        ("orders.cancel", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    joined_logs = "\n".join(grace_logs.lines)
+    assert "+79991234567" not in joined_logs
+    assert "Secret Street 123" not in joined_logs
+
+
 # ---------------------------------------------------------------------------
 # Rights check (INV-005)
 # ---------------------------------------------------------------------------
@@ -311,6 +337,24 @@ def test_customer_cannot_cancel_preparing(
     assert db.get(Order, oid).status == OrderStatus.PREPARING
     assert send_task_mock.call_count == 0
     assert notify_mock.call_count == 0
+
+
+# GRACE-LDD: failed validation must not emit commit or state-transition markers.
+def test_cancel_order_failed_validation_emits_no_commit_marker(
+    db: Session,
+    notify_mock: MagicMock,
+    send_task_mock: MagicMock,
+    grace_logs,
+) -> None:
+    from core_api.services.order_cancel import OrderCancelError, cancel_order
+
+    oid, _, _ = _seed_order_full(db, status="preparing")
+    with pytest.raises(OrderCancelError):
+        cancel_order(oid, "customer", None, db)
+
+    assert grace_logs.blocks(fn="orders.cancel", blk="BLOCK_TX_BEGIN")
+    assert grace_logs.blocks(fn="orders.cancel", blk="BLOCK_STATE_TRANSITION") == []
+    assert grace_logs.blocks(fn="orders.cancel", blk="BLOCK_TX_COMMIT") == []
 
 
 @pytest.mark.parametrize(

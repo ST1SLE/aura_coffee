@@ -272,6 +272,11 @@ Recommended sequence:
 6. Add Python dependency/security audit gate and update vulnerable `cryptography`.
 7. Add non-destructive QA reset script; keep `docker compose down -v` documented as destructive.
 
+Status:
+
+- Items 1-2 are already present in the repository: `scripts/verify-fast.sh`, `scripts/verify-full.sh`, and frontend `typecheck` scripts are tracked.
+- Item 3 started with the cancellation slice: `services/core-api/tests/test_order_cancel.py` now asserts `orders.cancel` transaction/state/commit markers, no commit marker on failed validation, and redaction of free-text cancellation reason content.
+
 ## Parallelization Guidance
 
 Safe to parallelize after Wave 0:
