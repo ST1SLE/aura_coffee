@@ -914,5 +914,6 @@ PostgreSQL — единственный источник истины. Redis —
 | `YANDEX_MAPS_API_KEY` | Яндекс.Карты | API-ключ для Suggest + Geocoder |
 | `DATABASE_URL` | PostgreSQL | Connection string (включает пароль) |
 | `REDIS_URL` | Redis | Connection string |
-| `JWT_SECRET` | Core API | Секрет для подписи JWT-токенов |
+| `AURA_ENV` | Все сервисы | Среда выполнения (`dev` разрешает локальные placeholder-секреты; прочие значения требуют production-safe secrets) |
+| `JWT_SECRET_KEY` | Core API | Секрет для подписи JWT-токенов |
 | `ENCRYPTION_KEY` | Core API | Ключ AES-256 для шифрования PII (телефонов) |

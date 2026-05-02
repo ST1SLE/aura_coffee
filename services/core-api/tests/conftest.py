@@ -2,6 +2,8 @@ import os
 import pathlib as _pathlib
 import sys as _sys
 
+# ruff: noqa: E402
+
 # Корень репо в sys.path — чтобы тесты могли импортировать `database.seeds.*`
 _REPO_ROOT = _pathlib.Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in _sys.path:
@@ -10,6 +12,7 @@ if str(_REPO_ROOT) not in _sys.path:
 # Подставляем минимальные env-переменные до импорта приложения
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("AURA_ENV", "dev")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("ENCRYPTION_KEY", "0" * 64)
 
