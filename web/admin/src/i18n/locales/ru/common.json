@@ -6,7 +6,8 @@
     "menu": "Меню",
     "users": "Пользователи",
     "promos": "Промокоды",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "logout": "Выйти"
   },
   "pages": {
     "dashboard": {

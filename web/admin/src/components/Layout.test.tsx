@@ -1,9 +1,14 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './Layout';
+import { logout } from '@/api/client';
 import { setRole, clearRole, type StaffRole } from '@/lib/auth';
+
+vi.mock('@/api/client', () => ({
+  logout: vi.fn(),
+}));
 
 function renderLayout(role: StaffRole | null) {
   if (role) {
@@ -26,6 +31,7 @@ function renderLayout(role: StaffRole | null) {
 describe('Layout role-filtered sidebar', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(logout).mockClear();
   });
 
   it('admin sees all 6 nav items', () => {
@@ -58,5 +64,13 @@ describe('Layout role-filtered sidebar', () => {
     renderLayout(null);
     const links = screen.queryAllByTestId(/^nav-/);
     expect(links).toHaveLength(0);
+  });
+
+  it('renders logout action and delegates to api client logout', () => {
+    renderLayout('admin');
+
+    fireEvent.click(screen.getByTestId('logout-sidebar'));
+
+    expect(logout).toHaveBeenCalledTimes(1);
   });
 });

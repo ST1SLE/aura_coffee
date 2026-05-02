@@ -6,7 +6,8 @@
     "menu": "Menu",
     "users": "Users",
     "promos": "Promo Codes",
-    "settings": "Settings"
+    "settings": "Settings",
+    "logout": "Log out"
   },
   "pages": {
     "dashboard": {
