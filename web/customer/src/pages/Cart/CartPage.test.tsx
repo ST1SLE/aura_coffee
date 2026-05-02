@@ -54,9 +54,11 @@ function makeStore(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderPage() {
+type CartInitialEntry = string | { pathname: string; state?: unknown };
+
+function renderPage(initialEntries: CartInitialEntry[] = ['/cart']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <CartPage />
     </MemoryRouter>,
   );
@@ -135,6 +137,31 @@ describe('CartPage — items and subtotal (task 7.6)', () => {
     fireEvent.click(removeBtn);
 
     await waitFor(() => expect(removeItem).toHaveBeenCalledOnce());
+  });
+
+  it('shows repeat-order skipped entries from navigation state', () => {
+    const items = [makeItem(1, 1)];
+    (useCartStore as unknown as Mock).mockReturnValue(
+      makeStore({ items, subtotal: 20000, itemCount: 1 }),
+    );
+
+    renderPage([
+      {
+        pathname: '/cart',
+        state: {
+          repeatOrderSkipped: [
+            {
+              reason: 'menu_item_unavailable',
+              message_ru: 'Латте сейчас недоступен',
+              message_en: 'Latte is unavailable',
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(screen.getByText('cart.repeatSkippedTitle')).toBeDefined();
+    expect(screen.getByText('Латте сейчас недоступен')).toBeDefined();
   });
 });
 

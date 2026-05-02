@@ -49,8 +49,8 @@ import { CheckoutPage } from './CheckoutPage';
 
 const order = {
   id: 'o1',
-  status: 'CREATED',
-  type: 'PICKUP' as const,
+  status: 'created',
+  type: 'pickup' as const,
   items: [],
   subtotal: 0,
   discount_amount: 0,
@@ -98,8 +98,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('CheckoutPage default PICKUP', () => {
-  it('submits PICKUP payload by default', async () => {
+describe('CheckoutPage default pickup', () => {
+  it('submits pickup payload by default', async () => {
     (createOrder as Mock).mockResolvedValue(order);
     (listAddresses as Mock).mockResolvedValue([]);
     renderPage();
@@ -109,12 +109,12 @@ describe('CheckoutPage default PICKUP', () => {
     await waitFor(() => {
       expect(createOrder).toHaveBeenCalledOnce();
     });
-    expect(createOrder).toHaveBeenCalledWith({ type: 'PICKUP' });
+    expect(createOrder).toHaveBeenCalledWith({ type: 'pickup' });
     expect(mockNavigate).toHaveBeenCalledWith('/orders/o1');
   });
 });
 
-describe('CheckoutPage DELIVERY with saved', () => {
+describe('CheckoutPage delivery with saved', () => {
   it('shows saved/new radio and preselects primary', async () => {
     (listAddresses as Mock).mockResolvedValue([savedA, savedB]);
     renderPage();
@@ -153,14 +153,14 @@ describe('CheckoutPage DELIVERY with saved', () => {
     await waitFor(() => expect(createOrder).toHaveBeenCalled());
     const payload = (createOrder as Mock).mock.calls[0][0];
     expect(payload).toEqual({
-      type: 'DELIVERY',
+      type: 'delivery',
       delivery_address_id: 'saved-1',
     });
     expect(payload.delivery_address).toBeUndefined();
   });
 });
 
-describe('CheckoutPage DELIVERY with new address', () => {
+describe('CheckoutPage delivery with new address', () => {
   it('submits with delivery_address only', async () => {
     (listAddresses as Mock).mockResolvedValue([]);
     (createOrder as Mock).mockResolvedValue(order);
@@ -170,7 +170,7 @@ describe('CheckoutPage DELIVERY with new address', () => {
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
     // no saved → new form is active. The address autocomplete input is the
-    // first textbox inside the DELIVERY block.
+    // first textbox inside the delivery block.
     const textboxes = screen.getAllByRole('textbox');
     // [autocomplete, apartment, entrance, floor, comment]
     fireEvent.change(textboxes[0], { target: { value: 'Новый адрес 5' } });
@@ -180,7 +180,7 @@ describe('CheckoutPage DELIVERY with new address', () => {
 
     await waitFor(() => expect(createOrder).toHaveBeenCalled());
     const payload = (createOrder as Mock).mock.calls[0][0];
-    expect(payload.type).toBe('DELIVERY');
+    expect(payload.type).toBe('delivery');
     expect(payload.delivery_address).toBeDefined();
     expect(payload.delivery_address.text).toBe('Новый адрес 5');
     expect(payload.delivery_address.apartment).toBe('10');

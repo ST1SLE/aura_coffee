@@ -8,6 +8,7 @@ import { CartPage } from '@/pages/Cart/CartPage';
 import { MenuPage } from '@/pages/Menu/MenuPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
 import { OrdersPage } from '@/pages/OrdersPage';
+import { OrderDetailPage } from '@/pages/OrderDetailPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { AddressesPage } from '@/pages/Profile/Addresses/AddressesPage';
 import { LoyaltyPage } from '@/pages/Profile/Loyalty/LoyaltyPage';
@@ -55,6 +56,7 @@ export function App() {
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:orderId" element={<OrderDetailPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="profile/addresses" element={<AddressesPage />} />
               <Route path="profile/loyalty" element={<LoyaltyPage />} />

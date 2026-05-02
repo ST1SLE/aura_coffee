@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
 import { ApiError } from '@/api/client';
+import type { RepeatOrderSkippedEntry } from '@/api/orders';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/formatPrice';
 import { CartLine } from './CartLine';
@@ -11,14 +12,15 @@ import { CartLine } from './CartLine';
 // START_MODULE_CONTRACT
 //   PURPOSE: Cart route page — drives the zustand cart store (refresh on mount),
 //            renders skeleton/error/empty/list states, and handles 410 EXPIRED
-//            specifically by showing a transient toast and refetching.
+//            specifically by showing a transient toast and refetching. Repeat-
+//            order skipped entries are shown from navigation state.
 //            This is the "real" CartPage; pages/CartPage.tsx is a placeholder
 //            stub from earlier scaffolding.
 //   SCOPE:   CartPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/store/cart (useCartStore),
-//            @/api/client (ApiError), @/lib/formatPrice, @/components/ui/button,
-//            ./CartLine.
-//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart;
+//            @/api/client (ApiError), @/api/orders (RepeatOrderSkippedEntry type),
+//            @/lib/formatPrice, @/components/ui/button, ./CartLine.
+//   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5 cart, §7.7;
 //            INV-014 (snapshot rendering — never recompute prices).
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -35,13 +37,21 @@ import { CartLine } from './CartLine';
 //   OUTPUTS: JSX — skeleton / error / empty / list with sticky footer.
 //   SIDE_EFFECTS: useCartStore.refresh on mount; updateQuantity / removeItem /
 //                 clearCart through callbacks; transient expiredToast state.
+//                 Reads repeat-order skipped entries from router state.
 //                 INV-014 — subtotal/lines from server snapshots.
-//   LINKS:   PDD §5 cart; ApiError(410) -> refetch + toast.
+//   LINKS:   PDD §5 cart, §7.7 repeat order; ApiError(410) -> refetch + toast.
 // END_CONTRACT: CartPage
 export function CartPage() {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
   const locale = lang === 'ru' ? 'ru' : 'en';
+  const repeatSkipped =
+    (
+      location.state as {
+        repeatOrderSkipped?: RepeatOrderSkippedEntry[];
+      } | null
+    )?.repeatOrderSkipped ?? [];
 
   const {
     status,
@@ -92,6 +102,17 @@ export function CartPage() {
   function showExpiredToast() {
     setExpiredToast(true);
     setTimeout(() => setExpiredToast(false), 3000);
+  }
+
+  function repeatSkippedMessage(entry: RepeatOrderSkippedEntry): string {
+    if (lang === 'ru') {
+      return (
+        entry.message_ru ?? entry.message_en ?? t('cart.repeatSkippedFallback')
+      );
+    }
+    return (
+      entry.message_en ?? entry.message_ru ?? t('cart.repeatSkippedFallback')
+    );
   }
 
   if (status === 'loading' || status === 'idle') {
@@ -155,6 +176,22 @@ export function CartPage() {
         >
           {t('cart.expired')}
         </p>
+      )}
+
+      {repeatSkipped.length > 0 && (
+        <div
+          role="status"
+          className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary"
+        >
+          <p className="font-medium">{t('cart.repeatSkippedTitle')}</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {repeatSkipped.map((entry, index) => (
+              <li key={`${entry.reason}-${index}`}>
+                {repeatSkippedMessage(entry)}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="space-y-3">

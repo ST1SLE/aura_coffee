@@ -37,7 +37,7 @@ import {
 //   CheckoutPage  - /checkout route with pickup/delivery + address logic
 // END_MODULE_MAP
 
-type OrderType = 'PICKUP' | 'DELIVERY';
+type OrderType = 'pickup' | 'delivery';
 
 type DeliveryChoice =
   | { kind: 'saved'; address_id: string }
@@ -83,14 +83,14 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const lang = i18n.language.startsWith('ru') ? 'ru_RU' : 'en_US';
 
-  const [orderType, setOrderType] = useState<OrderType>('PICKUP');
+  const [orderType, setOrderType] = useState<OrderType>('pickup');
   const [saved, setSaved] = useState<AddressResponse[]>([]);
   const [choice, setChoice] = useState<DeliveryChoice>(emptyNew);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (orderType !== 'DELIVERY') return;
+    if (orderType !== 'delivery') return;
     listAddresses()
       .then((items) => {
         setSaved(items);
@@ -108,9 +108,9 @@ export function CheckoutPage() {
   }, [orderType]);
 
   function buildPayload(): CreateOrderPayload | null {
-    if (orderType === 'PICKUP') return { type: 'PICKUP' };
+    if (orderType === 'pickup') return { type: 'pickup' };
     if (choice.kind === 'saved') {
-      return { type: 'DELIVERY', delivery_address_id: choice.address_id };
+      return { type: 'delivery', delivery_address_id: choice.address_id };
     }
     if (!choice.address.text.trim()) {
       setError(t('errors.delivery.generic'));
@@ -125,7 +125,7 @@ export function CheckoutPage() {
       floor: choice.floor.trim() || null,
       comment: choice.comment.trim() || null,
     };
-    return { type: 'DELIVERY', delivery_address };
+    return { type: 'delivery', delivery_address };
   }
 
   function renderError(err: unknown): string {
@@ -152,7 +152,7 @@ export function CheckoutPage() {
       const order = await createOrder(payload);
 
       if (
-        orderType === 'DELIVERY' &&
+        orderType === 'delivery' &&
         choice.kind === 'new' &&
         choice.saveForFuture
       ) {
@@ -205,9 +205,9 @@ export function CheckoutPage() {
           <input
             type="radio"
             name="order-type"
-            value="PICKUP"
-            checked={orderType === 'PICKUP'}
-            onChange={() => setOrderType('PICKUP')}
+            value="pickup"
+            checked={orderType === 'pickup'}
+            onChange={() => setOrderType('pickup')}
           />
           {t('pages.checkout.type.pickup')}
         </label>
@@ -215,15 +215,15 @@ export function CheckoutPage() {
           <input
             type="radio"
             name="order-type"
-            value="DELIVERY"
-            checked={orderType === 'DELIVERY'}
-            onChange={() => setOrderType('DELIVERY')}
+            value="delivery"
+            checked={orderType === 'delivery'}
+            onChange={() => setOrderType('delivery')}
           />
           {t('pages.checkout.type.delivery')}
         </label>
       </fieldset>
 
-      {orderType === 'DELIVERY' && (
+      {orderType === 'delivery' && (
         <div className="aura-surface space-y-4 rounded-lg p-4">
           {saved.length > 0 && (
             <fieldset className="space-y-2">
