@@ -128,6 +128,7 @@
         <scenario-2 kind="failure">Invalid or missing signature webhook, when signature verification is configured, is rejected without JSON parsing or DB writes.</scenario-2>
         <scenario-3 kind="recovery">Admin refund retry creates a new refunds row and drives REFUND_FAILED to REFUND_PENDING only after YuKassa accepts the retry.</scenario-3>
         <scenario-4 kind="ingress">Nginx routes the public /api/webhooks/yukassa path to payment-webhook and overwrites client-supplied forwarded IP headers.</scenario-4>
+        <scenario-5 kind="failure">Payment webhook handlers reject forbidden source states and duplicate terminal events without mutating payment/order/refund rows or emitting a state-transition marker.</scenario-5>
       </scenarios>
       <required-log-markers>
         <marker-1>[PaymentWorker][process_webhook][BLOCK_WEBHOOK_VERIFY]</marker-1>

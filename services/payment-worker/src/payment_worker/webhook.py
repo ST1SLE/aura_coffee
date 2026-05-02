@@ -339,6 +339,35 @@ def _restore_inventory(session: Session, order: Any) -> None:
     session.flush()
 
 
+def _status_value(status: Any) -> str:
+    return getattr(status, "value", str(status))
+
+
+def _log_guarded_payment_transition(
+    event_type: str,
+    payment: Any,
+    *,
+    outcome: str,
+    order: Any | None = None,
+    refund: Any | None = None,
+) -> None:
+    fields: dict[str, str] = {
+        "payment_id": str(payment.id),
+        "event_type": event_type,
+        "outcome": outcome,
+        "payment_status": _status_value(payment.status),
+    }
+    if order is not None:
+        fields["order_id"] = str(order.id)
+        fields["order_status"] = _status_value(order.status)
+    if refund is not None:
+        fields["refund_id"] = str(refund.id)
+        fields["refund_status"] = _status_value(refund.status)
+
+    _grace_log.block("process_webhook", "BLOCK_TX_PAYMENT", **fields)
+    logger.warning("yukassa webhook: ignored guarded transition", extra=fields)
+
+
 def _handle_payment_succeeded(
     session: Session, redis_client: Any, obj: dict[str, Any]
 ) -> UUID | None:
@@ -368,12 +397,28 @@ def _handle_payment_succeeded(
         )
         return None
 
-    # Идемпотентность на уровне state-машины: если уже SUCCEEDED — выходим.
-    if payment.status == PaymentStatus.SUCCEEDED:
-        return None
-
     order = session.get(Order, payment.order_id)
     if order is None:
+        return None
+
+    if payment.status == PaymentStatus.SUCCEEDED and order.status == OrderStatus.PAID:
+        _log_guarded_payment_transition(
+            "payment.succeeded",
+            payment,
+            outcome="idempotent_terminal",
+            order=order,
+        )
+        return None
+    if (
+        payment.status != PaymentStatus.AWAITING_CONFIRMATION
+        or order.status != OrderStatus.CREATED
+    ):
+        _log_guarded_payment_transition(
+            "payment.succeeded",
+            payment,
+            outcome="forbidden_source_state",
+            order=order,
+        )
         return None
 
     payment.status = PaymentStatus.SUCCEEDED
@@ -431,16 +476,44 @@ def _handle_payment_canceled(
     order = session.get(Order, payment.order_id)
     if order is None:
         return
-    if payment.status == PaymentStatus.PAYMENT_FAILED:
+    if (
+        payment.status == PaymentStatus.PAYMENT_FAILED
+        and order.status == OrderStatus.CANCELLED
+    ):
+        _log_guarded_payment_transition(
+            "payment.canceled",
+            payment,
+            outcome="idempotent_terminal",
+            order=order,
+        )
         return
-
-    payment.status = PaymentStatus.PAYMENT_FAILED
+    if payment.status != PaymentStatus.AWAITING_CONFIRMATION:
+        _log_guarded_payment_transition(
+            "payment.canceled",
+            payment,
+            outcome="forbidden_source_state",
+            order=order,
+        )
+        return
     if order.status == OrderStatus.CANCELLED:
+        payment.status = PaymentStatus.PAYMENT_FAILED
         _grace_log.block(
-            "process_webhook", "BLOCK_TX_PAYMENT", payment_id=str(payment.id)
+            "process_webhook",
+            "BLOCK_TX_PAYMENT",
+            payment_id=str(payment.id),
+            outcome="payment_failed_order_already_cancelled",
+        )
+        return
+    if order.status != OrderStatus.CREATED:
+        _log_guarded_payment_transition(
+            "payment.canceled",
+            payment,
+            outcome="forbidden_source_state",
+            order=order,
         )
         return
 
+    payment.status = PaymentStatus.PAYMENT_FAILED
     order.status = OrderStatus.CANCELLED
     _restore_inventory(session, order)
     _grace_log.block(
@@ -518,6 +591,30 @@ def _handle_refund_succeeded(session: Session, obj: dict[str, Any]) -> None:
             .order_by(Refund.created_at.desc())
             .first()
         )
+    if (
+        payment.status == PaymentStatus.REFUNDED
+        and refund is not None
+        and refund.status == RefundStatus.SUCCEEDED
+    ):
+        _log_guarded_payment_transition(
+            "refund.succeeded",
+            payment,
+            outcome="idempotent_terminal",
+            refund=refund,
+        )
+        return
+    if (
+        payment.status != PaymentStatus.REFUND_PENDING
+        or refund is None
+        or refund.status != RefundStatus.PENDING
+    ):
+        _log_guarded_payment_transition(
+            "refund.succeeded",
+            payment,
+            outcome="forbidden_source_state",
+            refund=refund,
+        )
+        return
     if refund is not None:
         if refund_id:
             refund.yukassa_refund_id = refund_id
@@ -571,6 +668,30 @@ def _handle_refund_canceled(session: Session, obj: dict[str, Any]) -> None:
             .order_by(Refund.created_at.desc())
             .first()
         )
+    if (
+        payment.status == PaymentStatus.REFUND_FAILED
+        and refund is not None
+        and refund.status == RefundStatus.FAILED
+    ):
+        _log_guarded_payment_transition(
+            "refund.canceled",
+            payment,
+            outcome="idempotent_terminal",
+            refund=refund,
+        )
+        return
+    if (
+        payment.status != PaymentStatus.REFUND_PENDING
+        or refund is None
+        or refund.status != RefundStatus.PENDING
+    ):
+        _log_guarded_payment_transition(
+            "refund.canceled",
+            payment,
+            outcome="forbidden_source_state",
+            refund=refund,
+        )
+        return
     if refund is not None:
         if refund_id:
             refund.yukassa_refund_id = refund_id

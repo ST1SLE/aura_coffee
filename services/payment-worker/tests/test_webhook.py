@@ -28,6 +28,15 @@ def _signature(raw_body: bytes, secret: str = SIGNATURE_SECRET) -> str:
     return f"sha256={digest}"
 
 
+def _assert_guarded_no_state_transition(grace_logs: GraceLogCapture) -> None:
+    grace_logs.assert_trajectory(
+        ("process_webhook", "BLOCK_WEBHOOK_VERIFY"),
+        ("process_webhook", "BLOCK_TX_PAYMENT"),
+    )
+    assert all("BLOCK_STATE_TRANSITION" not in line for line in grace_logs.lines)
+    assert grace_logs.beliefs(status="MISMATCH") == []
+
+
 def _seed_finite_inventory_line(
     db_session, order, *, inventory: int = 1, quantity: int = 2
 ):
@@ -262,6 +271,96 @@ def test_valid_signature_advances_payment_and_order(
     assert order.status == OrderStatus.PAID
 
 
+def test_payment_succeeded_duplicate_payload_is_idempotent(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    user = seed_user_order_payment["user"]
+    payment.status = PaymentStatus.SUCCEEDED
+    payment.yukassa_payment_id = "pay_dup_success"
+    order.status = OrderStatus.PAID
+    db_session.commit()
+    fake_redis.set(f"cart:{user.id}", "{}")
+
+    client = _make_client(sqlite_engine, fake_redis)
+    sms_task = MagicMock()
+    with (
+        patch("payment_worker.webhook.celery_app.send_task", sms_task),
+        GraceLogCapture() as grace_logs,
+    ):
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={"event": "payment.succeeded", "object": {"id": "pay_dup_success"}},
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-dup-success-new-id",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+    sms_task.assert_not_called()
+    assert fake_redis.get(f"cart:{user.id}") == b"{}"
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    assert payment.status == PaymentStatus.SUCCEEDED
+    assert order.status == OrderStatus.PAID
+
+
+@pytest.mark.parametrize(
+    ("payment_status", "order_status"),
+    [
+        ("pending", "created"),
+        ("payment_failed", "cancelled"),
+        ("refunded", "cancelled"),
+        ("awaiting_confirmation", "paid"),
+    ],
+)
+def test_payment_succeeded_rejects_forbidden_source_state(
+    seed_user_order_payment,
+    db_session,
+    sqlite_engine,
+    fake_redis,
+    yukassa_env,
+    payment_status: str,
+    order_status: str,
+) -> None:
+    from shared.enums import OrderStatus, PaymentStatus
+
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    payment.status = PaymentStatus(payment_status)
+    payment.yukassa_payment_id = "pay_forbidden_success"
+    order.status = OrderStatus(order_status)
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "payment.succeeded",
+                "object": {"id": "pay_forbidden_success"},
+            },
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": f"evt-success-forbidden-{payment_status}-{order_status}",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    assert payment.status == PaymentStatus(payment_status)
+    assert order.status == OrderStatus(order_status)
+
+
 def test_invalid_signature_rejects_before_dispatch_without_mutation(
     seed_user_order_payment,
     db_session,
@@ -491,6 +590,58 @@ def test_payment_canceled_after_order_cancel_marks_payment_failed_without_restor
     assert item.inventory_quantity == 3
 
 
+def test_payment_canceled_rejects_forbidden_source_without_compensation(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import LoyaltyTransactionType, OrderStatus, PaymentStatus
+    from shared.models.loyalty_transaction import LoyaltyTransaction
+
+    payment = seed_user_order_payment["payment"]
+    order = seed_user_order_payment["order"]
+    promo = seed_user_order_payment["promocode"]
+    item = _seed_finite_inventory_line(db_session, order, inventory=1, quantity=2)
+    payment.status = PaymentStatus.SUCCEEDED
+    payment.yukassa_payment_id = "pay_forbidden_cancel"
+    order.status = OrderStatus.PAID
+    order.points_used = 50
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "payment.canceled",
+                "object": {"id": "pay_forbidden_cancel"},
+            },
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-cancel-forbidden",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+
+    db_session.refresh(payment)
+    db_session.refresh(order)
+    db_session.refresh(promo)
+    db_session.refresh(item)
+    assert payment.status == PaymentStatus.SUCCEEDED
+    assert order.status == OrderStatus.PAID
+    assert promo.current_uses == 1
+    assert item.inventory_quantity == 1
+    reversals = (
+        db_session.query(LoyaltyTransaction)
+        .filter(
+            LoyaltyTransaction.order_id == order.id,
+            LoyaltyTransaction.type == LoyaltyTransactionType.REVERSAL,
+        )
+        .all()
+    )
+    assert reversals == []
+
+
 def test_refund_succeeded_marks_refunded(
     seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
 ) -> None:
@@ -531,6 +682,88 @@ def test_refund_succeeded_marks_refunded(
     db_session.refresh(refund)
     assert payment.status == PaymentStatus.REFUNDED
     assert refund.status == RefundStatus.SUCCEEDED
+
+
+def test_refund_succeeded_duplicate_payload_is_idempotent(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.refund import Refund
+
+    payment = seed_user_order_payment["payment"]
+    payment.status = PaymentStatus.REFUNDED
+    payment.yukassa_payment_id = "pay_ref_dup"
+    refund = Refund(
+        payment_id=payment.id,
+        yukassa_refund_id="ref_dup",
+        amount=payment.amount,
+        status=RefundStatus.SUCCEEDED,
+    )
+    db_session.add(refund)
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "refund.succeeded",
+                "object": {"id": "ref_dup", "payment_id": "pay_ref_dup"},
+            },
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-ref-dup-new-id",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+
+    db_session.refresh(payment)
+    db_session.refresh(refund)
+    assert payment.status == PaymentStatus.REFUNDED
+    assert refund.status == RefundStatus.SUCCEEDED
+
+
+def test_refund_succeeded_rejects_non_refund_pending_source(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.refund import Refund
+
+    payment = seed_user_order_payment["payment"]
+    payment.status = PaymentStatus.SUCCEEDED
+    payment.yukassa_payment_id = "pay_ref_forbidden"
+    refund = Refund(
+        payment_id=payment.id,
+        yukassa_refund_id="ref_forbidden",
+        amount=payment.amount,
+        status=RefundStatus.PENDING,
+    )
+    db_session.add(refund)
+    db_session.commit()
+
+    client = _make_client(sqlite_engine, fake_redis)
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "refund.succeeded",
+                "object": {"id": "ref_forbidden", "payment_id": "pay_ref_forbidden"},
+            },
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-ref-forbidden",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+
+    db_session.refresh(payment)
+    db_session.refresh(refund)
+    assert payment.status == PaymentStatus.SUCCEEDED
+    assert refund.status == RefundStatus.PENDING
 
 
 def test_refund_canceled_marks_refund_failed_and_notifies_admin(
@@ -583,6 +816,53 @@ def test_refund_canceled_marks_refund_failed_and_notifies_admin(
         .all()
     )
     assert len(notifs) >= 1
+
+
+def test_refund_canceled_duplicate_payload_does_not_notify_twice(
+    seed_user_order_payment, db_session, sqlite_engine, fake_redis, yukassa_env
+) -> None:
+    from shared.enums import PaymentStatus, RefundStatus
+    from shared.models.notification import Notification
+    from shared.models.refund import Refund
+
+    payment = seed_user_order_payment["payment"]
+    payment.status = PaymentStatus.REFUND_FAILED
+    payment.yukassa_payment_id = "pay_ref_cancel_dup"
+    refund = Refund(
+        payment_id=payment.id,
+        yukassa_refund_id="ref_cancel_dup",
+        amount=payment.amount,
+        status=RefundStatus.FAILED,
+    )
+    db_session.add(refund)
+    db_session.commit()
+
+    before_count = db_session.query(Notification).count()
+    client = _make_client(sqlite_engine, fake_redis)
+    with GraceLogCapture() as grace_logs:
+        resp = client.post(
+            "/webhooks/yukassa",
+            json={
+                "event": "refund.canceled",
+                "object": {
+                    "id": "ref_cancel_dup",
+                    "payment_id": "pay_ref_cancel_dup",
+                },
+            },
+            headers={
+                "X-Forwarded-For": WHITELISTED_IP,
+                "X-Event-Id": "evt-ref-cancel-dup-new-id",
+            },
+        )
+
+    assert resp.status_code == 200
+    _assert_guarded_no_state_transition(grace_logs)
+
+    db_session.refresh(payment)
+    db_session.refresh(refund)
+    assert payment.status == PaymentStatus.REFUND_FAILED
+    assert refund.status == RefundStatus.FAILED
+    assert db_session.query(Notification).count() == before_count
 
 
 def test_unknown_event_type_returns_200_no_mutation(
