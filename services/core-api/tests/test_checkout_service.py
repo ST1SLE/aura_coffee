@@ -15,7 +15,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import fakeredis
 import pytest
@@ -49,6 +49,7 @@ def _checkout_user(db_session):
 
     account = LoyaltyAccount(user_id=user.id, balance=0)
     db_session.add(account)
+    _upsert_shop_settings(db_session)
     db_session.flush()
 
     yield (user.id, user)
@@ -61,6 +62,55 @@ def _seed_cart(cart_redis: fakeredis.FakeRedis, user_id: Any, items: list[dict])
         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
     }
     cart_redis.set(f"cart:{user_id}", json.dumps(payload), ex=300)
+
+
+def _working_hours_always_open() -> dict[str, dict[str, str]]:
+    return {
+        day: {"open": "00:00", "close": "23:59"}
+        for day in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+    }
+
+
+def _upsert_shop_settings(
+    db_session: Any,
+    *,
+    min_delivery_amount: int = 30000,
+    free_delivery_threshold: int = 100000,
+    delivery_fee: int = 15000,
+    loyalty_percent: int = 5,
+    working_hours: dict[str, dict[str, str]] | None = None,
+) -> Any:
+    from shared.models import ShopSettings
+
+    settings = db_session.get(ShopSettings, 1)
+    if settings is None:
+        settings = ShopSettings(
+            id=1,
+            shop_lat=55.7558,
+            shop_lon=37.6173,
+            delivery_radius_km=5.0,
+            min_delivery_amount=min_delivery_amount,
+            free_delivery_threshold=free_delivery_threshold,
+            delivery_fee=delivery_fee,
+            loyalty_percent=loyalty_percent,
+            default_prep_time_minutes=15,
+            estimated_delivery_time_minutes=30,
+            working_hours=working_hours or _working_hours_always_open(),
+        )
+        db_session.add(settings)
+    else:
+        settings.shop_lat = 55.7558
+        settings.shop_lon = 37.6173
+        settings.delivery_radius_km = 5.0
+        settings.min_delivery_amount = min_delivery_amount
+        settings.free_delivery_threshold = free_delivery_threshold
+        settings.delivery_fee = delivery_fee
+        settings.loyalty_percent = loyalty_percent
+        settings.default_prep_time_minutes = 15
+        settings.estimated_delivery_time_minutes = 30
+        settings.working_hours = working_hours or _working_hours_always_open()
+    db_session.flush()
+    return settings
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +164,232 @@ def test_create_order_rejects_cart_with_zero_items() -> None:
             fake_session,
         )
     assert "Корзина пуста" in str(excinfo.value)
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_success_asserts_ldd_and_uses_shop_settings_pricing(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """GRACE-LDD: successful delivery checkout uses settings for fee/accrual."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest, DeliveryAddress
+    from core_api.services.checkout import create_order
+    from shared.enums import OrderStatus, OrderType
+    from shared.models import Order
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(
+        db_session,
+        min_delivery_amount=30000,
+        free_delivery_threshold=100000,
+        delivery_fee=7000,
+        loyalty_percent=12,
+    )
+    item = make_menu_item(db_session, base_price=50000)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+
+    with patch("core_api.services.checkout.enqueue_payment_task"):
+        resp = create_order(
+            user_id,
+            CreateOrderRequest(
+                type=OrderType.DELIVERY,
+                delivery_address=DeliveryAddress(
+                    text="Secret Apt 42",
+                    lat=55.7558,
+                    lon=37.6173,
+                ),
+            ),
+            cart_redis,
+            db_session,
+        )
+
+    assert resp.status == OrderStatus.CREATED
+    assert resp.subtotal == 50000
+    assert resp.delivery_fee == 7000
+    assert resp.total == 57000
+    assert resp.estimated_accrual == 6000
+    order = db_session.query(Order).filter(Order.user_id == user_id).one()
+    assert order.estimated_ready_at is not None
+
+    grace_logs.assert_trajectory(
+        ("orders.create", "BLOCK_TX_BEGIN"),
+        ("orders.create", "BLOCK_STATE_TRANSITION"),
+        ("orders.create", "BLOCK_TX_COMMIT"),
+    )
+    assert grace_logs.beliefs(status="MISMATCH") == []
+    assert "Secret Apt 42" not in "\n".join(grace_logs.lines)
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_stale_stop_list_fails_before_persistence(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """GRACE-LDD: stale cart item stop-listed before checkout leaves no rows."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import create_order
+    from core_api.services.validators.exceptions import StopListError
+    from shared.enums import OrderType
+    from shared.models import Order, Payment
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session)
+    item = make_menu_item(db_session, base_price=50000, available=True)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+    item.available = False
+    db_session.flush()
+
+    with pytest.raises(StopListError):
+        create_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_BEGIN")
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_delivery_minimum_fails_before_persistence(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """Delivery minimum is enforced with ShopSettings before order/payment writes."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest, DeliveryAddress
+    from core_api.services.checkout import create_order
+    from core_api.services.validators.exceptions import MinimumDeliveryAmountError
+    from shared.enums import OrderType
+    from shared.models import Order, Payment
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session, min_delivery_amount=30000)
+    item = make_menu_item(db_session, base_price=20000)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+
+    with pytest.raises(MinimumDeliveryAmountError):
+        create_order(
+            user_id,
+            CreateOrderRequest(
+                type=OrderType.DELIVERY,
+                delivery_address=DeliveryAddress(
+                    text="Below minimum address",
+                    lat=55.7558,
+                    lon=37.6173,
+                ),
+            ),
+            cart_redis,
+            db_session,
+        )
+
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
+    assert "Below minimum address" not in "\n".join(grace_logs.lines)
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_promocode_validator_uses_subtotal_before_persistence(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """Real promocode validator rejects subtotal below min before writes."""
+    from tests._factories.menu import make_menu_item
+    from tests._factories.promocodes import make_promocode
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import create_order
+    from core_api.services.validators.exceptions import PromocodeValidationError
+    from shared.enums import OrderType
+    from shared.models import Order, Payment, PromocodeUsage
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session)
+    promo = make_promocode(
+        db_session,
+        code="MIN1000",
+        is_active=True,
+        min_order_amount=100000,
+    )
+    item = make_menu_item(db_session, base_price=50000)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+
+    with pytest.raises(PromocodeValidationError):
+        create_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP, promocode_code=promo.code),
+            cart_redis,
+            db_session,
+        )
+
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert db_session.query(PromocodeUsage).count() == 0
+    db_session.refresh(promo)
+    assert promo.current_uses == 0
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
 
 
 # ---------------------------------------------------------------------------
@@ -414,8 +690,8 @@ def test_create_order_delivery_calls_delivery_validators() -> None:
         assert mv_min.called is True
 
 
-def test_create_order_delivery_calls_delivery_validators_before_pricing() -> None:
-    """validate_delivery_address / validate_min_delivery_amount раньше compute_subtotal."""
+def test_create_order_delivery_calls_delivery_validators_around_subtotal() -> None:
+    """Address radius runs before subtotal; delivery minimum runs after subtotal."""
     from core_api.schemas.order import CreateOrderRequest, DeliveryAddress
     from shared.enums import OrderType
 
@@ -466,7 +742,7 @@ def test_create_order_delivery_calls_delivery_validators_before_pricing() -> Non
         assert "validate_min_delivery_amount" in names
         assert "compute_subtotal" in names
         assert names.index("validate_delivery_address") < names.index("compute_subtotal")
-        assert names.index("validate_min_delivery_amount") < names.index("compute_subtotal")
+        assert names.index("compute_subtotal") < names.index("validate_min_delivery_amount")
 
 
 def test_create_order_promocode_validator_called_when_code_provided() -> None:
@@ -1172,7 +1448,6 @@ def test_create_order_with_promocode_increments_current_uses(
     )
     db_session.add(promo)
     db_session.flush()
-    promo_id = promo.id
 
     item = make_menu_item(db_session, base_price=20000)
     db_session.flush()

@@ -54,9 +54,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy.orm import Session
-
 from sqlalchemy import or_, select, update
+from sqlalchemy.orm import Session
 
 from core_api import celery_app as _celery_mod
 from core_api.schemas.order import (
@@ -64,10 +63,20 @@ from core_api.schemas.order import (
     OrderItemResponse,
     OrderResponse,
 )
+from core_api.services import pricing as _pricing
 from core_api.services.delivery_addresses import DeliveryAddressNotFound
-
-# Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
-celery_app = _celery_mod.celery_app
+from core_api.services.validators.delivery import (
+    validate_min_delivery_amount as _validate_min_delivery_amount,
+)
+from core_api.services.validators.promocode import (
+    validate_promocode as _validate_promocode,
+)
+from core_api.services.validators.stop_list import (
+    validate_stop_list as _validate_stop_list,
+)
+from core_api.services.validators.working_hours import (
+    validate_time_slot as _validate_time_slot,
+)
 from shared.enums import (
     LoyaltyTransactionType,
     OrderStatus,
@@ -90,6 +99,8 @@ from shared.models.menu import MenuItem, Modifier, SizeOption
 
 from shared.grace.logging import get_grace_logger
 
+# Модуль-уровневая ссылка — тесты патчат `sut.celery_app.send_task`.
+celery_app = _celery_mod.celery_app
 _grace_log = get_grace_logger("CoreApi")
 
 
@@ -111,8 +122,8 @@ class EmptyCartError(Exception):
 
 # START_CONTRACT: validate_stop_list
 #   PURPOSE: Reject checkout if any cart line references an unavailable
-#            (stop-listed/archived) menu item. Stub here; real impl in the
-#            validators capability. Tests patch this symbol on the module.
+#            (stop-listed/archived) menu item. Adapter keeps this module
+#            symbol test-patchable while delegating to the real validator.
 #   INPUTS:  cart_items: list[dict] — raw Redis cart lines
 #            db_session: Session
 #   OUTPUTS: None
@@ -120,22 +131,27 @@ class EmptyCartError(Exception):
 #   LINKS:   PDD §7.1, INV-006
 # END_CONTRACT: validate_stop_list
 def validate_stop_list(cart_items: list[dict], db_session: Session) -> None:
-    """Стаб: проверка stop-list — owned by `order-pricing-validation`."""
-    return None
+    """Проверка stop-list через `core_api.services.validators.stop_list`."""
+    _validate_stop_list(cart_items, db_session)
 
 
 # START_CONTRACT: validate_time_slot
-#   PURPOSE: Reject checkout outside shop working hours. Stub — overridden in
-#            validators capability or patched in tests.
+#   PURPOSE: Reject checkout outside shop working hours and return the
+#            estimated ready timestamp.
 #   INPUTS:  requested_time: datetime | None
-#            shop_settings:  ShopSettings | None
-#   OUTPUTS: None
-#   SIDE_EFFECTS: none in the stub.
+#            shop_settings: ShopSettings
+#            order_type: OrderType
+#   OUTPUTS: datetime
+#   SIDE_EFFECTS: none.
 #   LINKS:   PDD §7.5
 # END_CONTRACT: validate_time_slot
-def validate_time_slot(requested_time: datetime | None, shop_settings: Any = None) -> None:
-    """Стаб: проверка рабочих часов — owned by `order-pricing-validation`."""
-    return None
+def validate_time_slot(
+    requested_time: datetime | None,
+    shop_settings: Any,
+    order_type: OrderType = OrderType.PICKUP,
+) -> datetime:
+    """Проверка рабочих часов через `validators.working_hours`."""
+    return _validate_time_slot(requested_time, order_type, shop_settings)
 
 
 # START_CONTRACT: validate_delivery_address
@@ -162,28 +178,31 @@ def validate_delivery_address(lat: float, lon: float, shop_settings: Any) -> Non
 
 # START_CONTRACT: validate_min_delivery_amount
 #   PURPOSE: Reject delivery checkout below ShopSettings.min_delivery_amount.
-#            Stub here; real validator owned by order-pricing-validation.
-#   INPUTS:  subtotal: int, address: Any
+#   INPUTS:  subtotal: int, shop_settings: ShopSettings
 #   OUTPUTS: None
-#   SIDE_EFFECTS: none in stub.
+#   SIDE_EFFECTS: none; raises MinimumDeliveryAmountError.
 #   LINKS:   PDD §7.4, INV-009
 # END_CONTRACT: validate_min_delivery_amount
-def validate_min_delivery_amount(subtotal: int, address: Any) -> None:
-    """Стаб: проверка минимальной суммы для доставки — owned by `order-pricing-validation`."""
-    return None
+def validate_min_delivery_amount(subtotal: int, shop_settings: Any) -> None:
+    """Проверка минимальной суммы доставки через validators.delivery."""
+    _validate_min_delivery_amount(subtotal, shop_settings)
 
 
 # START_CONTRACT: validate_promocode
 #   PURPOSE: Resolve a promocode by code with quota / time / per-user checks.
-#            Stub here; tests patch with a mock returning a Promocode-like obj.
-#   INPUTS:  code: str, user_id: UUID, db_session: Session
-#   OUTPUTS: Any (Promocode-like) | None
-#   SIDE_EFFECTS: none in stub.
+#   INPUTS:  code: str, user_id: UUID, subtotal: int, db_session: Session
+#   OUTPUTS: Promocode
+#   SIDE_EFFECTS: DB SELECTs only.
 #   LINKS:   PDD §6.6, INV-011
 # END_CONTRACT: validate_promocode
-def validate_promocode(code: str, user_id: uuid.UUID, db_session: Session) -> Any:
-    """Стаб: проверка промокода — owned by `order-pricing-validation`."""
-    return None
+def validate_promocode(
+    code: str,
+    user_id: uuid.UUID,
+    subtotal: int,
+    db_session: Session,
+) -> Any:
+    """Проверка промокода через validators.promocode."""
+    return _validate_promocode(code, user_id, subtotal, db_session)
 
 
 # ---------------------------------------------------------------------------
@@ -318,18 +337,22 @@ def apply_loyalty_points(amount: int, points_to_use: int, account: Any) -> tuple
 
 
 # START_CONTRACT: compute_delivery_fee
-#   PURPOSE: Resolve delivery fee for the order. Stub here returns 0 — the real
-#            fee derivation lives in services.pricing / order-pricing-validation.
-#   INPUTS:  amount: int (subtotal-based), request: CreateOrderRequest
+#   PURPOSE: Resolve delivery fee for the order using ShopSettings.
+#   INPUTS:  amount: int (subtotal-based), request: CreateOrderRequest,
+#            shop_settings: ShopSettings | None
 #   OUTPUTS: int — delivery fee in kopecks.
 #   SIDE_EFFECTS: none.
 #   LINKS:   PDD §7.4, INV-009
 # END_CONTRACT: compute_delivery_fee
-def compute_delivery_fee(amount: int, request: CreateOrderRequest) -> int:
-    """Стаб: при доставке реальный расчёт лежит в `order-pricing-validation`."""
+def compute_delivery_fee(
+    amount: int,
+    request: CreateOrderRequest,
+    shop_settings: Any | None = None,
+) -> int:
+    """Стоимость доставки через `services.pricing`, 0 для pickup."""
     if request.type != OrderType.DELIVERY:
         return 0
-    return 0
+    return _pricing.compute_delivery_fee(amount, shop_settings)
 
 
 # START_CONTRACT: compute_order_total
@@ -348,16 +371,24 @@ def compute_order_total(
 
 
 # START_CONTRACT: compute_estimated_accrual
-#   PURPOSE: Estimate loyalty accrual surfaced to the user pre-payment — 5% of
-#            order total. Real accrual fires at COMPLETED via order_lifecycle.
-#   INPUTS:  total: int, account: Any
+#   PURPOSE: Estimate loyalty accrual surfaced to the user pre-payment using
+#            ShopSettings.loyalty_percent. Real accrual fires at COMPLETED.
+#   INPUTS:  after_points: int, account: Any, shop_settings: ShopSettings
 #   OUTPUTS: int — points (≥ 0).
 #   SIDE_EFFECTS: none.
 #   LINKS:   INV-003
 # END_CONTRACT: compute_estimated_accrual
-def compute_estimated_accrual(total: int, account: Any) -> int:
-    """Оценочное начисление баллов — 5% от total (стаб для `loyalty-accrual`)."""
-    return int(total) * 5 // 100
+def compute_estimated_accrual(
+    after_points: int,
+    account: Any,
+    shop_settings: Any,
+) -> int:
+    """Оценочное начисление баллов по ShopSettings.loyalty_percent."""
+    del account
+    return _pricing.compute_estimated_accrual(
+        int(after_points),
+        int(shop_settings.loyalty_percent),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -440,11 +471,22 @@ def create_order(
     cart_items = _read_cart(redis_client, user_id)
 
     # 2. Валидаторы (ДО любых записей в БД, INV-004)
+    shop_settings = db_session.get(ShopSettings, 1)
+    if shop_settings is None:
+        raise RuntimeError("ShopSettings row id=1 is missing")
+
     validate_stop_list(cart_items, db_session)
+    estimated_ready_at = validate_time_slot(
+        request.requested_time,
+        shop_settings,
+        request.type,
+    )
+    if not isinstance(estimated_ready_at, datetime):
+        estimated_ready_at = None
+
     saved_address: DeliveryAddress | None = None
     delivery_snapshot: dict[str, Any] | None = None
     if request.type == OrderType.DELIVERY:
-        shop_settings = db_session.get(ShopSettings, 1)
         if request.delivery_address_id is not None:
             # Saved-flow: ownership check + Haversine ВСЕГДА; geocoder НЕ вызывается.
             saved_address = load_saved_address(
@@ -453,28 +495,36 @@ def create_order(
             validate_delivery_address(
                 saved_address.lat, saved_address.lon, shop_settings
             )
-            validate_min_delivery_amount(0, saved_address)
             delivery_snapshot = _build_snapshot_from_saved(saved_address)
         else:
             inline = request.delivery_address
             validate_delivery_address(inline.lat, inline.lon, shop_settings)
-            validate_min_delivery_amount(0, inline)
             delivery_snapshot = inline.model_dump(exclude_none=True)
-    validate_time_slot(request.requested_time, None)
+
+    # 3. Pricing chain (§7.2). Subtotal must be known before delivery minimum
+    # and promocode validation, but these are still read-only checks before
+    # any order/payment/loyalty/promo writes.
+    subtotal = compute_subtotal(cart_items, db_session)
+    if request.type == OrderType.DELIVERY:
+        validate_min_delivery_amount(subtotal, shop_settings)
+
     promocode = None
     if request.promocode_code:
-        promocode = validate_promocode(request.promocode_code, user_id, db_session)
+        promocode = validate_promocode(
+            request.promocode_code,
+            user_id,
+            subtotal,
+            db_session,
+        )
 
-    # 3. Pricing chain (§7.2)
-    subtotal = compute_subtotal(cart_items, db_session)
     discount, after_promo = apply_promocode(subtotal, promocode)
     account = db_session.get(LoyaltyAccount, user_id)
     points_applied, after_points = apply_loyalty_points(
         after_promo, request.points_to_use, account
     )
-    delivery_fee = compute_delivery_fee(after_points, request)
+    delivery_fee = compute_delivery_fee(subtotal, request, shop_settings)
     total = compute_order_total(subtotal, discount, points_applied, delivery_fee)
-    accrual = compute_estimated_accrual(total, account)
+    accrual = compute_estimated_accrual(after_points, account, shop_settings)
 
     # 4. Атомарные записи (single logical transaction, INV-004)
     idempotency_key = str(uuid.uuid4())
@@ -485,6 +535,7 @@ def create_order(
         status=order_status,
         type=request.type,
         requested_time=request.requested_time,
+        estimated_ready_at=estimated_ready_at,
         delivery_address_snapshot=delivery_snapshot,
         subtotal=subtotal,
         discount_amount=discount,
@@ -610,8 +661,8 @@ def create_order(
     _grace_log.belief(
         "orders.create",
         "BLOCK_STATE_TRANSITION",
-        belief="CREATED",
-        actual=str(order.status),
+        belief=order_status.value,
+        actual=order.status.value,
         order_id=str(order.id),
     )
     _grace_log.block("orders.create", "BLOCK_TX_COMMIT", order_id=str(order.id))

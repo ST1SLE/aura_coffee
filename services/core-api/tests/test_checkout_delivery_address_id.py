@@ -358,7 +358,7 @@ def test_checkout_foreign_address_id_returns_404(db_client, db_session, cart_red
     row_z = _saved_address(db_session, user_b.id, label="чужой")
     db_session.flush()
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=50000)
     db_session.flush()
     _seed_cart(
         cart_redis,
@@ -389,7 +389,7 @@ def test_checkout_unknown_address_id_returns_404(db_client, db_session, cart_red
 
     user_a, _, token = _checkout_user
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=50000)
     db_session.flush()
     _seed_cart(
         cart_redis,
@@ -504,7 +504,7 @@ def test_checkout_snapshots_saved_address_into_order_jsonb(
     )
     db_session.flush()
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=50000)
     db_session.flush()
     _seed_cart(
         cart_redis,
@@ -561,7 +561,7 @@ def test_checkout_snapshot_byte_identical_after_saved_address_deleted(
     row_id = row.id
     db_session.flush()
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=50000)
     db_session.flush()
     _seed_cart(
         cart_redis,
@@ -621,7 +621,7 @@ def test_checkout_snapshot_shape_matches_inline_path(
     )
     db_session.flush()
 
-    item = make_menu_item(db_session, base_price=15000)
+    item = make_menu_item(db_session, base_price=50000)
     db_session.flush()
 
     # 1) inline-путь
