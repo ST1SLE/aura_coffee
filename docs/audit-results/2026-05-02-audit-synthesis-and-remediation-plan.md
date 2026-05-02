@@ -116,6 +116,10 @@ Required LDD:
 - No `BLOCK_TX_COMMIT` and no persisted rows on validation failure.
 - Redaction assertions for address and auth-sensitive log paths touched by checkout.
 
+Status:
+
+- Current worktree already wires `services/core-api/src/core_api/services/checkout.py` to real stop-list, working-hours, delivery minimum/radius/fee, promocode, finite-inventory, loyalty, and `ShopSettings` pricing paths. Focused verification passed for checkout, saved-address delivery checkout, pure validators, and atomic promocode increment tests; required `orders.create` LDD success/no-commit failure assertions are covered by `services/core-api/tests/test_checkout_service.py`.
+
 ### Wave 2 - Customer Order Detail, Payment Handoff, and History
 
 Primary source: customer UX audit P0s.
