@@ -72,15 +72,20 @@ require_env_file
 
 required_services=(
   core-api
+  core-api-worker
   payment-worker
+  payment-webhook
   sms-worker
   web-customer
   web-admin
+  nginx
 )
 
 for service in "${required_services[@]}"; do
   require_running_service "$service"
 done
+
+./scripts/check-readiness.sh
 
 run_compose core-api sh -lc 'cd /app/database && alembic check'
 run_compose core-api sh -lc 'cd /app/database && alembic upgrade head'

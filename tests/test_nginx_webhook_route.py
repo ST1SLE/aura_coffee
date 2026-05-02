@@ -40,6 +40,14 @@ def test_nginx_routes_yukassa_public_path_to_payment_webhook() -> None:
     assert "proxy_pass http://payment_webhook/webhooks/yukassa;" in webhook_block
 
 
+def test_nginx_routes_health_to_core_api() -> None:
+    config = _read_nginx_config()
+
+    assert "upstream api" in config
+    health_block = _location_block(config, "/health")
+    assert "proxy_pass http://api/health;" in health_block
+
+
 def test_nginx_overwrites_forwarded_for_on_webhook_route() -> None:
     webhook_block = _location_block(_read_nginx_config(), "/api/webhooks/yukassa")
 

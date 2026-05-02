@@ -222,6 +222,7 @@
         <evidence-2>Shared, core-api, payment-worker, and sms-worker pytest suites pass.</evidence-2>
         <evidence-3>Both frontend lint, typecheck, Vitest, and npm audit gates pass.</evidence-3>
         <evidence-4>Python dependency audit runs when pip-audit is present in the verification image, or is reported as skipped.</evidence-4>
+        <evidence-5>Core API, payment-webhook, nginx canonical /health, and Celery workers pass non-destructive readiness checks.</evidence-5>
       </required-evidence>
     </Gate-Local-Full>
 

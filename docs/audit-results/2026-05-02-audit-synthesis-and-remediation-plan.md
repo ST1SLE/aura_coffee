@@ -278,6 +278,7 @@ Status:
 - Item 3 started with the cancellation slice: `services/core-api/tests/test_order_cancel.py` now asserts `orders.cancel` transaction/state/commit markers, no commit marker on failed validation, and redaction of free-text cancellation reason content.
 - Item 3 continued with the order lifecycle slice: `services/core-api/tests/test_order_lifecycle.py` now asserts `order_lifecycle.transition_order` transaction/state/commit markers and no state/commit marker on forbidden transition validation.
 - `./scripts/verify-fast.sh` now passes after cleaning up existing ruff drift in shared ORM forward references and two Core API route imports/exception bindings.
+- Item 5 is covered by `scripts/check-readiness.sh`, now wired into `scripts/verify-full.sh`: it checks direct Core API health, direct payment-webhook health, nginx canonical `/health`, and Celery worker pings.
 
 ## Parallelization Guidance
 
