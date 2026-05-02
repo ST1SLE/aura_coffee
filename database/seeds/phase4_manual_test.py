@@ -6,7 +6,7 @@ across customer, admin, barista, courier, checkout, loyalty, promocodes, orders,
 delivery assignments, refunds, notifications, and menu/media surfaces.
 
 Запуск:
-    docker compose exec core-api python -m database.seeds.phase4_manual_test
+    docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 
 Вставляет / поддерживает:
 - shop_settings (PDD §5.2 defaults) — нужен для Haversine-валидации радиуса;
@@ -17,7 +17,8 @@ delivery assignments, refunds, notifications, and menu/media surfaces.
 - delivery_addresses: default in-radius, secondary in-radius, and out-of-radius;
 - promocodes: active percent/fixed, paused, expired, and exhausted states;
 - representative order/payment/order_item snapshots across lifecycle states;
-- delivery_assignments for courier available/mine/pickup/deliver testing;
+- delivery_assignments for delivery handoff and courier available/mine/pickup/
+  deliver testing;
 - notifications, loyalty transactions, and a refund fixture.
 
 Секреты (bcrypt-хеши, ENCRYPTION_KEY for AES-GCM) — only for dev/test.
@@ -1217,6 +1218,14 @@ def _seed_orders(
 
     _seed_assignment(
         conn,
+        key="delivery-preparing",
+        order_id=orders["delivery-preparing"],
+        status="awaiting_courier",
+        courier_id=None,
+        created_at=now - timedelta(minutes=85),
+    )
+    _seed_assignment(
+        conn,
         key="delivery-ready-awaiting",
         order_id=orders["delivery-ready-awaiting"],
         status="awaiting_courier",
@@ -1272,7 +1281,8 @@ def _seed_orders(
 #   PURPOSE: Orchestrate the Phase 4+ manual-QA seed end-to-end. Calls
 #            shop_settings_seed.run() first, then seeds staff, rich menu,
 #            QA customers, addresses, promocodes, orders, assignments,
-#            notifications, loyalty ledger and refund fixtures.
+#            notifications, loyalty ledger and refund fixtures. Assignments
+#            cover PREPARING handoff plus ready/assigned/picked-up/delivered/cancelled.
 #   INPUTS:  database_url: str | None — explicit connection URL; falls back to
 #            os.environ["DATABASE_URL"] when None. Also reads ENCRYPTION_KEY
 #            (hex) for AES-256-GCM phone encryption.

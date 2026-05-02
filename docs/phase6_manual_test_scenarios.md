@@ -47,7 +47,7 @@ web-customer, web-admin, nginx
 The phase-4 seed is the source of truth for QA accounts and menu content. It is **idempotent** — re-run any time:
 
 ```bash
-docker compose exec core-api python -m database.seeds.phase4_manual_test
+docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 # → phase4_manual_test seed applied
 ```
 
@@ -64,7 +64,7 @@ Inserts / upserts:
 | Menu | Drinks/food/merch/hidden QA categories; available, unavailable, archived items; sizes, modifiers, and media URL fields |
 | Promocodes | `QA10`, `QA100`, `QAPAUSED`, `QAEXPIRED`, `QAUSED` |
 | Orders | Representative pickup/delivery orders across created/paid/preparing/ready/in_delivery/completed/cancelled |
-| Courier assignments | Awaiting, assigned, picked-up, delivered, and cancelled QA assignments |
+| Courier assignments | Preparing hidden handoff, ready-awaiting, assigned, picked-up, delivered, and cancelled QA assignments |
 | Shop settings | default working hours, delivery fee, loyalty percent |
 
 ### 0.3-B Prepare optional local media fixtures
@@ -163,19 +163,53 @@ done
 # Expect: four non-empty JWTs, each ~150–220 chars.
 ```
 
+### 0.4-B Export seeded QA IDs
+
+Do not assume menu IDs are `1` in a reused database. Export the seeded item,
+size, and known-good address IDs once and reuse them in later curl probes:
+
+```bash
+export CAPPUCCINO_ITEM_ID=$(curl -s "$BASE/api/v1/menu" \
+  | jq -r '.categories[].items[] | select(.name_ru=="Капучино (QA)") | .id' \
+  | head -n1)
+
+export CAPPUCCINO_SIZE_M_ID=$(curl -s "$BASE/api/v1/menu" \
+  | jq -r '.categories[].items[] | select(.name_ru=="Капучино (QA)") |
+           .size_options[] | select(.label=="M") | .id' \
+  | head -n1)
+
+export QA_HOME_ADDR_ID=$(curl -s "$BASE/api/v1/profile/addresses" \
+  -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq -r '.[] | select(.label=="Дом (QA)") | .id' \
+  | head -n1)
+
+export QA_CUSTOMER_ID=$(curl -s "$BASE/api/v1/profile" \
+  -H "Authorization: Bearer $CUST_TOKEN" | jq -r .id)
+
+printf 'CAPPUCCINO_ITEM_ID=%s\nCAPPUCCINO_SIZE_M_ID=%s\nQA_HOME_ADDR_ID=%s\nQA_CUSTOMER_ID=%s\n' \
+  "$CAPPUCCINO_ITEM_ID" "$CAPPUCCINO_SIZE_M_ID" "$QA_HOME_ADDR_ID" "$QA_CUSTOMER_ID"
+
+[ -n "$CAPPUCCINO_ITEM_ID" ] && [ -n "$CAPPUCCINO_SIZE_M_ID" ] && [ -n "$QA_HOME_ADDR_ID" ] && [ -n "$QA_CUSTOMER_ID" ] || {
+  echo "Seed IDs missing; re-run §0.3 and check §0.4 auth."
+  return 1 2>/dev/null || exit 1
+}
+```
+
 ### 0.5 Mock-mode sanity checks
 
 Before trusting anything downstream, confirm the three externals are in their mocked modes.
 
-**SMS — `SMS_BACKEND=log`.** The code lives in Redis under `otp:<sha256(phone)>`, and is also echoed in `sms-worker` logs:
+**SMS — `SMS_BACKEND=log`.** The code lives in Redis under `otp:<sha256(phone)>`.
+Worker logs are intentionally redacted and do **not** print raw phone numbers,
+OTP codes, or SMS bodies:
 
 ```bash
 docker compose logs --tail 5 sms-worker | grep -E '\[SMS:log\]'
 # Expect: a line like
-#   [SMS:log] to=+79991234567 msg=Код подтверждения: 123456. Aura Coffee
+#   [SMS:log] recipient_ref=8d2... kind=otp message_len=...
 ```
 
-If you don't see `[SMS:log]`, `.env` either has `SMS_BACKEND=smsru` or the worker hasn't picked up a task yet — re-run step 0.4.
+If you don't see `[SMS:log]`, `.env` either has `SMS_BACKEND=smsru` or the worker hasn't picked up a task yet — re-run step 0.4. Pull the actual OTP only from Redis as shown in §0.4 / §1.1.
 
 **YuKassa — `YUKASSA_BACKEND=fake`.** Confirm via the health endpoint:
 
@@ -242,10 +276,11 @@ Optional fifth: `docker compose logs -f nginx` if you suspect routing issues.
 ### 0.7 Reset cheat-sheet
 
 ```bash
-# wipe everything (DB, redis, volumes) and rebuild
+# DESTRUCTIVE: wipe DB, Redis, and all Compose volumes, then rebuild.
+# Confirm you really want to lose local QA data before running this block.
 docker compose down -v
 ./scripts/up.sh
-docker compose exec core-api python -m database.seeds.phase4_manual_test
+docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 
 # softer — just reset the OTP rate-limiter for the QA phone
 PH=$(echo -n "+79991234567" | sha256sum | cut -d' ' -f1)
@@ -305,43 +340,31 @@ Log out via UI → header reverts to "Войти". `localStorage` cleared. `POST
 1. Type "Москва Красная" — after ~300 ms a dropdown of suggestions appears (`GET /api/v1/maps/suggest?text=…` — 200 with an array).
 2. Pick "Москва, Красная площадь" → form autofills `address_text`, `lat`, `lon`; a `GET /api/v1/maps/geocode?text=…` fires to canonicalize.
 3. Fill label "Работа", apartment "12", entrance "3", floor "4", comment "домофон 12B".
-4. Submit → `POST /api/v1/profile/addresses` → 201 with the new address; dialog closes; list shows two rows (the phase-4 default "Дом (QA)" + "Работа").
+4. Submit → `POST /api/v1/profile/addresses` → 201 with the new address; dialog closes; the new row appears alongside the seeded "Дом (QA)", "Офис (QA)", and "Вне зоны (QA)" rows.
 
 **If Yandex returns 422 `low_precision`**: you picked a suggestion whose precision is below `street`. Pick a more specific suggestion.
 
-### 1.4-B Delivery address add — **SQL-seed fallback** (Yandex unavailable)
+### 1.4-B Delivery address add — **API fallback** (Yandex unavailable)
 
 ```bash
-# Find the customer's user_id
-USER_ID=$(docker compose exec -T postgres psql -U aura -d aura_coffee -At -c \
-  "SELECT id FROM users WHERE phone_hash='$PH';")
-echo "user=$USER_ID"
-
-# Insert a second address (non-default, since the default slot is taken)
-docker compose exec -T postgres psql -U aura -d aura_coffee -c \
-"INSERT INTO delivery_addresses
-   (user_id, label, address_text, lat, lon, apartment, entrance, is_default)
- VALUES ('$USER_ID', 'Работа', 'Москва, ул. Льва Толстого, 16',
-         55.733, 37.588, '12', '3', false);"
+# Save a known in-radius address without autocomplete/geocoding.
+curl -s -X POST $BASE/api/v1/profile/addresses \
+  -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"label":"Работа API (QA)",
+       "address_text":"Москва, ул. Льва Толстого, 16",
+       "lat":55.733,
+       "lon":37.588,
+       "apartment":"12",
+       "entrance":"3",
+       "floor":"4",
+       "comment":"Yandex unavailable fallback",
+       "is_default":false}' \
+  | jq '{id, label, is_default, lat, lon}'
 
 # Confirm via the customer API
 curl -s $BASE/api/v1/profile/addresses -H "Authorization: Bearer $CUST_TOKEN" \
   | jq '. | map({label, is_default, lat, lon})'
-# Expect: two rows, "Дом (QA)" is_default=true, "Работа" is_default=false.
-```
-#### testing addons
-
-tried adding the address in UI. after pressing "Save" button upon adding, got these logs:
-```
-core-api-1  | INFO:     172.18.0.12:35868 - "GET /api/v1/maps/suggest?text=%D1%83%D0%BB.%20%D0%9F%D0%BE%D0%BA%D1%80%D0%BE%D0%B2%D1%81%D0%BA%D0%B0%D1%8F%2C%20%D0%B4%D1%8E%2027&lang=ru_RU HTTP/1.0" 500 Internal Server Error
-core-api-1  | INFO:     172.18.0.12:60176 - "GET /api/v1/maps/suggest?text=%D1%83%D0%BB.%20%D0%9F%D0%BE%D0%BA%D1%80%D0%BE%D0%B2%D1%81%D0%BA%D0%B0%D1%8F%2C%20%D0%B4%2027&lang=ru_RU HTTP/1.0" 500 Internal Server Error
-core-api-1  | INFO:     172.18.0.12:60192 - "POST /api/v1/profile/addresses HTTP/1.0" 422 Unprocessable Entity
-```
-
-error logs while trying to save changes to existing address:
-```
-core-api-1  | INFO:     172.18.0.12:37436 - "GET /api/v1/maps/suggest?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%9A%D1%80%D0%B0%D1%81%D0%BD%D0%B0%D1%8F%20%D0%BF%D0%BB%D0%BE%D1%89%D0%B0%D0%B4%D1%8C%2C%201&lang=ru_RU HTTP/1.0" 500 Internal Server Error
-core-api-1  | INFO:     172.18.0.12:58674 - "PATCH /api/v1/profile/addresses/61d23b81-459d-4fac-83da-6bdae93ce549 HTTP/1.0" 422 Unprocessable Entity
+# Expect: seeded rows plus "Работа API (QA)"; "Дом (QA)" is_default=true unless you changed it.
 ```
 
 ### 1.5 Address make-default, delete
@@ -351,7 +374,10 @@ core-api-1  | INFO:     172.18.0.12:58674 - "PATCH /api/v1/profile/addresses/61d
 **API.**
 
 ```bash
-ADDR_ID=<uuid from list>
+ADDR_ID=$(curl -s $BASE/api/v1/profile/addresses \
+  -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq -r '.[] | select(.label=="Работа" or .label=="Работа API (QA)") | .id' \
+  | head -n1)
 # make-default
 curl -s -X PATCH $BASE/api/v1/profile/addresses/$ADDR_ID \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
@@ -362,11 +388,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE \
 # Expect: 204
 ```
 
-#### testing addons
-pressing "delete" button near address does not delete it.
-
-
-**Constraint check.** The unique partial index `ix_delivery_addresses_user_default WHERE is_default = true` guarantees at most one default per user — if the UI patches both at once you'd see a 409. Demote-then-promote is the expected shape.
+**Constraint check.** The unique partial index `ix_delivery_addresses_user_default WHERE is_default = true` guarantees at most one default per user. PATCH updates intentionally do not accept `lat` / `lon`; if an edit returns 422, check DevTools and confirm the client is sending only editable fields (`label`, `address_text`, `apartment`, `entrance`, `floor`, `comment`, `is_default`).
 
 ---
 
@@ -483,7 +505,7 @@ Quick API invariant while doing the visual pass:
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d "{\"menu_item_id\":$ITEM_ID,\"size_option_id\":1,\"quantity\":1}" \
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" \
   | jq '{items: (.items | map({menu_item_id, size_option_id, quantity, line_total})), subtotal}'
 # Expect: same cart payload shape as before media: no media fields in cart lines
 # and no price change caused by media.
@@ -502,7 +524,7 @@ curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /de
 # add 1
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":1}' \
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" \
   | jq '{items: (.items | map({menu_item_id, quantity, line_total})), subtotal}'
 # Expect: 1 line, line_total 60000 (kopecks), subtotal 60000
 
@@ -519,7 +541,7 @@ Top-level fields: `{currency, expires_at, items, subtotal}`. Note `expires_at` �
 
 ### 2.3 Checkout pickup → fake YuKassa → paid
 
-**UI.** `/cart` → "Оформить" → `/checkout`. Pickup tab selected by default (only option unless §3). "Оплатить" → loading spinner → SPA redirects to `/orders/<short_id>`. Watch `payment-worker` logs: within 1–2 s you'll see `Task yukassa_fake_callback[…] succeeded`. Refresh the order page — status flips from "Новый" / "Created" to "Оплачен" / "Paid".
+**UI.** `/cart` → "Оформить" → `/checkout`. Pickup tab selected by default (only option unless §3). "Оплатить" → loading spinner → SPA redirects to `/orders/<short_id>`. In fake YuKassa mode the page must NOT navigate to `/dev/yukassa-sandbox/fake_…`; it keeps polling the order. Watch `payment-worker` logs: within 1–2 s you'll see `Task yukassa_fake_callback[…] succeeded`, and the order page flips from "Новый" / "Created" to "Оплачен" / "Paid".
 
 **API.**
 
@@ -585,7 +607,7 @@ curl -s -X POST $BASE/api/v1/admin/promocodes/$PROMO_ID/activate \
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":1}' > /dev/null
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
 
 curl -s -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
@@ -629,10 +651,11 @@ curl -s $BASE/api/v1/admin/settings -H "Authorization: Bearer $ADMIN_TOKEN" \
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":1}' > /dev/null
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
 
-ADDR_ID=$(curl -s $BASE/api/v1/profile/addresses \
-  -H "Authorization: Bearer $CUST_TOKEN" | jq -r '.[0].id')
+ADDR_ID=${QA_HOME_ADDR_ID:-$(curl -s $BASE/api/v1/profile/addresses \
+  -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq -r '.[] | select(.label=="Дом (QA)") | .id' | head -n1)}
 
 # Expect 422 if subtotal < min_delivery_amount
 curl -s -o /tmp/resp -w '%{http_code}\n' -X POST $BASE/api/v1/orders \
@@ -648,7 +671,7 @@ Scale up the cart to comfortably exceed `min_delivery_amount`:
 ```bash
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":5}' > /dev/null
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":5}" > /dev/null
 
 DEL_ORDER=$(curl -s -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
@@ -707,19 +730,20 @@ Invalid-transition sanity: try `paid → completed` directly → expect 409 `inv
 
 Same three transitions (`paid` → `preparing` → `ready`) via the barista token on `DEL_ORDER_ID`. **Do NOT** go `completed`; delivery is completed by the courier.
 
-What happens on `ready` for a delivery order (watch `core-api` logs):
-
-```
-INFO: delivery_assignment created for order <id>  status=awaiting_courier
-```
+What happens during this flow: `paid → preparing` creates a `delivery_assignment`
+in `awaiting_courier`; the courier available feed hides it until the order also
+reaches `ready`.
 
 Cross-check:
 
 ```bash
+export ASG_ID=$(curl -s "$BASE/api/v1/courier/assignments/available" \
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  | jq -r --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid))[0].id')
 curl -s "$BASE/api/v1/courier/assignments/available" \
   -H "Authorization: Bearer $COURIER_TOKEN" \
-  | jq 'map({id, order_id, status})'
-# Expect: one assignment, status "awaiting_courier"
+  | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | .[0] | {id, order_id, status}'
+# Expect: the DEL_ORDER_ID row exists and status is "awaiting_courier".
 ```
 
 ### 4.5 Toggle item availability
@@ -729,21 +753,21 @@ curl -s "$BASE/api/v1/courier/assignments/available" \
 **API.**
 
 ```bash
-curl -s -X PATCH $BASE/api/v1/admin/menu/items/1/availability \
+curl -s -X PATCH $BASE/api/v1/admin/menu/items/$CAPPUCCINO_ITEM_ID/availability \
   -H "Authorization: Bearer $BARISTA_TOKEN" -H 'Content-Type: application/json' \
   -d '{"available":false}' | jq '{available, availability}'
 # Expect: {"available":false,"availability":"stop_list"}
 
 curl -s "$BASE/api/v1/menu" \
-  | jq '.categories[0].items[] | select(.id==1) | {available}'
+  | jq --argjson id "$CAPPUCCINO_ITEM_ID" '.categories[].items[] | select(.id==$id) | {available}'
 # Expect: {"available":false}; item is present but disabled in the SPA.
 
 curl -s "$BASE/api/v1/menu?available=true" \
-  | jq '[.categories[].items[] | select(.id==1)] | length'
+  | jq --argjson id "$CAPPUCCINO_ITEM_ID" '[.categories[].items[] | select(.id==$id)] | length'
 # Expect: 0
 
 # Flip back:
-curl -s -X PATCH $BASE/api/v1/admin/menu/items/1/availability \
+curl -s -X PATCH $BASE/api/v1/admin/menu/items/$CAPPUCCINO_ITEM_ID/availability \
   -H "Authorization: Bearer $BARISTA_TOKEN" -H 'Content-Type: application/json' \
   -d '{"available":true}' | jq '{available, availability}'
 # Expect: {"available":true,"availability":"available"}
@@ -855,7 +879,7 @@ Create an order with `qa15`, wait for `paid`, then admin-cancel (`/admin/orders`
 
 ## §6 FLOW: Courier delivers an order
 
-Needs §4.4 complete — a delivery order in status `ready` with a corresponding `delivery_assignment` in `awaiting_courier`.
+Needs §4.4 complete — a delivery order in status `ready` with a corresponding `delivery_assignment` in `awaiting_courier`. Use the `ASG_ID` exported in §4.4, or derive it again from `DEL_ORDER_ID` below.
 
 ### 6.1 Courier login — no sidebar
 
@@ -865,15 +889,15 @@ Manually typing `/admin/` (dashboard) bounces back — `ProtectedRoute` rejects 
 
 ### 6.2 Available assignments list
 
-**UI.** `/admin/courier` shows an "Available" list. The delivery order from §4.4 appears with address, distance, total amount. Clicking opens a map pin (if Yandex key live) or a plain address card (if not).
+**UI.** `/admin/courier` shows an "Available" list. The delivery order from §4.4 appears with timing/total metadata. Full address details are redacted until the courier takes the assignment; after take, they appear in the courier's "Mine" view.
 
 **API.**
 
 ```bash
 curl -s $BASE/api/v1/courier/assignments/available \
   -H "Authorization: Bearer $COURIER_TOKEN" \
-  | jq 'map({id, order_id, address_text, status})'
-# Expect: one row, status "awaiting_courier"
+  | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | .[0] | {id, order_id, status, total}'
+# Expect: the DEL_ORDER_ID row exists and status is "awaiting_courier".
 ```
 
 ### 6.3 Take → Pickup → Deliver
@@ -889,8 +913,9 @@ PICKED_UP         → [Доставил] → DELIVERED       (order.status becom
 **API.**
 
 ```bash
-ASG_ID=$(curl -s $BASE/api/v1/courier/assignments/available \
-  -H "Authorization: Bearer $COURIER_TOKEN" | jq -r '.[0].id')
+ASG_ID=${ASG_ID:-$(curl -s $BASE/api/v1/courier/assignments/available \
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  | jq -r --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid))[0].id')}
 
 curl -s -X POST $BASE/api/v1/courier/assignments/$ASG_ID/take \
   -H "Authorization: Bearer $COURIER_TOKEN" | jq .status
@@ -913,9 +938,10 @@ curl -s $BASE/api/v1/orders/$DEL_ORDER_ID -H "Authorization: Bearer $CUST_TOKEN"
 ### 6.4 Mine-list & conflict cases
 
 - `GET /api/v1/courier/assignments/mine` — shows assignments where *this* courier is assigned.
-- **Double-take.** Call `/take` on an already-taken assignment → 409. (Hard to repro solo; seed a second courier via direct INSERT to `staff_users` if you need to exercise it.)
+- **Double-take.** Call `/take` on an already-taken assignment → 409. The seed already includes `courier2` / `courier2123` if you want to log in as a second courier; do not insert ad hoc staff rows.
 - **Out-of-order.** `/deliver` before `/pickup` → 409 invalid transition.
-- **Cancel during delivery.** Admin-cancels the order while courier holds the assignment — assignment moves to a terminal "closed" state and drops off `mine`.
+- **Cancel while assigned but not picked up.** Admin-cancels a `ready` order with a `courier_assigned` assignment → assignment becomes `cancelled` and drops off `mine`.
+- **Cancel after pickup.** Once the courier has picked up the order (`in_delivery`), admin cancellation is rejected by the order state machine.
 
 ### 6.5 RBAC for courier
 
@@ -960,31 +986,39 @@ curl -s "$BASE/api/v1/admin/users?per_page=10" -H "Authorization: Bearer $ADMIN_
   | jq '{total_count, items: (.items | map({id, phone_masked, name, is_blocked, loyalty_balance}))}'
 # Note key is .items (unlike /admin/orders which uses .orders)
 
-USER_ID=$(curl -s $BASE/api/v1/admin/users -H "Authorization: Bearer $ADMIN_TOKEN" \
-  | jq -r '.items[0].id')
+USER_ID=${QA_CUSTOMER_ID:-$(curl -s $BASE/api/v1/admin/users -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.name=="QA Customer" or .name=="QA Tester") | .id' \
+  | head -n1)}
 curl -s $BASE/api/v1/admin/users/$USER_ID -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 ```
 
 ### 7.3 Block / unblock
 
-**UI.** Detail → "Заблокировать". Toast, row gains a red badge. Customer re-login fails while blocked — the OTP verifies but the user's state machine is BLOCKED → 403 on any authenticated call.
+**UI.** Detail → "Заблокировать". Toast, row gains a red badge. Blocking also revokes the customer's refresh sessions. While blocked, `send-code` / token refresh are refused and existing access tokens are treated as invalid on protected endpoints.
 
 **API.**
 
 ```bash
 curl -s -X POST $BASE/api/v1/admin/users/$USER_ID/block \
-  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .is_blocked
-# true
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .status
+# "blocked"
 
-# Customer re-auth is refused on protected endpoints
+# Existing customer access token is refused on protected endpoints
 curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/v1/profile \
   -H "Authorization: Bearer $CUST_TOKEN"
-# Expect: 403 (user is blocked) — not 401
+# Expect: 401 (blocked subjects are treated as invalid/expired JWT subjects)
+
+# New OTP requests are refused while blocked
+curl -s -o /dev/null -w '%{http_code}\n' -X POST $BASE/api/v1/auth/send-code \
+  -H 'Content-Type: application/json' -d "{\"phone\":\"$PHONE\"}"
+# Expect: 403
 
 curl -s -X POST $BASE/api/v1/admin/users/$USER_ID/unblock \
-  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .is_blocked
-# false
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .status
+# "active"
 ```
+
+After unblock, re-run §0.4 to get a fresh `CUST_TOKEN`; the old session was intentionally revoked.
 
 ### 7.4 Shop settings edit
 
@@ -1056,7 +1090,7 @@ Focused negative-path flow. Pre-state: at least one `paid` pickup order, one `pa
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":1}' > /dev/null
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
 OID=$(curl -s -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
   -d '{"type":"pickup"}' | jq -r .id)
@@ -1080,7 +1114,7 @@ INFO refund succeeded for order <id>
 
 ### 8.2 Admin cancels delivery mid-stream
 
-Need a delivery order (§3). Drive it to `paid` (sleep 3). Before `preparing`:
+Need a delivery order (§3). Drive it to `paid` (sleep 3). Admin cancellation is allowed before pickup (`paid`, `preparing`, or `ready`):
 
 ```bash
 curl -s -X POST $BASE/api/v1/orders/$DEL_ORDER_ID/cancel \
@@ -1088,13 +1122,16 @@ curl -s -X POST $BASE/api/v1/orders/$DEL_ORDER_ID/cancel \
   -d '{"reason":"admin_decision"}' | jq '{status, payment: .payment.status}'
 ```
 
-If the barista already took it to `ready` and the assignment was created, the delivery_assignment gets closed:
+If the barista already moved it to `preparing`, the delivery assignment exists. If it is still `awaiting_courier` or `courier_assigned`, cancellation marks that assignment `cancelled` and removes it from courier feeds:
 
 ```bash
 curl -s $BASE/api/v1/courier/assignments/available \
-  -H "Authorization: Bearer $COURIER_TOKEN" | jq '. | length'
-# Expect: drops by 1
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | length'
+# Expect: 0
 ```
+
+If the courier already picked up the order (`in_delivery`), admin cancellation is rejected; the courier must complete the delivery flow.
 
 ### 8.3 Promocode symmetric refund
 
@@ -1183,7 +1220,7 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 - **`ADMIN_ADJUSTMENT` UI on customer page** — the row appears in `/profile/loyalty` history but has no link (no owning order). Intentional.
 - **YuKassa real backend** — `YUKASSA_BACKEND=live` requires production credentials; `services/payment-worker/src/payment_worker/main.py` refuses to start if `YUKASSA_BASE_URL` contains "test" / "sandbox" / "localhost" when `live` is set. Do not attempt to flip it during manual QA.
 - **Yandex activation delay** — new free-tier keys can take up to ~15 min to propagate. If §0.5 shows 403 but you just issued the key, retry later. If persistent, check that both "Геокодер HTTP API" and "Геосаджест API" are activated in the developer cabinet — they are separate subscriptions.
-- **Phase-4 schema drift on customer addresses** — three bugs in `web/customer/src/api/addresses.ts` documented in `phase4_manual_test_scenarios.md` §6 may still be present; not a phase-6 regression.
+- **Address edit coordinates** — saved-address PATCH intentionally does not accept `lat` / `lon`; changing coordinates is a delete/create flow until the product adds an explicit re-geocode edit path.
 
 ---
 
@@ -1191,18 +1228,19 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| `/api/v1/auth/verify-code` returns 400 `invalid_code` immediately after send | OTP already consumed / rate-limiter | §0.7 reset |
+| `/api/v1/auth/verify-code` returns 409 `OTP not yet delivered` immediately after send | SMS worker has not flipped Redis status to `sent` yet | wait/poll as in §0.4; check `sms-worker` logs |
+| `/api/v1/auth/verify-code` returns 401 wrong code / too many attempts | OTP already consumed or wrong code submitted | §0.7 reset and re-run §0.4 |
 | `/api/v1/auth/send-code` returns 429 | `sms_rate:*` counters full | `redis-cli DEL` those keys |
 | Customer checkout hangs on "creating order" | `payment-worker` unhealthy or `YUKASSA_FAKE_OUTCOME=http_error` left active | check logs; reset env var |
 | `/api/v1/admin/stats` returns 500 | no orders in DB and the aggregate query hit a NULL path | create at least one `paid` order |
 | Admin sidebar shows all 6 links for barista | phase 5.5 fix didn't land; `Layout.tsx NAV_BY_ROLE` missing | compare against current `web/admin/src/components/Layout.tsx` |
-| Delivery order's courier assignment never appears | barista didn't move it to `ready` | PATCH `/orders/$ID/status` with `ready` |
+| Delivery assignment row exists but is absent from courier available feed | order is still `preparing` | PATCH `/orders/$ID/status` with `ready` |
 | `/api/v1/maps/suggest` → 500 `yandex_upstream_error` with key set | key not activated / wrong product | §0.5; verify both APIs enabled in Yandex cabinet |
 | `/api/v1/maps/suggest` → 503 `maps_unavailable` | key empty, timeout, or 5xx from Yandex | check `.env` + network |
 | Admin menu media save returns 422 | Path outside `/media/menu/`, missing poster for video, wrong extension, or signed/external URL | use the §2.1-A validation matrix |
 | Customer menu media area is blank | No media fields and no legacy `image_url`, or both video and poster assets 404 | set media in §2.1-A and verify `curl -I` from §0.3-B |
 | Video does not autoplay | Browser reduced-motion setting, video not in viewport yet, or unsupported/invalid video file | check DevTools media emulation and use a small `.mp4`/`.webm` |
-| Tokens suddenly 401 after some time | JWT TTL expired (~15 min) | re-run §0.4 token block; use the refresh endpoint if preferred |
+| Tokens suddenly 401 after some time | JWT TTL expired, or §7.3 blocked/revoked the customer session | re-run §0.4 token block after unblocking |
 | `docker compose ps` shows `db-migrate` / `db-seed` as `Exited` | expected — one-shot jobs | nothing to do |
 
 ---
@@ -1251,7 +1289,7 @@ curl -s $BASE/api/v1/profile/addresses -H "Authorization: Bearer $CUST_TOKEN" | 
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items -H "Authorization: Bearer $CUST_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"menu_item_id":1,"size_option_id":1,"quantity":1}' > /dev/null
+  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
 OID=$(curl -s -X POST $BASE/api/v1/orders -H "Authorization: Bearer $CUST_TOKEN" \
   -H 'Content-Type: application/json' -d '{"type":"pickup"}' | jq -r .id)
 echo "order=$OID"; sleep 3
