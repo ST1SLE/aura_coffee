@@ -23,7 +23,8 @@ type TabKey = 'available' | 'mine';
 
 // START_CONTRACT: CourierPage
 //   PURPOSE: Render the courier tab switcher and mount the active tab's
-//            content. Tab state is local; no URL persistence.
+//            content with aria-controls/tabpanel wiring. Tab state is local;
+//            no URL persistence.
 //   INPUTS:  none.
 //   OUTPUTS: JSX.Element.
 //   SIDE_EFFECTS: none directly; the selected tab triggers its own data fetches.
@@ -44,14 +45,33 @@ export function CourierPage() {
           active={tab === 'available'}
           onClick={() => setTab('available')}
           label={t('courier.tabs.available')}
+          panelId="courier-panel-available"
+          tabId="courier-tab-available"
         />
         <TabButton
           active={tab === 'mine'}
           onClick={() => setTab('mine')}
           label={t('courier.tabs.mine')}
+          panelId="courier-panel-mine"
+          tabId="courier-tab-mine"
         />
       </div>
-      <div>{tab === 'available' ? <AvailableTab /> : <MineTab />}</div>
+      <div
+        id="courier-panel-available"
+        role="tabpanel"
+        aria-labelledby="courier-tab-available"
+        hidden={tab !== 'available'}
+      >
+        {tab === 'available' ? <AvailableTab /> : null}
+      </div>
+      <div
+        id="courier-panel-mine"
+        role="tabpanel"
+        aria-labelledby="courier-tab-mine"
+        hidden={tab !== 'mine'}
+      >
+        {tab === 'mine' ? <MineTab /> : null}
+      </div>
     </div>
   );
 }
@@ -60,14 +80,18 @@ interface TabButtonProps {
   active: boolean;
   onClick: () => void;
   label: string;
+  panelId: string;
+  tabId: string;
 }
 
-function TabButton({ active, onClick, label }: TabButtonProps) {
+function TabButton({ active, onClick, label, panelId, tabId }: TabButtonProps) {
   return (
     <button
+      id={tabId}
       type="button"
       role="tab"
       aria-selected={active}
+      aria-controls={panelId}
       onClick={onClick}
       className={cn(
         'flex-1 min-h-12 rounded-full px-4 text-sm font-medium transition-colors',

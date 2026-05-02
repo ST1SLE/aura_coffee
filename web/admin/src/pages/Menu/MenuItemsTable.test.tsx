@@ -69,6 +69,25 @@ describe('MenuItemsTable', () => {
     expect(rowText).toContain('Finite: 4');
   });
 
+  test('admin edit/delete icon buttons have item-specific accessible names', async () => {
+    render(
+      <MenuItemsTable
+        categoryId={null}
+        categories={[]}
+        modifiers={[]}
+        currentRole="admin"
+        onError={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole('button', { name: 'Edit Coffee' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete Coffee' }),
+    ).toBeInTheDocument();
+  });
+
   test('MenuItemsTable lets barista update finite inventory through operational endpoint', async () => {
     vi.mocked(menuApi.setItemInventory).mockResolvedValue({
       ...mockItem,

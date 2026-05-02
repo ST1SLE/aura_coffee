@@ -57,7 +57,12 @@ const emptyForm = (): FormRow => ({ name_ru: '', name_en: '', price: '' });
 //   LINKS:   INV-002 (server enforces; client filters CRUD UI for barista),
 //            INV-010.
 // END_CONTRACT: ModifiersPanel
-export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onError }: Props) {
+export function ModifiersPanel({
+  modifiers,
+  onModifiersChange,
+  currentRole,
+  onError,
+}: Props) {
   const { t, i18n } = useTranslation();
   const [addForm, setAddForm] = useState<FormRow>(emptyForm());
   const [adding, setAdding] = useState(false);
@@ -83,7 +88,8 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
-        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        const fields =
+          body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
         onError(t('pages.menu.itemForm.error422', { fields }));
       } else if (err instanceof ApiError && err.status === 401) {
         onError(t('common.sessionExpired'));
@@ -116,7 +122,8 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
-        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        const fields =
+          body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
         onError(t('pages.menu.itemForm.error422', { fields }));
       } else {
         onError(t('pages.menu.modifiers.errorGeneric'));
@@ -130,7 +137,8 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
       await deleteModifier(m.id);
       onModifiersChange(modifiers.filter((x) => x.id !== m.id));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+      if (err instanceof ApiError && err.status === 401)
+        onError(t('common.sessionExpired'));
       else onError(t('common.error'));
     }
   }
@@ -150,9 +158,15 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('pages.menu.modifiers.title')}</h2>
+        <h2 className="text-lg font-semibold">
+          {t('pages.menu.modifiers.title')}
+        </h2>
         {isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAdd((v) => !v)}
+          >
             <Plus className="h-4 w-4 mr-1" />
             {t('pages.menu.modifiers.newModifier')}
           </Button>
@@ -163,19 +177,27 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
       {isAdmin && showAdd && (
         <div className="flex gap-2 items-end border rounded-md p-3">
           <div className="space-y-1 flex-1">
-            <Label htmlFor="mod-name-ru">{t('pages.menu.modifiers.nameRu')}</Label>
+            <Label htmlFor="mod-name-ru">
+              {t('pages.menu.modifiers.nameRu')}
+            </Label>
             <Input
               id="mod-name-ru"
               value={addForm.name_ru}
-              onChange={(e) => setAddForm({ ...addForm, name_ru: e.target.value })}
+              onChange={(e) =>
+                setAddForm({ ...addForm, name_ru: e.target.value })
+              }
             />
           </div>
           <div className="space-y-1 flex-1">
-            <Label htmlFor="mod-name-en">{t('pages.menu.modifiers.nameEn')}</Label>
+            <Label htmlFor="mod-name-en">
+              {t('pages.menu.modifiers.nameEn')}
+            </Label>
             <Input
               id="mod-name-en"
               value={addForm.name_en}
-              onChange={(e) => setAddForm({ ...addForm, name_en: e.target.value })}
+              onChange={(e) =>
+                setAddForm({ ...addForm, name_en: e.target.value })
+              }
             />
           </div>
           <div className="space-y-1 w-28">
@@ -185,12 +207,16 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
               type="number"
               step="0.01"
               value={addForm.price}
-              onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
+              onChange={(e) =>
+                setAddForm({ ...addForm, price: e.target.value })
+              }
               placeholder="0.00"
             />
           </div>
           <Button disabled={adding} onClick={handleAdd}>
-            {adding ? t('pages.menu.modifiers.saving') : t('pages.menu.modifiers.save')}
+            {adding
+              ? t('pages.menu.modifiers.saving')
+              : t('pages.menu.modifiers.save')}
           </Button>
           <Button variant="ghost" onClick={() => setShowAdd(false)}>
             {t('pages.menu.modifiers.cancel')}
@@ -199,22 +225,31 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
       )}
 
       {modifiers.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t('pages.menu.modifiers.empty')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('pages.menu.modifiers.empty')}
+        </p>
       )}
 
       <ul className="space-y-2">
         {modifiers.map((m) =>
           editId === m.id ? (
-            <li key={m.id} className="flex gap-2 items-center border rounded-md p-2">
+            <li
+              key={m.id}
+              className="flex gap-2 items-center border rounded-md p-2"
+            >
               <Input
                 value={editForm.name_ru}
-                onChange={(e) => setEditForm({ ...editForm, name_ru: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name_ru: e.target.value })
+                }
                 className="flex-1"
                 placeholder="RU"
               />
               <Input
                 value={editForm.name_en}
-                onChange={(e) => setEditForm({ ...editForm, name_en: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name_en: e.target.value })
+                }
                 className="flex-1"
                 placeholder="EN"
               />
@@ -222,7 +257,9 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
                 type="number"
                 step="0.01"
                 value={editForm.price}
-                onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, price: e.target.value })
+                }
                 className="w-24"
               />
               <Button size="sm" onClick={() => handleSaveEdit(m)}>
@@ -233,7 +270,10 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
               </Button>
             </li>
           ) : (
-            <li key={m.id} className="flex items-center gap-3 rounded-md border px-3 py-2">
+            <li
+              key={m.id}
+              className="flex items-center gap-3 rounded-md border px-3 py-2"
+            >
               <Switch
                 checked={m.available}
                 disabled={togglingId === m.id}
@@ -247,7 +287,17 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
               </span>
               {isAdmin && (
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(m)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startEdit(m)}
+                    aria-label={t('pages.menu.modifiers.editAria', {
+                      name: pickLang(m.name_ru, m.name_en, i18n.language),
+                    })}
+                    title={t('pages.menu.modifiers.editAria', {
+                      name: pickLang(m.name_ru, m.name_en, i18n.language),
+                    })}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
@@ -255,6 +305,12 @@ export function ModifiersPanel({ modifiers, onModifiersChange, currentRole, onEr
                     variant="ghost"
                     className="text-destructive"
                     onClick={() => handleDelete(m)}
+                    aria-label={t('pages.menu.modifiers.deleteAria', {
+                      name: pickLang(m.name_ru, m.name_en, i18n.language),
+                    })}
+                    title={t('pages.menu.modifiers.deleteAria', {
+                      name: pickLang(m.name_ru, m.name_en, i18n.language),
+                    })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

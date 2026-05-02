@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CategoryResponse, CategoryType } from '@/api/menu';
-import { listCategories, createCategory, updateCategory, deleteCategory, ApiError } from '@/api/menu';
+import {
+  listCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  ApiError,
+} from '@/api/menu';
 import { pickLang } from './utils';
 
 // START_MODULE_CONTRACT
@@ -72,7 +78,8 @@ export function CategoryList({
         onCategoriesLoaded(cats);
       })
       .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+        if (err instanceof ApiError && err.status === 401)
+          onError(t('common.sessionExpired'));
         else onError(t('common.error'));
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -97,7 +104,8 @@ export function CategoryList({
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
-        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        const fields =
+          body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
         onError(t('pages.menu.itemForm.error422', { fields }));
       } else if (err instanceof ApiError && err.status === 401) {
         onError(t('common.sessionExpired'));
@@ -137,7 +145,8 @@ export function CategoryList({
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const body = err.body as { detail?: Array<{ loc: string[] }> } | null;
-        const fields = body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
+        const fields =
+          body?.detail?.map((d) => d.loc.slice(-1)[0]).join(', ') ?? '';
         onError(t('pages.menu.itemForm.error422', { fields }));
       } else if (err instanceof ApiError && err.status === 401) {
         onError(t('common.sessionExpired'));
@@ -177,7 +186,9 @@ export function CategoryList({
       {/* Кнопка "Все" */}
       <button
         className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
-          selectedId === null ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+          selectedId === null
+            ? 'bg-primary text-primary-foreground'
+            : 'hover:bg-accent'
         }`}
         onClick={() => onSelect(null)}
       >
@@ -185,7 +196,9 @@ export function CategoryList({
       </button>
 
       {categories.length === 0 && (
-        <p className="text-xs text-muted-foreground">{t('pages.menu.categories.empty')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('pages.menu.categories.empty')}
+        </p>
       )}
 
       <ul className="space-y-1">
@@ -228,7 +241,11 @@ export function CategoryList({
                   placeholder="#"
                   title={t('pages.menu.categories.sortOrder')}
                 />
-                <Button size="sm" className="h-7 px-2" onClick={() => handleSaveEdit(cat)}>
+                <Button
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => handleSaveEdit(cat)}
+                >
                   ✓
                 </Button>
                 <Button
@@ -262,6 +279,9 @@ export function CategoryList({
                   <button
                     className="p-0.5 hover:opacity-70"
                     onClick={() => startEdit(cat)}
+                    aria-label={t('pages.menu.categories.editAria', {
+                      name: pickLang(cat.name_ru, cat.name_en, i18n.language),
+                    })}
                     title={t('pages.menu.categories.editCategory')}
                   >
                     <Pencil className="h-3 w-3" />
@@ -269,6 +289,9 @@ export function CategoryList({
                   <button
                     className="p-0.5 hover:opacity-70 text-destructive"
                     onClick={() => handleDelete(cat)}
+                    aria-label={t('pages.menu.categories.deleteAria', {
+                      name: pickLang(cat.name_ru, cat.name_en, i18n.language),
+                    })}
                     title={t('pages.menu.categories.deleteCategory')}
                   >
                     <Trash2 className="h-3 w-3" />

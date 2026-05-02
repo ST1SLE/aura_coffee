@@ -14,8 +14,19 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { MenuItemFormDialog } from './MenuItemFormDialog';
-import type { MenuItemResponse, CategoryResponse, Availability, ModifierResponse } from '@/api/menu';
-import { listItems, deleteItem, setItemAvailability, setItemInventory, ApiError } from '@/api/menu';
+import type {
+  MenuItemResponse,
+  CategoryResponse,
+  Availability,
+  ModifierResponse,
+} from '@/api/menu';
+import {
+  listItems,
+  deleteItem,
+  setItemAvailability,
+  setItemInventory,
+  ApiError,
+} from '@/api/menu';
 import { formatPrice, pickLang } from './utils';
 
 // START_MODULE_CONTRACT
@@ -47,10 +58,14 @@ interface Props {
 function AvailabilityBadge({ value }: { value: Availability }) {
   const { t } = useTranslation();
   if (value === 'stop_list') {
-    return <Badge variant="warning">{t('pages.menu.items.badge.stopList')}</Badge>;
+    return (
+      <Badge variant="warning">{t('pages.menu.items.badge.stopList')}</Badge>
+    );
   }
   if (value === 'archived') {
-    return <Badge variant="muted">{t('pages.menu.items.badge.archived')}</Badge>;
+    return (
+      <Badge variant="muted">{t('pages.menu.items.badge.archived')}</Badge>
+    );
   }
   return null;
 }
@@ -59,7 +74,9 @@ function InventoryBadge({ quantity }: { quantity: number | null }) {
   const { t } = useTranslation();
   if (quantity == null) {
     return (
-      <Badge variant="muted">{t('pages.menu.items.inventoryBadge.unlimited')}</Badge>
+      <Badge variant="muted">
+        {t('pages.menu.items.inventoryBadge.unlimited')}
+      </Badge>
     );
   }
   if (quantity === 0) {
@@ -105,15 +122,27 @@ function isValidInventoryDraft(value: string): boolean {
 //            DELETE deleteItem (admin only — server enforces).
 //   LINKS:   INV-002, INV-010 (barista sees only operational item controls).
 // END_CONTRACT: MenuItemsTable
-export function MenuItemsTable({ categoryId, categories, modifiers, currentRole, onError }: Props) {
+export function MenuItemsTable({
+  categoryId,
+  categories,
+  modifiers,
+  currentRole,
+  onError,
+}: Props) {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState<MenuItemResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<MenuItemResponse | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItemResponse | null>(
+    null,
+  );
   const [togglingId, setTogglingId] = useState<number | null>(null);
-  const [savingInventoryId, setSavingInventoryId] = useState<number | null>(null);
-  const [inventoryDrafts, setInventoryDrafts] = useState<Record<number, string>>({});
+  const [savingInventoryId, setSavingInventoryId] = useState<number | null>(
+    null,
+  );
+  const [inventoryDrafts, setInventoryDrafts] = useState<
+    Record<number, string>
+  >({});
   const isAdmin = currentRole === 'admin';
 
   useEffect(() => {
@@ -122,11 +151,14 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
       .then((nextItems) => {
         setItems(nextItems);
         setInventoryDrafts(
-          Object.fromEntries(nextItems.map((item) => [item.id, inventoryDraftFromItem(item)])),
+          Object.fromEntries(
+            nextItems.map((item) => [item.id, inventoryDraftFromItem(item)]),
+          ),
         );
       })
       .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+        if (err instanceof ApiError && err.status === 401)
+          onError(t('common.sessionExpired'));
         else onError(t('common.error'));
       })
       .finally(() => setLoading(false));
@@ -148,12 +180,16 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
       await deleteItem(item.id);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+      if (err instanceof ApiError && err.status === 401)
+        onError(t('common.sessionExpired'));
       else onError(t('common.error'));
     }
   }
 
-  async function handleToggleAvailability(item: MenuItemResponse, next: boolean) {
+  async function handleToggleAvailability(
+    item: MenuItemResponse,
+    next: boolean,
+  ) {
     setTogglingId(item.id);
     try {
       const updated = await setItemAvailability(item.id, next);
@@ -163,14 +199,18 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
         [updated.id]: inventoryDraftFromItem(updated),
       }));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+      if (err instanceof ApiError && err.status === 401)
+        onError(t('common.sessionExpired'));
       else onError(t('common.errorToggle'));
     } finally {
       setTogglingId(null);
     }
   }
 
-  async function handleSetInventory(item: MenuItemResponse, quantity: number | null) {
+  async function handleSetInventory(
+    item: MenuItemResponse,
+    quantity: number | null,
+  ) {
     setSavingInventoryId(item.id);
     try {
       const updated = await setItemInventory(item.id, quantity);
@@ -180,7 +220,8 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
         [updated.id]: inventoryDraftFromItem(updated),
       }));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onError(t('common.sessionExpired'));
+      if (err instanceof ApiError && err.status === 401)
+        onError(t('common.sessionExpired'));
       else onError(t('pages.menu.items.errorInventory'));
     } finally {
       setSavingInventoryId(null);
@@ -203,7 +244,10 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
     });
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>;
+  if (loading)
+    return (
+      <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+    );
 
   return (
     <div className="space-y-3">
@@ -217,7 +261,9 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('pages.menu.items.empty')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('pages.menu.items.empty')}
+        </p>
       ) : (
         <Table>
           <TableHeader>
@@ -226,17 +272,26 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
               <TableHead>{t('pages.menu.items.price')}</TableHead>
               <TableHead>{t('pages.menu.items.inventory')}</TableHead>
               <TableHead>{t('pages.menu.items.availability')}</TableHead>
-              {isAdmin && <TableHead>{t('pages.menu.items.actions')}</TableHead>}
+              {isAdmin && (
+                <TableHead>{t('pages.menu.items.actions')}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item) => {
-              const itemName = pickLang(item.name_ru, item.name_en, i18n.language);
-              const inventoryDraft = inventoryDrafts[item.id] ?? inventoryDraftFromItem(item);
+              const itemName = pickLang(
+                item.name_ru,
+                item.name_en,
+                i18n.language,
+              );
+              const inventoryDraft =
+                inventoryDrafts[item.id] ?? inventoryDraftFromItem(item);
               const inventoryBusy = savingInventoryId === item.id;
-              const inventoryControlsDisabled = item.availability === 'archived' || inventoryBusy;
+              const inventoryControlsDisabled =
+                item.availability === 'archived' || inventoryBusy;
               const inventorySaveDisabled =
-                inventoryControlsDisabled || !isValidInventoryDraft(inventoryDraft);
+                inventoryControlsDisabled ||
+                !isValidInventoryDraft(inventoryDraft);
 
               return (
                 <TableRow key={item.id}>
@@ -254,13 +309,20 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                           onChange={(e) =>
                             setInventoryDrafts((prev) => ({
                               ...prev,
-                              [item.id]: normalizeInventoryQuantityInput(e.target.value),
+                              [item.id]: normalizeInventoryQuantityInput(
+                                e.target.value,
+                              ),
                             }))
                           }
-                          placeholder={t('pages.menu.items.inventoryPlaceholder')}
-                          aria-label={t('pages.menu.items.inventoryQuantityAria', {
-                            name: itemName,
-                          })}
+                          placeholder={t(
+                            'pages.menu.items.inventoryPlaceholder',
+                          )}
+                          aria-label={t(
+                            'pages.menu.items.inventoryQuantityAria',
+                            {
+                              name: itemName,
+                            },
+                          )}
                           className="h-8 w-20"
                           disabled={inventoryControlsDisabled}
                         />
@@ -269,7 +331,10 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                           variant="ghost"
                           disabled={inventorySaveDisabled}
                           onClick={() =>
-                            handleSetInventory(item, parseInt(inventoryDraft, 10))
+                            handleSetInventory(
+                              item,
+                              parseInt(inventoryDraft, 10),
+                            )
                           }
                           aria-label={t('pages.menu.items.inventorySaveAria', {
                             name: itemName,
@@ -285,9 +350,12 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                           variant="ghost"
                           disabled={inventoryControlsDisabled}
                           onClick={() => handleSetInventory(item, null)}
-                          aria-label={t('pages.menu.items.inventoryUnlimitedAria', {
-                            name: itemName,
-                          })}
+                          aria-label={t(
+                            'pages.menu.items.inventoryUnlimitedAria',
+                            {
+                              name: itemName,
+                            },
+                          )}
                           title={t('pages.menu.items.inventoryUnlimitedAria', {
                             name: itemName,
                           })}
@@ -301,8 +369,13 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={item.availability === 'available'}
-                        disabled={item.availability === 'archived' || togglingId === item.id}
-                        onCheckedChange={(checked) => handleToggleAvailability(item, checked)}
+                        disabled={
+                          item.availability === 'archived' ||
+                          togglingId === item.id
+                        }
+                        onCheckedChange={(checked) =>
+                          handleToggleAvailability(item, checked)
+                        }
                       />
                       <AvailabilityBadge value={item.availability} />
                     </div>
@@ -310,7 +383,17 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                   {isAdmin && (
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(item)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEdit(item)}
+                          aria-label={t('pages.menu.items.editAria', {
+                            name: itemName,
+                          })}
+                          title={t('pages.menu.items.editAria', {
+                            name: itemName,
+                          })}
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
@@ -318,6 +401,12 @@ export function MenuItemsTable({ categoryId, categories, modifiers, currentRole,
                           variant="ghost"
                           className="text-destructive"
                           onClick={() => handleDelete(item)}
+                          aria-label={t('pages.menu.items.deleteAria', {
+                            name: itemName,
+                          })}
+                          title={t('pages.menu.items.deleteAria', {
+                            name: itemName,
+                          })}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
