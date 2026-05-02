@@ -344,6 +344,56 @@ Verification:
   `/profile`, and `/profile/addresses` at 375px and 430px; all reported 0px
   horizontal overflow.
 
+### Packet 8 - Warm Neutral Review Adjustment
+
+Status: complete
+
+Files:
+
+- `web/customer/src/index.css`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+Review screenshots showed that `--card` was reading as white-white and large
+blank page areas still pulled attention. The adjustment keeps the botanical
+direction but deepens the neutral hierarchy:
+
+- page canvas: oat
+- primary surfaces: milk white
+- nested surfaces and placeholders: biscuit
+
+Steps:
+
+1. Lower `--background` lightness so blank canvas recedes.
+2. Lower `--card` / `--popover` from near-white to milk white.
+3. Nudge `--muted`, `--secondary`, `--border`, and `--input` into the same warm
+   neutral family.
+4. Preserve sage actions, espresso text, and existing semantic component usage.
+
+Acceptance:
+
+- screenshots no longer read as white-white cards on a white page
+- UI remains warm botanical rather than brown-heavy
+- text contrast remains high on cards, modal panels, checkout totals, and order
+  details
+- no route, API payload, auth, cart, pricing, checkout, or state behavior changes
+
+Verification:
+
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/pages/OrderDetailPage.test.tsx src/pages/CheckoutPage.test.tsx src/components/Layout.test.tsx`
+- `cd web/customer && npm run build`
+- `./scripts/up.sh`
+- Playwright browser pass against `http://localhost:240/` with authenticated QA
+  customer state; captured `/menu`, item detail, `/checkout`, and
+  `/orders/:orderId` screenshots under
+  `/tmp/aura-customer-neutral-tweak-screenshots`.
+- Browser computed color check confirmed the page canvas as
+  `rgb(238, 232, 221)` and card overlays as warm milk-white instead of pure
+  white.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -383,7 +433,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-7 complete.
+Packet status: Packets 0-8 complete.
 
 Safety double-check:
 
@@ -412,6 +462,7 @@ Verification commands run:
 - `cd web/customer && npm run typecheck`
 - `cd web/customer && npm run lint`
 - `cd web/customer && npm test`
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/pages/OrderDetailPage.test.tsx src/pages/CheckoutPage.test.tsx src/components/Layout.test.tsx`
 - `cd web/customer && npm run build`
 - `git diff --check`
 - `./scripts/up.sh`
@@ -419,6 +470,7 @@ Verification commands run:
   Onest loaded via `document.fonts.check(...)`; no unexpected HTTP 4xx/5xx
   responses.
 - Playwright browser overflow/screenshot checks listed under Packet 7.
+- Playwright warm-neutral screenshot checks listed under Packet 8.
 
 Residual test cleanup:
 
