@@ -71,15 +71,15 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-center text-2xl font-bold">{t('auth.phone.title')}</h1>
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="aura-surface w-full max-w-sm space-y-6 rounded-lg p-5">
+        <h1 className="text-center font-display text-2xl font-bold">{t('auth.phone.title')}</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <PhoneInput value={phone} onChange={setPhone} disabled={isSubmitting} />
 
           {error && (
-            <p className="text-center text-sm text-red-600">{error}</p>
+            <p className="text-center text-sm text-destructive">{error}</p>
           )}
 
           <Button

@@ -28,8 +28,8 @@ function shortId(id: string): string {
 }
 
 function amountClass(amount: number): string {
-  if (amount > 0) return 'text-green-600';
-  if (amount < 0) return 'text-red-600';
+  if (amount > 0) return 'text-success';
+  if (amount < 0) return 'text-destructive';
   return 'text-foreground';
 }
 
@@ -57,7 +57,7 @@ export function TransactionRow({ tx }: Props) {
   const typeLabel = t(`pages.loyalty.txType.${tx.type}`, { defaultValue: tx.type });
 
   return (
-    <li className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm">
+    <li className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-card p-3 text-sm">
       <div className="flex flex-col">
         <span className="text-xs text-muted-foreground">
           {formatDate(tx.created_at, locale)}
@@ -80,7 +80,7 @@ export function TransactionRow({ tx }: Props) {
       </div>
 
       <div className="flex flex-col items-end">
-        <span className={`text-lg font-semibold ${amountClass(tx.amount)}`}>
+        <span className={`aura-numeric text-lg font-semibold ${amountClass(tx.amount)}`}>
           {formatAmount(tx.amount)}
         </span>
         <span className="text-xs text-muted-foreground">

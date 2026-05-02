@@ -68,7 +68,9 @@ export function CartLine({
     <div className="aura-surface flex flex-col gap-4 rounded-lg p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-base font-semibold leading-tight">{name}</span>
+          <span className="font-display text-base font-semibold leading-tight">
+            {name}
+          </span>
           {item.size_snapshot && (
             <span className="text-xs text-muted-foreground">
               {item.size_snapshot.label}
@@ -88,7 +90,7 @@ export function CartLine({
         <button
           aria-label={t('cart.remove')}
           onClick={() => onRemove(itemId)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -99,7 +101,7 @@ export function CartLine({
             variant="outline"
             size="icon"
             aria-label={t('cart.decrement')}
-            className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+            className="h-8 w-8 rounded-full border-border/70 bg-card"
             onClick={() =>
               item.quantity <= 1
                 ? onRemove(itemId)
@@ -108,7 +110,7 @@ export function CartLine({
           >
             <Minus className="h-4 w-4" aria-hidden="true" />
           </Button>
-          <span className="w-8 text-center text-sm font-semibold">
+          <span className="aura-numeric w-8 text-center text-sm font-semibold">
             {item.quantity}
           </span>
           <Button
@@ -116,13 +118,13 @@ export function CartLine({
             size="icon"
             aria-label={t('cart.increment')}
             disabled={item.quantity >= maxQuantity}
-            className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+            className="h-8 w-8 rounded-full border-border/70 bg-card"
             onClick={() => onUpdateQuantity(itemId, item.quantity + 1)}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
-        <div className="flex flex-col items-end text-sm">
+        <div className="aura-numeric flex flex-col items-end text-sm">
           <span className="text-muted-foreground">
             {formatPrice(item.unit_price, locale)} × {item.quantity}
           </span>

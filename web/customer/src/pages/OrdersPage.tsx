@@ -105,10 +105,10 @@ function OrderCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold">
+            <h2 className="font-display text-lg font-semibold">
               {t('pages.orders.orderNumber', { id: shortId(order.id) })}
             </h2>
-            <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+            <span className="rounded-full bg-secondary px-2 py-1 font-display text-xs font-semibold text-secondary-foreground">
               {t(`pages.orders.status.${order.status}`)}
             </span>
           </div>
@@ -121,7 +121,7 @@ function OrderCard({
           <p className="text-sm text-muted-foreground">
             {t('pages.orders.total')}
           </p>
-          <p className="text-xl font-semibold text-primary">
+          <p className="aura-numeric text-xl font-semibold text-primary">
             {formatPrice(order.total, locale)}
           </p>
         </div>
@@ -149,7 +149,7 @@ function OrderCard({
                   </span>
                 )}
               </span>
-              <span className="shrink-0 text-muted-foreground">
+              <span className="aura-numeric shrink-0 text-muted-foreground">
                 {item.quantity} × {formatPrice(item.unit_price, locale)}
               </span>
             </li>
@@ -291,10 +291,10 @@ export function OrdersPage() {
 
       {!loading && !error && orders.length === 0 && (
         <div className="aura-surface flex min-h-[35vh] flex-col items-center justify-center rounded-lg p-6 text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-primary">
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-sage text-brand-sage-foreground">
             <ReceiptText className="h-6 w-6" aria-hidden="true" />
           </span>
-          <h2 className="text-xl font-semibold">
+          <h2 className="font-display text-xl font-semibold">
             {t('pages.orders.emptyTitle')}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">

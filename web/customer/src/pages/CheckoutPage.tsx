@@ -78,9 +78,9 @@ const emptyNew: Extract<DeliveryChoice, { kind: 'new' }> = {
 };
 
 const inputClassName =
-  'rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+  'rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background';
 const optionClassName =
-  'flex min-h-12 items-center gap-3 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10';
+  'font-display flex min-h-12 items-center gap-3 rounded-md border border-border/70 bg-card px-3 py-2 text-sm font-semibold transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10';
 
 type TimeMode = 'asap' | 'scheduled';
 
@@ -430,7 +430,7 @@ export function CheckoutPage() {
             <ul className="space-y-2">
               {saved.map((a) => (
                 <li key={a.id}>
-                  <label className="flex items-start gap-3 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <label className={optionClassName}>
                     <input
                       type="radio"
                       name="saved-address"
@@ -440,7 +440,7 @@ export function CheckoutPage() {
                         setChoice({ kind: 'saved', address_id: a.id })
                       }
                     />
-                    <span>
+                    <span className="min-w-0">
                       {a.label && (
                         <span className="font-medium">{a.label}: </span>
                       )}
@@ -580,7 +580,7 @@ export function CheckoutPage() {
       {(estimate || estimating || estimateError) && (
         <div className="aura-surface-soft rounded-lg p-4" aria-live="polite">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">
+            <h2 className="font-display text-base font-semibold">
               {t('pages.checkout.estimate.title')}
             </h2>
             {estimating && (
@@ -598,32 +598,40 @@ export function CheckoutPage() {
             <dl className="mt-3 grid gap-2 text-sm">
               <div className="flex justify-between gap-4">
                 <dt>{t('pages.checkout.estimate.subtotal')}</dt>
-                <dd>{formatPrice(estimate.subtotal, i18n.language)}</dd>
+                <dd className="aura-numeric">
+                  {formatPrice(estimate.subtotal, i18n.language)}
+                </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt>{t('pages.checkout.estimate.discount')}</dt>
-                <dd>{formatPrice(estimate.discount_amount, i18n.language)}</dd>
+                <dd className="aura-numeric">
+                  {formatPrice(estimate.discount_amount, i18n.language)}
+                </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt>{t('pages.checkout.estimate.pointsUsed')}</dt>
-                <dd>{estimate.points_used}</dd>
+                <dd className="aura-numeric">{estimate.points_used}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt>{t('pages.checkout.estimate.deliveryFee')}</dt>
-                <dd>{formatPrice(estimate.delivery_fee, i18n.language)}</dd>
+                <dd className="aura-numeric">
+                  {formatPrice(estimate.delivery_fee, i18n.language)}
+                </dd>
               </div>
-              <div className="flex justify-between gap-4 border-t border-white/10 pt-2 font-semibold">
+              <div className="flex justify-between gap-4 border-t border-border/70 pt-2 font-semibold">
                 <dt>{t('pages.checkout.estimate.total')}</dt>
-                <dd>{formatPrice(estimate.total, i18n.language)}</dd>
+                <dd className="aura-numeric text-primary">
+                  {formatPrice(estimate.total, i18n.language)}
+                </dd>
               </div>
               <div className="flex justify-between gap-4 text-muted-foreground">
                 <dt>{t('pages.checkout.estimate.accrual')}</dt>
-                <dd>{estimate.estimated_accrual}</dd>
+                <dd className="aura-numeric">{estimate.estimated_accrual}</dd>
               </div>
               {formattedReadyAt && (
                 <div className="flex justify-between gap-4 text-muted-foreground">
                   <dt>{t('pages.checkout.estimate.readyAt')}</dt>
-                  <dd>{formattedReadyAt}</dd>
+                  <dd className="aura-numeric">{formattedReadyAt}</dd>
                 </div>
               )}
               {orderType === 'delivery' && estimate.free_delivery_remaining > 0 && (

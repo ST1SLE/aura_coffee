@@ -107,12 +107,12 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-md md:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 backdrop-blur-md md:items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-t-lg border border-white/10 bg-background shadow-2xl md:rounded-lg">
+      <div className="flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-t-lg border border-border/80 bg-background shadow-[0_24px_70px_rgba(58,46,37,0.22)] md:rounded-lg">
         <div className="relative">
           <MenuMedia
             item={item}
@@ -123,7 +123,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
           <button
             aria-label="close"
             onClick={onClose}
-            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-secondary"
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-card/90 text-foreground shadow-[0_8px_18px_rgba(58,46,37,0.12)] backdrop-blur transition-colors hover:bg-secondary"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -144,7 +144,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
 
             {item.size_options.length > 0 && (
               <div className="aura-surface-soft rounded-lg p-3">
-                <p className="mb-2 text-sm font-medium">
+                <p className="font-display mb-2 text-sm font-semibold">
                   {t('menu.selectSize')}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -155,11 +155,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                       aria-pressed={selectedSize?.id === sz.id}
                       onClick={() => sz.available && setSelectedSize(sz)}
                       className={[
-                        'min-h-12 rounded-md border px-3 text-left text-sm font-medium transition-colors',
+                        'font-display min-h-12 rounded-md border px-3 text-left text-sm font-semibold transition-colors',
                         !sz.available && 'opacity-40 cursor-not-allowed',
                         selectedSize?.id === sz.id
                           ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-white/10 bg-background/75 text-foreground hover:bg-accent',
+                          : 'border-border/70 bg-card text-foreground hover:bg-secondary',
                       ].join(' ')}
                     >
                       {sz.label} — {formatPrice(sz.price, locale)}
@@ -171,7 +171,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
 
             {item.modifiers.length > 0 && (
               <div className="aura-surface-soft rounded-lg p-3">
-                <p className="mb-2 text-sm font-medium">
+                <p className="font-display mb-2 text-sm font-semibold">
                   {t('menu.modifiers')}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -186,11 +186,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                         aria-pressed={active}
                         onClick={() => mod.available && toggleModifier(mod)}
                         className={[
-                          'min-h-12 rounded-md border px-3 text-left text-sm font-medium transition-colors',
+                          'font-display min-h-12 rounded-md border px-3 text-left text-sm font-semibold transition-colors',
                           !mod.available && 'opacity-40 cursor-not-allowed',
                           active
                             ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-white/10 bg-background/75 text-foreground hover:bg-accent',
+                            : 'border-border/70 bg-card text-foreground hover:bg-secondary',
                         ].join(' ')}
                       >
                         {mod.name} +{formatPrice(mod.price, locale)}
@@ -203,7 +203,9 @@ export function ItemDetail({ item, lang, onClose }: Props) {
 
             <div className="aura-surface-soft flex items-center justify-between gap-3 rounded-lg p-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium">{t('menu.quantity')}</p>
+                <p className="font-display text-sm font-semibold">
+                  {t('menu.quantity')}
+                </p>
                 {item.inventory_quantity != null && (
                   <p className="text-xs text-muted-foreground">
                     {item.inventory_quantity > 0
@@ -218,7 +220,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                   size="icon"
                   aria-label={t('cart.decrement')}
                   disabled={quantity <= 1}
-                  className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+                  className="h-8 w-8 rounded-full border-border/70 bg-card"
                   onClick={() => setQuantity((current) => Math.max(1, current - 1))}
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
@@ -231,7 +233,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                   size="icon"
                   aria-label={t('cart.increment')}
                   disabled={quantity >= maxQuantity}
-                  className="h-8 w-8 rounded-full border-white/10 bg-background/70"
+                  className="h-8 w-8 rounded-full border-border/70 bg-card"
                   onClick={() =>
                     setQuantity((current) => Math.min(maxQuantity, current + 1))
                   }
@@ -246,7 +248,7 @@ export function ItemDetail({ item, lang, onClose }: Props) {
                 role="status"
                 className={
                   toastMsg.type === 'success'
-                    ? 'text-sm text-primary'
+                    ? 'text-sm text-success'
                     : 'text-sm text-destructive'
                 }
               >
@@ -257,11 +259,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
         </div>
 
         <div
-          className="border-t border-white/10 bg-background/95 px-5 py-3 backdrop-blur"
+          className="border-t border-border/80 bg-card/95 px-5 py-3 shadow-[0_-14px_32px_rgba(58,46,37,0.10)] backdrop-blur"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <div className="grid gap-3 sm:flex sm:items-center sm:justify-between">
-            <span className="min-w-0 text-2xl font-semibold text-primary">
+            <span className="aura-numeric min-w-0 text-2xl font-semibold text-primary">
               {formatPrice(currentPrice, locale)}
             </span>
             <Button

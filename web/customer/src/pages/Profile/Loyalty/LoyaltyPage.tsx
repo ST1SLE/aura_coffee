@@ -82,19 +82,19 @@ export function LoyaltyPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div className="text-center">
-        <h1 className="text-sm font-medium text-muted-foreground">
+    <div className="mx-auto max-w-xl space-y-6 px-4 py-5 md:px-0">
+      <div className="aura-surface rounded-lg p-5 text-center">
+        <h1 className="font-display text-sm font-semibold text-muted-foreground">
           {t('pages.loyalty.title')}
         </h1>
         {balanceLoading ? (
           <div className="flex justify-center py-6">
-            <div className="h-6 w-6 animate-spin rounded-full border-4 border-muted border-t-foreground" />
+            <div className="h-6 w-6 animate-spin rounded-full border-4 border-muted border-t-primary" />
           </div>
         ) : balance ? (
           <>
             <div className="mt-2 flex items-baseline justify-center gap-2">
-              <span className="text-5xl font-bold">{balance.balance}</span>
+              <span className="aura-numeric text-5xl font-bold text-primary">{balance.balance}</span>
               <span className="text-lg text-muted-foreground">
                 {t('pages.loyalty.balance_label')}
               </span>
@@ -110,8 +110,8 @@ export function LoyaltyPage() {
         ) : null}
       </div>
 
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">
+      <section className="space-y-3">
+        <h2 className="font-display text-lg font-semibold">
           {t('pages.loyalty.history_title')}
         </h2>
 

@@ -51,7 +51,7 @@ export function ResendTimer({ onResend, disabled }: ResendTimerProps) {
 
   if (secondsLeft > 0) {
     return (
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-muted-foreground">
         {t('auth.otp.resendIn', { seconds: secondsLeft })}
       </p>
     );

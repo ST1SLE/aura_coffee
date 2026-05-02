@@ -12,10 +12,10 @@ import { useAuth } from '@/auth/useAuth';
 import { useCartStore } from '@/store/cart';
 
 // START_MODULE_CONTRACT
-//   PURPOSE: Dark mobile-first app shell — sticky header with logo + nav links
-//            + logout + LanguageSwitcher, the <main> outlet, and a mobile
-//            bottom nav, and cart-count affordances when the cart has items.
-//            Wraps all authenticated routes (see App.tsx).
+//   PURPOSE: Soft botanical mobile-first app shell — sticky brand/ordering
+//            header with nav links + logout + LanguageSwitcher, the <main>
+//            outlet, mobile bottom nav, and cart-count affordances when the
+//            cart has items. Wraps all authenticated routes (see App.tsx).
 //   SCOPE:   Layout component.
 //   DEPENDS: react-router-dom (Outlet/Link/NavLink/useLocation/useNavigate),
 //            react-i18next, lucide-react, @/components/LanguageSwitcher,
@@ -65,17 +65,17 @@ export function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-background/90 px-4 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 px-4 py-3 shadow-[0_8px_28px_rgba(58,46,37,0.06)] backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
           <Link
             to="/menu"
             className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-normal text-foreground"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(247,193,70,0.22)]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-sage text-brand-sage-foreground shadow-[0_10px_24px_rgba(108,122,85,0.18)]">
               <Coffee className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate leading-tight">
+              <span className="block truncate font-display leading-tight">
                 {t('appTitle')}
               </span>
               <span className="block truncate text-xs font-normal text-muted-foreground">
@@ -97,10 +97,10 @@ export function Layout() {
                 }
                 className={({ isActive }) =>
                   [
-                    'relative inline-flex h-11 min-w-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+                    'font-display relative inline-flex h-11 min-w-11 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
                     isActive
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground',
+                      ? 'bg-primary text-primary-foreground shadow-[0_8px_18px_rgba(108,122,85,0.16)]'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground',
                   ].join(' ')
                 }
               >
@@ -109,7 +109,7 @@ export function Layout() {
                 {to === '/cart' && showCartAffordance && (
                   <span
                     aria-hidden="true"
-                    className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.68rem] font-semibold leading-5 text-primary-foreground"
+                    className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-card px-1.5 text-[0.68rem] font-semibold leading-5 text-primary"
                   >
                     {cartBadge}
                   </span>
@@ -118,7 +118,7 @@ export function Layout() {
             ))}
             <button
               onClick={handleLogout}
-              className="inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
+              className="font-display inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               {t('nav.logout')}
@@ -140,14 +140,14 @@ export function Layout() {
         <Link
           to="/cart"
           aria-label={`${t('nav.cart')}: ${itemCount}`}
-          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-50 inline-flex min-h-11 -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-background/95 px-4 py-2 text-sm font-semibold text-foreground shadow-[0_18px_45px_rgba(0,0,0,0.42)] backdrop-blur-xl transition-colors hover:bg-secondary md:hidden"
+          className="font-display fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-50 inline-flex min-h-11 -translate-x-1/2 items-center gap-3 rounded-full border border-primary/20 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_18px_38px_rgba(108,122,85,0.24)] backdrop-blur-xl transition-colors hover:bg-primary/95 md:hidden"
           data-testid="floating-cart-link"
         >
           <ShoppingBag className="h-4 w-4" aria-hidden="true" />
           <span>{t('nav.cart')}</span>
           <span
             aria-hidden="true"
-            className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-semibold leading-6 text-primary-foreground"
+            className="inline-flex min-w-6 items-center justify-center rounded-full bg-card px-2 text-xs font-semibold leading-6 text-primary"
           >
             {cartBadge}
           </span>
@@ -163,7 +163,7 @@ export function Layout() {
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
         }}
       >
-        <div className="relative mx-auto h-14 max-w-sm rounded-full border border-white/10 bg-background/95 shadow-[0_-12px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+        <div className="relative mx-auto h-14 max-w-sm rounded-full border border-border/80 bg-card/95 shadow-[0_-12px_34px_rgba(58,46,37,0.16)] backdrop-blur-xl">
           {navItems.map(({ to, label, icon: Icon }, index) => (
             <NavLink
               key={to}
@@ -183,8 +183,8 @@ export function Layout() {
                 [
                   'absolute top-1/2 flex h-11 w-11 items-center justify-center rounded-full transition-colors',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                    ? 'bg-primary text-primary-foreground shadow-[0_8px_16px_rgba(108,122,85,0.16)]'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground',
                 ].join(' ')
               }
             >
@@ -192,7 +192,7 @@ export function Layout() {
               {to === '/cart' && showCartAffordance && (
                 <span
                   aria-hidden="true"
-                  className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-semibold leading-5 text-primary-foreground ring-2 ring-background"
+                  className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-semibold leading-5 text-primary-foreground ring-2 ring-card"
                 >
                   {cartBadge}
                 </span>

@@ -44,6 +44,9 @@ interface Props {
   onCancel: () => void;
 }
 
+const fieldClassName =
+  'mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background';
+
 // START_CONTRACT: AddressForm
 //   PURPOSE: Render the address fields, validate required-ness in the disabled
 //            state of the submit button, POST or PATCH on submit, and notify
@@ -154,7 +157,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-md border p-4">
+    <form onSubmit={handleSubmit} className="aura-surface space-y-3 rounded-lg p-4">
       <div>
         <label className="text-xs font-medium text-muted-foreground">
           {t('pages.addresses.form.label')}
@@ -163,7 +166,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className={fieldClassName}
         />
       </div>
 
@@ -183,7 +186,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
             type="text"
             value={apartment}
             onChange={(e) => setApartment(e.target.value)}
-            className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className={fieldClassName}
           />
         </div>
         <div>
@@ -194,7 +197,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
             type="text"
             value={entrance}
             onChange={(e) => setEntrance(e.target.value)}
-            className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className={fieldClassName}
           />
         </div>
         <div>
@@ -205,7 +208,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
             type="text"
             value={floor}
             onChange={(e) => setFloor(e.target.value)}
-            className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className={fieldClassName}
           />
         </div>
       </div>
@@ -218,7 +221,7 @@ export function AddressForm({ initial, onSaved, onCancel }: Props) {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={2}
-          className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className={fieldClassName}
         />
       </div>
 

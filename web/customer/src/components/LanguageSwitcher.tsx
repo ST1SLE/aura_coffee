@@ -34,7 +34,12 @@ export function LanguageSwitcher() {
   };
 
   return (
-    <Button variant="ghost" size="sm" onClick={toggle}>
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-secondary-foreground"
+      onClick={toggle}
+    >
       {i18n.language === 'ru' ? t('language.en') : t('language.ru')}
     </Button>
   );

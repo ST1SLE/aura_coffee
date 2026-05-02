@@ -42,24 +42,24 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
         if (!unavailable && (e.key === 'Enter' || e.key === ' ')) onOpen();
       }}
       className={[
-        'group relative flex min-h-[15.5rem] cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-white/10 bg-card shadow-[0_16px_38px_rgba(0,0,0,0.2)] transition duration-200',
+        'group relative flex min-h-[17rem] cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-border/75 bg-card shadow-[0_16px_34px_rgba(58,46,37,0.10)] transition duration-200',
         unavailable
-          ? 'opacity-50 cursor-not-allowed pointer-events-none'
-          : 'hover:-translate-y-0.5 hover:border-primary/60 hover:bg-secondary/70',
+          ? 'opacity-60 cursor-not-allowed pointer-events-none'
+          : 'hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-[0_18px_38px_rgba(58,46,37,0.14)]',
       ].join(' ')}
     >
       <MenuMedia
         item={item}
         alt={item.name}
-        className="h-36 w-full bg-secondary sm:h-44"
+        className="h-48 w-full bg-secondary sm:h-44"
         controls={false}
       />
       <div className="flex flex-1 flex-col gap-3 p-3">
-        <span className="min-h-10 text-sm font-semibold leading-tight text-foreground sm:text-base">
+        <span className="font-display min-h-10 text-base font-semibold leading-tight text-foreground">
           {item.name}
         </span>
         <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="rounded-full bg-secondary px-3 py-1 text-sm font-semibold text-primary">
+          <span className="aura-numeric rounded-full bg-secondary px-3 py-1 text-sm font-semibold text-primary">
             {formatPrice(item.base_price, lang === 'ru' ? 'ru' : 'en')}
           </span>
           {!unavailable && (
@@ -73,12 +73,12 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
         </div>
       </div>
       {item.inventory_quantity != null && item.inventory_quantity > 0 && (
-        <span className="absolute left-2 top-2 rounded-full bg-background/85 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur">
+        <span className="font-display absolute left-2 top-2 rounded-full border border-border/70 bg-card/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-[0_8px_18px_rgba(58,46,37,0.10)] backdrop-blur">
           {t('menu.stockLeft', { count: item.inventory_quantity })}
         </span>
       )}
       {unavailable && (
-        <span className="absolute right-2 top-2 rounded-full bg-destructive px-2.5 py-1 text-xs font-medium text-destructive-foreground">
+        <span className="font-display absolute right-2 top-2 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground shadow-[0_8px_18px_rgba(163,79,53,0.18)]">
           {soldOut ? t('menu.soldOut') : t('menu.unavailable')}
         </span>
       )}

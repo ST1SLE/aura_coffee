@@ -29,23 +29,24 @@ function renderRow(t: LoyaltyTransaction) {
 }
 
 describe('TransactionRow amount color', () => {
-  it('renders positive amount with green class and + sign', () => {
+  it('renders positive amount with success class and + sign', () => {
     renderRow(tx({ amount: 50 }));
     const el = screen.getByText('+50');
-    expect(el.className).toContain('text-green-600');
+    expect(el.className).toContain('text-success');
   });
 
-  it('renders negative amount with red class', () => {
+  it('renders negative amount with destructive class', () => {
     renderRow(tx({ amount: -20, type: 'redemption' }));
     const el = screen.getByText('-20');
-    expect(el.className).toContain('text-red-600');
+    expect(el.className).toContain('text-destructive');
   });
 
-  it('renders zero amount in default (no green/red) color', () => {
+  it('renders zero amount in default semantic color', () => {
     renderRow(tx({ amount: 0 }));
     const el = screen.getByText('0');
-    expect(el.className).not.toContain('text-green-600');
-    expect(el.className).not.toContain('text-red-600');
+    expect(el.className).toContain('text-foreground');
+    expect(el.className).not.toContain('text-success');
+    expect(el.className).not.toContain('text-destructive');
   });
 });
 

@@ -106,7 +106,7 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-foreground" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
       </div>
     );
   }
@@ -125,7 +125,7 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 md:px-6">
       <div className="aura-surface rounded-lg p-4">
-        <h1 className="text-3xl font-semibold tracking-normal">
+        <h1 className="font-display text-3xl font-semibold tracking-normal">
           {t('pages.profile.title')}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -139,7 +139,7 @@ export function ProfilePage() {
             <Phone className="h-4 w-4 text-primary" aria-hidden="true" />
             <label>{t('pages.profile.phoneLabel')}</label>
           </div>
-          <p className="rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm">
+          <p className="rounded-md border border-border/70 bg-card px-3 py-2 text-sm">
             {profile?.phone_masked}
           </p>
         </div>
@@ -186,7 +186,7 @@ export function ProfilePage() {
               setNameError(null);
             }}
             maxLength={100}
-            className="min-w-0 flex-1 rounded-md border border-white/10 bg-background/75 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           />
           <Button
             onClick={handleSaveName}
@@ -202,9 +202,9 @@ export function ProfilePage() {
 
       <Link
         to="/profile/addresses"
-        className="aura-surface flex items-center gap-3 rounded-lg p-4 transition-colors hover:bg-accent"
+        className="aura-surface flex items-center gap-3 rounded-lg p-4 transition-colors hover:bg-secondary"
       >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-sage text-brand-sage-foreground">
           <MapPin className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>

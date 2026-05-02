@@ -118,7 +118,7 @@ export function CartPage() {
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="space-y-4 px-4 py-5 md:px-6" data-testid="cart-loading">
-        <div className="h-20 animate-pulse rounded-lg bg-muted/70" />
+        <div className="h-20 animate-pulse rounded-lg bg-muted" />
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />
         ))}
@@ -141,7 +141,7 @@ export function CartPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="aura-surface flex w-full max-w-sm flex-col items-center gap-4 rounded-lg p-6">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-primary">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-sage text-brand-sage-foreground">
             <ShoppingBag className="h-6 w-6" aria-hidden="true" />
           </div>
           <p className="text-muted-foreground">{t('cart.empty')}</p>
@@ -172,7 +172,7 @@ export function CartPage() {
       {expiredToast && (
         <p
           role="status"
-          className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary"
+          className="rounded-md border border-primary/30 bg-card px-3 py-2 text-sm text-primary shadow-[0_8px_18px_rgba(58,46,37,0.08)]"
         >
           {t('cart.expired')}
         </p>
@@ -181,7 +181,7 @@ export function CartPage() {
       {repeatSkipped.length > 0 && (
         <div
           role="status"
-          className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary"
+          className="rounded-md border border-primary/30 bg-card px-3 py-2 text-sm text-primary shadow-[0_8px_18px_rgba(58,46,37,0.08)]"
         >
           <p className="font-medium">{t('cart.repeatSkippedTitle')}</p>
           <ul className="mt-1 list-disc space-y-1 pl-5">
@@ -211,10 +211,10 @@ export function CartPage() {
         className="fixed bottom-20 left-0 right-0 z-30 px-4 py-3 md:bottom-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="aura-surface mx-auto grid w-full max-w-5xl gap-3 rounded-lg bg-background/95 p-3 backdrop-blur md:flex md:items-center md:justify-between">
+        <div className="aura-surface mx-auto grid w-full max-w-5xl gap-3 rounded-lg bg-card/95 p-3 backdrop-blur md:flex md:items-center md:justify-between">
           <div className="flex items-center justify-between gap-3">
-            <span className="font-medium">{t('cart.subtotal')}</span>
-            <span className="text-xl font-bold text-primary">
+            <span className="font-display font-semibold">{t('cart.subtotal')}</span>
+            <span className="aura-numeric text-xl font-bold text-primary">
               {formatPrice(subtotal, locale)} {currency}
             </span>
           </div>

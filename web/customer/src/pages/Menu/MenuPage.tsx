@@ -94,8 +94,8 @@ export function MenuPage() {
   if (loading) {
     return (
       <div className="space-y-5 px-4 py-5 md:px-6">
-        <div className="h-32 animate-pulse rounded-lg bg-muted/70" />
-        <div className="flex gap-2 overflow-hidden rounded-lg bg-background/40 py-1">
+        <div className="h-32 animate-pulse rounded-lg bg-muted" />
+        <div className="flex gap-2 overflow-hidden rounded-lg bg-card/60 py-1">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
@@ -103,7 +103,7 @@ export function MenuPage() {
             />
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-64 animate-pulse rounded-lg bg-muted" />
           ))}
@@ -134,19 +134,19 @@ export function MenuPage() {
   return (
     <>
       <div className="space-y-7 px-4 py-5 md:px-6">
-        <div className="aura-surface overflow-hidden rounded-lg">
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-brand-sage text-brand-sage-foreground shadow-[0_18px_45px_rgba(58,46,37,0.10)]">
           <div className="grid min-h-36 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_14rem] md:p-5">
             <div className="flex flex-col justify-end gap-2">
-              <h1 className="text-4xl font-semibold leading-none tracking-normal md:text-5xl">
+              <h1 className="max-w-2xl text-4xl font-semibold leading-none tracking-normal md:text-5xl">
                 {t('menu.title')}
               </h1>
-              <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+              <p className="max-w-xl text-sm leading-6 text-foreground/75">
                 {t('pages.home.description')}
               </p>
             </div>
-            <div className="hidden rounded-lg border border-white/10 bg-secondary/70 p-3 md:block">
+            <div className="hidden rounded-lg border border-border/60 bg-card/70 p-3 shadow-[0_12px_26px_rgba(58,46,37,0.08)] md:block">
               <div className="flex h-full flex-col justify-between">
-                <span className="text-xs font-medium uppercase text-muted-foreground">
+                <span className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {t('menu.categories')}
                 </span>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -155,7 +155,7 @@ export function MenuPage() {
                       key={cat.id}
                       type="button"
                       onClick={() => handleCategoryClick(cat.id)}
-                      className="min-h-9 rounded-full bg-background/75 px-3 text-xs font-medium text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                      className="font-display min-h-9 rounded-full border border-border/70 bg-background/80 px-3 text-xs font-semibold text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
                     >
                       {cat.name}
                     </button>
@@ -168,7 +168,7 @@ export function MenuPage() {
 
         <nav
           aria-label={t('menu.categories')}
-          className="sticky top-[4.6rem] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-white/10 bg-background/90 px-4 py-3 backdrop-blur-xl md:top-[4.9rem] md:mx-0 md:rounded-lg md:border md:px-3"
+          className="sticky top-[4.6rem] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-border/70 bg-background/90 px-4 py-3 shadow-[0_10px_28px_rgba(58,46,37,0.06)] backdrop-blur-xl md:top-[4.9rem] md:mx-0 md:rounded-lg md:border md:px-3"
         >
           {visibleCategories.map((cat) => (
             <button
@@ -176,10 +176,10 @@ export function MenuPage() {
               type="button"
               onClick={() => handleCategoryClick(cat.id)}
               className={[
-                'min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors',
+                'font-display min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors',
                 activeCategoryId === cat.id
-                  ? 'border-primary bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(247,193,70,0.2)]'
-                  : 'border-white/10 bg-secondary/75 text-muted-foreground hover:text-foreground',
+                  ? 'border-primary bg-primary text-primary-foreground shadow-[0_10px_22px_rgba(108,122,85,0.16)]'
+                  : 'border-border/70 bg-card text-muted-foreground hover:bg-secondary hover:text-secondary-foreground',
               ].join(' ')}
             >
               {cat.name}
@@ -202,7 +202,7 @@ export function MenuPage() {
                 >
                   {cat.name}
                 </h2>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {cat.items.map((item) => (
                     <MenuItemCard
                       key={item.id}

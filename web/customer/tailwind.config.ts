@@ -42,6 +42,18 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        brand: {
+          sage: 'hsl(var(--brand-sage))',
+          'sage-foreground': 'hsl(var(--brand-sage-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+      },
+      fontFamily: {
+        sans: ['var(--font-sans)'],
+        display: ['var(--font-display)'],
       },
       borderRadius: {
         lg: 'var(--radius)',

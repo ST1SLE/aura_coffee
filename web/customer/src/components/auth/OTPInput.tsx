@@ -110,7 +110,7 @@ export function OTPInput({ value, onChange, onComplete, disabled }: OTPInputProp
           onChange={(e) => handleInput(i, e.target.value.slice(-1))}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          className="h-12 w-12 rounded-lg border border-gray-300 text-center text-xl font-semibold focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:opacity-50"
+          className="h-12 w-12 rounded-lg border border-input bg-card text-center font-display text-xl font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
         />
       ))}

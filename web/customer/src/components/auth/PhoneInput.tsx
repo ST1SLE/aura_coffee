@@ -62,7 +62,7 @@ export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-lg font-medium text-gray-700">+7</span>
+      <span className="font-display text-lg font-semibold text-foreground">+7</span>
       <input
         type="tel"
         inputMode="numeric"
@@ -70,7 +70,7 @@ export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
         onChange={handleChange}
         disabled={disabled}
         placeholder="(999) 123-45-67"
-        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-lg focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:opacity-50"
+        className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-lg text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
         autoComplete="tel-national"
       />
     </div>

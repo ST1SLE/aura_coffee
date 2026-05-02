@@ -133,10 +133,10 @@ function StatusTimeline({ status }: StatusTimelineProps) {
               'flex min-h-20 flex-col justify-between rounded-md border px-3 py-2 text-sm',
               reached
                 ? 'border-primary/40 bg-primary/10 text-foreground'
-                : 'border-white/10 bg-background/50 text-muted-foreground',
+                : 'border-border/70 bg-card text-muted-foreground',
             )}
           >
-            <span>{t(`pages.orders.status.${step}`)}</span>
+            <span className="font-display font-semibold">{t(`pages.orders.status.${step}`)}</span>
             {reached ? (
               <Check className="h-4 w-4 text-primary" aria-hidden="true" />
             ) : (
@@ -166,14 +166,14 @@ function Receipt({ order, lang, locale }: ReceiptProps) {
 
   return (
     <div className="aura-surface space-y-4 rounded-lg p-4">
-      <h2 className="text-xl font-semibold">{t('pages.orders.receipt')}</h2>
+      <h2 className="font-display text-xl font-semibold">{t('pages.orders.receipt')}</h2>
       <ul className="space-y-3">
         {order.items.map((item, index) => {
           const modifiers = renderModifiers(item, lang);
           return (
             <li
               key={item.id ?? `${order.id}-${index}`}
-              className="rounded-md border border-white/10 bg-background/50 p-3"
+              className="rounded-md border border-border/70 bg-card p-3"
             >
               <div className="flex justify-between gap-3">
                 <div className="min-w-0">
@@ -187,37 +187,37 @@ function Receipt({ order, lang, locale }: ReceiptProps) {
                     <p className="text-xs text-muted-foreground">{modifiers}</p>
                   )}
                 </div>
-                <p className="shrink-0 text-sm text-muted-foreground">
+                <p className="aura-numeric shrink-0 text-sm text-muted-foreground">
                   {item.quantity} × {formatPrice(item.unit_price, locale)}
                 </p>
               </div>
-              <p className="mt-2 text-right font-semibold text-primary">
+              <p className="aura-numeric mt-2 text-right font-semibold text-primary">
                 {formatPrice(item.line_total, locale)}
               </p>
             </li>
           );
         })}
       </ul>
-      <dl className="space-y-2 border-t border-white/10 pt-4 text-sm">
+      <dl className="space-y-2 border-t border-border/70 pt-4 text-sm">
         <div className="flex justify-between gap-3">
           <dt>{t('pages.orders.subtotal')}</dt>
-          <dd>{formatPrice(order.subtotal, locale)}</dd>
+          <dd className="aura-numeric">{formatPrice(order.subtotal, locale)}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt>{t('pages.orders.discount')}</dt>
-          <dd>{formatPrice(order.discount_amount, locale)}</dd>
+          <dd className="aura-numeric">{formatPrice(order.discount_amount, locale)}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt>{t('pages.orders.pointsUsed')}</dt>
-          <dd>{order.points_used ?? 0}</dd>
+          <dd className="aura-numeric">{order.points_used ?? 0}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt>{t('pages.orders.deliveryFee')}</dt>
-          <dd>{formatPrice(order.delivery_fee, locale)}</dd>
+          <dd className="aura-numeric">{formatPrice(order.delivery_fee, locale)}</dd>
         </div>
         <div className="flex justify-between gap-3 text-lg font-semibold">
           <dt>{t('pages.orders.total')}</dt>
-          <dd className="text-primary">{formatPrice(order.total, locale)}</dd>
+          <dd className="aura-numeric text-primary">{formatPrice(order.total, locale)}</dd>
         </div>
       </dl>
     </div>
@@ -400,14 +400,14 @@ export function OrderDetailPage() {
       <section className="aura-surface space-y-4 rounded-lg p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-normal">
+            <h1 className="font-display text-3xl font-semibold tracking-normal">
               {t('pages.orders.orderNumber', { id: shortId(order.id) })}
             </h1>
             {createdAt && (
               <p className="text-sm text-muted-foreground">{createdAt}</p>
             )}
           </div>
-          <span className="w-fit rounded-full bg-secondary px-3 py-1 text-sm font-medium text-secondary-foreground">
+          <span className="w-fit rounded-full bg-secondary px-3 py-1 font-display text-sm font-semibold text-secondary-foreground">
             {t(`pages.orders.status.${order.status}`)}
           </span>
         </div>
@@ -415,18 +415,18 @@ export function OrderDetailPage() {
         <StatusTimeline status={order.status} />
 
         {order.status === 'created' && !order.confirmation_url && (
-          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground">
             {t('pages.orders.paymentWaiting')}
           </p>
         )}
         {order.status === 'created' && order.confirmation_url && (
-          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground">
             <CreditCard className="mr-2 inline h-4 w-4" aria-hidden="true" />
             {t('pages.orders.paymentRedirecting')}
           </p>
         )}
         {isZeroTotalPaid && (
-          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+          <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground">
             {t('pages.orders.zeroTotalPaid')}
           </p>
         )}

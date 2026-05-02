@@ -53,7 +53,7 @@ export function LoyaltyCard() {
         </p>
       ) : balance ? (
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-bold text-primary">
+          <span className="aura-numeric text-4xl font-bold text-primary">
             {balance.balance}
           </span>
           <span className="text-sm text-muted-foreground">
@@ -65,7 +65,7 @@ export function LoyaltyCard() {
       )}
       <Link
         to="/profile/loyalty"
-        className="mt-3 inline-block text-sm text-primary underline"
+        className="mt-3 inline-block font-display text-sm font-semibold text-primary underline"
       >
         {t('pages.profile.loyaltyCard.view_history')}
       </Link>

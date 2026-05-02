@@ -94,8 +94,7 @@ describe('App routing — menu and cart (task 8.2)', () => {
         <AppRoutes initialRoute="/menu" />
       </AuthContext.Provider>,
     );
-    // MenuPage показывает skeleton или empty state после загрузки
-    // Проверяем что страница смонтировалась (loading skeleton или empty msg)
+    await screen.findByText('menu.empty');
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 

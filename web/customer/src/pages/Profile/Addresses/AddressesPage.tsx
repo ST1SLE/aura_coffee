@@ -87,21 +87,27 @@ export function AddressesPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-foreground" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
-      <h1 className="text-2xl font-bold">{t('pages.addresses.title')}</h1>
+    <div className="mx-auto max-w-xl space-y-4 px-4 py-5 md:px-0">
+      <div className="aura-surface rounded-lg p-4">
+        <h1 className="font-display text-2xl font-bold">{t('pages.addresses.title')}</h1>
+      </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       {mode.kind === 'list' && (
         <>
           {addresses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="aura-surface rounded-lg p-4 text-sm text-muted-foreground">
               {t('pages.addresses.empty')}
             </p>
           ) : (
@@ -109,7 +115,7 @@ export function AddressesPage() {
               {addresses.map((a) => (
                 <li
                   key={a.id}
-                  className="rounded-md border p-3 text-sm"
+                  className="aura-surface rounded-lg p-3 text-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -127,7 +133,7 @@ export function AddressesPage() {
                           .join(', ')}
                       </div>
                       {a.is_default && (
-                        <span className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        <span className="mt-2 inline-block rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-display text-xs font-semibold text-primary">
                           {t('pages.addresses.primaryBadge')}
                         </span>
                       )}

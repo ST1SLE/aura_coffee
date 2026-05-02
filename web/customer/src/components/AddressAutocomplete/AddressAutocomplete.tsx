@@ -140,7 +140,7 @@ export function AddressAutocomplete({
         required={required}
         placeholder={t('components.addressAutocomplete.placeholder')}
         autoComplete="off"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
       />
       {degraded && (
         <p className="mt-1 text-xs text-muted-foreground" role="status">
@@ -150,7 +150,7 @@ export function AddressAutocomplete({
       {open && !degraded && (
         <ul
           role="listbox"
-          className="absolute left-0 right-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow"
+          className="absolute left-0 right-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-border/80 bg-popover shadow-[0_14px_30px_rgba(58,46,37,0.14)]"
         >
           {loading && (
             <li className="px-3 py-2 text-xs text-muted-foreground">
@@ -174,7 +174,7 @@ export function AddressAutocomplete({
                   e.preventDefault();
                   handleSelect(item);
                 }}
-                className="cursor-pointer px-3 py-2 text-sm hover:bg-accent"
+                className="cursor-pointer px-3 py-2 text-sm hover:bg-secondary"
               >
                 {item.text}
               </li>

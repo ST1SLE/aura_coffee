@@ -8,6 +8,8 @@ import '@/index.css';
 //   PURPOSE: Browser entry point — boot React StrictMode + App into #root.
 //            Importing '@/i18n/config' for its initialization side-effect must
 //            happen before App renders so useTranslation has resources ready.
+//            Customer typography is self-hosted through Fontsource assets
+//            declared in index.css.
 //   SCOPE:   No exports; this file just runs createRoot().render() at module load.
 //   DEPENDS: react, react-dom/client, @/App, @/i18n/config (side-effect),
 //            @/index.css.

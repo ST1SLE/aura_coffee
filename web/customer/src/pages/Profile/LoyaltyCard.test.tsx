@@ -39,7 +39,7 @@ describe('LoyaltyCard', () => {
     });
   });
 
-  it('renders link to /profile/loyalty', () => {
+  it('renders link to /profile/loyalty', async () => {
     (getLoyaltyBalance as Mock).mockResolvedValue({
       balance: 0,
       lifetime_accrued: 0,
@@ -50,6 +50,10 @@ describe('LoyaltyCard', () => {
         <LoyaltyCard />
       </MemoryRouter>,
     );
+
+    await waitFor(() => {
+      expect(screen.getByText('0')).toBeInTheDocument();
+    });
 
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', '/profile/loyalty');

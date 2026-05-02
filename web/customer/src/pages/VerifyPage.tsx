@@ -107,11 +107,11 @@ export function VerifyPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="aura-surface w-full max-w-sm space-y-6 rounded-lg p-5">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">{t('auth.otp.title')}</h1>
-          <p className="text-sm text-gray-500">{maskPhone(phone)}</p>
+          <h1 className="font-display text-2xl font-bold">{t('auth.otp.title')}</h1>
+          <p className="text-sm text-muted-foreground">{maskPhone(phone)}</p>
         </div>
 
         <OTPInput
@@ -122,7 +122,7 @@ export function VerifyPage() {
         />
 
         {error && (
-          <p className="text-center text-sm text-red-600">{error}</p>
+          <p className="text-center text-sm text-destructive">{error}</p>
         )}
 
         <ResendTimer onResend={handleResend} disabled={isSubmitting} />
