@@ -30,6 +30,7 @@ from core_api.routers.courier import router as courier_router
 from core_api.routers.delivery_addresses import router as delivery_addresses_router
 from core_api.routers.menu_admin import router as menu_admin_router
 from core_api.routers.menu_public import router as menu_public_router
+from core_api.routers.notifications import router as notifications_router
 from core_api.routers.order_actions import router as order_actions_router
 from core_api.routers.order_history import router as order_history_router
 from core_api.routers.orders import orders_router
@@ -65,6 +66,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(profile_loyalty_router)
+app.include_router(notifications_router)
 app.include_router(
     delivery_addresses_router, prefix="/api/v1/profile/addresses"
 )

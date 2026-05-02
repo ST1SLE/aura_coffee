@@ -113,10 +113,25 @@
         "balance_suffix": "points",
         "view_history": "History"
       },
+      "notificationsLink": {
+        "title": "Notifications",
+        "subtitle": "Order updates from Aura Coffee"
+      },
       "addressesLink": {
         "title": "Delivery addresses",
         "subtitle": "Manage saved addresses"
       }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Order updates and service messages",
+      "loading": "Loading notifications...",
+      "loadError": "Failed to load notifications",
+      "emptyTitle": "No notifications yet",
+      "emptyDescription": "Order updates will appear here.",
+      "backToProfile": "Profile",
+      "loadMore": "Load more",
+      "orderLink": "Order #{{id}}"
     },
     "loyalty": {
       "title": "My points",

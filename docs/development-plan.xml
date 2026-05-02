@@ -61,8 +61,8 @@
         <errors><error code="HTTPException" /></errors>
       </contract>
       <interface>
-        <export-routers PURPOSE="auth, menu, orders, payment, delivery, addresses, admin/*" />
-        <export-services PURPOSE="order_service, payment_service, delivery_service, notification, admin_users, refund_retry" />
+        <export-routers PURPOSE="auth, menu, orders, payment, delivery, addresses, customer notifications, admin/*" />
+        <export-services PURPOSE="order_service, payment_service, delivery_service, notification, notification_feed, admin_users, refund_retry" />
         <export-models PURPOSE="SQLAlchemy ORM (User, Order, OrderItem, Payment, Delivery, MenuItem, Promocode, ShopSettings)" />
         <export-schemas PURPOSE="Pydantic request/response schemas per router, including public menu media fields" />
         <export-deps PURPOSE="FastAPI deps: get_current_user, require_role, get_db" />
@@ -127,11 +127,11 @@
 
     <M-WEB-CUSTOMER NAME="web-customer" TYPE="UI_COMPONENT" LAYER="3" ORDER="1" STATUS="implemented">
       <contract>
-        <purpose>Customer SPA — media-led menu, cart, checkout, profile. Calls core-api via auto-generated OpenAPI client.</purpose>
+        <purpose>Customer SPA — media-led menu, cart, checkout, profile, notifications. Calls core-api via auto-generated OpenAPI client.</purpose>
       </contract>
       <interface>
         <export-pages PURPOSE="Routed top-level pages" />
-        <export-features PURPOSE="Cart, checkout, profile, addresses, orders feature folders" />
+        <export-features PURPOSE="Cart, checkout, profile, addresses, notifications, orders feature folders" />
       </interface>
       <depends>M-CORE-API</depends>
       <target>

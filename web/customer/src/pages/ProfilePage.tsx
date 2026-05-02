@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  Bell,
   ChevronRight,
   Languages,
   LogOut,
@@ -218,6 +219,27 @@ export function ProfilePage() {
           <p className="mt-2 text-sm text-destructive">{nameError}</p>
         )}
       </div>
+
+      <Link
+        to="/profile/notifications"
+        className="aura-surface flex items-center gap-3 rounded-lg bg-card/95 p-4 transition-colors hover:bg-muted"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary text-primary-foreground">
+          <Bell className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">
+            {t('pages.profile.notificationsLink.title')}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {t('pages.profile.notificationsLink.subtitle')}
+          </div>
+        </div>
+        <ChevronRight
+          className="h-5 w-5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </Link>
 
       <Link
         to="/profile/addresses"

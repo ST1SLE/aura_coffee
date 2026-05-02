@@ -48,7 +48,7 @@ beforeEach(async () => {
 });
 
 describe('ProfilePage', () => {
-  it('renders link to /profile/addresses', async () => {
+  it('renders profile subpage links', async () => {
     (getProfile as Mock).mockResolvedValue({
       user_id: 'u1',
       phone_masked: '+7999***4567',
@@ -66,5 +66,9 @@ describe('ProfilePage', () => {
       screen.getByRole('link', { name: /addresses/i }),
     );
     expect(link).toHaveAttribute('href', '/profile/addresses');
+
+    expect(
+      screen.getByRole('link', { name: /notifications/i }),
+    ).toHaveAttribute('href', '/profile/notifications');
   });
 });

@@ -12,6 +12,7 @@ import { OrderDetailPage } from '@/pages/OrderDetailPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { AddressesPage } from '@/pages/Profile/Addresses/AddressesPage';
 import { LoyaltyPage } from '@/pages/Profile/Loyalty/LoyaltyPage';
+import { NotificationsPage } from '@/pages/Profile/Notifications/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // START_MODULE_CONTRACT
@@ -60,6 +61,10 @@ export function App() {
               <Route path="profile" element={<ProfilePage />} />
               <Route path="profile/addresses" element={<AddressesPage />} />
               <Route path="profile/loyalty" element={<LoyaltyPage />} />
+              <Route
+                path="profile/notifications"
+                element={<NotificationsPage />}
+              />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Route>

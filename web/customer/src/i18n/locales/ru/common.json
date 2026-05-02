@@ -113,10 +113,25 @@
         "balance_suffix": "баллов",
         "view_history": "История"
       },
+      "notificationsLink": {
+        "title": "Уведомления",
+        "subtitle": "Обновления по заказам от Aura Coffee"
+      },
       "addressesLink": {
         "title": "Адреса доставки",
         "subtitle": "Управление сохранёнными адресами"
       }
+    },
+    "notifications": {
+      "title": "Уведомления",
+      "description": "Обновления по заказам и служебные сообщения",
+      "loading": "Загружаем уведомления...",
+      "loadError": "Не удалось загрузить уведомления",
+      "emptyTitle": "Уведомлений пока нет",
+      "emptyDescription": "Обновления по заказам появятся здесь.",
+      "backToProfile": "Профиль",
+      "loadMore": "Показать ещё",
+      "orderLink": "Заказ #{{id}}"
     },
     "loyalty": {
       "title": "Мои баллы",

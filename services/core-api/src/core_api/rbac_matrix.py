@@ -43,6 +43,8 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     # Лояльность личного кабинета (PDD §3, §7.1 Phase 5 item 2) — только customer
     ("GET", "/api/v1/profile/loyalty"):              {CUSTOMER},
     ("GET", "/api/v1/profile/loyalty/transactions"): {CUSTOMER},
+    # Лента уведомлений клиента — только customer, только свои строки
+    ("GET", "/api/v1/profile/notifications"):        {CUSTOMER},
     # Сохранённые адреса доставки — только customer (PDD §3, §5.2)
     ("GET",    "/api/v1/profile/addresses"):              {CUSTOMER},
     ("POST",   "/api/v1/profile/addresses"):              {CUSTOMER},

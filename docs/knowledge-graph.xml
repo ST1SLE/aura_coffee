@@ -38,12 +38,12 @@
     </M-SMS-WORKER>
 
     <M-WEB-CUSTOMER NAME="web-customer" TYPE="UI_COMPONENT" STATUS="implemented">
-      <purpose>React SPA — customer-facing media-led menu/cart/checkout/profile with visible cart and finite-inventory hints</purpose>
+      <purpose>React SPA — customer-facing media-led menu/cart/checkout/profile/notifications with visible cart and finite-inventory hints</purpose>
       <path>web/customer/src</path>
       <depends>M-CORE-API</depends>
       <verification-ref>V-M-WEB-CUSTOMER</verification-ref>
       <annotations>
-        <export-pages PURPOSE="Top-level routed pages (menu, cart, checkout, profile, orders)" />
+        <export-pages PURPOSE="Top-level routed pages (menu, cart, checkout, profile, notifications, orders)" />
         <export-features PURPOSE="Feature-scoped components, hooks, stores, and menu media presentation" />
         <export-shared PURPOSE="Cross-feature components and utilities" />
       </annotations>
