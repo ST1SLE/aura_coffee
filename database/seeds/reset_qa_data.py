@@ -39,6 +39,9 @@ QA_CUSTOMER_PHONES = (
     qa_seed.BLOCKED_CUSTOMER_PHONE,
     qa_seed.PENDING_CUSTOMER_PHONE,
 )
+QA_CUSTOMER_IDS = tuple(
+    qa_seed._qa_uuid(f"user:{phone}") for phone in QA_CUSTOMER_PHONES
+)
 QA_ORDER_KEYS = (
     "pickup-created",
     "pickup-paid",
@@ -225,11 +228,23 @@ def run(database_url: str | None = None) -> dict[str, int]:
     counts: dict[str, int] = {}
     try:
         with engine.begin() as conn:
-            qa_user_ids = _select_values(
-                conn,
-                "SELECT id FROM users WHERE phone_hash IN :phone_hashes",
-                "phone_hashes",
-                qa_phone_hashes,
+            qa_user_ids = tuple(
+                set(
+                    _select_values(
+                        conn,
+                        "SELECT id FROM users WHERE id IN :user_ids",
+                        "user_ids",
+                        QA_CUSTOMER_IDS,
+                    )
+                )
+                | set(
+                    _select_values(
+                        conn,
+                        "SELECT id FROM users WHERE phone_hash IN :phone_hashes",
+                        "phone_hashes",
+                        qa_phone_hashes,
+                    )
+                )
             )
             qa_staff_ids = _select_values(
                 conn,

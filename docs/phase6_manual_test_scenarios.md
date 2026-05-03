@@ -1,6 +1,6 @@
 # Phase 6 — Comprehensive manual-test clickthrough (per-flow)
 
-A self-contained end-to-end manual QA pass covering **all four roles** (admin, barista, courier, customer) and **every surface** shipped through phases 1–6. Organised **by flow**, not by role — a single order walks the same path across multiple actors, and that's how regressions actually surface.
+A self-contained end-to-end manual QA pass covering **all four roles** (admin, barista, courier, customer), **every surface** shipped through phases 1–6, and the completed post-audit follow-ups that are now part of the release surface: browser smoke, customer notifications, account deletion, courier address redaction, and the admin failed-refund queue. Organised **by flow**, not by role — a single order walks the same path across multiple actors, and that's how regressions actually surface.
 
 Scope: supersedes `phase{2..5}_manual_test_scenarios.md` as the integration-wide clickthrough. Phase-specific docs remain useful as deep-dives for individual subsystems (promocodes in phase 5, addresses in phase 4, etc.) — this one is the horizontal walk.
 
@@ -44,15 +44,17 @@ payment-webhook, sms-worker, web-customer, web-admin, nginx
 
 ### 0.3 Seed manual-QA data
 
-The phase-4 seed is the source of truth for QA accounts and menu content. It is **idempotent** — re-run any time:
+The phase-4 seed is the source of truth for QA accounts and menu content. It is **idempotent for normal QA loops** — re-run it after ordinary menu/order/cart drift:
 
 ```bash
 docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 # → phase4_manual_test seed applied
 ```
 
-For a clean QA loop after mutating seeded orders, assignments, carts, or users,
-prefer the guarded reset wrapper in §0.7 over volume deletion.
+For a clean QA loop after mutating seeded orders, assignments, carts, users, or
+after running the destructive account-deletion smoke in §7.7, use the guarded
+reset wrapper in §0.7. Account deletion tombstones user identities; plain
+re-seeding is not the right cleanup path after that flow.
 
 For the automated release-smoke subset against a running stack, use
 `./scripts/verify-browser-smoke.sh`. It performs the guarded QA reset and covers
@@ -74,6 +76,8 @@ Inserts / upserts:
 | Promocodes | `QA10`, `QA100`, `QAPAUSED`, `QAEXPIRED`, `QAUSED` |
 | Orders | Representative pickup/delivery orders across created/paid/preparing/ready/in_delivery/completed/cancelled |
 | Courier assignments | Preparing hidden handoff, ready-awaiting, assigned, picked-up, delivered, and cancelled QA assignments |
+| Notifications | In-app and SMS notification rows for the active customer; customer feed exposes only in-app rows |
+| Refunds | Refunded cancelled-order fixture; failed-refund exception rows are produced by refund-failure tests or a real `refund.canceled` webhook |
 | Shop settings | default working hours, delivery fee, loyalty percent |
 
 ### 0.3-B Prepare optional local media fixtures
@@ -132,29 +136,33 @@ export COURIER_TOKEN=$(curl -s -X POST $BASE/api/v1/staff/auth/login \
 
 # customer — OTP dance via mocked SMS
 export PHONE=+79991234567
-export PH=$(echo -n "$PHONE" | sha256sum | cut -d' ' -f1)
+export PHONE_NORM=$(docker compose exec -T -e PHONE="$PHONE" core-api \
+  python -c 'import os; from core_api.utils.phone import normalize_phone; print(normalize_phone(os.environ["PHONE"]))')
+export PH=$(printf '%s' "$PHONE_NORM" | sha256sum | cut -d' ' -f1)
 docker compose exec -T redis redis-cli DEL \
-  "sms_rate:$PH:min" "sms_rate:$PH:hour" "sms_rate:$PH:day" > /dev/null
+  "sms_rate:$PH:min" "sms_rate:$PH:hour" "sms_rate:$PH:day" "otp:$PH" > /dev/null
 
 SEND_CODE_RESPONSE=$(curl -s -X POST $BASE/api/v1/auth/send-code \
   -H 'Content-Type: application/json' -d "{\"phone\":\"$PHONE\"}")
 echo "$SEND_CODE_RESPONSE" | jq -e '.message == "OTP sent" and (has("phone_hash") | not)' > /dev/null
 
 for i in {1..10}; do
-  OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$PH")
-  OTP_STATUS=$(echo "$OTP_DATA" | jq -r '.status // empty')
+  OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$PH" || true)
+  OTP_STATUS=$(printf '%s' "$OTP_DATA" | jq -r '.status // empty' 2>/dev/null || true)
   [ "$OTP_STATUS" = "sent" ] && break
   sleep 1
 done
 
 [ "$OTP_STATUS" = "sent" ] || {
-  echo "OTP was not delivered; latest Redis payload:"
-  echo "$OTP_DATA" | jq .
+  echo "OTP was not delivered for PHONE_NORM=$PHONE_NORM PH=$PH; latest Redis payload:"
+  printf '%s\n' "$OTP_DATA" | jq . 2>/dev/null || printf '%s\n' "$OTP_DATA"
+  echo "Current OTP keys:"
+  docker compose exec -T redis redis-cli --scan --pattern 'otp:*'
   docker compose logs --tail 50 sms-worker
   return 1 2>/dev/null || exit 1
 }
 
-OTP=$(docker compose exec -T redis redis-cli GET "otp:$PH" | jq -r .code)
+OTP=$(printf '%s' "$OTP_DATA" | jq -er .code)
 VERIFY_RESPONSE=$(curl -s -X POST $BASE/api/v1/auth/verify-code \
   -H 'Content-Type: application/json' \
   -d "{\"phone\":\"$PHONE\",\"code\":\"$OTP\"}")
@@ -167,15 +175,20 @@ export CUST_TOKEN=$(echo "$VERIFY_RESPONSE" | jq -r .access_token)
 }
 
 for v in ADMIN_TOKEN BARISTA_TOKEN COURIER_TOKEN CUST_TOKEN; do
-  eval "t=\$$v"; echo "$v: ${t:0:25}… (len=${#t})"
+  eval "t=\$$v"
+  [ "$t" != "null" ] && [ -n "$t" ] || {
+    echo "$v missing; check the preceding auth response"
+    return 1 2>/dev/null || exit 1
+  }
+  echo "$v: ${t:0:25}… (len=${#t})"
 done
 # Expect: four non-empty JWTs, each ~150–220 chars.
 ```
 
 ### 0.4-B Export seeded QA IDs
 
-Do not assume menu IDs are `1` in a reused database. Export the seeded item,
-size, and known-good address IDs once and reuse them in later curl probes:
+Do not assume menu IDs are `1` in a reused database. Export the seeded items,
+size, known-good address, and customer ID once and reuse them in later curl probes:
 
 ```bash
 export CAPPUCCINO_ITEM_ID=$(curl -s "$BASE/api/v1/menu" \
@@ -187,18 +200,22 @@ export CAPPUCCINO_SIZE_M_ID=$(curl -s "$BASE/api/v1/menu" \
            .size_options[] | select(.label=="M") | .id' \
   | head -n1)
 
+export CROISSANT_ITEM_ID=$(curl -s "$BASE/api/v1/menu" \
+  | jq -r '.categories[].items[] | select(.name_ru=="Круассан (QA)") | .id' \
+  | head -n1)
+
 export QA_HOME_ADDR_ID=$(curl -s "$BASE/api/v1/profile/addresses" \
   -H "Authorization: Bearer $CUST_TOKEN" \
   | jq -r '.[] | select(.label=="Дом (QA)") | .id' \
   | head -n1)
 
 export QA_CUSTOMER_ID=$(curl -s "$BASE/api/v1/profile" \
-  -H "Authorization: Bearer $CUST_TOKEN" | jq -r .id)
+  -H "Authorization: Bearer $CUST_TOKEN" | jq -r .user_id)
 
-printf 'CAPPUCCINO_ITEM_ID=%s\nCAPPUCCINO_SIZE_M_ID=%s\nQA_HOME_ADDR_ID=%s\nQA_CUSTOMER_ID=%s\n' \
-  "$CAPPUCCINO_ITEM_ID" "$CAPPUCCINO_SIZE_M_ID" "$QA_HOME_ADDR_ID" "$QA_CUSTOMER_ID"
+printf 'CAPPUCCINO_ITEM_ID=%s\nCAPPUCCINO_SIZE_M_ID=%s\nCROISSANT_ITEM_ID=%s\nQA_HOME_ADDR_ID=%s\nQA_CUSTOMER_ID=%s\n' \
+  "$CAPPUCCINO_ITEM_ID" "$CAPPUCCINO_SIZE_M_ID" "$CROISSANT_ITEM_ID" "$QA_HOME_ADDR_ID" "$QA_CUSTOMER_ID"
 
-[ -n "$CAPPUCCINO_ITEM_ID" ] && [ -n "$CAPPUCCINO_SIZE_M_ID" ] && [ -n "$QA_HOME_ADDR_ID" ] && [ -n "$QA_CUSTOMER_ID" ] || {
+[ -n "$CAPPUCCINO_ITEM_ID" ] && [ -n "$CAPPUCCINO_SIZE_M_ID" ] && [ -n "$CROISSANT_ITEM_ID" ] && [ -n "$QA_HOME_ADDR_ID" ] && [ -n "$QA_CUSTOMER_ID" ] || {
   echo "Seed IDs missing; re-run §0.3 and check §0.4 auth."
   return 1 2>/dev/null || exit 1
 }
@@ -297,7 +314,8 @@ docker compose down -v
 docker compose exec -T core-api python -m database.seeds.phase4_manual_test
 
 # narrower — just reset the OTP rate-limiter for the QA phone
-PH=$(echo -n "+79991234567" | sha256sum | cut -d' ' -f1)
+PHONE_NORM=${PHONE_NORM:-+79991234567}
+PH=$(printf '%s' "$PHONE_NORM" | sha256sum | cut -d' ' -f1)
 docker compose exec -T redis redis-cli DEL \
   "sms_rate:$PH:min" "sms_rate:$PH:hour" "sms_rate:$PH:day" "otp:$PH"
 
@@ -311,10 +329,12 @@ curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN"
 
 ### 1.1 OTP — happy path
 
-**UI.** Open `$BASE/` → "Войти" / "Login" → enter `+79991234567` → "Получить код". The page advances to a 4-input OTP box. Pull the code:
+**UI.** Open `$BASE/` → "Войти" / "Login" → enter `+79991234567` → "Получить код". The page advances to a 6-input OTP box. Pull the code from the Redis payload captured in §0.4, or fetch it again with a hard failure if the key is missing:
 
 ```bash
-docker compose exec -T redis redis-cli GET "otp:$PH" | jq -r .code
+OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$PH" || true)
+OTP=$(printf '%s' "$OTP_DATA" | jq -er .code)
+printf '%s\n' "$OTP"
 ```
 
 Type it in → "Подтвердить". Expect redirect to `/` (customer home) with an avatar in the header.
@@ -335,12 +355,13 @@ Type it in → "Подтвердить". Expect redirect to `/` (customer home) 
 
 ```bash
 curl -s $BASE/api/v1/profile -H "Authorization: Bearer $CUST_TOKEN" | jq .
-# Expect: { id, phone, name, language, ... }. phone is the plaintext +7…,
-# only because the viewer is the owner (INV-013 PII isolation — others see hashes).
+# Expect: { user_id, phone_masked, display_name, preferred_language }.
+# Raw phone is not returned, even to the owner (INV-013 PII isolation).
 
 curl -s -X PATCH $BASE/api/v1/profile \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"name":"QA Tester","language":"ru"}' | jq '{name, language}'
+  -d '{"display_name":"QA Tester","preferred_language":"ru"}' \
+  | jq '{display_name, preferred_language, phone_masked}'
 ```
 
 Log out via UI → header reverts to "Войти". The in-memory access token is cleared, any legacy `aura_refresh_token` localStorage entry is removed, and the server clears/revokes the HttpOnly refresh cookie. `POST /api/v1/auth/logout` returns 200.
@@ -404,6 +425,36 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE \
 
 **Constraint check.** The unique partial index `ix_delivery_addresses_user_default WHERE is_default = true` guarantees at most one default per user. PATCH updates intentionally do not accept `lat` / `lon`; if an edit returns 422, check DevTools and confirm the client is sending only editable fields (`label`, `address_text`, `apartment`, `entrance`, `floor`, `comment`, `is_default`).
 
+### 1.6 Profile notifications feed
+
+**UI.** `/profile` → "Уведомления" / "Notifications". The page opens
+`/profile/notifications`, shows newest in-app notifications first, and links to
+`/orders/<order_id>` when a notification has an order id. Empty, loading, error,
+and "Load more" states should render without text overlap on mobile.
+
+**API.**
+
+```bash
+curl -s "$BASE/api/v1/profile/notifications?per_page=5" \
+  -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq '{total_count, page, per_page,
+         notifications: [.notifications[] |
+           {channel, type, status, order_id, message_ru, message_en, created_at}]}'
+# Expect: only channel="in_app"; no user_id field; newest first.
+
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "$BASE/api/v1/profile/notifications" \
+  -H "Authorization: Bearer $BARISTA_TOKEN"
+# Expect: 403. Staff cannot read a customer's feed.
+
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "$BASE/api/v1/profile/notifications"
+# Expect: 401.
+```
+
+SMS notification rows stay internal delivery/audit rows and must not appear in
+this customer feed.
+
 ---
 
 ## §2 FLOW: Customer places a pickup order (mocked payment)
@@ -413,12 +464,15 @@ This is the fastest end-to-end path — no Yandex, no courier, one actor. Use it
 ### 2.1 Browse the public menu
 
 **UI.** `/menu` (customer SPA home). The customer shell is dark and mobile-first:
-bottom nav on phone widths, horizontal category tabs, and media-led item cards.
-The seeded "Капучино (QA)" has media URL fields; if the optional public files
-from §0.3-B are absent, the card/detail should degrade without blocking cart or
-checkout. Click the card → the bottom-sheet detail opens with size options
-(S/M/L), modifiers, and a fixed add-to-cart bar that remains visible at the
-bottom.
+bottom nav on phone widths, a single sticky horizontal category rail, and
+media-led item cards. There must be **no duplicate category block** in the hero
+or aside area. When the page is scrolled, the active category chip follows the
+visible section; `/menu/:categoryId` deep links activate and scroll to that
+category. The seeded "Капучино (QA)" has media URL fields; if the optional
+public files from §0.3-B are absent, the card/detail should degrade without
+blocking cart or checkout. Click the card → the bottom-sheet detail opens with
+size options (S/M/L), modifiers, and a fixed add-to-cart bar that remains visible
+at the bottom.
 
 **API.**
 
@@ -527,7 +581,11 @@ curl -s -X POST $BASE/api/v1/cart/items \
 
 ### 2.2 Add to cart, modify, remove
 
-**UI.** In the drink drawer: select size M → "Добавить в корзину". Cart icon in header gains a badge. Open `/cart`. Increment qty to 2 via `+` button, decrement once, remove the line. Add it back with qty 2.
+**UI.** In the drink drawer: select size M → "Добавить в корзину". Cart icon in
+the header gains a badge, and `/menu` shows the sticky bottom cart summary CTA
+with item count and total. The bottom CTA must stay safe-area aware on phone
+widths and should not cover product cards. Open `/cart`. Increment qty to 2 via
+`+` button, decrement once, remove the line. Add it back with qty 2.
 
 **API probe at each step.**
 
@@ -568,8 +626,12 @@ ORDER_ID=$(echo "$ORDER" | jq -r .id)
 
 sleep 3   # let the fake-callback task fire
 curl -s $BASE/api/v1/orders/$ORDER_ID -H "Authorization: Bearer $CUST_TOKEN" \
-  | jq '{id, status, type, payment: .payment, items: (.items|length)}'
-# Expect: status "paid", payment.status "succeeded", items 1
+  | jq '{id, status, type, confirmation_url, items: (.items|length)}'
+# Expect: status "paid", confirmation_url null, items 1.
+# Payment status is staff-only; use /admin/orders/$ORDER_ID if you need it:
+curl -s $BASE/api/v1/admin/orders/$ORDER_ID -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq '{id, status, payment_status}'
+# Expect: payment_status "succeeded".
 ```
 
 ### 2.4 View order detail, customer cancels before prep
@@ -579,7 +641,7 @@ curl -s $BASE/api/v1/orders/$ORDER_ID -H "Authorization: Bearer $CUST_TOKEN" \
 **API.**
 
 ```bash
-ORDER_ID=<fresh order>
+ORDER_ID=<fresh paid order>
 sleep 3
 curl -s -X POST $BASE/api/v1/orders/$ORDER_ID/cancel \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
@@ -590,7 +652,9 @@ curl -s -X POST $BASE/api/v1/orders/$ORDER_ID/cancel \
 Post-cancel state machine: once barista moves the order to `preparing`, customer cancel is rejected — that's §6.1 of PDD (the state-machine) and is the correct behaviour. Exercise it:
 
 ```bash
-# bring a new order to PREPARING first via the barista token (see §4)
+# create another paid order first, then bring it to PREPARING via the barista token
+# (see §2.3 for the pickup creation command).
+ORDER_ID=<another fresh paid order>
 curl -s -X PATCH $BASE/api/v1/orders/$ORDER_ID/status \
   -H "Authorization: Bearer $BARISTA_TOKEN" -H 'Content-Type: application/json' \
   -d '{"new_status":"preparing"}'
@@ -610,14 +674,16 @@ The customer checkout SPA exposes a promocode field, points-to-use field, and AS
 **UI.** `/cart` → `/checkout` → enter `QA10` in "Промокод" / "Promo code". The estimate block should refresh with a non-zero discount and updated total. Submit with "Оформить заказ" / "Place order"; the resulting order detail should show the discounted total.
 
 ```bash
-# create a promo first — see §5.1 for UI; curl fast-path:
-PROMO_ID=$(curl -s -X POST $BASE/api/v1/admin/promocodes \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"code":"qa10","discount_type":"percent","discount_value":10,
-       "valid_until":"2030-01-01T00:00:00Z","max_uses":5,"max_uses_per_user":3}' \
-  | jq -r .id)
-curl -s -X POST $BASE/api/v1/admin/promocodes/$PROMO_ID/activate \
-  -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
+# QA10 is seeded active by §0.3. Keep the ID for admin cross-checks.
+QA10_ID=$(curl -s "$BASE/api/v1/admin/promocodes?code=QA10" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.code=="QA10") | .id' \
+  | head -n1)
+
+[ -n "$QA10_ID" ] || {
+  echo "QA10 missing; re-run §0.3"
+  return 1 2>/dev/null || exit 1
+}
 
 # populate cart then checkout with code
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
@@ -627,19 +693,19 @@ curl -s -X POST $BASE/api/v1/cart/items \
 
 curl -s -X POST $BASE/api/v1/orders/estimate \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"type":"pickup","promocode_code":"qa10"}' \
+  -d '{"type":"pickup","promocode_code":"QA10"}' \
   | jq '{subtotal, discount_amount, points_used, delivery_fee, total, estimated_accrual, estimated_ready_at}'
 # Expect: discount_amount ≈ 10% of subtotal before order creation.
 
 curl -s -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"type":"pickup","promocode_code":"qa10"}' \
+  -d '{"type":"pickup","promocode_code":"QA10"}' \
   | jq '{status, promocode_id, subtotal, discount_amount, total}'
 # Expect: discount_amount ≈ 10% of subtotal (6000 kopecks on 60000),
 #         promocode_id populated, total = subtotal - discount_amount
 ```
 
-Server UPPER()s the code → the promocode row with `code="QA10"` matches. See §5.6 for the full promocode walk.
+The customer SPA upper-cases the promo before sending it. Raw curl/API probes should send canonical uppercase (`QA10`); `qa10` is rejected by the backend validator. See §5.6 for the full promocode walk.
 
 ---
 
@@ -662,24 +728,24 @@ curl -s $BASE/api/v1/admin/settings -H "Authorization: Bearer $ADMIN_TOKEN" \
   | jq '{min_delivery_amount, delivery_fee, free_delivery_threshold, delivery_radius_km, shop_lat, shop_lon}'
 ```
 
-- Subtotal < `min_delivery_amount` → checkout rejects with 422 before creating the order.
+- Subtotal < `min_delivery_amount` → checkout rejects with 409 before creating the order.
 - Subtotal ≥ `free_delivery_threshold` → `delivery_fee` is set to 0 in the response.
-- Address lat/lon farther than `delivery_radius_km` from `shop_lat/lon` → 422.
+- Address lat/lon farther than `delivery_radius_km` from `shop_lat/lon` → 409 during checkout. Saved-address create returns 422 for the same radius violation.
 
 **API test — at boundary:**
 
 ```bash
-# Put a small order first — less than min
+# Put a small order first — the seeded croissant is below min_delivery_amount.
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
 curl -s -X POST $BASE/api/v1/cart/items \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
-  -d "{\"menu_item_id\":$CAPPUCCINO_ITEM_ID,\"size_option_id\":$CAPPUCCINO_SIZE_M_ID,\"quantity\":1}" > /dev/null
+  -d "{\"menu_item_id\":$CROISSANT_ITEM_ID,\"quantity\":1}" > /dev/null
 
 ADDR_ID=${QA_HOME_ADDR_ID:-$(curl -s $BASE/api/v1/profile/addresses \
   -H "Authorization: Bearer $CUST_TOKEN" \
   | jq -r '.[] | select(.label=="Дом (QA)") | .id' | head -n1)}
 
-# Expect 422 if subtotal < min_delivery_amount
+# Expect 409 if subtotal < min_delivery_amount
 curl -s -o /tmp/resp -w '%{http_code}\n' -X POST $BASE/api/v1/orders \
   -H "Authorization: Bearer $CUST_TOKEN" -H 'Content-Type: application/json' \
   -d "{\"type\":\"delivery\",\"delivery_address_id\":\"$ADDR_ID\"}"
@@ -703,8 +769,10 @@ export DEL_ORDER_ID=$(echo "$DEL_ORDER" | jq -r .id)
 
 sleep 3
 curl -s $BASE/api/v1/orders/$DEL_ORDER_ID -H "Authorization: Bearer $CUST_TOKEN" \
-  | jq '{status, type, delivery_address_id}'
-# Expect: status "paid", type "delivery"
+  | jq '{status, type, confirmation_url, items: (.items|length), total}'
+# Expect: status "paid", type "delivery", confirmation_url null.
+# Customer order detail intentionally does not echo delivery_address_id or the
+# delivery-address snapshot; staff/courier views expose their scoped projections.
 ```
 
 Hand this `DEL_ORDER_ID` off to §4 (barista) then §6 (courier).
@@ -721,7 +789,17 @@ DOM check: `document.querySelectorAll('[data-testid^="nav-"]')` returns exactly 
 
 ### 4.2 Orders feed
 
-**UI.** `/admin/orders`. Table lists orders newest first. Status tabs are Active / Paid / Preparing / Ready / In delivery / Completed / Cancelled; the Active tab aggregates paid + preparing + ready + in_delivery and polls every 5 seconds while the browser tab is visible. Type filter is All / Pickup / Delivery, with pagination below the table. Selecting a row opens a detail panel with items, customer-ish identifiers (user_id is an opaque UUID — INV-013), and state-transition buttons.
+**UI.** `/admin/orders`. Table lists orders newest first. Status tabs are Active
+/ Paid / Preparing / Ready / In delivery / Completed / Cancelled; admins also
+see the Refund issues tab from §8.6. The Active tab aggregates paid + preparing
++ ready + in_delivery and polls every 5 seconds while the browser tab is
+visible. Type filter is All / Pickup / Delivery, with pagination below the
+table. On phone widths, rows become compact cards instead of requiring
+horizontal table scrolling. Selecting a row opens a detail panel with items,
+state-transition buttons, and a staff-only contact projection: `user_id` remains
+an opaque UUID; `customer_display_name` / `customer_contact_phone` are available
+only while staff may need to contact the customer (`paid`, `preparing`, `ready`)
+and are redacted for finalized states.
 
 **API shape** — important: top-level key is `.orders` (not `.items`):
 
@@ -753,7 +831,7 @@ Invalid-transition sanity: try `paid → completed` directly → expect 409 `inv
 Same three transitions (`paid` → `preparing` → `ready`) via the barista token on `DEL_ORDER_ID`. **Do NOT** go `completed`; delivery is completed by the courier.
 
 What happens during this flow: `paid → preparing` creates a `delivery_assignment`
-in `awaiting_courier`; the courier available feed hides it until the order also
+in `AWAITING_COURIER`; the courier available feed hides it until the order also
 reaches `ready`.
 
 Cross-check:
@@ -765,12 +843,17 @@ export ASG_ID=$(curl -s "$BASE/api/v1/courier/assignments/available" \
 curl -s "$BASE/api/v1/courier/assignments/available" \
   -H "Authorization: Bearer $COURIER_TOKEN" \
   | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | .[0] | {id, order_id, status}'
-# Expect: the DEL_ORDER_ID row exists and status is "awaiting_courier".
+# Expect: the DEL_ORDER_ID row exists and status is "AWAITING_COURIER".
 ```
 
 ### 4.5 Toggle item availability
 
 **UI.** `/admin/menu` (both admin and barista can do this — phase 5 menu RBAC) → click the availability toggle on "Капучино (QA)". Customer SPA menu should show the drink as unavailable/disabled within a few seconds. The default public read path includes stop-listed items; `GET /api/v1/menu?available=true` is the filtered path.
+
+On phone widths, the menu category selector stacks above the item manager, item
+rows render as compact cards, and modifier add/edit rows wrap controls instead
+of squeezing them. These are presentation checks only; API calls and handlers
+must remain the same.
 
 **API.**
 
@@ -808,7 +891,7 @@ curl -s -o /dev/null -w "%{http_code}\n" $BASE/api/v1/admin/users \
   -H "Authorization: Bearer $BARISTA_TOKEN"            # 403
 curl -s -o /dev/null -w "%{http_code}\n" $BASE/api/v1/admin/settings \
   -H "Authorization: Bearer $BARISTA_TOKEN"            # 403
-# Barista is read-only on menu categories/items, write is admin-only:
+# Barista can stop-list items, but menu CRUD is admin-only:
 curl -s -o /dev/null -w "%{http_code}\n" -X POST $BASE/api/v1/admin/menu/items \
   -H "Authorization: Bearer $BARISTA_TOKEN" -H 'Content-Type: application/json' \
   -d '{"category_id":1,"name_ru":"x","name_en":"x"}'    # 403
@@ -869,6 +952,11 @@ To see "Expired": create a promo with `valid_until = now + 60 s`, wait, refresh,
 Once a promo has `current_uses > 0`, fields `code`, `discount_type`, `discount_value` freeze. UI disables them; server returns 422 `field_locked_after_use` on raw PATCH:
 
 ```bash
+PROMO_ID=$(curl -s "$BASE/api/v1/admin/promocodes?code=QA15" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.code=="QA15") | .id' \
+  | head -n1)
+
 curl -s -X PATCH $BASE/api/v1/admin/promocodes/$PROMO_ID \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
   -d '{"discount_value":50}' | jq .detail
@@ -895,13 +983,13 @@ curl -s "$BASE/api/v1/admin/promocodes" -H "Authorization: Bearer $ADMIN_TOKEN" 
 
 ### 5.8 Promocode decrement on cancel
 
-Create an order with `qa15`, wait for `paid`, then admin-cancel (`/admin/orders` → detail → "Отменить"). `current_uses` decrements by 1, floored at 0 (`WHERE current_uses > 0` guard). Double-cancel is impossible through the state machine (second call returns 409 invalid transition) — DB-level decrement is already idempotent.
+Create an order with `QA15`, wait for `paid`, then admin-cancel (`/admin/orders` → detail → "Отменить"). `current_uses` decrements by 1, floored at 0 (`WHERE current_uses > 0` guard). Double-cancel is impossible through the state machine (second call returns 409 invalid transition) — DB-level decrement is already idempotent.
 
 ---
 
 ## §6 FLOW: Courier delivers an order
 
-Needs §4.4 complete — a delivery order in status `ready` with a corresponding `delivery_assignment` in `awaiting_courier`. Use the `ASG_ID` exported in §4.4, or derive it again from `DEL_ORDER_ID` below.
+Needs §4.4 complete — a delivery order in status `ready` with a corresponding `delivery_assignment` in `AWAITING_COURIER`. Use the `ASG_ID` exported in §4.4, or derive it again from `DEL_ORDER_ID` below.
 
 ### 6.1 Courier login — no sidebar
 
@@ -918,8 +1006,10 @@ Manually typing `/admin/` (dashboard) bounces back — `ProtectedRoute` rejects 
 ```bash
 curl -s $BASE/api/v1/courier/assignments/available \
   -H "Authorization: Bearer $COURIER_TOKEN" \
-  | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | .[0] | {id, order_id, status, total}'
-# Expect: the DEL_ORDER_ID row exists and status is "awaiting_courier".
+  | jq --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid)) | .[0] |
+        {id, order_id, status, total, delivery_address}'
+# Expect: the DEL_ORDER_ID row exists, status is "AWAITING_COURIER", and
+# delivery_address is {} until the courier takes it.
 ```
 
 ### 6.3 Take → Pickup → Deliver
@@ -927,7 +1017,7 @@ curl -s $BASE/api/v1/courier/assignments/available \
 **UI buttons** match the assignment state:
 
 ```
-awaiting_courier  → [Взять] → COURIER_ASSIGNED
+AWAITING_COURIER  → [Взять] → COURIER_ASSIGNED
 COURIER_ASSIGNED  → [Забрал] → PICKED_UP         (order.status becomes "in_delivery")
 PICKED_UP         → [Доставил] → DELIVERED       (order.status becomes "completed")
 ```
@@ -940,16 +1030,18 @@ ASG_ID=${ASG_ID:-$(curl -s $BASE/api/v1/courier/assignments/available \
   | jq -r --arg oid "$DEL_ORDER_ID" 'map(select(.order_id==$oid))[0].id')}
 
 curl -s -X POST $BASE/api/v1/courier/assignments/$ASG_ID/take \
-  -H "Authorization: Bearer $COURIER_TOKEN" | jq .status
-# → "courier_assigned"
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  | jq '{status, delivery_address}'
+# → status "COURIER_ASSIGNED"; delivery_address now includes address_line and
+# optional entrance/apartment/floor/comment for the assigned courier.
 
 curl -s -X POST $BASE/api/v1/courier/assignments/$ASG_ID/pickup \
   -H "Authorization: Bearer $COURIER_TOKEN" | jq .status
-# → "picked_up"
+# → "PICKED_UP"
 
 curl -s -X POST $BASE/api/v1/courier/assignments/$ASG_ID/deliver \
   -H "Authorization: Bearer $COURIER_TOKEN" | jq .status
-# → "delivered"
+# → "DELIVERED"
 
 # Order now reflects the final state
 curl -s $BASE/api/v1/orders/$DEL_ORDER_ID -H "Authorization: Bearer $CUST_TOKEN" \
@@ -962,7 +1054,7 @@ curl -s $BASE/api/v1/orders/$DEL_ORDER_ID -H "Authorization: Bearer $CUST_TOKEN"
 - `GET /api/v1/courier/assignments/mine` — shows assignments where *this* courier is assigned.
 - **Double-take.** Call `/take` on an already-taken assignment → 409. The seed already includes `courier2` / `courier2123` if you want to log in as a second courier; do not insert ad hoc staff rows.
 - **Out-of-order.** `/deliver` before `/pickup` → 409 invalid transition.
-- **Cancel while assigned but not picked up.** Admin-cancels a `ready` order with a `courier_assigned` assignment → assignment becomes `cancelled` and drops off `mine`.
+- **Cancel while assigned but not picked up.** Admin-cancels a `ready` order with a `COURIER_ASSIGNED` assignment → assignment becomes `CANCELLED` and drops off `mine`.
 - **Cancel after pickup.** Once the courier has picked up the order (`in_delivery`), admin cancellation is rejected by the order state machine.
 
 ### 6.5 RBAC for courier
@@ -995,21 +1087,21 @@ curl -s $BASE/api/v1/admin/stats -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 # Keys: orders_count, revenue_kopecks, popular_items, range, range_start, range_end
 ```
 
-Switch the range selector to "7 days" / "30 days" — request is refetched with `?range=…`. Confirm `revenue_kopecks` counts only orders in `completed` / `paid` states (cancelled orders excluded).
+Switch the range selector to "7 days" / "30 days" — request is refetched with `?range=…`. Confirm `revenue_kopecks` and `orders_count` count only `completed` orders (paid-but-unfulfilled and cancelled orders are excluded).
 
 ### 7.2 Users list & detail
 
-**UI.** `/admin/users`. Paginated list of customers (NOT staff). Each row shows masked phone (`+7999***4567`), name, block status, loyalty balance. Clicking a row opens detail: order history count, last order date, loyalty balance, block/unblock button, loyalty-adjust button.
+**UI.** `/admin/users`. Paginated list of customers (NOT staff). Each row shows display name, account status, and loyalty balance. Phone is intentionally absent from the list/detail API (INV-013). Clicking a row opens detail: active order count, recent loyalty transactions, loyalty balance, block/unblock button, and loyalty-adjust button.
 
 **API.**
 
 ```bash
 curl -s "$BASE/api/v1/admin/users?per_page=10" -H "Authorization: Bearer $ADMIN_TOKEN" \
-  | jq '{total_count, items: (.items | map({id, phone_masked, name, is_blocked, loyalty_balance}))}'
+  | jq '{total_count, items: (.items | map({id, display_name, status, loyalty_balance, created_at}))}'
 # Note key is .items (unlike /admin/orders which uses .orders)
 
 USER_ID=${QA_CUSTOMER_ID:-$(curl -s $BASE/api/v1/admin/users -H "Authorization: Bearer $ADMIN_TOKEN" \
-  | jq -r '.items[] | select(.name=="QA Customer" or .name=="QA Tester") | .id' \
+  | jq -r '.items[] | select(.display_name=="QA Customer" or .display_name=="QA Tester") | .id' \
   | head -n1)}
 curl -s $BASE/api/v1/admin/users/$USER_ID -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 ```
@@ -1059,28 +1151,45 @@ After unblock, re-run §0.4 to get a fresh `CUST_TOKEN`; the old session was int
 | Loyalty accrual (%) | 5 |
 | Shop lat / lon | 55.7558 / 37.6173 |
 
-Save → PUT returns the full updated row → subsequent customer checkouts pick up new values (e.g., raise `min_delivery_amount` to 10000 ₽ and watch `/checkout` with a small cart reject — exercise from customer UI).
+Save → PUT returns the full updated row → subsequent customer checkouts pick up new values (e.g., raise `min_delivery_amount` to 1000 ₽ and watch `/checkout` with a small cart reject — exercise from customer UI). The API expects a **full snapshot** body; partial `PUT` returns 422.
 
 **API.**
 
 ```bash
+# Save current settings for restore.
+curl -s $BASE/api/v1/admin/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" > /tmp/aura_shop_settings.before.json
+
+# Mutate a full snapshot. Remove server-owned updated_at before PUT.
+jq 'del(.updated_at) |
+    .delivery_fee=20000 |
+    .min_delivery_amount=100000 |
+    .loyalty_percent=7' \
+  /tmp/aura_shop_settings.before.json > /tmp/aura_shop_settings.update.json
+
 curl -s -X PUT $BASE/api/v1/admin/settings \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"delivery_fee":20000,"min_delivery_amount":100000,"loyalty_percent":7}' \
+  --data-binary @/tmp/aura_shop_settings.update.json \
   | jq '{delivery_fee, min_delivery_amount, loyalty_percent}'
+
+# Restore the original full snapshot.
+jq 'del(.updated_at)' /tmp/aura_shop_settings.before.json > /tmp/aura_shop_settings.restore.json
+curl -s -X PUT $BASE/api/v1/admin/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  --data-binary @/tmp/aura_shop_settings.restore.json > /dev/null
 ```
 
 ### 7.5 Manual loyalty adjust (admin-credit / admin-debit)
 
-**UI.** User detail → "Начислить баллы" / "Списать баллы" dialog. Enter amount (positive = credit, negative = debit), description, submit. The user's `loyalty_accounts.balance` changes; a row with `type=admin_adjustment` appears in their `loyalty_transactions` (visible on the customer's `/profile/loyalty` page).
+**UI.** User detail → "Начислить баллы" / "Списать баллы" dialog. Enter delta (positive = credit, negative = debit), reason, submit. The user's `loyalty_accounts.balance` changes; a row with `type=admin_adjustment` appears in their `loyalty_transactions` (visible on the customer's `/profile/loyalty` page).
 
 **API.**
 
 ```bash
 curl -s -X POST $BASE/api/v1/admin/users/$USER_ID/loyalty/adjust \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"amount":50,"description":"QA manual credit"}' \
-  | jq '{new_balance, transaction_id}'
+  -d '{"delta":50,"reason":"QA manual credit"}' \
+  | jq '{new_balance, delta, transaction_id}'
 
 # Cross-check from customer view
 curl -s $BASE/api/v1/profile/loyalty/transactions \
@@ -1088,7 +1197,7 @@ curl -s $BASE/api/v1/profile/loyalty/transactions \
   | jq '.items[] | select(.type=="admin_adjustment")'
 ```
 
-Negative amount works symmetrically. Debiting below 0 → 422 `insufficient_balance`.
+Negative delta works symmetrically. Debiting below 0 → 422 `insufficient_balance`.
 
 ### 7.6 Customer loyalty cross-check (all at once)
 
@@ -1098,6 +1207,72 @@ After completing §2 + §3 + §7.5, the customer's `/profile/loyalty` page shoul
 - `lifetime_accrued` = sum of positive non-reversal rows.
 - History: at least one `accrual` (from completed order), possibly one `admin_adjustment`.
 - Click `Загрузить ещё` if count > 20 — appends page 2.
+
+### 7.7 Account deletion smoke — destructive, run last
+
+Account deletion is intentionally destructive: it tombstones the user, removes
+profile/address PII, zeroes loyalty, revokes sessions, and may cancel refundable
+active orders. Run this after the main manual pass, then run
+`./scripts/reset-qa-data.sh` before continuing normal QA.
+
+**Customer self-delete on a throwaway phone.**
+
+```bash
+export DELETE_PHONE=+79991230003
+export DELETE_PHONE_NORM=$(docker compose exec -T -e PHONE="$DELETE_PHONE" core-api \
+  python -c 'import os; from core_api.utils.phone import normalize_phone; print(normalize_phone(os.environ["PHONE"]))')
+export DELETE_PH=$(printf '%s' "$DELETE_PHONE_NORM" | sha256sum | cut -d' ' -f1)
+
+docker compose exec -T redis redis-cli DEL \
+  "sms_rate:$DELETE_PH:min" "sms_rate:$DELETE_PH:hour" \
+  "sms_rate:$DELETE_PH:day" "otp:$DELETE_PH" > /dev/null
+
+curl -s -X POST $BASE/api/v1/auth/send-code \
+  -H 'Content-Type: application/json' -d "{\"phone\":\"$DELETE_PHONE\"}" > /dev/null
+
+for i in {1..10}; do
+  DELETE_OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$DELETE_PH" || true)
+  DELETE_OTP_STATUS=$(printf '%s' "$DELETE_OTP_DATA" | jq -r '.status // empty' 2>/dev/null || true)
+  [ "$DELETE_OTP_STATUS" = "sent" ] && break
+  sleep 1
+done
+
+DELETE_OTP=$(printf '%s' "$DELETE_OTP_DATA" | jq -er .code)
+DELETE_TOKEN=$(curl -s -X POST $BASE/api/v1/auth/verify-code \
+  -H 'Content-Type: application/json' \
+  -d "{\"phone\":\"$DELETE_PHONE\",\"code\":\"$DELETE_OTP\"}" | jq -r .access_token)
+
+curl -s -X DELETE $BASE/api/v1/profile \
+  -H "Authorization: Bearer $DELETE_TOKEN" \
+  | jq '{user_id, status, cancelled_orders_count, pii_rows_removed}'
+# Expect: status "deleted"; pii_rows_removed >= 1.
+
+curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/v1/profile \
+  -H "Authorization: Bearer $DELETE_TOKEN"
+# Expect: 401. The deleted subject can no longer use the old access token.
+```
+
+**Admin deletes a blocked customer.**
+
+```bash
+BLOCKED_USER_ID=$(curl -s "$BASE/api/v1/admin/users?per_page=100" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.display_name=="QA Blocked Customer") | .id' \
+  | head -n1)
+
+[ -n "$BLOCKED_USER_ID" ] || {
+  echo "Blocked seed user missing; run ./scripts/reset-qa-data.sh"
+  return 1 2>/dev/null || exit 1
+}
+
+curl -s -X DELETE "$BASE/api/v1/admin/users/$BLOCKED_USER_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq '{user_id, status, cancelled_orders_count, pii_rows_removed}'
+# Expect: status "deleted".
+
+# Restore the blocked QA user for future manual passes.
+./scripts/reset-qa-data.sh
+```
 
 ---
 
@@ -1132,7 +1307,17 @@ INFO Task yukassa_fake_callback[...]  # refund.succeeded
 INFO refund succeeded for order <id>
 ```
 
-`GET /api/v1/orders/$OID` shows `status=cancelled`, `payment.status=refunded`.
+Customer detail shows `status=cancelled`; staff detail exposes the payment projection:
+
+```bash
+curl -s $BASE/api/v1/orders/$OID -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq .status
+# Expect: "cancelled"
+
+curl -s $BASE/api/v1/admin/orders/$OID -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq .payment_status
+# Expect: "refunded"
+```
 
 ### 8.2 Admin cancels delivery mid-stream
 
@@ -1141,10 +1326,10 @@ Need a delivery order (§3). Drive it to `paid` (sleep 3). Admin cancellation is
 ```bash
 curl -s -X POST $BASE/api/v1/orders/$DEL_ORDER_ID/cancel \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"reason":"admin_decision"}' | jq '{status, payment: .payment.status}'
+  -d '{"reason":"admin_decision"}' | jq '{status, cancelled_by}'
 ```
 
-If the barista already moved it to `preparing`, the delivery assignment exists. If it is still `awaiting_courier` or `courier_assigned`, cancellation marks that assignment `cancelled` and removes it from courier feeds:
+If the barista already moved it to `preparing`, the delivery assignment exists. If it is still `AWAITING_COURIER` or `COURIER_ASSIGNED`, cancellation marks that assignment `CANCELLED` and removes it from courier feeds:
 
 ```bash
 curl -s $BASE/api/v1/courier/assignments/available \
@@ -1157,7 +1342,7 @@ If the courier already picked up the order (`in_delivery`), admin cancellation i
 
 ### 8.3 Promocode symmetric refund
 
-From §5.8. Order with promocode `qa15`, `current_uses` at N → cancel → `current_uses` at N−1. Re-issue same promo on a new order → accepted (quota restored).
+From §5.8. Order with promocode `QA15`, `current_uses` at N → cancel → `current_uses` at N−1. Re-issue same promo on a new order → accepted (quota restored).
 
 ### 8.4 Loyalty reversal
 
@@ -1165,15 +1350,60 @@ If an order accrued loyalty (reached `completed`) and is then refunded via a com
 
 ### 8.5 YuKassa negative outcomes
 
-Set `YUKASSA_FAKE_OUTCOME=canceled` → force-recreate core-api + payment-worker (see §0.5 for the exact command). Create a new order. Watch: order flips to `payment_failed` or `cancelled` (depending on version), not `paid`. Flip back to `success` before continuing other flows.
+Set `YUKASSA_FAKE_OUTCOME=canceled` → force-recreate core-api + payment-worker (see §0.5 for the exact command). Create a new order. Watch: order flips to `cancelled` and staff detail shows `payment_status="payment_failed"`; it must not become `paid`. Flip back to `success` before continuing other flows.
 
-Set `YUKASSA_FAKE_OUTCOME=http_error`. New order → `payment-worker` logs show retry/backoff, eventually compensating by cancelling the order. The customer SPA surfaces a "Payment failed, please retry" toast (or equivalent). Restore `success` when done.
+Set `YUKASSA_FAKE_OUTCOME=http_error`. New order → `payment-worker` logs show retry/backoff, eventually compensating by cancelling the order and marking the payment `payment_failed`. The customer SPA surfaces a "Payment failed, please retry" toast (or equivalent). Restore `success` when done.
+
+### 8.6 Admin failed-refund queue
+
+`REFUND_FAILED` is a non-terminal payment state in PDD §6.2. Admins must be able
+to find affected orders and retry the refund from the existing order detail
+dialog.
+
+**UI.** Admin login → `/admin/orders` → "Refund issues" tab. The tab is visible
+for admin users and hidden for barista users. If there is no current
+`REFUND_FAILED` payment, the empty state is the correct result; the Phase 4 seed
+does not fabricate a failed refund by default. Do not force a payment into
+`REFUND_FAILED` with SQL during manual QA, because that bypasses the payment
+state machine and LDD markers.
+
+**API.**
+
+```bash
+curl -s "$BASE/api/v1/admin/orders?status=refund_failed&per_page=20" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq '{total_count, orders: [.orders[] |
+        {id, status, payment_status, can_retry_refund}]}'
+# Expect: 200. Empty orders[] is valid when no failed-refund fixture exists.
+
+REFUND_ORDER_ID=$(curl -s "$BASE/api/v1/admin/orders?status=refund_failed&per_page=1" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.orders[0].id // empty')
+
+if [ -n "$REFUND_ORDER_ID" ]; then
+  curl -s -o /tmp/refund_retry_admin -w '%{http_code}\n' -X POST \
+    "$BASE/api/v1/admin/orders/$REFUND_ORDER_ID/refund/retry" \
+    -H "Authorization: Bearer $ADMIN_TOKEN"
+  cat /tmp/refund_retry_admin | jq .
+  # Expect: 202 and the detail dialog eventually leaves can_retry_refund=false.
+
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+    "$BASE/api/v1/admin/orders/$REFUND_ORDER_ID/refund/retry" \
+    -H "Authorization: Bearer $BARISTA_TOKEN"
+  # Expect: 403. Retry is admin-only.
+else
+  echo "No REFUND_FAILED order in this seed; queue empty-state checked."
+fi
+```
 
 ---
 
 ## §9 Cross-role RBAC smoke (API-only)
 
-Single-pass table. Run after §0.4. Expected status is the **first** listed code; the others are documentation of what's legitimately accessible for other roles.
+Single-pass table. Run after §0.4. Expected status is the **first** listed code;
+the others are documentation of what's legitimately accessible for other roles.
+The `YANDEX` marker means the customer request reached the maps proxy and may
+return 200 / 500 / 503 depending on the local Yandex key state from §0.5.
 
 ```bash
 # Encode each expected-access row once
@@ -1181,8 +1411,10 @@ declare -A EXPECT=(
   # customer-only
   ["GET /api/v1/profile"]="customer=200 admin=403 barista=403 courier=403 noauth=401"
   ["GET /api/v1/profile/loyalty"]="customer=200 admin=403 barista=403 courier=403 noauth=401"
+  ["GET /api/v1/profile/notifications"]="customer=200 admin=403 barista=403 courier=403 noauth=401"
   ["GET /api/v1/profile/addresses"]="customer=200 admin=403 barista=403 courier=403 noauth=401"
   ["GET /api/v1/cart"]="customer=200 admin=403 barista=403 courier=403 noauth=401"
+  ["POST /api/v1/orders/estimate"]="customer=4xx admin=403 barista=403 courier=403 noauth=401"
   ["POST /api/v1/orders"]="customer=4xx admin=403 barista=403 courier=403 noauth=401"
   ["GET /api/v1/maps/suggest?text=foo"]="customer=YANDEX admin=403 barista=403 courier=403 noauth=401"
   # admin-only
@@ -1231,6 +1463,11 @@ done
 
 Scan the output against the `EXPECT` map. Any row where the first-expected role's code differs from the observed code is a regression.
 
+Destructive routes (`DELETE /api/v1/profile`,
+`DELETE /api/v1/admin/users/{user_id}`) are intentionally not part of this
+generic RBAC loop. Exercise them only through §7.7 and run the guarded reset
+afterward.
+
 ---
 
 ## §10 Known gaps / out-of-scope
@@ -1253,7 +1490,7 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 | `/api/v1/auth/verify-code` returns 401 wrong code / too many attempts | OTP already consumed or wrong code submitted | §0.7 reset and re-run §0.4 |
 | `/api/v1/auth/send-code` returns 429 | `sms_rate:*` counters full | `redis-cli DEL` those keys |
 | Customer checkout hangs on "creating order" | `payment-worker` unhealthy or `YUKASSA_FAKE_OUTCOME=http_error` left active | check logs; reset env var |
-| `/api/v1/admin/stats` returns 500 | no orders in DB and the aggregate query hit a NULL path | create at least one `paid` order |
+| `/api/v1/admin/stats` returns zeros / empty `popular_items` | no completed orders in the selected range | complete at least one order, or switch to a wider range |
 | Admin sidebar shows all 6 links for barista | phase 5.5 fix didn't land; `Layout.tsx NAV_BY_ROLE` missing | compare against current `web/admin/src/components/Layout.tsx` |
 | Delivery assignment row exists but is absent from courier available feed | order is still `preparing` | PATCH `/orders/$ID/status` with `ready` |
 | `/api/v1/maps/suggest` → 500 `yandex_upstream_error` with key set | key not activated / wrong product | §0.5; verify both APIs enabled in Yandex cabinet |
@@ -1270,8 +1507,11 @@ Scan the output against the `EXPECT` map. Any row where the first-expected role'
 
 ```bash
 # pull live OTP
-PH=$(echo -n "+79991234567" | sha256sum | cut -d' ' -f1)
-docker compose exec -T redis redis-cli GET "otp:$PH" | jq -r .code
+PHONE_NORM=${PHONE_NORM:-+79991234567}
+PH=$(printf '%s' "$PHONE_NORM" | sha256sum | cut -d' ' -f1)
+OTP_DATA=$(docker compose exec -T redis redis-cli GET "otp:$PH" || true)
+OTP=$(printf '%s' "$OTP_DATA" | jq -er .code)
+printf '%s\n' "$OTP"
 
 # order snapshot (all of them)
 curl -s "$BASE/api/v1/admin/orders?per_page=100" -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -1305,6 +1545,14 @@ done
 curl -s $BASE/api/v1/profile -H "Authorization: Bearer $CUST_TOKEN" | jq .
 curl -s $BASE/api/v1/profile/loyalty -H "Authorization: Bearer $CUST_TOKEN" | jq .
 curl -s $BASE/api/v1/profile/addresses -H "Authorization: Bearer $CUST_TOKEN" | jq 'length'
+curl -s "$BASE/api/v1/profile/notifications?per_page=5" \
+  -H "Authorization: Bearer $CUST_TOKEN" \
+  | jq '{total_count, notifications: [.notifications[] | {channel, type, order_id, created_at}]}'
+
+# admin failed-refund queue
+curl -s "$BASE/api/v1/admin/orders?status=refund_failed&per_page=20" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq '{total_count, orders: [.orders[] | {id, status, payment_status, can_retry_refund}]}'
 
 # force a paid pickup order end-to-end in one shot
 curl -s -X DELETE $BASE/api/v1/cart -H "Authorization: Bearer $CUST_TOKEN" > /dev/null
