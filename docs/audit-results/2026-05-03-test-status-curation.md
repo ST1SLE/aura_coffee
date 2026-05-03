@@ -14,8 +14,9 @@ This packet handles the backend PyJWT warning slice only:
 - focused proof that token-heavy Core API tests no longer emit
   `jwt.warnings.InsecureKeyLengthWarning`.
 
-Frontend React `act(...)` warnings, Radix Dialog description warnings, and a
-future frontend stderr warning gate remain separate backlog work.
+Frontend React `act(...)` warnings, Radix Dialog description warnings, and the
+frontend stderr warning gate were handled in the follow-up
+`docs/audit-results/2026-05-03-frontend-warning-curation.md` packet.
 
 ## Current Status
 
@@ -93,7 +94,4 @@ Required markers intentionally left untested: none.
 
 ## Remaining Curation Backlog
 
-- Clean customer/admin React `act(...)` warnings in Vitest output.
-- Add missing Radix Dialog descriptions where warnings remain.
-- After the frontend warning baseline is clean, add a gate that fails on new
-  frontend test stderr warnings.
+- No stale/flaky warning curation backlog remains from this P2 item.

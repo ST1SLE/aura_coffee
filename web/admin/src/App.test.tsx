@@ -44,14 +44,19 @@ describe('App', () => {
     localStorage.clear();
   });
 
+  function renderBrowserApp(path = '/admin') {
+    window.history.pushState({}, '', path);
+    return render(<App />);
+  }
+
   it('рендерится без краша (без токена)', () => {
-    const { container } = render(<App />);
+    const { container } = renderBrowserApp();
     expect(container).toBeDefined();
   });
 
   it('рендерится без краша (с токеном в localStorage)', () => {
     localStorage.setItem('accessToken', 'valid-token');
-    const { container } = render(<App />);
+    const { container } = renderBrowserApp();
     expect(container).toBeDefined();
   });
 

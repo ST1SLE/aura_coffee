@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -290,6 +291,9 @@ export function MenuItemFormDialog({
               ? t('pages.menu.itemForm.titleEdit')
               : t('pages.menu.itemForm.titleCreate')}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {t('pages.menu.itemForm.dialogDescription')}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

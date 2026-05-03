@@ -92,12 +92,12 @@ run_compose sms-worker pytest services/sms-worker/tests/ -v
 
 run_compose web-customer npm run lint
 run_compose web-customer npm run typecheck
-run_compose web-customer npm run test
+run_compose web-customer npm run test:stderr-clean
 run_compose web-customer npm audit --audit-level=high
 
 run_compose web-admin npm run lint
 run_compose web-admin npm run typecheck
-run_compose web-admin npm run test
+run_compose web-admin npm run test:stderr-clean
 run_compose web-admin npm audit --audit-level=high
 
 ./scripts/verify-browser-smoke.sh

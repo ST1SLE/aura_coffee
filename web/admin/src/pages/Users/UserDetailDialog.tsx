@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -144,6 +145,9 @@ export function UserDetailDialog({ userId, open, onClose, onMutated }: Props) {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('pages.users.detail.title')}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {t('pages.users.detail.dialogDescription')}
+            </DialogDescription>
           </DialogHeader>
 
           {loading && !detail && (

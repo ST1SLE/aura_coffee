@@ -179,6 +179,7 @@
       "itemForm": {
         "titleCreate": "New item",
         "titleEdit": "Edit item",
+        "dialogDescription": "Create or edit menu item details, pricing, inventory, and media.",
         "nameRu": "Name (RU)",
         "nameEn": "Name (EN)",
         "descriptionRu": "Description (RU)",
@@ -289,6 +290,7 @@
       },
       "detail": {
         "title": "User",
+        "dialogDescription": "Review customer account status, loyalty balance, and recent point transactions.",
         "balance": "Loyalty balance",
         "transactions": "Recent transactions",
         "block_button": "Block",
@@ -364,6 +366,7 @@
         "actions": "Actions"
       },
       "form": {
+        "dialogDescription": "Create or edit promo code discount rules and usage limits.",
         "code": "Code",
         "discount_type": "Discount Type",
         "percent": "Percent",

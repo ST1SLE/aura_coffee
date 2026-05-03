@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:stderr-clean": "sh ../shared-config/check-vitest-clean-stderr.sh",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint src/",
