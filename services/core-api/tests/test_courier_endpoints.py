@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 def _jwt_secret() -> str:
     """Секрет из env, чтобы совпадал с `settings.jwt_secret_key` в рантайме."""
-    return os.environ.get("JWT_SECRET_KEY", "test-secret")
+    return os.environ.get("JWT_SECRET_KEY", "aura-coffee-tests-jwt-secret-0001")
 
 
 def _make_token(role: str, user_id: uuid.UUID | None = None) -> str:

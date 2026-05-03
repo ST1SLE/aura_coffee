@@ -33,7 +33,7 @@ from tests.conftest import _TEST_DB_URL as TEST_DB_URL
 
 _IS_SQLITE = TEST_DB_URL.startswith("sqlite")
 
-_JWT_SECRET = "test-secret"
+_JWT_SECRET = "aura-coffee-tests-jwt-secret-0001"
 
 
 def _make_token(role: str = "customer", user_id: uuid.UUID | None = None) -> str:

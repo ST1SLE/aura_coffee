@@ -8,7 +8,6 @@ from __future__ import annotations
 import uuid
 from unittest.mock import patch
 
-import fakeredis
 import pytest
 from fastapi.testclient import TestClient
 
@@ -16,12 +15,12 @@ from tests.conftest import _TEST_DB_URL as TEST_DB_URL
 
 _IS_SQLITE = TEST_DB_URL.startswith("sqlite")
 
-# JWT-секрет из conftest.py
-_JWT_SECRET = "test-secret"
+# JWT-секрет из conftest.py, длина >=32 байт для HS256.
+_JWT_SECRET = "aura-coffee-tests-jwt-secret-0001"
 
 
 def _make_token(role: str = "customer", user_id: uuid.UUID | None = None) -> str:
-    """Создаёт JWT-токен с нужной ролью, используя test-secret из conftest."""
+    """Создаёт JWT-токен с нужной ролью, используя тестовый HS256 secret."""
     from core_api.services.auth import AuthService
 
     uid = user_id or uuid.uuid4()

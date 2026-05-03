@@ -23,7 +23,7 @@ FAKE_PROFILE = ProfileResponse(
 
 client = TestClient(app)
 
-TEST_SECRET = "test-secret-for-profile-tests"
+TEST_SECRET = "aura-coffee-tests-jwt-secret-0001"
 
 
 def _make_token(role: str = "customer", user_id: uuid.UUID | None = None) -> str:

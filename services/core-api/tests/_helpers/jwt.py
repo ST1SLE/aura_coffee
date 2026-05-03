@@ -15,7 +15,7 @@ import jwt as pyjwt
 
 def _jwt_secret() -> str:
     """Тот же секрет, что использует сервер (settings.jwt_secret_key из env)."""
-    return os.environ.get("JWT_SECRET_KEY", "test-secret")
+    return os.environ.get("JWT_SECRET_KEY", "aura-coffee-tests-jwt-secret-0001")
 
 
 def make_jwt_for_user(user_id: uuid.UUID, role: str = "customer") -> str:

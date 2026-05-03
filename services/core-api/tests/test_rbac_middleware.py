@@ -13,7 +13,7 @@ from core_api.services.auth import AuthService
 
 client = TestClient(app)
 
-TEST_SECRET = "test-secret-for-rbac"
+TEST_SECRET = "aura-coffee-tests-jwt-secret-0001"
 
 
 def _make_token(role: str, *, expired: bool = False) -> str:

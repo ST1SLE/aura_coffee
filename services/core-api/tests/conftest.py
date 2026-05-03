@@ -10,10 +10,11 @@ if str(_REPO_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_REPO_ROOT))
 
 # Подставляем минимальные env-переменные до импорта приложения
+_TEST_JWT_SECRET = "aura-coffee-tests-jwt-secret-0001"
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("AURA_ENV", "dev")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
+os.environ["JWT_SECRET_KEY"] = _TEST_JWT_SECRET
 os.environ.setdefault("ENCRYPTION_KEY", "0" * 64)
 
 # Тесты НИКОГДА не падают в DATABASE_URL (prod DB). Если TEST_DATABASE_URL
@@ -67,7 +68,7 @@ if _TEST_DB_URL.startswith("sqlite"):
 # ─────────────────────────────────────────────
 def _current_jwt_secret() -> str:
     """Секрет JWT, согласованный с settings.jwt_secret_key (читается из env)."""
-    return os.environ.get("JWT_SECRET_KEY", "test-secret")
+    return os.environ.get("JWT_SECRET_KEY", _TEST_JWT_SECRET)
 
 
 def _make_jwt(role: str) -> str:
@@ -199,7 +200,7 @@ def db_client(migrated_db_session: Session) -> Generator[TestClient, None, None]
 @pytest.fixture
 def auth_svc(r: fakeredis.FakeRedis) -> Generator[AuthService, None, None]:
     with patch("core_api.services.auth.settings") as mock_settings:
-        mock_settings.jwt_secret_key = "test-secret"
+        mock_settings.jwt_secret_key = _TEST_JWT_SECRET
         mock_settings.jwt_algorithm = "HS256"
         mock_settings.access_token_ttl = 900
         mock_settings.refresh_token_ttl = 604800

@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-_JWT_SECRET = "test-secret"
+_JWT_SECRET = "aura-coffee-tests-jwt-secret-0001"
 
 
 def _make_token(role: str, user_id: uuid.UUID | None = None) -> str:

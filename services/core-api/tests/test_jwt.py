@@ -1,5 +1,3 @@
-import os
-import time
 import uuid
 from unittest.mock import patch
 
@@ -12,7 +10,7 @@ from core_api.services.auth import AuthService
 class TestJWT:
     @patch("core_api.services.auth.settings")
     def test_create_and_decode(self, mock_settings) -> None:
-        mock_settings.jwt_secret_key = "test-secret"
+        mock_settings.jwt_secret_key = "aura-coffee-tests-jwt-secret-0001"
         mock_settings.jwt_algorithm = "HS256"
         mock_settings.access_token_ttl = 900
 
@@ -26,7 +24,7 @@ class TestJWT:
 
     @patch("core_api.services.auth.settings")
     def test_expired_token(self, mock_settings) -> None:
-        mock_settings.jwt_secret_key = "test-secret"
+        mock_settings.jwt_secret_key = "aura-coffee-tests-jwt-secret-0001"
         mock_settings.jwt_algorithm = "HS256"
         mock_settings.access_token_ttl = -1  # сразу истёк
 
@@ -39,7 +37,7 @@ class TestJWT:
 
     @patch("core_api.services.auth.settings")
     def test_invalid_signature(self, mock_settings) -> None:
-        mock_settings.jwt_secret_key = "test-secret"
+        mock_settings.jwt_secret_key = "aura-coffee-tests-jwt-secret-0001"
         mock_settings.jwt_algorithm = "HS256"
         mock_settings.access_token_ttl = 900
 
@@ -48,6 +46,6 @@ class TestJWT:
             AuthService.__new__(AuthService), user_id, "customer"
         )
 
-        mock_settings.jwt_secret_key = "wrong-secret"
+        mock_settings.jwt_secret_key = "wrong-aura-coffee-tests-jwt-secret-0001"
         with pytest.raises(jwt.InvalidSignatureError):
             AuthService.decode_access_token(token)
