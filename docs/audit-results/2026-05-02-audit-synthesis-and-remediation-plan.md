@@ -338,9 +338,11 @@ Status:
 
 ## Remaining May 2 P1/P2 Review
 
-Current status after the implemented waves and final green full gate:
+Current status after the implemented waves, follow-up backlog packets, and final
+green full gate:
 
-1. No release-significant P1/P2 blockers remain from the May 2 remediation set. Remaining work is polish/backlog unless the release definition expands.
+1. No release-significant P1/P2 blockers remain from the May 2 remediation set.
+2. No May 2 polish/backlog packet currently remains open in this synthesis.
 
 Additional release-readiness items completed in follow-up packets:
 
@@ -348,12 +350,13 @@ Additional release-readiness items completed in follow-up packets:
 2. DB-level `order_items` immutability is now enforced by migration `0011_order_items_immutability.py`: the `orders -> order_items` FK is `ON DELETE RESTRICT`, and Postgres triggers reject direct `UPDATE` and `DELETE` on `order_items`.
 3. Tracked CI now exists at `.github/workflows/verify.yml`: on `push` to `main`/`dev` and on pull requests it installs `uv`, generates a dev `.env`, builds/starts the Compose stack, runs `./scripts/verify-full.sh`, uploads Docker logs on failure, and shuts the stack down. `scripts/setup-worktree-env.sh` now offsets `PAYMENT_WEBHOOK_PORT` too, so the workflow and local parallel worktrees do not share that host binding.
 4. Browser smoke now exists under `tests/e2e`: `scripts/verify-browser-smoke.sh` installs Playwright, runs the QA-scoped reset, and verifies customer pickup checkout, admin logout to barista role switching, barista pickup transitions, and courier take/pickup/deliver through the browser. `./scripts/verify-full.sh` now includes this gate.
+5. Customer visual polish is complete through `docs/design/aura-customer-redesign-plan.md` packets 0-12, including menu browsing, cart CTA, checkout/order/profile surfaces, auth panels, loyalty card, and saved-address screens.
 
-Items that look downgraded to polish/backlog, not immediate release blockers:
+Follow-up backlog packets completed after the release-blocking waves:
 
 - Staff mobile navigation and order-feed freshness are now addressed in code: admin/barista layout has a role-filtered mobile bottom nav, and the staff orders feed polls active orders every 5 seconds.
 - SMS.ru redaction, Python dependency auditing, courier available-feed PII minimization, payment webhook ingress/guards, auth/session hardening, account deletion, notification boundary cleanup, and non-destructive QA reset are covered by the completed wave statuses above.
-- Remaining customer visual polish should be a separate backlog packet unless the release definition expands to include it. Staff table/card mobile optimization, the failed-refund admin exception queue, the customer notification feed, backend PyJWT warning/status curation, and frontend warning curation have been handled in follow-up backlog packets.
+- Staff table/card mobile optimization, the failed-refund admin exception queue, the customer notification feed, backend PyJWT warning/status curation, and frontend warning curation have been handled in follow-up backlog packets.
 
 ## Parallelization Guidance
 
