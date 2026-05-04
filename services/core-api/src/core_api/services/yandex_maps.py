@@ -75,6 +75,8 @@ def is_low_precision(precision: str) -> bool:
 # START_CONTRACT: YandexMapsClient
 #   PURPOSE: Synchronous httpx-backed client for Suggest + Geocoder endpoints.
 #   INPUTS:  api_key: str = ""
+#            suggest_api_key: str = "" — optional Suggest-specific fallback
+#            geocoder_api_key: str = "" — optional Geocoder-specific fallback
 #            timeout: float = 3.0 — httpx timeout in seconds
 #   OUTPUTS: YandexMapsClient instance.
 #   SIDE_EFFECTS: opens an httpx.Client on construction.
@@ -83,11 +85,19 @@ def is_low_precision(precision: str) -> bool:
 class YandexMapsClient:
     """Синхронный прокси к Suggest и Geocoder Yandex.Maps."""
 
-    def __init__(self, api_key: str = "", timeout: float = 3.0) -> None:
-        # api_key хранится только как стартовое значение — при каждом
-        # вызове читаем settings.yandex_maps_api_key, чтобы тесты могли
-        # монки-патчить ключ на лету.
+    def __init__(
+        self,
+        api_key: str = "",
+        suggest_api_key: str = "",
+        geocoder_api_key: str = "",
+        timeout: float = 3.0,
+    ) -> None:
+        # Ключи из __init__ хранятся только как fallback — при каждом вызове
+        # читаем settings, чтобы тесты и env-перезагрузка могли подменять ключи
+        # без пересоздания клиента.
         self._api_key = api_key
+        self._suggest_api_key = suggest_api_key
+        self._geocoder_api_key = geocoder_api_key
         self._timeout = httpx.Timeout(timeout)
         self._client = httpx.Client(timeout=self._timeout)
 
@@ -101,9 +111,23 @@ class YandexMapsClient:
     def timeout(self) -> httpx.Timeout:
         return self._timeout
 
-    def _current_api_key(self) -> str:
-        # settings — источник истины; ключ из __init__ оставлен как fallback.
-        return settings.yandex_maps_api_key or self._api_key
+    def _current_suggest_api_key(self) -> str:
+        # Специфичный ключ имеет приоритет; общий ключ — обратная совместимость.
+        return (
+            settings.yandex_maps_suggest_api_key
+            or settings.yandex_maps_api_key
+            or self._suggest_api_key
+            or self._api_key
+        )
+
+    def _current_geocoder_api_key(self) -> str:
+        # Специфичный ключ имеет приоритет; общий ключ — обратная совместимость.
+        return (
+            settings.yandex_maps_geocoder_api_key
+            or settings.yandex_maps_api_key
+            or self._geocoder_api_key
+            or self._api_key
+        )
 
     # START_CONTRACT: YandexMapsClient.suggest
     #   PURPOSE: Call Yandex Suggest endpoint and normalise into a list of
@@ -119,7 +143,7 @@ class YandexMapsClient:
         params = {
             "text": text,
             "lang": lang,
-            "apikey": self._current_api_key(),
+            "apikey": self._current_suggest_api_key(),
             "print_address": 1,
         }
         try:
@@ -159,7 +183,7 @@ class YandexMapsClient:
     def geocode(self, text: str) -> GeocodeResult | None:
         params = {
             "geocode": text,
-            "apikey": self._current_api_key(),
+            "apikey": self._current_geocoder_api_key(),
             "format": "json",
             "results": 1,
         }

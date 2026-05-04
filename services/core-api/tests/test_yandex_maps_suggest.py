@@ -26,17 +26,22 @@ from fastapi.testclient import TestClient
 
 YANDEX_SUGGEST_BASE = "https://suggest-maps.yandex.ru/v1/suggest"
 YANDEX_GEOCODER_BASE = "https://geocode-maps.yandex.ru/1.x/"
-TEST_API_KEY = "test-yandex-key"
+TEST_SUGGEST_API_KEY = "test-yandex-suggest-key"
+TEST_GEOCODER_API_KEY = "test-yandex-geocoder-key"
 
 
 @pytest.fixture(autouse=True)
 def _set_yandex_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Устанавливает тестовый ключ до того, как сервис прочитает settings."""
-    monkeypatch.setenv("YANDEX_MAPS_API_KEY", TEST_API_KEY)
+    monkeypatch.setenv("YANDEX_MAPS_SUGGEST_API_KEY", TEST_SUGGEST_API_KEY)
+    monkeypatch.setenv("YANDEX_MAPS_GEOCODER_API_KEY", TEST_GEOCODER_API_KEY)
+    monkeypatch.delenv("YANDEX_MAPS_API_KEY", raising=False)
     # Сбрасываем кэш settings, если сервис его кэширует на модульном уровне.
     from core_api import settings as _settings_mod
 
-    _settings_mod.settings.yandex_maps_api_key = TEST_API_KEY
+    _settings_mod.settings.yandex_maps_api_key = ""
+    _settings_mod.settings.yandex_maps_suggest_api_key = TEST_SUGGEST_API_KEY
+    _settings_mod.settings.yandex_maps_geocoder_api_key = TEST_GEOCODER_API_KEY
 
 
 # ---------------------------------------------------------------------------
@@ -125,12 +130,39 @@ def test_suggest_forwards_api_key_in_outbound_request(
     outbound = request.url.query.decode() + " " + " ".join(
         f"{k}: {v}" for k, v in request.headers.items()
     )
-    assert TEST_API_KEY in outbound, (
-        "Ключ API должен уходить к Yandex, но не найден в исходящем запросе"
+    assert TEST_SUGGEST_API_KEY in outbound, (
+        "Suggest API-ключ должен уходить к Yandex, но не найден в исходящем запросе"
+    )
+    assert TEST_GEOCODER_API_KEY not in outbound, (
+        "Geocoder API-ключ не должен использоваться для Suggest-запроса"
     )
 
     # Ключ НЕ ДОЛЖЕН утекать в ответ клиенту (INV-015).
-    assert TEST_API_KEY not in resp.text, "API-ключ утёк в ответ клиента"
+    assert TEST_SUGGEST_API_KEY not in resp.text, "API-ключ утёк в ответ клиента"
+
+
+@respx.mock
+def test_suggest_falls_back_to_legacy_yandex_maps_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from core_api import settings as _settings_mod
+    from core_api.services.yandex_maps import YandexMapsClient
+
+    legacy_key = "legacy-yandex-key"
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", legacy_key)
+    monkeypatch.delenv("YANDEX_MAPS_SUGGEST_API_KEY", raising=False)
+    _settings_mod.settings.yandex_maps_api_key = legacy_key
+    _settings_mod.settings.yandex_maps_suggest_api_key = ""
+
+    route = respx.get(YANDEX_SUGGEST_BASE).mock(
+        return_value=httpx.Response(200, json=_suggest_response_two_matches())
+    )
+
+    YandexMapsClient().suggest("Москва", "ru_RU")
+
+    request = route.calls.last.request
+    outbound = request.url.query.decode()
+    assert legacy_key in outbound
 
 
 # ---------------------------------------------------------------------------

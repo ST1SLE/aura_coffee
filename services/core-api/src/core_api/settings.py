@@ -55,7 +55,8 @@ def _looks_placeholder(value: str) -> bool:
 #            the app can start.
 #   INPUTS:  reads env vars including AURA_ENV, DATABASE_URL, REDIS_URL,
 #            JWT_SECRET_KEY, ENCRYPTION_KEY, SMSRU_API_KEY,
-#            YANDEX_MAPS_API_KEY.
+#            YANDEX_MAPS_API_KEY / YANDEX_MAPS_SUGGEST_API_KEY /
+#            YANDEX_MAPS_GEOCODER_API_KEY.
 #   OUTPUTS: Settings instance.
 #   SIDE_EFFECTS: none; raises ValidationError on unsafe non-dev secrets.
 #   LINKS:   PDD §8.4, INV-015, INV-013
@@ -77,9 +78,13 @@ class Settings(BaseSettings):
     encryption_key: str = ""
     smsru_api_key: str = ""
     cart_ttl_seconds: int = 86400  # PDD §5.3: TTL корзины в Redis — 24 ч
-    # PDD §8.3, §8.4, INV-015: API-ключ Яндекс.Карт. Используется Core API
-    # при проксировании Suggest/Geocoder; в клиентский бандл не попадает.
+    # PDD §8.3, §8.4, INV-015: API-ключи Яндекс.Карт. Используются только
+    # Core API при проксировании Suggest/Geocoder; в клиентский бандл не
+    # попадают. YANDEX_MAPS_API_KEY оставлен как общий fallback для локальной
+    # разработки и обратной совместимости.
     yandex_maps_api_key: str = ""
+    yandex_maps_suggest_api_key: str = ""
+    yandex_maps_geocoder_api_key: str = ""
 
     @model_validator(mode="after")
     def _check_secret_safety(self) -> "Settings":

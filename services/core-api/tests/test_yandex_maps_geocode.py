@@ -20,15 +20,21 @@ from fastapi.testclient import TestClient
 
 YANDEX_GEOCODER_BASE = "https://geocode-maps.yandex.ru/1.x/"
 TEST_API_KEY = "test-yandex-key"
+TEST_SUGGEST_API_KEY = "test-yandex-suggest-key"
+TEST_GEOCODER_API_KEY = "test-yandex-geocoder-key"
 SEVEN_DAYS_SECONDS = 604800
 
 
 @pytest.fixture(autouse=True)
 def _set_yandex_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("YANDEX_MAPS_API_KEY", TEST_API_KEY)
+    monkeypatch.setenv("YANDEX_MAPS_SUGGEST_API_KEY", TEST_SUGGEST_API_KEY)
+    monkeypatch.setenv("YANDEX_MAPS_GEOCODER_API_KEY", TEST_GEOCODER_API_KEY)
+    monkeypatch.delenv("YANDEX_MAPS_API_KEY", raising=False)
     from core_api import settings as _settings_mod
 
-    _settings_mod.settings.yandex_maps_api_key = TEST_API_KEY
+    _settings_mod.settings.yandex_maps_api_key = ""
+    _settings_mod.settings.yandex_maps_suggest_api_key = TEST_SUGGEST_API_KEY
+    _settings_mod.settings.yandex_maps_geocoder_api_key = TEST_GEOCODER_API_KEY
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +107,54 @@ def test_geocode_happy_path_returns_canonical_fields(
     assert body["precision"] == "exact"
     assert isinstance(body["canonical_text"], str)
     # Ключ API не должен утечь в ответ.
-    assert TEST_API_KEY not in resp.text
+    assert TEST_GEOCODER_API_KEY not in resp.text
+
+
+@respx.mock
+def test_geocode_forwards_geocoder_api_key(
+    client: TestClient,
+    customer_headers: dict[str, str],
+    cart_redis: fakeredis.FakeRedis,
+) -> None:
+    route = respx.get(YANDEX_GEOCODER_BASE).mock(
+        return_value=httpx.Response(200, json=_geocoder_response())
+    )
+
+    resp = client.get(
+        "/api/v1/maps/geocode",
+        params={"text": "Moscow, Red Square"},
+        headers=customer_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    request = route.calls.last.request
+    outbound = request.url.query.decode()
+    assert TEST_GEOCODER_API_KEY in outbound
+    assert TEST_SUGGEST_API_KEY not in outbound
+
+
+@respx.mock
+def test_geocode_falls_back_to_legacy_yandex_maps_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from core_api import settings as _settings_mod
+    from core_api.services.yandex_maps import YandexMapsClient
+
+    legacy_key = "legacy-yandex-key"
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", legacy_key)
+    monkeypatch.delenv("YANDEX_MAPS_GEOCODER_API_KEY", raising=False)
+    _settings_mod.settings.yandex_maps_api_key = legacy_key
+    _settings_mod.settings.yandex_maps_geocoder_api_key = ""
+
+    route = respx.get(YANDEX_GEOCODER_BASE).mock(
+        return_value=httpx.Response(200, json=_geocoder_response())
+    )
+
+    YandexMapsClient().geocode("Moscow, Red Square")
+
+    request = route.calls.last.request
+    outbound = request.url.query.decode()
+    assert legacy_key in outbound
 
 
 # ---------------------------------------------------------------------------
