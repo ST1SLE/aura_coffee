@@ -29,7 +29,7 @@ The repo already has the right architectural direction: a same-origin monolith
 behind nginx with `core-api`, customer/admin SPAs, workers, PostgreSQL, and
 Redis deployed with Docker Compose.
 
-The current local stack is still development-shaped:
+The local stack remains development-shaped by design:
 
 - Compose uses dev Docker targets and bind mounts source into containers.
 - Customer/admin SPAs run through Vite dev servers.
@@ -37,11 +37,16 @@ The current local stack is still development-shaped:
 - PostgreSQL and Redis publish host ports for local development.
 - `.env.example` contains dev-safe defaults and placeholder credentials.
 
-Shipping requires a production overlay rather than mutating the local workflow.
+Shipping uses a production overlay rather than mutating the local workflow.
 
-At the time this roadmap was written, the production-shipping artifacts still
-need to be implemented: no `docker-compose.production.yml`,
-`.env.production.example`, or `scripts/production/` helpers are present yet.
+Stage 1 production skeleton artifacts now exist in repo:
+
+- `docker-compose.production.yml`
+- `.env.production.example`
+- `deploy/nginx/nginx.production.conf`
+- `deploy/nginx/Dockerfile`
+- `scripts/production/validate-env.sh`
+- `scripts/production/compose.sh`
 
 ## Roadmap From Current State To Production
 
@@ -113,8 +118,7 @@ YANDEX_MAPS_API_KEY=
 
 Gate:
 
-- `docker compose -f docker-compose.yml -f docker-compose.production.yml config`
-  is valid.
+- `scripts/production/compose.sh .env.production.example config` is valid.
 - Production images build.
 - nginx is the only public service.
 - `/`, `/admin/`, `/health`, and `/media/menu/...` smoke successfully.

@@ -146,30 +146,17 @@ Steps:
 Commands:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  config
+scripts/production/validate-env.sh /opt/aura-coffee/.env.production
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  up -d --build
+scripts/production/compose.sh /opt/aura-coffee/.env.production config
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  ps
+scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  port postgres 5432
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  port redis 6379
+scripts/production/compose.sh /opt/aura-coffee/.env.production port postgres 5432
+
+scripts/production/compose.sh /opt/aura-coffee/.env.production port redis 6379
 
 curl -I https://DOMAIN/
 curl -I https://DOMAIN/admin/
@@ -191,10 +178,7 @@ Gate:
 Rollback:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  down
+scripts/production/compose.sh /opt/aura-coffee/.env.production down
 ```
 
 ## Phase 2: Enable Yandex Maps
@@ -221,18 +205,13 @@ YANDEX_MAPS_API_KEY=
 Restart:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  up -d core-api
+scripts/production/compose.sh /opt/aura-coffee/.env.production up -d core-api
 ```
 
 Provider probe from inside `core-api`:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   exec -T core-api python3 -c "
 import httpx, os
 k = os.getenv('YANDEX_MAPS_GEOCODER_API_KEY') or os.getenv('YANDEX_MAPS_API_KEY', '')
@@ -297,9 +276,7 @@ SMSRU_API_KEY=real_api_id
 Restart:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   up -d sms-worker core-api-worker core-api
 ```
 
@@ -318,9 +295,7 @@ Controlled OTP flow:
 Log check:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 150 sms-worker
 ```
 
@@ -379,9 +354,7 @@ YUKASSA_WEBHOOK_SIGNATURE_SECRET=only_if_configured
 Restart:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   up -d payment-worker payment-webhook core-api
 ```
 
@@ -398,9 +371,7 @@ Payment test:
 Log check:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 200 payment-webhook payment-worker
 ```
 
@@ -479,9 +450,7 @@ Steps:
 Backup command shape:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip > "/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
 ```
@@ -549,14 +518,9 @@ curl -I https://DOMAIN/
 curl -I https://DOMAIN/admin/
 curl -s https://DOMAIN/health
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  ps
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps
 
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 200 core-api payment-webhook payment-worker sms-worker
 ```
 

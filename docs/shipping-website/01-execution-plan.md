@@ -133,7 +133,7 @@ Implementation:
 
 Verification:
 
-- `docker compose -f docker-compose.yml -f docker-compose.production.yml config`
+- `scripts/production/compose.sh .env.production.example config`
 - Build all production images.
 - Run production overlay locally with fake/log external backends first.
 - Confirm Postgres/Redis are not published to `0.0.0.0`.

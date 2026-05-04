@@ -104,14 +104,20 @@ Expected services:
 Required checks:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml config
-docker compose -f docker-compose.yml -f docker-compose.production.yml ps
-docker compose -f docker-compose.yml -f docker-compose.production.yml port postgres 5432
-docker compose -f docker-compose.yml -f docker-compose.production.yml port redis 6379
+scripts/production/compose.sh .env.production.example config
+
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps
+
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps --format json
+
+scripts/production/compose.sh /opt/aura-coffee/.env.production port postgres 5432
+
+scripts/production/compose.sh /opt/aura-coffee/.env.production port redis 6379
 ```
 
-The last two commands should print nothing or fail because those ports should
-not be published.
+The last two commands can print `:0` on newer Compose versions for exposed but
+unpublished container ports. Treat any concrete host port above zero on
+PostgreSQL or Redis as a failure.
 
 ## 4. Production Environment
 
@@ -148,6 +154,8 @@ Required variables:
 | `YUKASSA_WEBHOOK_SIGNATURE_SECRET` | set if configured in YuKassa |
 | `ADMIN_LOGIN` | non-default initial admin login |
 | `ADMIN_PASSWORD` | strong one-time initial admin password |
+| `NGINX_HTTP_PORT` | `80` for direct public HTTP |
+| `AURA_MENU_MEDIA_DIR` | `/srv/aura-coffee/media/menu` |
 
 Secret generation examples:
 
@@ -159,6 +167,7 @@ openssl rand -base64 48       # JWT_SECRET_KEY or passwords
 Acceptance:
 
 - No production secret is committed.
+- `scripts/production/validate-env.sh /opt/aura-coffee/.env.production` passes.
 - `AURA_ENV=production` boots only with non-placeholder `JWT_SECRET_KEY` and
   `ENCRYPTION_KEY`.
 - `YUKASSA_BACKEND=live` refuses empty credentials or sandbox/test/localhost
@@ -340,7 +349,7 @@ Minimum operations:
 Suggested backup command shape:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip > "/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
 ```

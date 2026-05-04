@@ -22,10 +22,16 @@ Goal: prove production build/deployment mechanics without real providers.
 Commands:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml config
-docker compose -f docker-compose.yml -f docker-compose.production.yml build
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
-docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+scripts/production/compose.sh .env.production.example config
+
+scripts/production/compose.sh .env.production.example build
+
+# For an actual local up, copy .env.production.example to a private local env
+# and replace the REPLACE_* placeholders first.
+scripts/production/compose.sh .env.production.local up -d
+
+scripts/production/compose.sh .env.production.local ps
+
 curl -s http://localhost/health
 ```
 
@@ -79,19 +85,13 @@ Command shape:
 
 ```bash
 cd /opt/aura-coffee/app
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  up -d --build
+scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 ```
 
 Readiness:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  ps
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps
 
 curl -s http://localhost/health
 ```
@@ -136,9 +136,7 @@ Expected:
 ### Yandex
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   exec -T core-api python3 -c "
 import httpx, os
 k = os.getenv('YANDEX_MAPS_GEOCODER_API_KEY') or os.getenv('YANDEX_MAPS_API_KEY','')
@@ -170,9 +168,7 @@ Controlled test:
 Log check:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 100 sms-worker
 ```
 
@@ -224,18 +220,13 @@ Technical checks:
 curl -I https://DOMAIN/
 curl -I https://DOMAIN/admin/
 curl -s https://DOMAIN/health
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  ps
+scripts/production/compose.sh /opt/aura-coffee/.env.production ps
 ```
 
 Log checks:
 
 ```bash
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 200 core-api payment-webhook payment-worker sms-worker nginx
 ```
 
@@ -255,9 +246,7 @@ Before live customer traffic:
 
 ```bash
 BACKUP="/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
+scripts/production/compose.sh /opt/aura-coffee/.env.production \
   exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip > "$BACKUP"
 ls -lh "$BACKUP"
@@ -307,10 +296,7 @@ Use the least destructive rollback that fixes the incident.
 ```bash
 cd /opt/aura-coffee/app
 git checkout PREVIOUS_RELEASE_TAG_OR_COMMIT
-docker compose --env-file /opt/aura-coffee/.env.production \
-  -f docker-compose.yml \
-  -f docker-compose.production.yml \
-  up -d --build
+scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 ```
 
 ### Bad Provider Webhook
