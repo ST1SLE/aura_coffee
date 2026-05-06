@@ -14,6 +14,9 @@ NGINX_PRODUCTION_TLS_CONF = (
 COMPOSE_FILE = REPO_ROOT / "docker-compose.yml"
 COMPOSE_PRODUCTION_FILE = REPO_ROOT / "docker-compose.production.yml"
 COMPOSE_PRODUCTION_TLS_FILE = REPO_ROOT / "docker-compose.production.tls.yml"
+COMPOSE_PRODUCTION_STAGING_AUTH_FILE = (
+    REPO_ROOT / "docker-compose.production.staging-auth.yml"
+)
 
 
 def _read_nginx_config() -> str:
@@ -38,6 +41,10 @@ def _read_production_compose_config() -> str:
 
 def _read_production_tls_compose_config() -> str:
     return COMPOSE_PRODUCTION_TLS_FILE.read_text(encoding="utf-8")
+
+
+def _read_production_staging_auth_compose_config() -> str:
+    return COMPOSE_PRODUCTION_STAGING_AUTH_FILE.read_text(encoding="utf-8")
 
 
 def _location_block(config: str, location: str) -> str:
@@ -134,6 +141,8 @@ def test_production_tls_nginx_terminates_https_and_keeps_acme_http() -> None:
         "ssl_certificate_key /etc/letsencrypt/live/${AURA_PUBLIC_DOMAIN}/privkey.pem;"
         in config
     )
+    assert "auth_basic ${AURA_BASIC_AUTH_REALM};" in config
+    assert "auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};" in config
 
 
 def test_production_tls_nginx_routes_yukassa_before_generic_api() -> None:
@@ -158,3 +167,13 @@ def test_production_tls_compose_publishes_https_and_mounts_cert_paths() -> None:
     assert "/var/www/certbot:ro" in config
     assert "/etc/letsencrypt:ro" in config
     assert "nginx.production.tls.conf.template" in config
+    assert "AURA_BASIC_AUTH_REALM: ${AURA_BASIC_AUTH_REALM:-off}" in config
+
+
+def test_staging_auth_compose_mounts_htpasswd_and_enables_basic_auth() -> None:
+    config = _read_production_staging_auth_compose_config()
+
+    assert "AURA_BASIC_AUTH_REALM: Aura-Staging" in config
+    assert "AURA_BASIC_AUTH_USER_FILE: /etc/nginx/staging.htpasswd" in config
+    assert "AURA_STAGING_HTPASSWD_FILE is required for staging auth" in config
+    assert "/etc/nginx/staging.htpasswd:ro" in config

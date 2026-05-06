@@ -2,18 +2,28 @@
 set -eu
 
 TLS_MODE=0
-if [ "${1:-}" = "--tls" ]; then
-  TLS_MODE=1
+STAGING_AUTH_MODE=0
+while [ "${1:-}" = "--tls" ] || [ "${1:-}" = "--staging-auth" ]; do
+  case "$1" in
+    --tls)
+      TLS_MODE=1
+      ;;
+    --staging-auth)
+      TLS_MODE=1
+      STAGING_AUTH_MODE=1
+      ;;
+  esac
   shift
-fi
+done
 
 if [ "$#" -lt 2 ]; then
   cat >&2 <<'USAGE'
-Usage: scripts/production/compose.sh [--tls] ENV_FILE [docker compose args...]
+Usage: scripts/production/compose.sh [--tls] [--staging-auth] ENV_FILE [docker compose args...]
 
 Examples:
   scripts/production/compose.sh .env.production.example config
   scripts/production/compose.sh --tls .env.production.example config
+  scripts/production/compose.sh --tls --staging-auth .env.production.example config
   scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 USAGE
   exit 2
@@ -27,7 +37,15 @@ shift
   exit 1
 }
 
-if [ "$TLS_MODE" -eq 1 ]; then
+if [ "$STAGING_AUTH_MODE" -eq 1 ]; then
+  set -- docker compose \
+    --env-file "$ENV_FILE" \
+    -f docker-compose.yml \
+    -f docker-compose.production.yml \
+    -f docker-compose.production.tls.yml \
+    -f docker-compose.production.staging-auth.yml \
+    "$@"
+elif [ "$TLS_MODE" -eq 1 ]; then
   set -- docker compose \
     --env-file "$ENV_FILE" \
     -f docker-compose.yml \
@@ -48,6 +66,9 @@ exec env \
   -u AURA_PUBLIC_DOMAIN \
   -u AURA_CERTBOT_WWW_DIR \
   -u AURA_LETSENCRYPT_DIR \
+  -u AURA_BASIC_AUTH_REALM \
+  -u AURA_BASIC_AUTH_USER_FILE \
+  -u AURA_STAGING_HTPASSWD_FILE \
   -u POSTGRES_USER \
   -u POSTGRES_PASSWORD \
   -u POSTGRES_DB \

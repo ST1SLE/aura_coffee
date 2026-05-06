@@ -108,6 +108,8 @@ scripts/production/compose.sh .env.production.example config
 
 scripts/production/compose.sh --tls .env.production.example config
 
+scripts/production/compose.sh --tls --staging-auth .env.production.example config
+
 scripts/production/compose.sh /opt/aura-coffee/.env.production ps
 
 scripts/production/compose.sh /opt/aura-coffee/.env.production ps --format json

@@ -39,6 +39,9 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
+    auth_basic ${AURA_BASIC_AUTH_REALM};
+    auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};
+
     # Readiness probe through the canonical nginx entry point.
     location = /health {
         proxy_pass http://api/health;
