@@ -102,6 +102,20 @@ def test_production_nginx_routes_static_spas_and_media() -> None:
     assert "alias /srv/aura-coffee/media/menu/" in config
 
 
+def test_production_nginx_access_log_omits_query_string() -> None:
+    config = _read_production_nginx_config()
+
+    assert "log_format aura_no_query" in config
+    assert '"$request_method $uri $server_protocol"' in config
+    assert "access_log /var/log/nginx/access.log aura_no_query;" in config
+    log_format = config[
+        config.index("log_format aura_no_query") : config.index("server {")
+    ]
+    assert "$request_uri" not in log_format
+    assert "$args" not in log_format
+    assert '"$request"' not in log_format
+
+
 def test_production_nginx_routes_yukassa_before_generic_api() -> None:
     config = _read_production_nginx_config()
 
@@ -149,6 +163,20 @@ def test_production_tls_nginx_terminates_https_and_keeps_acme_http() -> None:
     assert "auth_basic $aura_basic_auth_realm;" in config
     assert "auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};" in config
     assert "add_header Set-Cookie $aura_staging_set_cookie always;" in config
+
+
+def test_production_tls_nginx_access_log_omits_query_string() -> None:
+    config = _read_production_tls_nginx_config()
+
+    assert "log_format aura_no_query" in config
+    assert '"$request_method $uri $server_protocol"' in config
+    assert "access_log /var/log/nginx/access.log aura_no_query;" in config
+    log_format = config[
+        config.index("log_format aura_no_query") : config.index("map_hash_bucket_size")
+    ]
+    assert "$request_uri" not in log_format
+    assert "$args" not in log_format
+    assert '"$request"' not in log_format
 
 
 def test_production_tls_nginx_routes_yukassa_before_generic_api() -> None:
