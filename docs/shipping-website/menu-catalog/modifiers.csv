@@ -1,0 +1,3 @@
+modifier_code,name_ru,name_en,price_kopecks,available,sort_order
+oat-milk,REPLACE_RU_OAT_MILK,Oat milk,7000,true,0
+vanilla-syrup,REPLACE_RU_VANILLA_SYRUP,Vanilla syrup,5000,true,10

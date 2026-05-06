@@ -1,0 +1,3 @@
+category_code,type,name_ru,name_en,sort_order,is_visible
+coffee,drink,REPLACE_RU_COFFEE,Coffee,0,true
+bakery,food,REPLACE_RU_BAKERY,Bakery,10,true

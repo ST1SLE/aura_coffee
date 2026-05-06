@@ -221,6 +221,32 @@ Expected:
 - draft item names include `(staging)` so they cannot be confused with the
   final owner-approved public menu.
 
+## Final Menu Catalog Validation
+
+Before replacing the closed-staging draft menu with owner-approved content,
+copy the spreadsheet exports into `docs/shipping-website/menu-catalog/` and run:
+
+```bash
+scripts/production/validate-menu-catalog.py docs/shipping-website/menu-catalog
+```
+
+If the media files are already present locally, also run:
+
+```bash
+scripts/production/validate-menu-catalog.py \
+  docs/shipping-website/menu-catalog \
+  --media-root web/customer/public/media/menu \
+  --require-media-files
+```
+
+Expected:
+
+- stable `*_code` values are lowercase slugs;
+- prices are integer kopecks;
+- item/category/modifier references resolve;
+- media paths are local `/media/menu/{item_code}/...` public paths;
+- video items have poster fallbacks.
+
 ## Provider Smoke Tests
 
 ### Yandex

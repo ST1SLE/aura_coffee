@@ -22,6 +22,7 @@ The target shape is a same-origin public website behind nginx:
 | [03-launch-runbook.md](03-launch-runbook.md) | Dry-run, staging, go-live, rollback, and post-launch verification commands. |
 | [04-provider-integration-rollout-plan.md](04-provider-integration-rollout-plan.md) | Step-by-step plan for enabling and testing Yandex Maps, SMS.ru, and YuKassa. |
 | [05-stage-0-economical-prerequisites.md](05-stage-0-economical-prerequisites.md) | Economical acquisition guide for Stage 0 domain, VPS, provider, test phone, fiscal, and legal inputs. |
+| [menu-catalog/](menu-catalog/) | Stage 3 menu/media CSV packet and validation instructions. |
 
 ## Current Production Readiness Summary
 
@@ -168,7 +169,8 @@ public launch.
 
 Steps:
 
-- Give owner a strict spreadsheet template.
+- Give owner a strict spreadsheet template. Current packet:
+  `docs/shipping-website/menu-catalog/`.
 - Require stable slugs/codes, not display names as primary keys.
 - Load final names, categories, sizes, prices in kopecks, active flags, and sort
   order.
@@ -179,6 +181,8 @@ Steps:
 
 Gate:
 
+- `scripts/production/validate-menu-catalog.py docs/shipping-website/menu-catalog`
+  passes on the owner-filled catalog.
 - Final menu/prices/sizes are approved by the shop owner.
 - Every public item has acceptable image/video behavior.
 - `curl -I https://DOMAIN/media/menu/...` works for representative assets.
