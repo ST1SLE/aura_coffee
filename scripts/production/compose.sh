@@ -1,12 +1,19 @@
 #!/usr/bin/env sh
 set -eu
 
+TLS_MODE=0
+if [ "${1:-}" = "--tls" ]; then
+  TLS_MODE=1
+  shift
+fi
+
 if [ "$#" -lt 2 ]; then
   cat >&2 <<'USAGE'
-Usage: scripts/production/compose.sh ENV_FILE [docker compose args...]
+Usage: scripts/production/compose.sh [--tls] ENV_FILE [docker compose args...]
 
 Examples:
   scripts/production/compose.sh .env.production.example config
+  scripts/production/compose.sh --tls .env.production.example config
   scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 USAGE
   exit 2
@@ -20,9 +27,27 @@ shift
   exit 1
 }
 
+if [ "$TLS_MODE" -eq 1 ]; then
+  set -- docker compose \
+    --env-file "$ENV_FILE" \
+    -f docker-compose.yml \
+    -f docker-compose.production.yml \
+    -f docker-compose.production.tls.yml \
+    "$@"
+else
+  set -- docker compose \
+    --env-file "$ENV_FILE" \
+    -f docker-compose.yml \
+    -f docker-compose.production.yml \
+    "$@"
+fi
+
 exec env \
   -u AURA_ENV \
   -u AURA_MENU_MEDIA_DIR \
+  -u AURA_PUBLIC_DOMAIN \
+  -u AURA_CERTBOT_WWW_DIR \
+  -u AURA_LETSENCRYPT_DIR \
   -u POSTGRES_USER \
   -u POSTGRES_PASSWORD \
   -u POSTGRES_DB \
@@ -52,12 +77,9 @@ exec env \
   -u WEB_ADMIN_PORT \
   -u NGINX_PORT \
   -u NGINX_HTTP_PORT \
+  -u NGINX_HTTPS_PORT \
   -u PAYMENT_WEBHOOK_PORT \
   -u ADMIN_LOGIN \
   -u ADMIN_PASSWORD \
   AURA_ENV_FILE="$ENV_FILE" \
-  docker compose \
-    --env-file "$ENV_FILE" \
-    -f docker-compose.yml \
-    -f docker-compose.production.yml \
-    "$@"
+  "$@"

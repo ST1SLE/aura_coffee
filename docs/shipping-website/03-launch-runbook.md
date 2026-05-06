@@ -109,20 +109,37 @@ Before certificate issuance:
 
 - DNS `A` record points to the VPS.
 - HTTP on port `80` reaches nginx.
-- nginx uses the final `server_name`.
+- `AURA_PUBLIC_DOMAIN` is set in `/opt/aura-coffee/.env.production`.
 
-Certbot shape if TLS is host-managed:
+Issue the first staging certificate while the nginx container is stopped, then
+boot with the TLS Compose overlay. Use a real contact email when available;
+closed staging can use the no-email mode temporarily.
 
 ```bash
-sudo certbot --nginx -d DOMAIN -d www.DOMAIN
+cd /opt/aura-coffee/app
+scripts/production/compose.sh /opt/aura-coffee/.env.production stop nginx
+
+docker run --rm \
+  -p 80:80 \
+  -v /etc/letsencrypt:/etc/letsencrypt \
+  -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+  certbot/certbot certonly \
+  --standalone \
+  --preferred-challenges http \
+  --non-interactive \
+  --agree-tos \
+  --register-unsafely-without-email \
+  -d staging.aura-coffee-bakery.ru
+
+scripts/production/compose.sh --tls /opt/aura-coffee/.env.production up -d --build
 ```
 
 After issuance:
 
 ```bash
-curl -I http://DOMAIN/
-curl -I https://DOMAIN/
-curl -s https://DOMAIN/health
+curl -I http://staging.aura-coffee-bakery.ru/
+curl -I https://staging.aura-coffee-bakery.ru/
+curl -s https://staging.aura-coffee-bakery.ru/health
 ```
 
 Expected:
@@ -130,6 +147,8 @@ Expected:
 - HTTP redirects to HTTPS.
 - HTTPS certificate is valid.
 - `/health` returns OK through public domain.
+- `scripts/production/compose.sh --tls /opt/aura-coffee/.env.production ps`
+  shows only nginx publishing host ports.
 
 ## Provider Smoke Tests
 
