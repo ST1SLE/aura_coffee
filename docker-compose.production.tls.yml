@@ -7,6 +7,7 @@ services:
       AURA_PUBLIC_DOMAIN: ${AURA_PUBLIC_DOMAIN:?AURA_PUBLIC_DOMAIN is required for TLS}
       AURA_BASIC_AUTH_REALM: ${AURA_BASIC_AUTH_REALM:-off}
       AURA_BASIC_AUTH_USER_FILE: ${AURA_BASIC_AUTH_USER_FILE:-/etc/nginx/disabled.htpasswd}
+      AURA_STAGING_ACCESS_COOKIE: ${AURA_STAGING_ACCESS_COOKIE:-disabled}
     volumes: !override
       - ${AURA_MENU_MEDIA_DIR:-./web/customer/public/media/menu}:/srv/aura-coffee/media/menu:ro
       - ${AURA_CERTBOT_WWW_DIR:-/opt/aura-coffee/certbot-www}:/var/www/certbot:ro

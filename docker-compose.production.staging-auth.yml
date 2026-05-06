@@ -3,5 +3,6 @@ services:
     environment:
       AURA_BASIC_AUTH_REALM: Aura-Staging
       AURA_BASIC_AUTH_USER_FILE: /etc/nginx/staging.htpasswd
+      AURA_STAGING_ACCESS_COOKIE: ${AURA_STAGING_ACCESS_COOKIE:?AURA_STAGING_ACCESS_COOKIE is required for staging auth}
     volumes:
       - ${AURA_STAGING_HTPASSWD_FILE:?AURA_STAGING_HTPASSWD_FILE is required for staging auth}:/etc/nginx/staging.htpasswd:ro

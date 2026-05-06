@@ -86,9 +86,10 @@ Current status:
 - VPS baseline is complete: Ubuntu 24.04.4, Docker/Compose installed, `deploy`
   SSH works, firewall allows only SSH/HTTP/HTTPS.
 - Stage 2 HTTPS skeleton is deployed on the VPS. HTTP redirects to HTTPS,
-  staging is protected with Basic Auth, authorized `/health`, `/`, `/admin/`,
-  and placeholder menu media requests return 200 over HTTPS, and Postgres/Redis
-  are private. Providers remain fake/log.
+  staging is protected with a Basic Auth first prompt and secure cookie handoff,
+  authorized `/health`, `/`, `/admin/`, and placeholder menu media requests
+  return 200 over HTTPS, and Postgres/Redis are private. Providers remain
+  fake/log.
 - Stage 0 is effectively ready for engineering work with caveats. YuKassa is
   intentionally deferred/mocked until owner details are available. SMS.ru is
   configured for a developer smoke. Yandex keys exist and Aura supports separate

@@ -6,6 +6,18 @@ upstream payment_webhook {
     server payment-webhook:8241;
 }
 
+map_hash_bucket_size 128;
+
+map $cookie_aura_staging $aura_basic_auth_realm {
+    default ${AURA_BASIC_AUTH_REALM};
+    "${AURA_STAGING_ACCESS_COOKIE}" off;
+}
+
+map $remote_user $aura_staging_set_cookie {
+    default "";
+    aura "aura_staging=${AURA_STAGING_ACCESS_COOKIE}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Lax";
+}
+
 server {
     listen 80;
     server_name ${AURA_PUBLIC_DOMAIN};
@@ -39,8 +51,9 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    auth_basic ${AURA_BASIC_AUTH_REALM};
+    auth_basic $aura_basic_auth_realm;
     auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};
+    add_header Set-Cookie $aura_staging_set_cookie always;
 
     # Readiness probe through the canonical nginx entry point.
     location = /health {

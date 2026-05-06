@@ -128,6 +128,7 @@ def test_production_compose_removes_dev_public_services() -> None:
 def test_production_tls_nginx_terminates_https_and_keeps_acme_http() -> None:
     config = _read_production_tls_nginx_config()
 
+    assert "map_hash_bucket_size 128;" in config
     assert "listen 80;" in config
     assert "location /.well-known/acme-challenge/" in config
     assert "return 301 https://$host$request_uri;" in config
@@ -141,8 +142,13 @@ def test_production_tls_nginx_terminates_https_and_keeps_acme_http() -> None:
         "ssl_certificate_key /etc/letsencrypt/live/${AURA_PUBLIC_DOMAIN}/privkey.pem;"
         in config
     )
-    assert "auth_basic ${AURA_BASIC_AUTH_REALM};" in config
+    assert "map $cookie_aura_staging $aura_basic_auth_realm" in config
+    assert '"${AURA_STAGING_ACCESS_COOKIE}" off;' in config
+    assert "map $remote_user $aura_staging_set_cookie" in config
+    assert "aura_staging=${AURA_STAGING_ACCESS_COOKIE}" in config
+    assert "auth_basic $aura_basic_auth_realm;" in config
     assert "auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};" in config
+    assert "add_header Set-Cookie $aura_staging_set_cookie always;" in config
 
 
 def test_production_tls_nginx_routes_yukassa_before_generic_api() -> None:
@@ -168,6 +174,7 @@ def test_production_tls_compose_publishes_https_and_mounts_cert_paths() -> None:
     assert "/etc/letsencrypt:ro" in config
     assert "nginx.production.tls.conf.template" in config
     assert "AURA_BASIC_AUTH_REALM: ${AURA_BASIC_AUTH_REALM:-off}" in config
+    assert "AURA_STAGING_ACCESS_COOKIE: ${AURA_STAGING_ACCESS_COOKIE:-disabled}" in config
 
 
 def test_staging_auth_compose_mounts_htpasswd_and_enables_basic_auth() -> None:
@@ -175,5 +182,6 @@ def test_staging_auth_compose_mounts_htpasswd_and_enables_basic_auth() -> None:
 
     assert "AURA_BASIC_AUTH_REALM: Aura-Staging" in config
     assert "AURA_BASIC_AUTH_USER_FILE: /etc/nginx/staging.htpasswd" in config
+    assert "AURA_STAGING_ACCESS_COOKIE is required for staging auth" in config
     assert "AURA_STAGING_HTPASSWD_FILE is required for staging auth" in config
     assert "/etc/nginx/staging.htpasswd:ro" in config

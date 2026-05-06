@@ -141,18 +141,26 @@ cd /opt/aura-coffee/app
 
 install -m 600 /dev/null /opt/aura-coffee/staging-basic-auth.txt
 STAGING_PASSWORD="$(openssl rand -base64 24)"
+STAGING_COOKIE="$(openssl rand -hex 32)"
 STAGING_HASH="$(openssl passwd -apr1 "$STAGING_PASSWORD")"
 printf 'username=aura\npassword=%s\n' "$STAGING_PASSWORD" \
   > /opt/aura-coffee/staging-basic-auth.txt
 printf 'aura:%s\n' "$STAGING_HASH" > /opt/aura-coffee/staging.htpasswd
 chmod 600 /opt/aura-coffee/staging-basic-auth.txt
 chmod 644 /opt/aura-coffee/staging.htpasswd
+grep -q '^AURA_STAGING_ACCESS_COOKIE=' /opt/aura-coffee/.env.production \
+  && sed -i "s/^AURA_STAGING_ACCESS_COOKIE=.*/AURA_STAGING_ACCESS_COOKIE=$STAGING_COOKIE/" \
+    /opt/aura-coffee/.env.production \
+  || printf 'AURA_STAGING_ACCESS_COOKIE=%s\n' "$STAGING_COOKIE" \
+    >> /opt/aura-coffee/.env.production
 
 scripts/production/compose.sh --tls --staging-auth \
   /opt/aura-coffee/.env.production up -d --build
 ```
 
 Do not paste the generated password into tickets, chat, logs, docs, or Git.
+The generated staging cookie is an internal bypass token stored only in the
+server env; do not share it.
 Retrieve it only from the VPS when a tester needs access:
 
 ```bash
@@ -172,7 +180,10 @@ Expected:
 - HTTP redirects to HTTPS.
 - HTTPS certificate is valid.
 - Without Basic Auth credentials, HTTPS routes return `401`.
-- With Basic Auth credentials, `/health` returns OK through public domain.
+- With Basic Auth credentials, `/health` returns OK through public domain and
+  sets an `aura_staging` cookie. Browser requests after that use the cookie so
+  Aura's own `Authorization: Bearer ...` API calls do not conflict with Basic
+  Auth.
 - `scripts/production/compose.sh --tls --staging-auth /opt/aura-coffee/.env.production ps`
   shows only nginx publishing host ports.
 
