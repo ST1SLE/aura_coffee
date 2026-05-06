@@ -198,6 +198,29 @@ Run this manually after initial TLS setup, then put the same command under a
 monthly deploy-user cron or systemd timer before the certificate is within 30
 days of expiry.
 
+## Closed Staging Menu Seed
+
+Before customer checkout smoke tests, load the closed-staging draft menu. This
+seed exists only to make the production-shaped staging stack testable before the
+owner provides the approved catalog and media. It creates shop settings and a
+small draft menu only; it does not create customers, staff accounts, orders,
+payments, promocodes, notifications, or PII-bearing rows.
+
+```bash
+cd /opt/aura-coffee/app
+scripts/production/compose.sh --tls --staging-auth \
+  /opt/aura-coffee/.env.production \
+  exec -T core-api python -m database.seeds.staging_menu
+```
+
+Expected:
+
+- command prints `staging_menu seed applied`;
+- `https://staging.aura-coffee-bakery.ru/api/v1/menu?available=true` returns
+  visible categories/items after staging auth;
+- draft item names include `(staging)` so they cannot be confused with the
+  final owner-approved public menu.
+
 ## Provider Smoke Tests
 
 ### Yandex

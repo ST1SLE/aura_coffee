@@ -141,7 +141,7 @@ Steps:
 - Point DNS at the host.
 - Start production Compose overlay.
 - Run migrations.
-- Load seed/test menu data and media placeholders.
+- Load the closed-staging draft menu seed and media placeholders.
 - Smoke customer, admin, health, media, and same-origin API routing over HTTP.
 - Issue TLS certificate.
 - Restart with the TLS and staging-auth Compose overlays.
@@ -153,6 +153,7 @@ Gate:
 
 - HTTPS works.
 - Closed staging access control is enabled.
+- Closed-staging draft menu is loaded before cart/order smoke tests.
 - Public pages load.
 - admin SPA loads at `/admin/`.
 - Postgres/Redis are private.
