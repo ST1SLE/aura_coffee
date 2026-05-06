@@ -69,6 +69,23 @@ def _suggest_response_two_matches() -> dict[str, Any]:
     }
 
 
+def _suggest_response_without_coordinates() -> dict[str, Any]:
+    return {
+        "results": [
+            {
+                "title": {"text": "Москва, Красная площадь"},
+                "subtitle": {"text": "Москва"},
+                "address": {
+                    "formatted_address": "Москва, Красная площадь",
+                    "component": [{"name": "Москва", "kind": "locality"}],
+                },
+                "tags": ["street"],
+                "uri": "ymapsbm1://geo?data=test",
+            }
+        ]
+    }
+
+
 # ---------------------------------------------------------------------------
 # 2.1 Happy-path — форма ответа
 # ---------------------------------------------------------------------------
@@ -98,9 +115,36 @@ def test_suggest_happy_path_returns_four_field_items(
             f"Лишние или отсутствующие ключи: {item.keys()}"
         )
         assert isinstance(item["text"], str)
-        assert isinstance(item["lat"], (int, float))
-        assert isinstance(item["lon"], (int, float))
+        assert item["lat"] is None or isinstance(item["lat"], (int, float))
+        assert item["lon"] is None or isinstance(item["lon"], (int, float))
         assert isinstance(item["precision"], str)
+
+
+@respx.mock
+def test_suggest_keeps_text_only_geosuggest_results(
+    client: TestClient,
+    customer_headers: dict[str, str],
+    cart_redis: fakeredis.FakeRedis,
+) -> None:
+    respx.get(YANDEX_SUGGEST_BASE).mock(
+        return_value=httpx.Response(200, json=_suggest_response_without_coordinates())
+    )
+
+    resp = client.get(
+        "/api/v1/maps/suggest",
+        params={"text": "Москва", "lang": "ru_RU"},
+        headers=customer_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == [
+        {
+            "text": "Москва, Красная площадь",
+            "lat": None,
+            "lon": None,
+            "precision": "suggest",
+        }
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +180,7 @@ def test_suggest_forwards_api_key_in_outbound_request(
     assert TEST_GEOCODER_API_KEY not in outbound, (
         "Geocoder API-ключ не должен использоваться для Suggest-запроса"
     )
+    assert "attrs=uri" in request.url.query.decode()
 
     # Ключ НЕ ДОЛЖЕН утекать в ответ клиенту (INV-015).
     assert TEST_SUGGEST_API_KEY not in resp.text, "API-ключ утёк в ответ клиента"

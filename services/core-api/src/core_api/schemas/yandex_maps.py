@@ -27,9 +27,9 @@ class Suggestion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str
-    lat: float
-    lon: float
-    precision: str
+    lat: float | None = None
+    lon: float | None = None
+    precision: str = "suggest"
 
 
 class GeocodeResult(BaseModel):

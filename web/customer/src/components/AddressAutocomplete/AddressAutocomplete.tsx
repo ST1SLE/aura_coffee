@@ -112,7 +112,7 @@ export function AddressAutocomplete({
     setQuery(item.text);
     setOpen(false);
     setItems([]);
-    onChange({ text: item.text, lat: item.lat, lon: item.lon });
+    onChange({ text: item.text, lat: item.lat ?? null, lon: item.lon ?? null });
   }
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {

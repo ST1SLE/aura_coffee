@@ -20,7 +20,7 @@ import { authenticatedFetch } from './client';
 //
 // START_MODULE_MAP
 //   MapsLang                - 'ru_RU' | 'en_US' query-string locale
-//   SuggestResult           - one address suggestion (text + lat + lon)
+//   SuggestResult           - one address suggestion (text + optional coords)
 //   GeocodeResult           - canonical address resolution result
 //   MapsUnavailableError    - thrown on 503/network so caller degrades gracefully
 //   suggest                 - GET /maps/suggest — autocomplete suggestions
@@ -31,8 +31,9 @@ export type MapsLang = 'ru_RU' | 'en_US';
 
 export interface SuggestResult {
   text: string;
-  lat: number;
-  lon: number;
+  lat: number | null;
+  lon: number | null;
+  precision?: string;
 }
 
 export interface GeocodeResult {

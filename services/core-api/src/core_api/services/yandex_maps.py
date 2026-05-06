@@ -145,6 +145,7 @@ class YandexMapsClient:
             "lang": lang,
             "apikey": self._current_suggest_api_key(),
             "print_address": 1,
+            "attrs": "uri",
         }
         try:
             resp = self._client.get(SUGGEST_URL, params=params)
@@ -159,15 +160,26 @@ class YandexMapsClient:
         results = payload.get("results") or []
         suggestions: list[Suggestion] = []
         for item in results:
-            text_val = (item.get("title") or {}).get("text") or item.get("text") or ""
+            text_val = (
+                (item.get("address") or {}).get("formatted_address")
+                or (item.get("title") or {}).get("text")
+                or item.get("text")
+                or ""
+            )
             lat = item.get("lat")
             lon = item.get("lon")
-            precision = item.get("precision", "other")
-            if lat is None or lon is None:
-                # Skip partial matches without coordinates.
-                continue
+            geometry = item.get("geometry") or {}
+            coordinates = geometry.get("coordinates") or []
+            if (lat is None or lon is None) and len(coordinates) == 2:
+                lon, lat = coordinates[0], coordinates[1]
+            precision = item.get("precision", "suggest")
             suggestions.append(
-                Suggestion(text=text_val, lat=float(lat), lon=float(lon), precision=precision)
+                Suggestion(
+                    text=text_val,
+                    lat=float(lat) if lat is not None else None,
+                    lon=float(lon) if lon is not None else None,
+                    precision=precision,
+                )
             )
         return suggestions
 
