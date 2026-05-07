@@ -25,6 +25,17 @@ class PromocodeValidationError(ValidationError):
 class MinimumDeliveryAmountError(ValidationError):
     """Сумма заказа ниже min_delivery_amount — PDD §7.4 шаг 1, INV-009."""
 
+    def __init__(
+        self,
+        message: str = "minimum_delivery_amount",
+        *,
+        subtotal: int | None = None,
+        min_amount: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.subtotal = subtotal
+        self.min_amount = min_amount
+
 
 class DeliveryRadiusError(ValidationError):
     """Адрес вне delivery_radius_km — PDD §7.3 шаг 3, INV-008."""

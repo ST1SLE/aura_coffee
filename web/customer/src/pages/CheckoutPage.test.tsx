@@ -89,6 +89,14 @@ function renderPage() {
   );
 }
 
+function getNewAddressFields() {
+  const textboxes = screen.getAllByRole('textbox');
+  return {
+    addressInput: screen.getByRole('combobox'),
+    apartmentInput: textboxes[0],
+  };
+}
+
 const savedA: AddressResponse = {
   id: 'saved-1',
   address_text: 'Невский 1',
@@ -245,12 +253,9 @@ describe('CheckoutPage delivery with new address', () => {
     fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-    // no saved → new form is active. The address autocomplete input is the
-    // first textbox inside the delivery block.
-    const textboxes = screen.getAllByRole('textbox');
-    // [autocomplete, apartment, entrance, floor, comment]
-    fireEvent.change(textboxes[0], { target: { value: 'Новый адрес 5' } });
-    fireEvent.change(textboxes[1], { target: { value: '10' } });
+    const { addressInput, apartmentInput } = getNewAddressFields();
+    fireEvent.change(addressInput, { target: { value: 'Новый адрес 5' } });
+    fireEvent.change(apartmentInput, { target: { value: '10' } });
 
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
@@ -282,8 +287,9 @@ describe('CheckoutPage delivery with new address', () => {
     fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-    const textboxes = screen.getAllByRole('textbox');
-    fireEvent.change(textboxes[0], { target: { value: 'Адрес' } });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Адрес' },
+    });
     fireEvent.click(
       screen.getByLabelText(/сохранить для следующего|save for next/i),
     );
@@ -309,8 +315,9 @@ describe('CheckoutPage delivery with new address', () => {
       fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
       await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-      const textboxes = screen.getAllByRole('textbox');
-      fireEvent.change(textboxes[0], { target: { value: 'Адрес' } });
+      fireEvent.change(screen.getByRole('combobox'), {
+        target: { value: 'Адрес' },
+      });
       fireEvent.click(
         screen.getByLabelText(/сохранить для следующего|save for next/i),
       );
@@ -335,8 +342,9 @@ describe('CheckoutPage delivery with new address', () => {
     fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-    const textboxes = screen.getAllByRole('textbox');
-    fireEvent.change(textboxes[0], { target: { value: 'Адрес' } });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Адрес' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
@@ -352,17 +360,18 @@ describe('CheckoutPage delivery with new address', () => {
     fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-    const textboxes = screen.getAllByRole('textbox');
-    fireEvent.change(textboxes[0], {
+    fireEvent.change(screen.getByRole('combobox'), {
       target: { value: 'Адрес без координат' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toMatch(
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toMatch(
         /сервис проверки адреса|address validation service/i,
       );
+      expect(document.activeElement).toBe(alert);
     });
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -379,18 +388,113 @@ describe('CheckoutPage 409 rendering', () => {
     fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
     await waitFor(() => expect(listAddresses).toHaveBeenCalled());
 
-    const textboxes = screen.getAllByRole('textbox');
-    fireEvent.change(textboxes[0], { target: { value: 'Далеко' } });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Далеко' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('вне зоны');
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toContain('вне зоны');
+      expect(document.activeElement).toBe(alert);
     });
     expect(mockNavigate).not.toHaveBeenCalled();
     // форма всё ещё видна
     expect(
       screen.getByRole('button', { name: /оформить|place/i }),
     ).not.toBeNull();
+  });
+
+  it('localizes structured minimum delivery errors with ruble amounts', async () => {
+    (listAddresses as Mock).mockResolvedValue([]);
+    (createOrder as Mock).mockRejectedValue(
+      new OrderApiError(409, {
+        code: 'minimum_delivery_amount',
+        subtotal: 21000,
+        min_delivery_amount: 50000,
+      }),
+    );
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
+    await waitFor(() => expect(listAddresses).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Близкий адрес' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toMatch(
+        /минимальная сумма заказа|delivery orders start/i,
+      );
+      expect(alert.textContent).toMatch(/500/);
+      expect(alert.textContent).toMatch(/210/);
+      expect(alert.textContent).not.toMatch(/min_delivery_amount|21000|50000/);
+      expect(document.activeElement).toBe(alert);
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('maps legacy raw minimum-delivery details without showing kopecks', async () => {
+    (listAddresses as Mock).mockResolvedValue([]);
+    (createOrder as Mock).mockRejectedValue(
+      new OrderApiError(409, 'subtotal 21000 below min_delivery_amount 50000'),
+    );
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
+    await waitFor(() => expect(listAddresses).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Близкий адрес' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toMatch(
+        /минимальная сумма заказа|delivery orders start/i,
+      );
+      expect(alert.textContent).toMatch(/500/);
+      expect(alert.textContent).toMatch(/210/);
+      expect(alert.textContent).not.toMatch(/min_delivery_amount|21000|50000/);
+    });
+  });
+
+  it('maps JSON-string minimum-delivery details without showing kopecks', async () => {
+    (listAddresses as Mock).mockResolvedValue([]);
+    (createOrder as Mock).mockRejectedValue(
+      new OrderApiError(
+        409,
+        '{"code":"minimum_delivery_amount","subtotal":21000,"min_delivery_amount":50000}',
+      ),
+    );
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText(/доставка|delivery/i));
+    await waitFor(() => expect(listAddresses).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Близкий адрес' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /оформить|place/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toMatch(
+        /минимальная сумма заказа|delivery orders start/i,
+      );
+      expect(alert.textContent).toMatch(/500/);
+      expect(alert.textContent).toMatch(/210/);
+      expect(alert.textContent).not.toMatch(
+        /minimum_delivery_amount|21000|50000|^\{/,
+      );
+    });
   });
 });

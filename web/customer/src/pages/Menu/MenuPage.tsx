@@ -254,12 +254,12 @@ export function MenuPage() {
   return (
     <>
       <div className="space-y-7 px-4 py-5 md:px-6">
-        <div className="overflow-hidden rounded-lg border border-border/70 bg-brand-sage text-brand-sage-foreground shadow-[0_18px_45px_rgba(58,46,37,0.10)]">
+        <div className="aura-surface overflow-hidden rounded-lg">
           <div className="flex min-h-36 flex-col justify-end gap-2 p-4 md:p-5">
             <h1 className="max-w-2xl text-4xl font-semibold leading-none tracking-normal md:text-5xl">
               {t('menu.title')}
             </h1>
-            <p className="max-w-xl text-sm leading-6 text-foreground/75">
+            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
               {t('pages.home.description')}
             </p>
           </div>

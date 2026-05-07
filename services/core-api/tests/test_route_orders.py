@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -44,16 +45,22 @@ def _auth(role: str = "customer") -> dict[str, str]:
     return {"Authorization": f"Bearer {_make_token(role)}"}
 
 
+@contextmanager
 def _patch_jwt():
-    """Патч JWT-настроек для RBAC middleware (контекст-менеджер)."""
-    return patch(
-        "core_api.services.auth.settings",
-        **{
-            "jwt_secret_key": _JWT_SECRET,
-            "jwt_algorithm": "HS256",
-            "access_token_ttl": 900,
-        },
-    )
+    """Патч JWT-настроек и synthetic-subject checks для route-contract тестов."""
+    with (
+        patch(
+            "core_api.services.auth.settings",
+            **{
+                "jwt_secret_key": _JWT_SECRET,
+                "jwt_algorithm": "HS256",
+                "access_token_ttl": 900,
+            },
+        ),
+        patch("core_api.middleware.rbac.is_subject_active", return_value=True),
+        patch("core_api.deps.auth.is_subject_active", return_value=True),
+    ):
+        yield
 
 
 @pytest.fixture
@@ -223,6 +230,78 @@ def test_post_order_estimate_returns_server_totals(client) -> None:
     assert body["total"] == 12000
     assert body["free_delivery_remaining"] == 40000
     estimate_mock.assert_called_once()
+
+
+def test_post_order_estimate_minimum_delivery_error_is_structured(client) -> None:
+    """Delivery minimum failure returns kopecks as data, not raw developer text."""
+    from core_api.services.validators.exceptions import MinimumDeliveryAmountError
+
+    with (
+        _patch_jwt(),
+        patch(
+            "core_api.routers.orders.estimate_order",
+            side_effect=MinimumDeliveryAmountError(
+                subtotal=21000,
+                min_amount=50000,
+            ),
+        ),
+    ):
+        resp = client.post(
+            "/api/v1/orders/estimate",
+            json={
+                "type": "delivery",
+                "delivery_address": {
+                    "text": "Hidden user address",
+                    "lat": 55.7558,
+                    "lon": 37.6173,
+                },
+            },
+            headers=_auth("customer"),
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == {
+        "code": "minimum_delivery_amount",
+        "subtotal": 21000,
+        "min_delivery_amount": 50000,
+    }
+    assert "Hidden user address" not in resp.text
+
+
+def test_post_order_minimum_delivery_error_is_structured(client) -> None:
+    """Order create route uses the same user-safe delivery minimum envelope."""
+    from core_api.services.validators.exceptions import MinimumDeliveryAmountError
+
+    with (
+        _patch_jwt(),
+        patch(
+            "core_api.routers.orders.create_order",
+            side_effect=MinimumDeliveryAmountError(
+                subtotal=21000,
+                min_amount=50000,
+            ),
+        ),
+    ):
+        resp = client.post(
+            "/api/v1/orders",
+            json={
+                "type": "delivery",
+                "delivery_address": {
+                    "text": "Hidden user address",
+                    "lat": 55.7558,
+                    "lon": 37.6173,
+                },
+            },
+            headers=_auth("customer"),
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == {
+        "code": "minimum_delivery_amount",
+        "subtotal": 21000,
+        "min_delivery_amount": 50000,
+    }
+    assert "Hidden user address" not in resp.text
 
 
 def test_post_orders_empty_cart_returns_400(client, cart_redis) -> None:

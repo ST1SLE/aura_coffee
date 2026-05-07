@@ -84,23 +84,23 @@ export function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 px-4 py-3 shadow-[0_8px_28px_rgba(58,46,37,0.06)] backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-card/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(58,46,37,0.12)] backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
           <Link
             to="/menu"
-            className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-normal text-foreground"
+            className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-normal text-card-foreground"
           >
             <BrandMark
               decorative
-              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_10px_18px_rgba(108,122,85,0.22)]"
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_8px_16px_rgba(58,46,37,0.14)]"
             />
             <span className="min-w-0">
               <BrandWordmark
                 alt={t('appTitle')}
-                className="h-5 w-auto max-w-[8.5rem] object-contain sm:h-6 sm:max-w-[9.5rem]"
+                className="h-5 w-auto max-w-[7.5rem] object-contain sm:h-6 sm:max-w-[8.5rem]"
               />
-              <span className="block truncate text-xs font-normal text-muted-foreground">
-                {t('pages.home.description')}
+              <span className="block max-w-[10.5rem] truncate text-xs font-normal text-muted-foreground sm:max-w-[12rem]">
+                {t('pages.home.headerTagline')}
               </span>
             </span>
           </Link>

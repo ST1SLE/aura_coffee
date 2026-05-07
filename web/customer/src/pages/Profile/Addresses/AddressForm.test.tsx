@@ -43,6 +43,15 @@ async function selectSuggestedAddress(
   fireEvent.mouseDown(screen.getByText(text));
 }
 
+function getAddressFormFields() {
+  const textboxes = screen.getAllByRole('textbox');
+  return {
+    labelInput: textboxes[0],
+    addressInput: screen.getByRole('combobox'),
+    apartmentInput: textboxes[1],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   (suggest as Mock).mockResolvedValue([]);
@@ -67,11 +76,10 @@ describe('AddressForm submit', () => {
     const onSaved = vi.fn();
     render(<AddressForm onSaved={onSaved} onCancel={() => {}} />);
 
-    const inputs = screen.getAllByRole('textbox');
-    // [label, address, apartment, entrance, floor, comment]
-    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
-    await selectSuggestedAddress(inputs[1], 'Ул. Ленина 1');
-    fireEvent.change(inputs[2], { target: { value: '42' } });
+    const { labelInput, addressInput, apartmentInput } = getAddressFormFields();
+    fireEvent.change(labelInput, { target: { value: 'Дом' } });
+    await selectSuggestedAddress(addressInput, 'Ул. Ленина 1');
+    fireEvent.change(apartmentInput, { target: { value: '42' } });
 
     const submit = screen.getByRole('button', {
       name: /сохранить|save/i,
@@ -96,9 +104,9 @@ describe('AddressForm submit', () => {
   it('disables Save button when label is empty', () => {
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
 
-    const inputs = screen.getAllByRole('textbox');
-    // Fill address but leave label empty
-    fireEvent.change(inputs[1], { target: { value: 'Ул. Ленина 1' } });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Ул. Ленина 1' },
+    });
 
     const submit = screen.getByRole('button', {
       name: /сохранить|save/i,
@@ -128,9 +136,9 @@ describe('AddressForm submit', () => {
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
-    fireEvent.change(inputs[1], { target: { value: 'Ул. Ленина 1' } });
+    const { labelInput, addressInput } = getAddressFormFields();
+    fireEvent.change(labelInput, { target: { value: 'Дом' } });
+    fireEvent.change(addressInput, { target: { value: 'Ул. Ленина 1' } });
 
     fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
@@ -149,9 +157,9 @@ describe('AddressForm submit', () => {
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
-    fireEvent.change(inputs[1], { target: { value: 'Ул. Ленина 1' } });
+    const { labelInput, addressInput } = getAddressFormFields();
+    fireEvent.change(labelInput, { target: { value: 'Дом' } });
+    fireEvent.change(addressInput, { target: { value: 'Ул. Ленина 1' } });
 
     fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
@@ -185,8 +193,8 @@ describe('AddressForm submit', () => {
       <AddressForm initial={initial} onSaved={vi.fn()} onCancel={() => {}} />,
     );
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[2], { target: { value: '42' } });
+    const { apartmentInput } = getAddressFormFields();
+    fireEvent.change(apartmentInput, { target: { value: '42' } });
 
     fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
@@ -206,9 +214,9 @@ describe('AddressForm radius error', () => {
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
-    await selectSuggestedAddress(inputs[1], 'Далеко', 0, 0);
+    const { labelInput, addressInput } = getAddressFormFields();
+    fireEvent.change(labelInput, { target: { value: 'Дом' } });
+    await selectSuggestedAddress(addressInput, 'Далеко', 0, 0);
 
     fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 
@@ -224,9 +232,9 @@ describe('AddressForm radius error', () => {
     );
 
     render(<AddressForm onSaved={vi.fn()} onCancel={() => {}} />);
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'Дом' } });
-    await selectSuggestedAddress(inputs[1], 'Адрес X', 0, 0);
+    const { labelInput, addressInput } = getAddressFormFields();
+    fireEvent.change(labelInput, { target: { value: 'Дом' } });
+    await selectSuggestedAddress(addressInput, 'Адрес X', 0, 0);
 
     fireEvent.click(screen.getByRole('button', { name: /сохранить|save/i }));
 

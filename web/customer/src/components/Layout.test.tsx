@@ -58,6 +58,13 @@ beforeEach(() => {
 });
 
 describe('Layout cart affordances', () => {
+  it('uses the short header tagline instead of the long menu description', () => {
+    renderLayout('/menu');
+
+    expect(screen.getByText('pages.home.headerTagline')).toBeDefined();
+    expect(screen.queryByText('pages.home.description')).toBeNull();
+  });
+
   it('renders count-aware cart nav badges when cart has items', () => {
     mockCartState.itemCount = 3;
     const { container } = renderLayout('/orders');

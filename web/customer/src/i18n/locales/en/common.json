@@ -11,6 +11,7 @@
   "pages": {
     "home": {
       "title": "Menu",
+      "headerTagline": "Coffee, food, delivery",
       "description": "Choose your drink, add food, and order pickup or delivery."
     },
     "cart": {
@@ -189,6 +190,7 @@
       "outOfRadius": "Address is outside the delivery zone",
       "geocodePrecision": "Unable to determine the exact address. Please specify further.",
       "belowMinAmount": "Order total is below the minimum for delivery",
+      "minimumAmount": "Delivery orders start at {{min}}. Your cart is {{subtotal}}.",
       "mapsUnavailable": "Address validation service is temporarily unavailable. Try later or choose pickup.",
       "generic": "Failed to submit the delivery"
     }

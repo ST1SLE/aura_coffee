@@ -57,9 +57,18 @@ from core_api.services.checkout import (
     estimate_order,
 )
 from core_api.services.delivery_addresses import DeliveryAddressNotFound
+from core_api.services.validators.exceptions import MinimumDeliveryAmountError
 from shared.models import Order, OrderItem, Payment
 
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
+
+
+def _minimum_delivery_error_detail(exc: MinimumDeliveryAmountError) -> dict[str, int | str]:
+    return {
+        "code": "minimum_delivery_amount",
+        "subtotal": int(exc.subtotal or 0),
+        "min_delivery_amount": int(exc.min_amount or 0),
+    }
 
 
 # Обёртки: обращаемся к атрибутам модуля в момент вызова — чтобы тесты
@@ -126,6 +135,11 @@ def post_order(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
         )
+    except MinimumDeliveryAmountError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_minimum_delivery_error_detail(exc),
+        )
     except InventoryInsufficientError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except HTTPException:
@@ -167,6 +181,11 @@ def post_order_estimate(
     except DeliveryAddressNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Address not found"
+        )
+    except MinimumDeliveryAmountError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_minimum_delivery_error_detail(exc),
         )
     except InventoryInsufficientError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))

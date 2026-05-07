@@ -178,17 +178,17 @@ export function CategoryList({
   const typeOptions: CategoryType[] = ['drink', 'food', 'merch', 'modifier'];
 
   return (
-    <div className="w-full space-y-2 lg:w-56 lg:shrink-0">
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+    <div className="admin-surface w-full space-y-3 p-3 lg:w-60 lg:shrink-0">
+      <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
         {t('pages.menu.categories.title')}
       </h2>
 
       {/* Кнопка "Все" */}
       <button
-        className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+        className={`w-full rounded-md border px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors ${
           selectedId === null
-            ? 'bg-primary text-primary-foreground'
-            : 'hover:bg-accent'
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border/60 bg-[hsl(var(--field))] hover:border-primary/50 hover:bg-secondary/50'
         }`}
         onClick={() => onSelect(null)}
       >
@@ -204,7 +204,10 @@ export function CategoryList({
       <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:block lg:space-y-1">
         {categories.map((cat) =>
           editId === cat.id ? (
-            <li key={cat.id} className="space-y-1 p-1 border rounded-md">
+            <li
+              key={cat.id}
+              className="space-y-2 rounded-md border border-border/70 bg-[hsl(var(--field))] p-2 shadow-sm"
+            >
               <div className="flex gap-1">
                 <Input
                   value={editNameRu}
@@ -224,7 +227,7 @@ export function CategoryList({
                 <select
                   value={editType}
                   onChange={(e) => setEditType(e.target.value as CategoryType)}
-                  className="flex h-7 flex-1 rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-7 flex-1 rounded-md border border-input bg-[hsl(var(--field))] px-2 py-0.5 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
                 >
                   {typeOptions.map((tp) => (
                     <option key={tp} value={tp}>
@@ -261,10 +264,10 @@ export function CategoryList({
           ) : (
             <li
               key={cat.id}
-              className={`group flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
+              className={`group flex cursor-pointer items-center gap-1 rounded-md border px-3 py-2 shadow-sm transition-colors ${
                 selectedId === cat.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/55 bg-[hsl(var(--surface-alt))]/60 hover:border-primary/45 hover:bg-secondary/50'
               }`}
               onClick={() => onSelect(cat.id)}
             >
@@ -277,7 +280,7 @@ export function CategoryList({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    className="p-0.5 hover:opacity-70"
+                    className="rounded p-1 hover:bg-foreground/10"
                     onClick={() => startEdit(cat)}
                     aria-label={t('pages.menu.categories.editAria', {
                       name: pickLang(cat.name_ru, cat.name_en, i18n.language),
@@ -287,7 +290,7 @@ export function CategoryList({
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
-                    className="p-0.5 hover:opacity-70 text-destructive"
+                    className="rounded p-1 text-destructive hover:bg-destructive/10"
                     onClick={() => handleDelete(cat)}
                     aria-label={t('pages.menu.categories.deleteAria', {
                       name: pickLang(cat.name_ru, cat.name_en, i18n.language),
@@ -304,7 +307,7 @@ export function CategoryList({
       </ul>
 
       {isAdmin && (
-        <div className="space-y-2 border rounded-md p-2">
+        <div className="space-y-2 rounded-md border border-border/70 bg-[hsl(var(--surface-alt))]/70 p-2 shadow-sm">
           <div className="space-y-1">
             <Label htmlFor="cat-name-ru" className="text-xs">
               {t('pages.menu.categories.nameRu')}
@@ -337,7 +340,7 @@ export function CategoryList({
               id="cat-type"
               value={newType}
               onChange={(e) => setNewType(e.target.value as CategoryType)}
-              className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-7 w-full rounded-md border border-input bg-[hsl(var(--field))] px-2 py-0.5 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
             >
               {typeOptions.map((tp) => (
                 <option key={tp} value={tp}>

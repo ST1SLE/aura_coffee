@@ -4,25 +4,29 @@
 
 @layer base {
   :root {
-    --background: 75 12% 50%;
+    --background: 76 16% 68%;
     --foreground: 30 17% 9%;
-    --card: 39 30% 78%;
+    --card: 38 34% 82%;
     --card-foreground: 30 17% 9%;
-    --popover: 39 30% 78%;
+    --popover: 40 38% 88%;
     --popover-foreground: 30 17% 9%;
     --primary: 83 22% 22%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 34 27% 61%;
+    --secondary: 72 18% 58%;
     --secondary-foreground: 26 22% 19%;
-    --muted: 36 26% 68%;
-    --muted-foreground: 28 19% 23%;
+    --muted: 64 18% 76%;
+    --muted-foreground: 28 19% 24%;
     --accent: 28 49% 49%;
     --accent-foreground: 26 18% 10%;
     --destructive: 14 51% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 31 18% 38%;
-    --input: 31 18% 38%;
+    --border: 54 16% 39%;
+    --input: 50 17% 43%;
     --ring: 83 22% 22%;
+    --surface: 40 36% 84%;
+    --surface-alt: 70 20% 78%;
+    --table-stripe: 69 19% 75%;
+    --field: 40 40% 88%;
     --success: 126 19% 33%;
     --success-foreground: 0 0% 100%;
     --warning: 42 89% 89%;
@@ -74,11 +78,17 @@
 
 @layer utilities {
   .admin-surface {
-    @apply rounded-md border border-border/80 bg-card shadow-[0_18px_45px_rgba(58,46,37,0.10)];
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border) / 0.72);
+    background: hsl(var(--surface));
+    box-shadow: 0 18px 45px rgb(58 46 37 / 0.12);
   }
 
   .admin-surface-soft {
-    @apply rounded-md border border-border/70 bg-muted shadow-[0_12px_30px_rgba(58,46,37,0.08)];
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border) / 0.58);
+    background: hsl(var(--surface-alt));
+    box-shadow: 0 12px 30px rgb(58 46 37 / 0.08);
   }
 
   .admin-numeric {

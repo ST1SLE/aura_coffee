@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   suggest,
@@ -72,6 +72,17 @@ export function AddressAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [degraded, setDegraded] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const generatedId = useId();
+  const safeGeneratedId = generatedId.replace(/:/g, '');
+  const listboxId = `${
+    inputId ?? `address-autocomplete-${safeGeneratedId}`
+  }-suggestions`;
+  const isListboxOpen = open && !degraded;
+  const activeItemId =
+    isListboxOpen && !loading && activeIndex >= 0 && items[activeIndex]
+      ? `${listboxId}-option-${activeIndex}`
+      : undefined;
 
   // Монотонный счётчик: гарантия, что stale-ответ не перетрёт свежий.
   const reqIdRef = useRef(0);
@@ -79,8 +90,11 @@ export function AddressAutocomplete({
   useEffect(() => {
     if (degraded) return;
     if (query.length < MIN_QUERY_LEN) {
+      reqIdRef.current += 1;
       setItems([]);
       setOpen(false);
+      setLoading(false);
+      setActiveIndex(-1);
       return;
     }
 
@@ -92,6 +106,7 @@ export function AddressAutocomplete({
           if (id !== reqIdRef.current) return;
           setItems(result);
           setOpen(true);
+          setActiveIndex(-1);
           setLoading(false);
         })
         .catch((err) => {
@@ -100,6 +115,7 @@ export function AddressAutocomplete({
             setDegraded(true);
             setOpen(false);
             setItems([]);
+            setActiveIndex(-1);
           }
           setLoading(false);
         });
@@ -112,15 +128,56 @@ export function AddressAutocomplete({
     setQuery(item.text);
     setOpen(false);
     setItems([]);
+    setActiveIndex(-1);
     onChange({ text: item.text, lat: item.lat ?? null, lon: item.lon ?? null });
   }
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setQuery(v);
+    setActiveIndex(-1);
     // Любой ручной ввод сбрасывает координаты — сервер переопределит через
     // Geocoder (§7.3 шаг 2). Выбор из dropdown потом перезапишет lat/lon.
     onChange({ text: v, lat: null, lon: null });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (degraded) return;
+
+    if (e.key === 'ArrowDown') {
+      if (loading || items.length === 0) return;
+      e.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) =>
+        current < 0 ? 0 : (current + 1) % items.length,
+      );
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      if (loading || items.length === 0) return;
+      e.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) =>
+        current <= 0 ? items.length - 1 : current - 1,
+      );
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (!isListboxOpen || activeIndex < 0 || !items[activeIndex] || loading) {
+        return;
+      }
+      e.preventDefault();
+      handleSelect(items[activeIndex]);
+      return;
+    }
+
+    if (e.key === 'Escape' && isListboxOpen) {
+      e.preventDefault();
+      setOpen(false);
+      setActiveIndex(-1);
+    }
   }
 
   function handleBlur() {
@@ -136,10 +193,16 @@ export function AddressAutocomplete({
         type="text"
         value={query}
         onChange={handleInput}
+        onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         required={required}
         placeholder={t('components.addressAutocomplete.placeholder')}
         autoComplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isListboxOpen}
+        aria-controls={isListboxOpen ? listboxId : undefined}
+        aria-activedescendant={activeItemId}
         className="w-full rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
       />
       {degraded && (
@@ -149,6 +212,7 @@ export function AddressAutocomplete({
       )}
       {open && !degraded && (
         <ul
+          id={listboxId}
           role="listbox"
           className="absolute left-0 right-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-border/80 bg-popover shadow-[0_14px_30px_rgba(58,46,37,0.16)]"
         >
@@ -165,16 +229,19 @@ export function AddressAutocomplete({
           {!loading &&
             items.map((item, idx) => (
               <li
+                id={`${listboxId}-option-${idx}`}
                 key={`${item.text}-${idx}`}
                 role="option"
-                aria-selected="false"
+                aria-selected={idx === activeIndex}
                 // onMouseDown вместо onClick: срабатывает до onBlur input'а,
                 // иначе blur закрывает dropdown раньше клика.
                 onMouseDown={(e) => {
                   e.preventDefault();
                   handleSelect(item);
                 }}
-                className="cursor-pointer px-3 py-2 text-sm hover:bg-muted"
+                className={`cursor-pointer px-3 py-2 text-sm hover:bg-muted ${
+                  idx === activeIndex ? 'bg-muted' : ''
+                }`}
               >
                 {item.text}
               </li>

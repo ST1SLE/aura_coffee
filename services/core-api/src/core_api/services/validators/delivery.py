@@ -48,5 +48,6 @@ def validate_min_delivery_amount(subtotal: int, shop_settings: Any) -> None:
     min_amount = int(shop_settings.min_delivery_amount)
     if subtotal < min_amount:
         raise MinimumDeliveryAmountError(
-            f"subtotal {subtotal} below min_delivery_amount {min_amount}",
+            subtotal=subtotal,
+            min_amount=min_amount,
         )

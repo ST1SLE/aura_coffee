@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, fireEvent, act, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import '@/i18n/config';
 
 vi.mock('@/api/yandex_maps', async () => {
@@ -126,6 +127,88 @@ describe('AddressAutocomplete debounce', () => {
 });
 
 describe('AddressAutocomplete selection', () => {
+  it('exposes combobox semantics and active option state', async () => {
+    const items = [
+      { text: 'Невский пр., 1', lat: 59.93, lon: 30.36 },
+      { text: 'Невский пр., 2', lat: 59.93, lon: 30.37 },
+    ];
+    (suggest as Mock).mockResolvedValue(items);
+
+    const { container } = setup();
+    const input = container.querySelector('input')!;
+    fireEvent.change(input, { target: { value: 'Нев' } });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    await flushPromises();
+
+    const combobox = screen.getByRole('combobox');
+    const listbox = screen.getByRole('listbox');
+    const firstOption = screen.getByRole('option', { name: 'Невский пр., 1' });
+
+    expect(combobox).toHaveAttribute('aria-autocomplete', 'list');
+    expect(combobox).toHaveAttribute('aria-expanded', 'true');
+    expect(combobox).toHaveAttribute('aria-controls', listbox.id);
+    expect(combobox).not.toHaveAttribute('aria-activedescendant');
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    expect(combobox).toHaveAttribute('aria-activedescendant', firstOption.id);
+    expect(firstOption).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('selects suggestions with arrow keys and Enter', async () => {
+    const items = [
+      { text: 'Невский пр., 1', lat: 59.93, lon: 30.36 },
+      { text: 'Невский пр., 2', lat: 59.93, lon: 30.37 },
+    ];
+    (suggest as Mock).mockResolvedValue(items);
+
+    const { container, onChange } = setup();
+    const input = container.querySelector('input')!;
+    fireEvent.change(input, { target: { value: 'Нев' } });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    await flushPromises();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      text: 'Невский пр., 2',
+      lat: 59.93,
+      lon: 30.37,
+    });
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('closes the listbox with Escape', async () => {
+    const items = [{ text: 'Невский пр., 1', lat: 59.93, lon: 30.36 }];
+    (suggest as Mock).mockResolvedValue(items);
+
+    const { container } = setup();
+    const input = container.querySelector('input')!;
+    fireEvent.change(input, { target: { value: 'Нев' } });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    await flushPromises();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.getByRole('combobox')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByRole('combobox')).not.toHaveAttribute(
+      'aria-activedescendant',
+    );
+  });
+
   it('calls onChange with {text, lat, lon} and closes dropdown', async () => {
     const items = [
       { text: 'Невский пр., 1', lat: 59.93, lon: 30.36 },

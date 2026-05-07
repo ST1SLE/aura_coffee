@@ -1,4 +1,11 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -20,12 +27,58 @@ import {
   type CheckoutOptions,
   type CreateOrderPayload,
   type InlineDeliveryAddress,
+  type MinimumDeliveryAmountDetail,
 } from '@/api/orders';
 import {
   geocode,
   MapsUnavailableError,
   type MapsLang,
 } from '@/api/yandex_maps';
+
+function isMinimumDeliveryAmountDetail(
+  detail: unknown,
+): detail is MinimumDeliveryAmountDetail {
+  const maybe = detail as Partial<MinimumDeliveryAmountDetail> | null;
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    maybe?.code === 'minimum_delivery_amount' &&
+    typeof maybe.subtotal === 'number' &&
+    typeof maybe.min_delivery_amount === 'number'
+  );
+}
+
+function isReadableServerDetail(detail: string): boolean {
+  const text = detail.trim();
+  if (!text) return false;
+  return !(
+    /subtotal\s+\d+\s+below\s+min_delivery_amount/i.test(text) ||
+    /\b[a-z]+(?:_[a-z0-9]+){1,}\b/.test(text) ||
+    /^[\[{]/.test(text) ||
+    /^HTTP\s+\d+/i.test(text)
+  );
+}
+
+function parseLegacyMinimumDeliveryDetail(
+  detail: string,
+): MinimumDeliveryAmountDetail | null {
+  try {
+    const parsed = JSON.parse(detail) as unknown;
+    if (isMinimumDeliveryAmountDetail(parsed)) return parsed;
+  } catch {
+    // Plain-text server details are handled below.
+  }
+
+  const match = detail.match(
+    /subtotal\s+(\d+)\s+below\s+min_delivery_amount\s+(\d+)/i,
+  );
+  if (!match) return null;
+  return {
+    code: 'minimum_delivery_amount',
+    subtotal: Number(match[1]),
+    min_delivery_amount: Number(match[2]),
+  };
+}
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Checkout route page — choose pickup vs delivery, pick a saved
@@ -118,6 +171,11 @@ export function CheckoutPage() {
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   useEffect(() => {
     if (orderType !== 'delivery') return;
@@ -184,16 +242,36 @@ export function CheckoutPage() {
   const renderError = useCallback(
     (err: unknown): string => {
       if (err instanceof OrderApiError) {
-        if (err.status === 409) {
-          return err.detail?.trim()
-            ? err.detail
-            : t('errors.delivery.outOfRadius');
+        const minimumDetail =
+          typeof err.detail === 'string'
+            ? parseLegacyMinimumDeliveryDetail(err.detail)
+            : err.detail;
+        if (isMinimumDeliveryAmountDetail(minimumDetail)) {
+          return t('errors.delivery.minimumAmount', {
+            min: formatPrice(minimumDetail.min_delivery_amount, i18n.language),
+            subtotal: formatPrice(minimumDetail.subtotal, i18n.language),
+          });
         }
-        return err.detail ?? t('errors.delivery.generic');
+        if (err.status === 409) {
+          if (
+            typeof err.detail === 'string' &&
+            isReadableServerDetail(err.detail)
+          ) {
+            return err.detail;
+          }
+          return t('errors.delivery.outOfRadius');
+        }
+        if (
+          typeof err.detail === 'string' &&
+          isReadableServerDetail(err.detail)
+        ) {
+          return err.detail;
+        }
+        return t('errors.delivery.generic');
       }
       return t('errors.delivery.generic');
     },
-    [t],
+    [i18n.language, t],
   );
 
   const checkoutOptions = useMemo<CheckoutOptions>(() => {
@@ -651,8 +729,10 @@ export function CheckoutPage() {
 
       {error && (
         <p
+          ref={errorRef}
           className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
+          tabIndex={-1}
         >
           {error}
         </p>

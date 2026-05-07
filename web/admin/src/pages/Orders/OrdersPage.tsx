@@ -337,44 +337,46 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist">
-        {visibleStatusTabs.map((s) => (
-          <Button
-            key={s}
-            role="tab"
-            variant={status === s ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter({ status: s })}
-            data-testid={`orders-tab-${s}`}
-            aria-selected={status === s}
-          >
-            {labelForStatusTab(s)}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <label
-          htmlFor="orders-type-filter"
-          className="text-sm text-muted-foreground"
-        >
-          {t('pages.orders.filters.type')}
-        </label>
-        <select
-          id="orders-type-filter"
-          data-testid="orders-type-filter"
-          className="h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
-          value={type}
-          onChange={(e) =>
-            setFilter({ type: e.target.value as OrderType | 'all' })
-          }
-        >
-          {TYPE_OPTIONS.map((o) => (
-            <option key={o} value={o}>
-              {labelForTypeOption(o)}
-            </option>
+      <div className="admin-surface-soft space-y-4 p-4">
+        <div className="flex flex-wrap gap-2" role="tablist">
+          {visibleStatusTabs.map((s) => (
+            <Button
+              key={s}
+              role="tab"
+              variant={status === s ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter({ status: s })}
+              data-testid={`orders-tab-${s}`}
+              aria-selected={status === s}
+            >
+              {labelForStatusTab(s)}
+            </Button>
           ))}
-        </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="orders-type-filter"
+            className="text-sm font-medium text-foreground/75"
+          >
+            {t('pages.orders.filters.type')}
+          </label>
+          <select
+            id="orders-type-filter"
+            data-testid="orders-type-filter"
+            className="h-9 rounded-md border border-input bg-[hsl(var(--field))] px-3 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
+            value={type}
+            onChange={(e) =>
+              setFilter({ type: e.target.value as OrderType | 'all' })
+            }
+          >
+            {TYPE_OPTIONS.map((o) => (
+              <option key={o} value={o}>
+                {labelForTypeOption(o)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading && rows.length === 0 ? (

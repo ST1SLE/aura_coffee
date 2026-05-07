@@ -135,7 +135,75 @@ describe('createOrder errors', () => {
       expect(e).toBeInstanceOf(OrderApiError);
       const err = e as OrderApiError;
       expect(err.status).toBe(409);
-      expect(err.detail).toContain('вне зоны');
+      expect(err.detail).toBe('Адрес вне зоны доставки (максимум 10 км).');
+    }
+  });
+
+  it('preserves structured minimum delivery detail', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asError(409, {
+        detail: {
+          code: 'minimum_delivery_amount',
+          subtotal: 21000,
+          min_delivery_amount: 50000,
+        },
+      }),
+    );
+
+    try {
+      await createOrder({ type: 'pickup' });
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(OrderApiError);
+      const err = e as OrderApiError;
+      expect(err.status).toBe(409);
+      expect(err.detail).toEqual({
+        code: 'minimum_delivery_amount',
+        subtotal: 21000,
+        min_delivery_amount: 50000,
+      });
+    }
+  });
+
+  it('parses stringified minimum delivery detail without exposing JSON text', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asError(409, {
+        detail:
+          '{"code":"minimum_delivery_amount","subtotal":21000,"min_delivery_amount":50000}',
+      }),
+    );
+
+    try {
+      await createOrder({ type: 'pickup' });
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(OrderApiError);
+      const err = e as OrderApiError;
+      expect(err.detail).toEqual({
+        code: 'minimum_delivery_amount',
+        subtotal: 21000,
+        min_delivery_amount: 50000,
+      });
+      expect(err.message).toBe('HTTP 409');
+    }
+  });
+
+  it('drops unknown object detail instead of stringifying it for display', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asError(422, {
+        detail: [{ loc: ['body', 'type'], msg: 'Field required' }],
+      }),
+    );
+
+    try {
+      await createOrder({ type: 'pickup' });
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(OrderApiError);
+      const err = e as OrderApiError;
+      expect(err.status).toBe(422);
+      expect(err.detail).toBeUndefined();
+      expect(err.message).toBe('HTTP 422');
     }
   });
 });

@@ -101,7 +101,7 @@ export function MenuPage() {
       </div>
 
       {/* Нижняя секция — модификаторы */}
-      <div className="border-t pt-6">
+      <div className="admin-surface p-4">
         <ModifiersPanel
           modifiers={modifiers}
           onModifiersChange={setModifiers}

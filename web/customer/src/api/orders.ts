@@ -28,7 +28,7 @@ import { authenticatedFetch } from './client';
 //   OrderResponse            - server response with totals, status, confirmation_url
 //   OrderListResponse        - GET /orders?page&per_page response with orders[]
 //   RepeatOrderResult        - POST /orders/{id}/repeat result
-//   OrderApiError            - Error subclass with status + detail (409 = out-of-radius)
+//   OrderApiError            - Error subclass with status + safe detail payload
 //   createOrder              - POST /orders, returns OrderResponse
 //   estimateOrder            - POST /orders/estimate, returns server-owned totals
 //   getOrder                 - GET /orders/{id}, returns detail for polling/status
@@ -135,34 +135,75 @@ export interface RepeatOrderResult {
   skipped: RepeatOrderSkippedEntry[];
 }
 
+export interface MinimumDeliveryAmountDetail {
+  code: 'minimum_delivery_amount';
+  subtotal: number;
+  min_delivery_amount: number;
+}
+
+export type OrderApiErrorDetail = string | MinimumDeliveryAmountDetail;
+
+function isMinimumDeliveryAmountDetail(
+  detail: unknown,
+): detail is MinimumDeliveryAmountDetail {
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    (detail as { code?: unknown }).code === 'minimum_delivery_amount' &&
+    typeof (detail as { subtotal?: unknown }).subtotal === 'number' &&
+    typeof (detail as { min_delivery_amount?: unknown }).min_delivery_amount ===
+      'number'
+  );
+}
+
+function parseMinimumDeliveryAmountString(
+  detail: string,
+): MinimumDeliveryAmountDetail | null {
+  try {
+    const parsed = JSON.parse(detail) as unknown;
+    if (isMinimumDeliveryAmountDetail(parsed)) return parsed;
+  } catch {
+    // Plain-text server details are handled below.
+  }
+
+  const match = detail.match(
+    /subtotal\s+(\d+)\s+below\s+min_delivery_amount\s+(\d+)/i,
+  );
+  if (!match) return null;
+  return {
+    code: 'minimum_delivery_amount',
+    subtotal: Number(match[1]),
+    min_delivery_amount: Number(match[2]),
+  };
+}
+
 // START_CONTRACT: OrderApiError
-//   PURPOSE: Carry HTTP status + server detail so CheckoutPage can render the
-//            localized 409 out-of-radius message and other failures.
+//   PURPOSE: Carry HTTP status + server detail so CheckoutPage can render
+//            localized checkout errors without exposing internal validator text.
 //   INPUTS:  status: number
-//            detail?: string
+//            detail?: OrderApiErrorDetail
 //   OUTPUTS: OrderApiError instance.
 //   SIDE_EFFECTS: none.
 // END_CONTRACT: OrderApiError
 export class OrderApiError extends Error {
   constructor(
     public status: number,
-    public detail?: string,
+    public detail?: OrderApiErrorDetail,
   ) {
-    super(detail ?? `HTTP ${status}`);
+    super(typeof detail === 'string' ? detail : `HTTP ${status}`);
     this.name = 'OrderApiError';
   }
 }
 
 async function parseError(res: Response): Promise<OrderApiError> {
-  let detail: string | undefined;
+  let detail: OrderApiErrorDetail | undefined;
   try {
     const body = (await res.json()) as { detail?: unknown };
-    detail =
-      typeof body?.detail === 'string'
-        ? body.detail
-        : body?.detail
-          ? JSON.stringify(body.detail)
-          : undefined;
+    if (typeof body?.detail === 'string') {
+      detail = parseMinimumDeliveryAmountString(body.detail) ?? body.detail;
+    } else if (isMinimumDeliveryAmountDetail(body?.detail)) {
+      detail = body.detail;
+    }
   } catch {
     // non-json body
   }

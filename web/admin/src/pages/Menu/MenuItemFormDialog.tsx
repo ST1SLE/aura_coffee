@@ -368,7 +368,7 @@ export function MenuItemFormDialog({
               onChange={(e) =>
                 setForm({ ...form, category_id: e.target.value })
               }
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-[hsl(var(--field))] px-3 py-1 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
               required
             >
               <option value="">
@@ -423,7 +423,7 @@ export function MenuItemFormDialog({
                         : '',
                   }));
                 }}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-[hsl(var(--field))] px-3 py-1 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
               >
                 <option value="unlimited">
                   {t('pages.menu.itemForm.inventoryUnlimited')}
@@ -506,7 +506,7 @@ export function MenuItemFormDialog({
                       mediaType === 'video' ? prev.media_poster_url : '',
                   }));
                 }}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-[hsl(var(--field))] px-3 py-1 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
               >
                 <option value="">
                   {t('pages.menu.itemForm.mediaTypeNone')}

@@ -96,7 +96,9 @@ function formatDate(
 }
 
 function renderError(err: unknown, fallback: string): string {
-  if (err instanceof OrderApiError && err.detail) return err.detail;
+  if (err instanceof OrderApiError && typeof err.detail === 'string') {
+    return err.detail;
+  }
   return fallback;
 }
 

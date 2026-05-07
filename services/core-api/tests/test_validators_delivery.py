@@ -69,8 +69,11 @@ def test_validate_min_delivery_amount_below_raises() -> None:
     from core_api.services.validators import validate_min_delivery_amount
     from core_api.services.validators.exceptions import MinimumDeliveryAmountError
 
-    with pytest.raises(MinimumDeliveryAmountError):
+    with pytest.raises(MinimumDeliveryAmountError) as exc_info:
         validate_min_delivery_amount(40000, _shop_moscow())
+    assert str(exc_info.value) == "minimum_delivery_amount"
+    assert exc_info.value.subtotal == 40000
+    assert exc_info.value.min_amount == 50000
 
 
 def test_validate_min_delivery_amount_equal_accepts() -> None:

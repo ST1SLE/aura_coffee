@@ -153,10 +153,11 @@ def compute_delivery_fee(subtotal: int, shop_settings: Any) -> int:
     subtotal >= free_delivery_threshold → 0 (бесплатная).
     Иначе → delivery_fee.
     """
-    if subtotal < int(shop_settings.min_delivery_amount):
+    min_amount = int(shop_settings.min_delivery_amount)
+    if subtotal < min_amount:
         raise MinimumDeliveryAmountError(
-            f"subtotal {subtotal} below min_delivery_amount "
-            f"{shop_settings.min_delivery_amount}",
+            subtotal=subtotal,
+            min_amount=min_amount,
         )
     if subtotal >= int(shop_settings.free_delivery_threshold):
         return 0

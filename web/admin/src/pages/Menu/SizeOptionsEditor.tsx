@@ -115,7 +115,7 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
 
   if (disabled) {
     return (
-      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+      <div className="rounded-md border border-border/70 bg-[hsl(var(--field))] p-4 text-sm text-muted-foreground">
         {t('pages.menu.sizes.disabledHint')}
       </div>
     );
@@ -136,7 +136,7 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
               <select
                 value={editRow.label}
                 onChange={(e) => setEditRow({ ...editRow, label: e.target.value as SizeLabel })}
-                className="flex h-9 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-20 rounded-md border border-input bg-[hsl(var(--field))] px-2 py-1 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
               >
                 {SIZE_LABELS.map((lbl) => (
                   <option key={lbl} value={lbl}>{lbl}</option>
@@ -182,7 +182,7 @@ export function SizeOptionsEditor({ menuItemId, sizes, onChange, disabled, onErr
         <select
           value={addRow.label}
           onChange={(e) => setAddRow({ ...addRow, label: e.target.value as SizeLabel })}
-          className="flex h-9 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex h-9 w-20 rounded-md border border-input bg-[hsl(var(--field))] px-2 py-1 text-sm shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
         >
           {SIZE_LABELS.map((lbl) => (
             <option key={lbl} value={lbl}>{lbl}</option>

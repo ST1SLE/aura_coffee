@@ -58,7 +58,7 @@ function shortId(id: string): string {
 const mobileLabelClass =
   'text-xs font-medium uppercase tracking-wide text-muted-foreground md:hidden';
 const responsiveRowClass =
-  'block rounded-lg border bg-card p-3 shadow-sm md:table-row md:rounded-none md:border-b md:bg-transparent md:p-0 md:shadow-none';
+  'block rounded-lg border bg-card p-3 shadow-sm md:table-row md:rounded-none md:border-b md:p-0 md:shadow-none';
 const responsiveCellClass =
   'flex items-center justify-between gap-4 py-2 text-sm md:table-cell md:p-2';
 

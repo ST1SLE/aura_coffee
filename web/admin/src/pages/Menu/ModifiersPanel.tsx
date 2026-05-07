@@ -157,7 +157,7 @@ export function ModifiersPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
           {t('pages.menu.modifiers.title')}
         </h2>
@@ -175,7 +175,7 @@ export function ModifiersPanel({
 
       {/* Форма добавления */}
       {isAdmin && showAdd && (
-        <div className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-end">
+        <div className="flex flex-col gap-2 rounded-md border border-border/70 bg-[hsl(var(--field))] p-3 shadow-sm md:flex-row md:items-end">
           <div className="w-full space-y-1 md:flex-1">
             <Label htmlFor="mod-name-ru">
               {t('pages.menu.modifiers.nameRu')}
@@ -243,7 +243,7 @@ export function ModifiersPanel({
           editId === m.id ? (
             <li
               key={m.id}
-              className="flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center"
+              className="flex flex-col gap-2 rounded-md border border-border/70 bg-[hsl(var(--field))] p-2 shadow-sm sm:flex-row sm:items-center"
             >
               <Input
                 value={editForm.name_ru}
@@ -280,7 +280,7 @@ export function ModifiersPanel({
           ) : (
             <li
               key={m.id}
-              className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+              className="flex flex-wrap items-center gap-3 rounded-md border border-border/65 bg-[hsl(var(--field))] px-3 py-2 shadow-sm transition-colors hover:bg-secondary/35"
             >
               <Switch
                 checked={m.available}
