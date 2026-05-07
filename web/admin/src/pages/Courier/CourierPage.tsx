@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PackageSearch, UserCheck, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AvailableTab } from '@/pages/Courier/AvailableTab';
 import { MineTab } from '@/pages/Courier/MineTab';
@@ -35,11 +36,11 @@ export function CourierPage() {
   const [tab, setTab] = useState<TabKey>('available');
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <div
         role="tablist"
         aria-label="courier-tabs"
-        className="flex gap-2 p-1 bg-muted rounded-full"
+        className="flex gap-2 rounded-md border border-border/80 bg-card p-1 shadow-[0_12px_30px_rgba(26,37,33,0.06)]"
       >
         <TabButton
           active={tab === 'available'}
@@ -47,6 +48,7 @@ export function CourierPage() {
           label={t('courier.tabs.available')}
           panelId="courier-panel-available"
           tabId="courier-tab-available"
+          icon={PackageSearch}
         />
         <TabButton
           active={tab === 'mine'}
@@ -54,6 +56,7 @@ export function CourierPage() {
           label={t('courier.tabs.mine')}
           panelId="courier-panel-mine"
           tabId="courier-tab-mine"
+          icon={UserCheck}
         />
       </div>
       <div
@@ -82,9 +85,17 @@ interface TabButtonProps {
   label: string;
   panelId: string;
   tabId: string;
+  icon: LucideIcon;
 }
 
-function TabButton({ active, onClick, label, panelId, tabId }: TabButtonProps) {
+function TabButton({
+  active,
+  onClick,
+  label,
+  panelId,
+  tabId,
+  icon: Icon,
+}: TabButtonProps) {
   return (
     <button
       id={tabId}
@@ -94,12 +105,13 @@ function TabButton({ active, onClick, label, panelId, tabId }: TabButtonProps) {
       aria-controls={panelId}
       onClick={onClick}
       className={cn(
-        'flex-1 min-h-12 rounded-full px-4 text-sm font-medium transition-colors',
+        'flex min-h-12 flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors',
         active
           ? 'bg-primary text-primary-foreground shadow'
-          : 'text-muted-foreground hover:text-foreground',
+          : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground',
       )}
     >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
       {label}
     </button>
   );

@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { LogIn } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-  staffLogin,
-  setAccessToken,
-  ApiError,
-} from '@/api/client';
+import { staffLogin, setAccessToken, ApiError } from '@/api/client';
 import { setRole, type StaffRole } from '@/lib/auth';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Staff login form — login + password against /staff/auth/login.
@@ -82,14 +79,24 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-sm space-y-6 p-6">
-        <div>
-          <BrandMark
-            decorative
-            className="mb-3 h-11 w-12 rounded-md object-cover shadow-sm"
-          />
-          <h1 className="text-2xl font-bold">{t('auth.login.title')}</h1>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-sm rounded-lg border border-border/80 bg-card/95 p-6 shadow-[0_24px_80px_rgba(58,46,37,0.16)]">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <BrandWordmark
+              decorative
+              className="mb-3 h-8 w-auto max-w-[9.5rem] object-contain drop-shadow-[0_10px_18px_rgba(27,23,19,0.14)]"
+            />
+            <h1 className="text-2xl font-bold leading-tight">
+              {t('auth.login.title')}
+            </h1>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              {t('auth.login.subtitle')}
+            </p>
+          </div>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.18)]">
+            <BrandMark decorative tone="white" className="h-6 w-6 object-contain" />
+          </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -102,6 +109,7 @@ export function LoginPage() {
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               disabled={loading}
+              autoComplete="username"
             />
           </div>
 
@@ -114,6 +122,7 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 
@@ -125,9 +134,10 @@ export function LoginPage() {
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full shadow-[0_14px_30px_rgba(58,46,37,0.12)]"
             disabled={!login || !password || loading}
           >
+            <LogIn aria-hidden="true" />
             {loading ? t('auth.login.submitLoading') : t('auth.login.submit')}
           </Button>
         </form>

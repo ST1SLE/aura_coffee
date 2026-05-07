@@ -1,5 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => (key === 'auth.phone.placeholder' ? '(999) 123-45-67' : key),
+  }),
+}));
+
 import { PhoneInput, isValidPhone } from './PhoneInput';
 
 describe('PhoneInput', () => {
@@ -14,6 +21,12 @@ describe('PhoneInput', () => {
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: '9991234567' } });
     expect(onChange).toHaveBeenCalledWith('+79991234567');
+  });
+
+  it('uses the i18n phone placeholder', () => {
+    render(<PhoneInput value="+7" onChange={() => {}} />);
+
+    expect(screen.getByPlaceholderText('(999) 123-45-67')).toBeDefined();
   });
 
   it('strips non-digit characters', () => {

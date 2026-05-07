@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck } from 'lucide-react';
 import { OTPInput } from '@/components/auth/OTPInput';
 import { ResendTimer } from '@/components/auth/ResendTimer';
 import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
+import { BrandWordmark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /login/verify route — OTP entry step. Reads phone + returnUrl
@@ -15,7 +15,8 @@ import { AuthError } from '@/api/auth';
 //            error strings and supports OTP resend via ResendTimer.
 //   SCOPE:   VerifyPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/components/auth/OTPInput,
-//            @/components/auth/ResendTimer, @/auth/useAuth, @/api/auth (AuthError).
+//            @/components/auth/ResendTimer, @/components/BrandMark,
+//            @/auth/useAuth, @/api/auth (AuthError).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.2 verify-code;
 //            INV-013 (phone is PII — only displayed masked in this UI).
 //   ROLE:    RUNTIME
@@ -112,9 +113,10 @@ export function VerifyPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="aura-surface w-full max-w-sm overflow-hidden rounded-lg bg-card/95">
         <div className="space-y-2 border-b border-border/60 bg-muted/75 px-5 py-6 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.18)]">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-          </span>
+          <BrandWordmark
+            alt={t('appTitle')}
+            className="mx-auto h-8 w-auto max-w-[9.5rem] object-contain drop-shadow-[0_10px_18px_rgba(27,23,19,0.12)]"
+          />
           <h1 className="font-display text-2xl font-bold">
             {t('auth.otp.title')}
           </h1>

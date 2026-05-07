@@ -79,6 +79,8 @@ describe('Layout cart affordances', () => {
     expect(floating.getAttribute('aria-label')).toBe('nav.cart: 2');
     expect(floating.className).toContain('fixed');
     expect(floating.className).toContain('min-h-14');
+    expect(floating.className).toContain('md:bottom-6');
+    expect(floating.className).not.toContain('md:hidden');
     expect(screen.getByText(/375/)).toBeDefined();
   });
 

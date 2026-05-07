@@ -1,6 +1,10 @@
 import { Outlet } from 'react-router-dom';
-import { BrandMark } from '@/components/BrandMark';
+import { LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { logout } from '@/api/client';
+import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { Button } from '@/components/ui/button';
 import { NotificationList } from '@/components/ui/notifier';
 import {
   CourierNotifierProvider,
@@ -28,18 +32,42 @@ import {
 // END_MODULE_MAP
 
 function ShellBody() {
+  const { t } = useTranslation();
   const { notifications, dismiss } = useCourierNotifier();
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b px-4 py-3 flex items-center justify-between">
-        <BrandMark
-          alt="Aura Coffee"
-          className="h-10 w-12 shrink-0 rounded-md object-cover shadow-sm"
-        />
-        <LanguageSwitcher />
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 px-4 py-3 shadow-[0_8px_24px_rgba(26,37,33,0.06)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandMark
+              decorative
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_10px_18px_rgba(26,37,33,0.14)]"
+            />
+            <BrandWordmark
+              decorative
+              className="h-5 w-auto max-w-[8rem] object-contain"
+            />
+            <span className="sr-only">{t('appTitle')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="logout-courier"
+              onClick={logout}
+            >
+              <LogOut aria-hidden="true" />
+              {t('nav.logout')}
+            </Button>
+            <LanguageSwitcher />
+          </div>
+        </div>
       </header>
-      <main className="flex-1 p-4">
-        <Outlet />
+      <main className="flex-1 px-4 py-5 sm:px-6">
+        <div className="mx-auto w-full max-w-4xl">
+          <Outlet />
+        </div>
       </main>
       <NotificationList notifications={notifications} onDismiss={dismiss} />
     </div>

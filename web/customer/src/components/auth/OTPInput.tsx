@@ -1,11 +1,12 @@
 import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: 6-digit OTP input — six single-character inputs that auto-advance,
 //            handle Backspace (clear current then move back), accept paste of
 //            the full code, and fire onComplete when all six digits are filled.
 //   SCOPE:   OTPInput component.
-//   DEPENDS: react (useCallback, useRef).
+//   DEPENDS: react (useCallback, useRef), react-i18next.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.2 verify-code.
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -35,6 +36,7 @@ interface OTPInputProps {
 //   LINKS:   PDD §6.2; consumed by VerifyPage.
 // END_CONTRACT: OTPInput
 export function OTPInput({ value, onChange, onComplete, disabled }: OTPInputProps) {
+  const { t } = useTranslation();
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const digits = value.padEnd(CODE_LENGTH, ' ').slice(0, CODE_LENGTH).split('');
 
@@ -110,6 +112,10 @@ export function OTPInput({ value, onChange, onComplete, disabled }: OTPInputProp
           onChange={(e) => handleInput(i, e.target.value.slice(-1))}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
+          aria-label={t('auth.otp.digitLabel', {
+            position: i + 1,
+            total: CODE_LENGTH,
+          })}
           className="h-12 w-12 rounded-lg border border-input bg-card text-center font-display text-xl font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
         />

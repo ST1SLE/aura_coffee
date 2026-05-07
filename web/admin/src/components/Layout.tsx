@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { logout } from '@/api/client';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 import { Button } from '@/components/ui/button';
 import { useCurrentRole, type StaffRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,8 @@ import { cn } from '@/lib/utils';
 //   SCOPE:   Mounted under the admin/barista ProtectedRoute branch in App.tsx.
 //   DEPENDS: react-router-dom (Outlet/Link/useLocation), react-i18next,
 //            lucide-react, @/api/client, @/components/LanguageSwitcher,
-//            @/components/ui/button, @/lib/auth, @/lib/utils.
+//            @/components/BrandMark, @/components/ui/button, @/lib/auth,
+//            @/lib/utils.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, AGENTS.md (role isolation),
 //            INV-002, INV-010.
 //   ROLE:    RUNTIME
@@ -76,41 +77,58 @@ export function Layout() {
   const visibleItems = navItems.filter((i) => allowedKeys.includes(i.key));
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-56 border-r bg-surface-muted p-4 hidden md:flex md:flex-col">
-        <Link
-          to="/"
-          className="mb-6 flex min-w-0 items-center gap-3 text-lg font-bold text-brand-700"
-          aria-label={t('appTitle')}
-        >
-          <BrandMark
-            decorative
-            className="h-10 w-12 shrink-0 rounded-md object-cover shadow-sm"
-          />
-          <span className="truncate">{t('appTitle')}</span>
-        </Link>
-        <nav className="space-y-1 flex-1">
-          {visibleItems.map((item) => (
-            <Link
-              key={item.key}
-              to={item.path}
-              data-testid={`nav-${item.key}`}
-              className={cn(
-                'block rounded-md px-3 py-2 text-sm transition-colors',
-                location.pathname === item.path
-                  ? 'bg-brand-100 text-brand-900 font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-              )}
-            >
-              {t(`nav.${item.key}`)}
-            </Link>
-          ))}
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="hidden w-64 border-r border-white/10 bg-[hsl(var(--admin-sidebar))] text-[hsl(var(--admin-sidebar-foreground))] md:flex md:flex-col">
+        <div className="border-b border-white/10 px-5 py-5">
+          <Link
+            to="/"
+            className="flex min-w-0 items-center gap-3"
+            aria-label={t('appTitle')}
+          >
+            <BrandMark
+              decorative
+              tone="white"
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.18)]"
+            />
+            <span className="min-w-0 space-y-1">
+              <BrandWordmark
+                decorative
+                tone="white"
+                className="h-5 w-auto max-w-[7.5rem] object-contain"
+              />
+              <span className="block truncate text-xs font-semibold text-white/70">
+                {t('appTitle')}
+              </span>
+            </span>
+          </Link>
+        </div>
+        <nav className="flex-1 space-y-1 px-3 py-4">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.path;
+            return (
+              <Link
+                key={item.key}
+                to={item.path}
+                data-testid={`nav-${item.key}`}
+                className={cn(
+                  'flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-white/10 text-white shadow-[inset_3px_0_0_hsl(var(--accent))]'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{t(`nav.${item.key}`)}</span>
+              </Link>
+            );
+          })}
         </nav>
         <Button
           type="button"
           variant="ghost"
           data-testid="logout-sidebar"
-          className="mt-4 w-full justify-start text-muted-foreground hover:text-foreground"
+          className="mx-3 mb-4 w-[calc(100%-1.5rem)] justify-start text-white/70 hover:bg-white/10 hover:text-white"
           onClick={logout}
         >
           <LogOut aria-hidden="true" />
@@ -119,13 +137,17 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-4 py-3 flex items-center justify-between">
-          <span className="flex min-w-0 items-center gap-2 text-lg font-bold text-brand-700 md:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/80 bg-background/95 px-4 py-3 backdrop-blur md:px-6">
+          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-primary md:hidden">
             <BrandMark
               decorative
-              className="h-7 w-8 shrink-0 rounded-md object-cover"
+              className="h-8 w-8 shrink-0 object-contain"
             />
-            <span className="truncate">{t('appTitle')}</span>
+            <BrandWordmark
+              decorative
+              className="h-4 w-auto max-w-[6.5rem] object-contain"
+            />
+            <span className="sr-only">{t('appTitle')}</span>
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -143,43 +165,45 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 p-4 pb-24 md:pb-4">
-          <Outlet />
+        {visibleItems.length > 0 && (
+          <nav
+            aria-label={t('nav.mobileLabel')}
+            data-testid="mobile-nav"
+            className="sticky top-[57px] z-20 border-b border-border/80 bg-card/95 px-2 py-2 shadow-[0_8px_24px_rgba(26,37,33,0.08)] backdrop-blur md:hidden"
+          >
+            <div className="flex gap-1 overflow-x-auto">
+              {visibleItems.map((item) => {
+                const Icon = item.icon;
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.key}
+                    to={item.path}
+                    data-testid={`nav-mobile-${item.key}`}
+                    className={cn(
+                      'flex h-14 min-w-[4.75rem] flex-1 flex-col items-center justify-center rounded-md px-2 py-1.5 text-center text-[10px] font-medium leading-tight transition-colors',
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground',
+                    )}
+                  >
+                    <Icon className="mb-0.5 h-4 w-4" aria-hidden="true" />
+                    <span className="max-w-full whitespace-normal break-words leading-tight">
+                      {t(`nav.${item.key}`)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+
+        <main className="min-w-0 flex-1 px-4 py-5 pb-6 sm:px-6 md:pb-8 lg:px-8">
+          <div className="mx-auto w-full max-w-7xl">
+            <Outlet />
+          </div>
         </main>
       </div>
-
-      {visibleItems.length > 0 && (
-        <nav
-          aria-label={t('nav.mobileLabel')}
-          data-testid="mobile-nav"
-          className="fixed inset-x-0 bottom-0 z-40 border-t bg-background px-2 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:hidden"
-        >
-          <div className="flex gap-1 overflow-x-auto">
-            {visibleItems.map((item) => {
-              const Icon = item.icon;
-              const active = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.key}
-                  to={item.path}
-                  data-testid={`nav-mobile-${item.key}`}
-                  className={cn(
-                    'flex min-w-[4.5rem] flex-1 flex-col items-center justify-center rounded-md px-2 py-1.5 text-center text-[11px] leading-tight transition-colors',
-                    active
-                      ? 'bg-brand-100 text-brand-900 font-medium'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <Icon className="mb-0.5 h-4 w-4" aria-hidden="true" />
-                  <span className="max-w-full truncate">
-                    {t(`nav.${item.key}`)}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      )}
     </div>
   );
 }

@@ -77,7 +77,7 @@ describe('AddressesPage delete', () => {
     expect(globalThis.confirm).toHaveBeenCalled();
     expect(screen.queryByText('Работа')).not.toBeInTheDocument();
     expect(
-      screen.getByText(/нет сохранённых|no saved addresses/i),
+      screen.getByText(/сохраните адрес|save an address/i),
     ).toBeInTheDocument();
   });
 });

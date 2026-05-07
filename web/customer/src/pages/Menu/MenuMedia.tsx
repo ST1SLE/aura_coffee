@@ -5,10 +5,11 @@ import type { MenuMediaType } from '@/api/menuTypes';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Presentational menu media renderer for public menu items, including
-//            video media with poster/legacy-image fallback.
+//            video media with poster/legacy-image and branded empty fallbacks.
 //   SCOPE:   Used by customer menu cards and item detail. Does not affect cart,
 //            pricing, availability, or checkout payloads.
-//   DEPENDS: react, @/api/menuTypes (MenuMediaType).
+//   DEPENDS: react, @/components/BrandMark,
+//            @/api/menuTypes (MenuMediaType).
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §5.2 menu media,
 //            INV-004 (media is outside financial flows), INV-015.
 //   ROLE:    RUNTIME
@@ -103,11 +104,23 @@ function fallbackImage(item: MenuMediaSource): string | null {
   return item.image_url;
 }
 
+function requestVideoPlayback(video: HTMLVideoElement | null) {
+  if (!video) return;
+  try {
+    const result = video.play();
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => undefined);
+    }
+  } catch {
+    // Browsers may still reject autoplay; the poster remains the fallback.
+  }
+}
+
 // START_CONTRACT: MenuMedia
 //   PURPOSE: Render menu video media when available and safe; otherwise render
-//            poster, media image, legacy image_url, or nothing.
+//            poster, media image, legacy image_url, or branded fallback.
 //   INPUTS:  Props { item media fields, alt, className? }.
-//   OUTPUTS: JSX.Element | null.
+//   OUTPUTS: JSX.Element.
 //   SIDE_EFFECTS: Subscribes to prefers-reduced-motion and IntersectionObserver;
 //                 no network mutation or cart/order state changes.
 //   LINKS:   PDD §5.2 menu media; INV-004; INV-015.
@@ -120,6 +133,7 @@ export function MenuMedia({
 }: Props) {
   const reducedMotion = usePrefersReducedMotion();
   const [containerRef, shouldLoadVideo] = useLazyVideo();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoFailed, setVideoFailed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -138,6 +152,14 @@ export function MenuMedia({
     .filter(Boolean)
     .join(' ');
 
+  useEffect(() => {
+    if (!canRenderVideo || !shouldLoadVideo || controls) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.load();
+    requestVideoPlayback(video);
+  }, [canRenderVideo, controls, item.media_url, shouldLoadVideo]);
+
   if (!canRenderVideo && (!imageSrc || imageFailed)) {
     return (
       <div
@@ -149,7 +171,7 @@ export function MenuMedia({
         <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_45%_34%,hsl(var(--card)/0.86),hsl(var(--secondary))_52%,hsl(var(--primary)/0.35)_100%)]">
           <BrandMark
             decorative
-            className="h-20 w-24 rounded-lg object-cover shadow-[0_18px_42px_rgba(30,24,19,0.20)]"
+            className="h-20 w-20 object-contain drop-shadow-[0_18px_30px_rgba(30,24,19,0.22)]"
           />
         </div>
       </div>
@@ -163,6 +185,7 @@ export function MenuMedia({
     >
       {canRenderVideo ? (
         <video
+          ref={videoRef}
           aria-label={alt}
           className={videoClassName}
           src={shouldLoadVideo ? (item.media_url ?? undefined) : undefined}
@@ -174,9 +197,15 @@ export function MenuMedia({
           controls={controls}
           controlsList="nodownload noplaybackrate noremoteplayback"
           disablePictureInPicture
-          preload="metadata"
+          preload={shouldLoadVideo ? 'auto' : 'metadata'}
           onClick={controls ? (event) => event.stopPropagation() : undefined}
           onContextMenu={(event) => event.preventDefault()}
+          onCanPlay={() => {
+            if (!controls) requestVideoPlayback(videoRef.current);
+          }}
+          onLoadedData={() => {
+            if (!controls) requestVideoPlayback(videoRef.current);
+          }}
           onError={() => setVideoFailed(true)}
         />
       ) : (

@@ -78,7 +78,9 @@ describe('OrdersPage', () => {
       /загружаем|loading/i,
     );
     await waitFor(() => {
-      expect(screen.getByText(/заказов пока нет|no orders yet/i)).toBeDefined();
+      expect(
+        screen.getByText(/начните историю заказов|start your order history/i),
+      ).toBeDefined();
     });
   });
 

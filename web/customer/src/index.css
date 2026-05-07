@@ -237,4 +237,13 @@
   .aura-numeric {
     font-variant-numeric: tabular-nums lining-nums;
   }
+
+  .aura-scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .aura-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }

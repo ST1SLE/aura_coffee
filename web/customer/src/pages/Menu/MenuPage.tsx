@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 import { fetchPublicMenu } from '@/api/menu';
 import type { PublicMenuResponse, PublicMenuItem } from '@/api/menuTypes';
 import { Button } from '@/components/ui/button';
@@ -8,8 +9,9 @@ import { ItemDetail } from './ItemDetail';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /menu route — load the menu localized to current i18next language,
-//            re-load on language change, render horizontal category browsing
-//            plus media-led cards, and open ItemDetail when a card is tapped.
+//            re-load on language change, honor /menu/:categoryId deep links,
+//            render scroll-synced category browsing plus media-led cards, and
+//            open ItemDetail when a card is tapped.
 //   SCOPE:   MenuPage component.
 //   DEPENDS: react, react-i18next, @/api/menu (fetchPublicMenu), @/api/menuTypes,
 //            @/components/ui/button, ./MenuItemCard, ./ItemDetail.
@@ -22,24 +24,39 @@ import { ItemDetail } from './ItemDetail';
 //   MenuPage  - /menu route — categories + grid of cards + item modal
 // END_MODULE_MAP
 
+const ACTIVE_CATEGORY_ANCHOR_PX = 170;
+const SCROLL_BOTTOM_TOLERANCE_PX = 8;
+
 // START_CONTRACT: MenuPage
 //   PURPOSE: Fetch and render the bilingual menu, opening ItemDetail when a
-//            card is selected.
+//            card is selected; sync /menu/:categoryId to the category rail.
 //   INPUTS:  none.
-//   OUTPUTS: JSX — skeleton / error / empty / category grid (+ modal).
+//   OUTPUTS: JSX — skeleton / error / empty / category rail + grid (+ modal).
 //   SIDE_EFFECTS: HTTP GET /api/v1/menu via fetchPublicMenu on mount; reloads
-//                 on i18next 'languageChanged' event (subscribe + cleanup).
+//                 on i18next 'languageChanged' event (subscribe + cleanup);
+//                 reads menu section positions on scroll/resize to keep the
+//                 active category chip in sync with the viewport;
+//                 scrolls to a valid route category id after menu load.
 //   LINKS:   PDD §3.
 // END_CONTRACT: MenuPage
 export function MenuPage() {
   const { t, i18n } = useTranslation();
+  const { categoryId } = useParams();
   const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
+  const routeCategoryId = categoryId ? Number(categoryId) : Number.NaN;
+  const validRouteCategoryId = Number.isInteger(routeCategoryId)
+    ? routeCategoryId
+    : null;
+  const hasRouteCategory = categoryId != null;
 
   const [menu, setMenu] = useState<PublicMenuResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<PublicMenuItem | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
+  const lastTriggerRef = useRef<HTMLElement | null>(null);
+  const shouldRestoreFocusRef = useRef(false);
+  const categoryButtonRefs = useRef(new Map<number, HTMLButtonElement>());
 
   async function load(language: 'ru' | 'en') {
     setLoading(true);
@@ -83,6 +100,92 @@ export function MenuPage() {
 
   const visibleCategories =
     menu?.categories.filter((category) => category.items.length > 0) ?? [];
+  const visibleCategoryKey = visibleCategories
+    .map((category) => category.id)
+    .join('|');
+
+  useEffect(() => {
+    if (!hasRouteCategory || visibleCategories.length === 0) return;
+
+    const matchedCategoryId =
+      validRouteCategoryId != null &&
+      visibleCategories.some((category) => category.id === validRouteCategoryId)
+        ? validRouteCategoryId
+        : null;
+    const nextCategoryId = matchedCategoryId ?? visibleCategories[0]?.id ?? null;
+    if (nextCategoryId == null) return;
+
+    setActiveCategoryId(nextCategoryId);
+    if (matchedCategoryId != null) {
+      document
+        .getElementById(`menu-category-${matchedCategoryId}`)
+        ?.scrollIntoView?.({ block: 'start' });
+    }
+  }, [hasRouteCategory, validRouteCategoryId, visibleCategoryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (visibleCategories.length === 0) return;
+
+    function updateActiveCategoryFromScroll() {
+      let nextCategoryId = visibleCategories[0]?.id ?? null;
+      let nearestPassedTop = Number.NEGATIVE_INFINITY;
+
+      for (const category of visibleCategories) {
+        const node = document.getElementById(`menu-category-${category.id}`);
+        if (!node) continue;
+
+        const rect = node.getBoundingClientRect();
+        if (
+          rect.top <= ACTIVE_CATEGORY_ANCHOR_PX &&
+          rect.bottom > ACTIVE_CATEGORY_ANCHOR_PX
+        ) {
+          nextCategoryId = category.id;
+          break;
+        }
+
+        if (
+          rect.top <= ACTIVE_CATEGORY_ANCHOR_PX &&
+          rect.top > nearestPassedTop
+        ) {
+          nearestPassedTop = rect.top;
+          nextCategoryId = category.id;
+        }
+      }
+
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+      if (pageBottom - scrollBottom <= SCROLL_BOTTOM_TOLERANCE_PX) {
+        nextCategoryId =
+          visibleCategories[visibleCategories.length - 1]?.id ?? nextCategoryId;
+      }
+
+      setActiveCategoryId((current) =>
+        current === nextCategoryId ? current : nextCategoryId,
+      );
+    }
+
+    if (!hasRouteCategory) {
+      updateActiveCategoryFromScroll();
+    }
+    window.addEventListener('scroll', updateActiveCategoryFromScroll, {
+      passive: true,
+    });
+    window.addEventListener('resize', updateActiveCategoryFromScroll);
+
+    return () => {
+      window.removeEventListener('scroll', updateActiveCategoryFromScroll);
+      window.removeEventListener('resize', updateActiveCategoryFromScroll);
+    };
+  }, [hasRouteCategory, visibleCategoryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeCategoryId == null) return;
+    categoryButtonRefs.current.get(activeCategoryId)?.scrollIntoView?.({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  }, [activeCategoryId]);
 
   function handleCategoryClick(categoryId: number) {
     setActiveCategoryId(categoryId);
@@ -90,6 +193,23 @@ export function MenuPage() {
       .getElementById(`menu-category-${categoryId}`)
       ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
+
+  function handleOpenItem(item: PublicMenuItem, trigger: HTMLElement) {
+    lastTriggerRef.current = trigger;
+    shouldRestoreFocusRef.current = false;
+    setSelected(item);
+  }
+
+  function handleCloseItem() {
+    shouldRestoreFocusRef.current = true;
+    setSelected(null);
+  }
+
+  useEffect(() => {
+    if (selected !== null || !shouldRestoreFocusRef.current) return;
+    shouldRestoreFocusRef.current = false;
+    lastTriggerRef.current?.focus();
+  }, [selected]);
 
   if (loading) {
     return (
@@ -135,44 +255,30 @@ export function MenuPage() {
     <>
       <div className="space-y-7 px-4 py-5 md:px-6">
         <div className="overflow-hidden rounded-lg border border-border/70 bg-brand-sage text-brand-sage-foreground shadow-[0_18px_45px_rgba(58,46,37,0.10)]">
-          <div className="grid min-h-36 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_14rem] md:p-5">
-            <div className="flex flex-col justify-end gap-2">
-              <h1 className="max-w-2xl text-4xl font-semibold leading-none tracking-normal md:text-5xl">
-                {t('menu.title')}
-              </h1>
-              <p className="max-w-xl text-sm leading-6 text-foreground/75">
-                {t('pages.home.description')}
-              </p>
-            </div>
-            <div className="hidden rounded-lg border border-border/60 bg-card/70 p-3 shadow-[0_12px_26px_rgba(58,46,37,0.08)] md:block">
-              <div className="flex h-full flex-col justify-between">
-                <span className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {t('menu.categories')}
-                </span>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {visibleCategories.slice(0, 4).map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => handleCategoryClick(cat.id)}
-                      className="font-display min-h-9 rounded-full border border-border/70 bg-background/80 px-3 text-xs font-semibold text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="flex min-h-36 flex-col justify-end gap-2 p-4 md:p-5">
+            <h1 className="max-w-2xl text-4xl font-semibold leading-none tracking-normal md:text-5xl">
+              {t('menu.title')}
+            </h1>
+            <p className="max-w-xl text-sm leading-6 text-foreground/75">
+              {t('pages.home.description')}
+            </p>
           </div>
         </div>
 
         <nav
           aria-label={t('menu.categories')}
-          className="sticky top-[4.6rem] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-border/70 bg-background/90 px-4 py-3 shadow-[0_10px_28px_rgba(58,46,37,0.06)] backdrop-blur-xl md:top-[4.9rem] md:mx-0 md:rounded-lg md:border md:px-3"
+          className="aura-scrollbar-none sticky top-[4.6rem] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-border/70 bg-background/90 px-4 py-3 shadow-[0_10px_28px_rgba(58,46,37,0.06)] backdrop-blur-xl md:top-[4.9rem] md:mx-0 md:rounded-lg md:border md:px-3"
         >
           {visibleCategories.map((cat) => (
             <button
               key={cat.id}
+              ref={(node) => {
+                if (node) {
+                  categoryButtonRefs.current.set(cat.id, node);
+                } else {
+                  categoryButtonRefs.current.delete(cat.id);
+                }
+              }}
               type="button"
               onClick={() => handleCategoryClick(cat.id)}
               className={[
@@ -193,6 +299,7 @@ export function MenuPage() {
               <section
                 key={cat.id}
                 id={`menu-category-${cat.id}`}
+                data-category-id={cat.id}
                 aria-labelledby={`menu-category-heading-${cat.id}`}
                 className="scroll-mt-28 space-y-3"
               >
@@ -208,7 +315,7 @@ export function MenuPage() {
                       key={item.id}
                       item={item}
                       lang={lang}
-                      onOpen={() => setSelected(item)}
+                      onOpen={(trigger) => handleOpenItem(item, trigger)}
                     />
                   ))}
                 </div>
@@ -222,7 +329,7 @@ export function MenuPage() {
         <ItemDetail
           item={selected}
           lang={lang}
-          onClose={() => setSelected(null)}
+          onClose={handleCloseItem}
         />
       )}
     </>

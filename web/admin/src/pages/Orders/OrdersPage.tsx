@@ -363,7 +363,7 @@ export function OrdersPage() {
         <select
           id="orders-type-filter"
           data-testid="orders-type-filter"
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
           value={type}
           onChange={(e) =>
             setFilter({ type: e.target.value as OrderType | 'all' })

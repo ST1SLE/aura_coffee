@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Coffee, LogOut, ReceiptText, ShoppingBag, User } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 import { useAuth } from '@/auth/useAuth';
 import { useCartStore } from '@/store/cart';
 import { formatPrice } from '@/lib/formatPrice';
@@ -17,12 +17,14 @@ import { formatPrice } from '@/lib/formatPrice';
 // START_MODULE_CONTRACT
 //   PURPOSE: Soft botanical mobile-first app shell — sticky brand/ordering
 //            header with nav links + logout + LanguageSwitcher, the <main>
-//            outlet, mobile bottom nav, and cart-count affordances when the
-//            cart has items. Refreshes cart state after auth is resolved so the
-//            browsing menu exposes an existing cart after reload.
+//            outlet, mobile bottom nav, and cart-count/cart-total affordances
+//            when the cart has items. Refreshes cart state after auth is
+//            resolved so the browsing menu exposes an existing cart after
+//            reload.
 //   SCOPE:   Layout component.
 //   DEPENDS: react-router-dom (Outlet/Link/NavLink/useLocation/useNavigate),
 //            react-i18next, lucide-react, @/components/LanguageSwitcher,
+//            @/components/BrandMark,
 //            @/auth/useAuth, @/store/cart.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §4.4.
 //   ROLE:    RUNTIME
@@ -37,7 +39,8 @@ import { formatPrice } from '@/lib/formatPrice';
 //   PURPOSE: Render the app shell and provide the <Outlet/> for nested routes.
 //   INPUTS:  none.
 //   OUTPUTS: JSX — header + main + mobile bottom nav, with Outlet inside main.
-//            Cart links include count labels/badges when itemCount > 0.
+//            Cart links include count labels/badges when itemCount > 0; the
+//            menu route also shows a bottom cart-total bar.
 //   SIDE_EFFECTS: handleLogout calls useAuth().logout (which clears tokens +
 //                 calls /auth/logout) then navigates to /login.
 //                 After auth resolves, refreshes idle cart state through
@@ -89,12 +92,13 @@ export function Layout() {
           >
             <BrandMark
               decorative
-              className="h-10 w-12 shrink-0 rounded-md object-cover shadow-[0_10px_24px_rgba(108,122,85,0.18)]"
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_10px_18px_rgba(108,122,85,0.22)]"
             />
             <span className="min-w-0">
-              <span className="block truncate font-display leading-tight">
-                {t('appTitle')}
-              </span>
+              <BrandWordmark
+                alt={t('appTitle')}
+                className="h-5 w-auto max-w-[8.5rem] object-contain sm:h-6 sm:max-w-[9.5rem]"
+              />
               <span className="block truncate text-xs font-normal text-muted-foreground">
                 {t('pages.home.description')}
               </span>
@@ -149,7 +153,12 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 pb-28 md:pb-10">
+      <main
+        className={[
+          'mx-auto w-full max-w-6xl flex-1',
+          showFloatingCart ? 'pb-40 md:pb-28' : 'pb-28 md:pb-10',
+        ].join(' ')}
+      >
         <Outlet />
       </main>
 
@@ -157,7 +166,7 @@ export function Layout() {
         <Link
           to="/cart"
           aria-label={`${t('nav.cart')}: ${itemCount}`}
-          className="font-display fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 mx-auto inline-flex min-h-14 max-w-sm items-center justify-between gap-3 rounded-full border border-primary-foreground/15 bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_18px_42px_rgba(30,24,19,0.34)] backdrop-blur-xl transition-colors hover:bg-foreground/95 md:hidden"
+          className="font-display fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 mx-auto inline-flex min-h-14 max-w-sm items-center justify-between gap-3 rounded-full border border-primary-foreground/15 bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_18px_42px_rgba(30,24,19,0.34)] backdrop-blur-xl transition-colors hover:bg-foreground/95 md:bottom-6 md:max-w-md"
           data-testid="floating-cart-link"
         >
           <span className="flex min-w-0 items-center gap-3">

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -35,6 +35,19 @@ function makeItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
 }
 
 describe('MenuItemCard', () => {
+  beforeEach(() => {
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(
+      () => undefined,
+    );
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(
+      undefined,
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders item.name verbatim', () => {
     render(
       <MenuItemCard
@@ -50,7 +63,11 @@ describe('MenuItemCard', () => {
     const onOpen = vi.fn();
     render(<MenuItemCard item={makeItem()} lang="ru" onOpen={onOpen} />);
 
-    fireEvent.click(screen.getByRole('button'));
+    const button = screen.getByRole('button') as HTMLButtonElement;
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.disabled).toBe(false);
+
+    fireEvent.click(button);
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
@@ -98,7 +115,10 @@ describe('MenuItemCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button'));
+    const button = screen.getByRole('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    fireEvent.click(button);
     expect(onOpen).not.toHaveBeenCalled();
   });
 
@@ -123,7 +143,10 @@ describe('MenuItemCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button'));
+    const button = screen.getByRole('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    fireEvent.click(button);
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.getByText('menu.soldOut')).toBeDefined();
   });

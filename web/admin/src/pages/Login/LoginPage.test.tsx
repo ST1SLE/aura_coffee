@@ -59,7 +59,11 @@ describe('LoginPage', () => {
 
   // a) Поля есть, кнопка отключена при пустых полях
   it('рендерит поля логина и пароля; кнопка отключена при пустых значениях', () => {
-    renderLoginPage();
+    const { container } = renderLoginPage();
+    expect(screen.getByText(/вход для персонала/i)).toBeDefined();
+    expect(
+      container.querySelector('img[src="/brand/aura-wordmark-olive.png"]'),
+    ).toBeDefined();
     expect(screen.getByLabelText(/логин/i)).toBeDefined();
     expect(screen.getByLabelText(/пароль/i)).toBeDefined();
     const submitBtn = screen.getByRole('button', { name: /войти/i });

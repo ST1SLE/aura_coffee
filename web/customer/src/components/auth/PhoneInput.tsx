@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Russian-format phone input — locks the country code to +7,
@@ -6,7 +7,7 @@ import { useCallback, useState } from 'react';
 //            and emits a normalized `+7XXXXXXXXXX` string via onChange.
 //            Also exports a small validator used by LoginPage to enable submit.
 //   SCOPE:   PhoneInput component + isValidPhone validator.
-//   DEPENDS: react (useCallback, useState).
+//   DEPENDS: react (useCallback, useState), react-i18next.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.1 send-code.
 //            INV-013 — phone is PII; component does not log raw values.
 //   ROLE:    RUNTIME
@@ -47,6 +48,7 @@ function extractDigits(raw: string): string {
 //   LINKS:   PDD §6.1; consumed by LoginPage; pairs with isValidPhone.
 // END_CONTRACT: PhoneInput
 export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
+  const { t } = useTranslation();
   const digits = value.startsWith('+7') ? value.slice(2) : '';
   const [displayValue, setDisplayValue] = useState(formatDisplay(digits));
 
@@ -69,7 +71,7 @@ export function PhoneInput({ value, onChange, disabled }: PhoneInputProps) {
         value={displayValue}
         onChange={handleChange}
         disabled={disabled}
-        placeholder="(999) 123-45-67"
+        placeholder={t('auth.phone.placeholder')}
         className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-lg text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
         autoComplete="tel-national"
       />

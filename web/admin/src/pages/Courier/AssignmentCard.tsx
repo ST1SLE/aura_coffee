@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Clock3, MapPin, ReceiptText } from 'lucide-react';
 import type { CourierAssignmentResponse } from '@/api/courier';
 
 // START_MODULE_CONTRACT
@@ -67,16 +68,32 @@ export function AssignmentCard({
   return (
     <article
       data-testid={`courier-assignment-${assignment.id}`}
-      className="w-full md:w-1/2 rounded-md border bg-card text-card-foreground p-4 flex flex-col gap-3 shadow-sm"
+      className="admin-surface flex min-h-[10rem] w-full flex-col gap-4 p-4 text-card-foreground"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-sm font-medium">{time}</div>
-        <div className="text-sm font-semibold">
-          {formatRoubles(assignment.total)}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+          <Clock3
+            className="h-4 w-4 shrink-0 text-primary"
+            aria-hidden="true"
+          />
+          <span className="truncate">{time}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <ReceiptText
+            className="h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <span className="admin-numeric">
+            {formatRoubles(assignment.total)}
+          </span>
         </div>
       </div>
-      <div className="text-sm text-muted-foreground break-words">
-        {address}
+      <div className="flex gap-2 rounded-md bg-secondary/55 p-3 text-sm text-muted-foreground">
+        <MapPin
+          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+          aria-hidden="true"
+        />
+        <span className="min-w-0 break-words">{address}</span>
       </div>
       {action ? <div className="mt-auto">{action}</div> : null}
     </article>

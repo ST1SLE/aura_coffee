@@ -474,7 +474,8 @@
   },
   "auth": {
     "login": {
-      "title": "Sign in",
+      "title": "Staff sign in",
+      "subtitle": "Admins, baristas, and couriers use their staff login.",
       "loginLabel": "Login",
       "loginPlaceholder": "Enter login",
       "passwordLabel": "Password",

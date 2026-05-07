@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import type {
@@ -67,6 +67,11 @@ export function ItemDetail({ item, lang, onClose }: Props) {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
 
   const locale = lang === 'ru' ? 'ru' : 'en';
 
@@ -121,7 +126,8 @@ export function ItemDetail({ item, lang, onClose }: Props) {
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card to-transparent" />
           <button
-            aria-label="close"
+            ref={closeButtonRef}
+            aria-label={t('menu.close')}
             onClick={onClose}
             className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-card/90 text-foreground shadow-[0_8px_18px_rgba(58,46,37,0.12)] backdrop-blur transition-colors hover:bg-secondary"
           >

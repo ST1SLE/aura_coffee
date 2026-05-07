@@ -195,6 +195,25 @@ describe('ItemDetail — Add-to-Cart actions (task 6.8)', () => {
     expect(screen.getByText('menu.soldOut')).toBeDefined();
   });
 
+  it('uses the localized close label', () => {
+    const onClose = vi.fn();
+    render(<ItemDetail item={baseItem()} lang="ru" onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'menu.close' }));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('focuses the close control when opened', async () => {
+    render(<ItemDetail item={baseItem()} lang="ru" onClose={vi.fn()} />);
+
+    const closeButton = screen.getByRole('button', { name: 'menu.close' });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(closeButton);
+    });
+  });
+
   it('failure: keeps view open and shows error toast', async () => {
     const addItem = vi.fn().mockRejectedValue(new Error('HTTP 409'));
     (useCartStore as unknown as Mock).mockReturnValue(addItem);

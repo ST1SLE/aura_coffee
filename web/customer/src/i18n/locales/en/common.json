@@ -11,15 +11,15 @@
   "pages": {
     "home": {
       "title": "Menu",
-      "description": "Browse our drinks and food"
+      "description": "Choose your drink, add food, and order pickup or delivery."
     },
     "cart": {
       "title": "Cart",
-      "description": "Your selected items"
+      "description": "Review your picks before payment — Aura Coffee will prepare them for you."
     },
     "checkout": {
       "title": "Checkout",
-      "description": "Choose delivery method and pay",
+      "description": "Choose pickup or delivery, pickup time, and payment.",
       "submit": "Place order",
       "type": {
         "pickup": "Pickup",
@@ -52,13 +52,13 @@
     },
     "orders": {
       "title": "My Orders",
-      "description": "Your order history",
+      "description": "Your Aura Coffee orders, status updates, and quick repeat.",
       "loading": "Loading orders...",
       "detailLoading": "Loading order...",
       "loadError": "Failed to load orders",
       "detailLoadError": "Failed to load order",
-      "emptyTitle": "No orders yet",
-      "emptyDescription": "Place your first order from the Aura Coffee menu.",
+      "emptyTitle": "Start your order history",
+      "emptyDescription": "After your first order, its status, receipt, and repeat action will appear here.",
       "activeTitle": "Active",
       "historyTitle": "History",
       "orderNumber": "Order #{{id}}",
@@ -97,7 +97,7 @@
     },
     "profile": {
       "title": "Profile",
-      "description": "Account settings and delivery addresses",
+      "description": "Your phone, name, language, notifications, and delivery addresses.",
       "phoneLabel": "Phone number",
       "nameLabel": "Display name",
       "languageLabel": "Language",
@@ -115,20 +115,20 @@
       },
       "notificationsLink": {
         "title": "Notifications",
-        "subtitle": "Order updates from Aura Coffee"
+        "subtitle": "Order statuses and important messages"
       },
       "addressesLink": {
         "title": "Delivery addresses",
-        "subtitle": "Manage saved addresses"
+        "subtitle": "Save home or work for faster delivery"
       }
     },
     "notifications": {
       "title": "Notifications",
-      "description": "Order updates and service messages",
+      "description": "Order status, payment, and Aura Coffee messages.",
       "loading": "Loading notifications...",
       "loadError": "Failed to load notifications",
-      "emptyTitle": "No notifications yet",
-      "emptyDescription": "Order updates will appear here.",
+      "emptyTitle": "No updates yet",
+      "emptyDescription": "When an order status changes, the message will appear here.",
       "backToProfile": "Profile",
       "loadMore": "Load more",
       "orderLink": "Order #{{id}}"
@@ -138,7 +138,7 @@
       "balance_label": "points",
       "lifetime_label": "Lifetime earned: {{value}}",
       "history_title": "History",
-      "empty": "No transactions yet. Points are accrued after you receive an order.",
+      "empty": "No points yet. Accruals will appear here after you receive an order.",
       "load_more": "Load more",
       "txType": {
         "accrual": "Accrual",
@@ -155,7 +155,7 @@
     "addresses": {
       "title": "Delivery addresses",
       "addButton": "Add address",
-      "empty": "You have no saved addresses yet",
+      "empty": "Save an address to make delivery checkout faster",
       "makePrimary": "Set as primary",
       "primaryBadge": "Primary",
       "edit": "Edit",
@@ -197,13 +197,15 @@
     "phone": {
       "title": "Sign In",
       "placeholder": "(999) 123-45-67",
-      "submit": "Get Code"
+      "submit": "Get Code",
+      "submitting": "Sending code..."
     },
-    "otp": {
-      "title": "Enter Code",
-      "resend": "Resend Code",
-      "resendIn": "Resend in {{seconds}}s",
-      "error": {
+  "otp": {
+    "title": "Enter Code",
+    "resend": "Resend Code",
+    "resendIn": "Resend in {{seconds}}s",
+    "digitLabel": "Digit {{position}} of {{total}}",
+    "error": {
         "invalid": "Invalid code",
         "expired": "Code expired, request a new one",
         "rateLimit": "Too many attempts, please wait",
@@ -223,9 +225,10 @@
     "soldOut": "Sold out",
     "stockLeft": "{{count}} left",
     "quantity": "Quantity",
-    "addToCart": "Add to Cart",
-    "added": "Added to cart",
-    "price": "Price",
+  "addToCart": "Add to Cart",
+  "added": "Added to cart",
+  "close": "Close",
+  "price": "Price",
     "selectSize": "Select size",
     "modifiers": "Add-ons"
   },

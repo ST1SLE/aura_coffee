@@ -94,9 +94,7 @@ describe('NotificationsPage', () => {
 
     renderPage();
 
-    expect(
-      await screen.findByText('No notifications yet'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('No updates yet')).toBeInTheDocument();
   });
 
   it('loads another page when more rows exist', async () => {

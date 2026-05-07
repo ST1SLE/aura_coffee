@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MenuMedia } from './MenuMedia';
 import type { PublicMenuItem } from '@/api/menuTypes';
 
@@ -38,11 +38,20 @@ function mockReducedMotion(matches: boolean) {
   });
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe('MenuMedia', () => {
+  beforeEach(() => {
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(
+      () => undefined,
+    );
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(
+      undefined,
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders muted inline video for video media', () => {
     render(
       <MenuMedia
@@ -155,7 +164,7 @@ describe('MenuMedia', () => {
     expect(container.querySelector('video')).toBeNull();
     expect(screen.getByTestId('menu-media-fallback')).toBeDefined();
     expect(
-      container.querySelector('img[src="/brand/aura-mark.png"]'),
+      container.querySelector('img[src="/brand/aura-heart-olive.png"]'),
     ).toBeDefined();
   });
 });

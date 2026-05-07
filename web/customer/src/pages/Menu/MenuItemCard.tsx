@@ -7,8 +7,7 @@ import { MenuMedia } from './MenuMedia';
 // START_MODULE_CONTRACT
 //   PURPOSE: Menu grid card — media, name, base price, finite-stock hint, and
 //            unavailable/sold-out badge. Pure presentation: dispatches one
-//            onOpen callback when the user clicks/keyboard-activates an
-//            available stocked item.
+//            onOpen callback when the user activates an available stocked item.
 //   SCOPE:   MenuItemCard component.
 //   DEPENDS: react-i18next, @/api/menuTypes (PublicMenuItem), @/lib/formatPrice,
 //            ./MenuMedia.
@@ -24,14 +23,14 @@ import { MenuMedia } from './MenuMedia';
 interface Props {
   item: PublicMenuItem;
   lang: 'ru' | 'en';
-  onOpen: () => void;
+  onOpen: (trigger: HTMLButtonElement) => void;
 }
 
 // START_CONTRACT: MenuItemCard
 //   PURPOSE: Render a media-first menu card that opens an available item detail
 //            view while keeping price/name overlays readable on image/video.
 //   INPUTS:  Props { item, lang, onOpen }.
-//   OUTPUTS: JSX.Element — clickable/keyboard-activatable product tile.
+//   OUTPUTS: JSX.Element — native button product tile.
 //   SIDE_EFFECTS: Calls onOpen for available stocked items; no cart/order/API
 //                 mutation and no logging.
 //   LINKS:   PDD §5.2 menu media; INV-014 server-owned item snapshots.
@@ -42,16 +41,12 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
   const unavailable = !item.available || soldOut;
 
   return (
-    <div
-      role="button"
-      tabIndex={unavailable ? -1 : 0}
-      aria-disabled={unavailable}
-      onClick={unavailable ? undefined : onOpen}
-      onKeyDown={(e) => {
-        if (!unavailable && (e.key === 'Enter' || e.key === ' ')) onOpen();
-      }}
+    <button
+      type="button"
+      disabled={unavailable}
+      onClick={unavailable ? undefined : (e) => onOpen(e.currentTarget)}
       className={[
-        'group relative flex min-h-[18rem] cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-border/75 bg-secondary shadow-[0_16px_34px_rgba(30,24,19,0.22)] transition duration-200 sm:min-h-[17rem]',
+        'group relative flex min-h-[18rem] w-full cursor-pointer select-none flex-col overflow-hidden rounded-lg border border-border/75 bg-secondary text-left shadow-[0_16px_34px_rgba(30,24,19,0.22)] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:min-h-[17rem]',
         unavailable
           ? 'opacity-60 cursor-not-allowed pointer-events-none'
           : 'hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-[0_20px_42px_rgba(30,24,19,0.28)]',
@@ -93,6 +88,6 @@ export function MenuItemCard({ item, lang, onOpen }: Props) {
           {soldOut ? t('menu.soldOut') : t('menu.unavailable')}
         </span>
       )}
-    </div>
+    </button>
   );
 }

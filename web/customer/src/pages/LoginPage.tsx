@@ -5,7 +5,7 @@ import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
 import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
 import { Button } from '@/components/ui/button';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandWordmark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /login route — phone entry step of the OTP flow. Validates with
@@ -75,13 +75,10 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="aura-surface w-full max-w-sm overflow-hidden rounded-lg bg-card/95">
         <div className="border-b border-border/60 bg-muted/75 px-5 py-6 text-center">
-          <BrandMark
-            decorative
-            className="mx-auto mb-3 h-12 w-14 rounded-md object-cover shadow-[0_10px_24px_rgba(27,23,19,0.18)]"
+          <BrandWordmark
+            alt={t('appTitle')}
+            className="mx-auto mb-3 h-8 w-auto max-w-[9.5rem] object-contain drop-shadow-[0_10px_18px_rgba(27,23,19,0.12)]"
           />
-          <h1 className="font-display text-2xl font-bold">
-            {t('auth.phone.title')}
-          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
@@ -100,7 +97,7 @@ export function LoginPage() {
             disabled={!valid || isSubmitting}
             className="w-full"
           >
-            {isSubmitting ? '...' : t('auth.phone.submit')}
+            {isSubmitting ? t('auth.phone.submitting') : t('auth.phone.submit')}
           </Button>
         </form>
       </div>

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2 } from 'lucide-react';
 import {
   ApiError,
   deliverAssignment,
@@ -91,7 +92,9 @@ export function MineTab() {
   const items = query.data ?? [];
 
   if (query.isLoading) {
-    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+    return (
+      <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+    );
   }
 
   if (query.isError) {
@@ -100,9 +103,7 @@ export function MineTab() {
         ? t('courier.errors.forbidden')
         : t('courier.errors.loadFailed');
     return (
-      <div className="text-sm text-destructive text-center py-8">
-        {message}
-      </div>
+      <div className="text-sm text-destructive text-center py-8">{message}</div>
     );
   }
 
@@ -115,7 +116,7 @@ export function MineTab() {
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="grid gap-3 md:grid-cols-2">
       {items.map((a) => {
         const action = getStatusAction(a.status, t);
         return (
@@ -128,8 +129,11 @@ export function MineTab() {
                   type="button"
                   className="w-full min-h-12"
                   disabled={mutation.isPending}
-                  onClick={() => mutation.mutate({ id: a.id, fn: action.mutationFn })}
+                  onClick={() =>
+                    mutation.mutate({ id: a.id, fn: action.mutationFn })
+                  }
                 >
+                  <CheckCircle2 aria-hidden="true" />
                   {action.label}
                 </Button>
               ) : undefined

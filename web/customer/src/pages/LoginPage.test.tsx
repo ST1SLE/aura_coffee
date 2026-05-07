@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import '@/i18n/config';
 import { AuthContext } from '@/auth/AuthProvider';
@@ -42,6 +42,10 @@ function renderLoginPage(authOverrides: Partial<AuthContextValue> = {}) {
   return auth;
 }
 
+beforeEach(() => {
+  mockNavigate.mockClear();
+});
+
 describe('LoginPage', () => {
   it('renders phone input and submit button', () => {
     renderLoginPage();
@@ -68,6 +72,35 @@ describe('LoginPage', () => {
     });
     expect(mockNavigate).toHaveBeenCalledWith('/login/verify', {
       state: { phone: '+79991234567', returnUrl: '/profile' },
+    });
+  });
+
+  it('shows localized submitting label while send-code is pending', async () => {
+    let resolveLogin!: () => void;
+    const login = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogin = resolve;
+        }),
+    );
+    renderLoginPage({ login });
+
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '9991234567' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    const button = await screen.findByRole('button', {
+      name: /sending code|отправляем код/i,
+    });
+    expect(button).toHaveProperty('disabled', true);
+
+    resolveLogin();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/login/verify', {
+        state: { phone: '+79991234567', returnUrl: '/profile' },
+      });
     });
   });
 

@@ -48,6 +48,9 @@ describe('VerifyPage', () => {
     const inputs = screen.getAllByRole('textbox');
     expect(inputs.length).toBe(6);
     expect(screen.getByText(/\+799\*\*\*67/)).toBeDefined();
+    expect(screen.getByAltText('Aura Coffee').getAttribute('src')).toBe(
+      '/brand/aura-wordmark-olive.png',
+    );
   });
 
   it('calls verifyCode on paste of 6 digits', async () => {

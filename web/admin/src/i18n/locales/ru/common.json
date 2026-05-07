@@ -474,7 +474,8 @@
   },
   "auth": {
     "login": {
-      "title": "Вход",
+      "title": "Вход для персонала",
+      "subtitle": "Админ, бариста и курьер входят по рабочему логину.",
       "loginLabel": "Логин",
       "loginPlaceholder": "Введите логин",
       "passwordLabel": "Пароль",

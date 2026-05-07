@@ -1,5 +1,15 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, number>) =>
+      key === 'auth.otp.digitLabel'
+        ? `Digit ${params?.position} of ${params?.total}`
+        : key,
+  }),
+}));
+
 import { OTPInput } from './OTPInput';
 
 describe('OTPInput', () => {
@@ -7,6 +17,13 @@ describe('OTPInput', () => {
     render(<OTPInput value="" onChange={() => {}} onComplete={() => {}} />);
     const inputs = screen.getAllByRole('textbox');
     expect(inputs).toHaveLength(6);
+  });
+
+  it('labels each digit field for assistive technology', () => {
+    render(<OTPInput value="" onChange={() => {}} onComplete={() => {}} />);
+
+    expect(screen.getByRole('textbox', { name: 'Digit 1 of 6' })).toBeDefined();
+    expect(screen.getByRole('textbox', { name: 'Digit 6 of 6' })).toBeDefined();
   });
 
   it('calls onChange on digit entry', () => {

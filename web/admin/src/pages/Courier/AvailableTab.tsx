@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { PackageCheck } from 'lucide-react';
 import {
   ApiError,
   listAvailable,
@@ -67,7 +68,9 @@ export function AvailableTab() {
   const items = query.data ?? [];
 
   if (query.isLoading) {
-    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+    return (
+      <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+    );
   }
 
   if (query.isError) {
@@ -76,9 +79,7 @@ export function AvailableTab() {
         ? t('courier.errors.forbidden')
         : t('courier.errors.loadFailed');
     return (
-      <div className="text-sm text-destructive text-center py-8">
-        {message}
-      </div>
+      <div className="text-sm text-destructive text-center py-8">{message}</div>
     );
   }
 
@@ -91,7 +92,7 @@ export function AvailableTab() {
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="grid gap-3 md:grid-cols-2">
       {items.map((a) => (
         <AssignmentCard
           key={a.id}
@@ -104,6 +105,7 @@ export function AvailableTab() {
               disabled={mutation.isPending}
               onClick={() => mutation.mutate(a.id)}
             >
+              <PackageCheck aria-hidden="true" />
               {t('courier.actions.take')}
             </Button>
           }
