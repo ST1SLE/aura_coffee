@@ -147,4 +147,15 @@ describe('MenuMedia', () => {
     const image = screen.getByAltText('Latte') as HTMLImageElement;
     expect(image.src).toContain('/legacy/latte.jpg');
   });
+
+  it('renders branded fallback art when no media source exists', () => {
+    const { container } = render(<MenuMedia item={makeItem()} alt="Latte" />);
+
+    expect(screen.queryByAltText('Latte')).toBeNull();
+    expect(container.querySelector('video')).toBeNull();
+    expect(screen.getByTestId('menu-media-fallback')).toBeDefined();
+    expect(
+      container.querySelector('img[src="/brand/aura-mark.png"]'),
+    ).toBeDefined();
+  });
 });

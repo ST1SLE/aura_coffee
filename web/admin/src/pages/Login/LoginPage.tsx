@@ -10,6 +10,7 @@ import {
   ApiError,
 } from '@/api/client';
 import { setRole, type StaffRole } from '@/lib/auth';
+import { BrandMark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Staff login form — login + password against /staff/auth/login.
@@ -83,7 +84,13 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-sm space-y-6 p-6">
-        <h1 className="text-2xl font-bold">{t('auth.login.title')}</h1>
+        <div>
+          <BrandMark
+            decorative
+            className="mb-3 h-11 w-12 rounded-md object-cover shadow-sm"
+          />
+          <h1 className="text-2xl font-bold">{t('auth.login.title')}</h1>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">

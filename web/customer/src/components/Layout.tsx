@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Coffee, LogOut, ReceiptText, ShoppingBag, User } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BrandMark } from '@/components/BrandMark';
 import { useAuth } from '@/auth/useAuth';
 import { useCartStore } from '@/store/cart';
 import { formatPrice } from '@/lib/formatPrice';
@@ -86,9 +87,10 @@ export function Layout() {
             to="/menu"
             className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-normal text-foreground"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-sage text-brand-sage-foreground shadow-[0_10px_24px_rgba(108,122,85,0.18)]">
-              <Coffee className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <BrandMark
+              decorative
+              className="h-10 w-12 shrink-0 rounded-md object-cover shadow-[0_10px_24px_rgba(108,122,85,0.18)]"
+            />
             <span className="min-w-0">
               <span className="block truncate font-display leading-tight">
                 {t('appTitle')}

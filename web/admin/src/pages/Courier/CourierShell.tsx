@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { BrandMark } from '@/components/BrandMark';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { NotificationList } from '@/components/ui/notifier';
 import {
@@ -30,7 +31,11 @@ function ShellBody() {
   const { notifications, dismiss } = useCourierNotifier();
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b px-4 py-3 flex items-center justify-end">
+      <header className="border-b px-4 py-3 flex items-center justify-between">
+        <BrandMark
+          alt="Aura Coffee"
+          className="h-10 w-12 shrink-0 rounded-md object-cover shadow-sm"
+        />
         <LanguageSwitcher />
       </header>
       <main className="flex-1 p-4">

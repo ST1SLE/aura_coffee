@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { BrandMark } from '@/components/BrandMark';
 import type { MenuMediaType } from '@/api/menuTypes';
 
 // START_MODULE_CONTRACT
@@ -143,7 +144,15 @@ export function MenuMedia({
         ref={containerRef}
         aria-hidden="true"
         className={['overflow-hidden bg-secondary', className].join(' ')}
-      />
+        data-testid="menu-media-fallback"
+      >
+        <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_45%_34%,hsl(var(--card)/0.86),hsl(var(--secondary))_52%,hsl(var(--primary)/0.35)_100%)]">
+          <BrandMark
+            decorative
+            className="h-20 w-24 rounded-lg object-cover shadow-[0_18px_42px_rgba(30,24,19,0.20)]"
+          />
+        </div>
+      </div>
     );
   }
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { logout } from '@/api/client';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/ui/button';
 import { useCurrentRole, type StaffRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -77,9 +78,17 @@ export function Layout() {
   return (
     <div className="min-h-screen flex">
       <aside className="w-56 border-r bg-surface-muted p-4 hidden md:flex md:flex-col">
-        <div className="text-lg font-bold text-brand-700 mb-6">
-          {t('appTitle')}
-        </div>
+        <Link
+          to="/"
+          className="mb-6 flex min-w-0 items-center gap-3 text-lg font-bold text-brand-700"
+          aria-label={t('appTitle')}
+        >
+          <BrandMark
+            decorative
+            className="h-10 w-12 shrink-0 rounded-md object-cover shadow-sm"
+          />
+          <span className="truncate">{t('appTitle')}</span>
+        </Link>
         <nav className="space-y-1 flex-1">
           {visibleItems.map((item) => (
             <Link
@@ -111,8 +120,12 @@ export function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b px-4 py-3 flex items-center justify-between">
-          <span className="text-lg font-bold text-brand-700 md:hidden">
-            {t('appTitle')}
+          <span className="flex min-w-0 items-center gap-2 text-lg font-bold text-brand-700 md:hidden">
+            <BrandMark
+              decorative
+              className="h-7 w-8 shrink-0 rounded-md object-cover"
+            />
+            <span className="truncate">{t('appTitle')}</span>
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Button

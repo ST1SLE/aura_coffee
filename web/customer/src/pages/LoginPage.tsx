@@ -1,11 +1,11 @@
 import { FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Coffee } from 'lucide-react';
 import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
 import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
 import { Button } from '@/components/ui/button';
+import { BrandMark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /login route — phone entry step of the OTP flow. Validates with
@@ -75,9 +75,10 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="aura-surface w-full max-w-sm overflow-hidden rounded-lg bg-card/95">
         <div className="border-b border-border/60 bg-muted/75 px-5 py-6 text-center">
-          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(27,23,19,0.18)]">
-            <Coffee className="h-6 w-6" aria-hidden="true" />
-          </span>
+          <BrandMark
+            decorative
+            className="mx-auto mb-3 h-12 w-14 rounded-md object-cover shadow-[0_10px_24px_rgba(27,23,19,0.18)]"
+          />
           <h1 className="font-display text-2xl font-bold">
             {t('auth.phone.title')}
           </h1>
