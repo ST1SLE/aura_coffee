@@ -1,7 +1,51 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MenuMedia } from './MenuMedia';
 import type { PublicMenuItem } from '@/api/menuTypes';
+
+type MockIntersectionObserverEntry = {
+  target: Element;
+  isIntersecting: boolean;
+  intersectionRatio?: number;
+};
+
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  readonly observed = new Set<Element>();
+
+  constructor(
+    private readonly callback: IntersectionObserverCallback,
+    readonly options?: IntersectionObserverInit,
+  ) {
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  observe = vi.fn((target: Element) => {
+    this.observed.add(target);
+  });
+
+  unobserve = vi.fn((target: Element) => {
+    this.observed.delete(target);
+  });
+
+  disconnect = vi.fn(() => {
+    this.observed.clear();
+  });
+
+  takeRecords = vi.fn(() => []);
+
+  emit(entries: MockIntersectionObserverEntry[]) {
+    this.callback(
+      entries.map((entry) => ({
+        ...entry,
+        intersectionRatio:
+          entry.intersectionRatio ?? (entry.isIntersecting ? 1 : 0),
+      })) as unknown as IntersectionObserverEntry[],
+      this as never,
+    );
+  }
+}
 
 function makeItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   return {
@@ -26,11 +70,23 @@ function makeItem(overrides: Partial<PublicMenuItem> = {}): PublicMenuItem {
   };
 }
 
-function mockReducedMotion(matches: boolean) {
+let playSpy: ReturnType<typeof vi.spyOn>;
+let pauseSpy: ReturnType<typeof vi.spyOn>;
+
+function mockMediaQueries({
+  reducedMotion = false,
+  finePointer = false,
+}: {
+  reducedMotion?: boolean;
+  finePointer?: boolean;
+}) {
   Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
-      matches,
+      matches: query.includes('prefers-reduced-motion')
+        ? reducedMotion
+        : finePointer,
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -38,14 +94,44 @@ function mockReducedMotion(matches: boolean) {
   });
 }
 
+function mockReducedMotion(matches: boolean) {
+  mockMediaQueries({ reducedMotion: matches });
+}
+
 describe('MenuMedia', () => {
   beforeEach(() => {
+    MockIntersectionObserver.instances.length = 0;
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      writable: true,
+      value: (callback: FrameRequestCallback) => {
+        return window.setTimeout(() => callback(0), 0);
+      },
+    });
+    Object.defineProperty(window, 'cancelAnimationFrame', {
+      configurable: true,
+      writable: true,
+      value: (frameId: number) => window.clearTimeout(frameId),
+    });
     vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(
       () => undefined,
     );
-    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(
-      undefined,
-    );
+    playSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockResolvedValue(undefined);
+    pauseSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -71,6 +157,7 @@ describe('MenuMedia', () => {
     expect(video.loop).toBe(true);
     expect(video.playsInline).toBe(true);
     expect(video.controls).toBe(false);
+    expect(video.autoplay).toBe(false);
     expect(video.className).toContain('pointer-events-none');
     expect(video.poster).toContain('/media/menu/latte/poster.webp');
   });
@@ -91,6 +178,118 @@ describe('MenuMedia', () => {
     const video = screen.getByLabelText('Latte') as HTMLVideoElement;
     expect(video.controls).toBe(true);
     expect(video.className).not.toContain('pointer-events-none');
+  });
+
+  it('plays desktop video only while the pointer is near the product', async () => {
+    mockMediaQueries({ finePointer: true });
+
+    render(
+      <MenuMedia
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        alt="Latte"
+      />,
+    );
+
+    const video = screen.getByLabelText('Latte') as HTMLVideoElement;
+    const wrapper = video.parentElement as HTMLElement;
+    Object.defineProperty(wrapper, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 100,
+        right: 200,
+        bottom: 200,
+        left: 100,
+        width: 100,
+        height: 100,
+        x: 100,
+        y: 100,
+        toJSON: () => undefined,
+      }),
+    });
+
+    expect(video.getAttribute('src')).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: 80, clientY: 150 }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: 20, clientY: 20 }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(pauseSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('loads mobile video near the viewport and plays only while visible', async () => {
+    mockMediaQueries({ finePointer: false });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      writable: true,
+      value: MockIntersectionObserver,
+    });
+
+    render(
+      <MenuMedia
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        alt="Latte"
+      />,
+    );
+
+    const video = screen.getByLabelText('Latte') as HTMLVideoElement;
+    const wrapper = video.parentElement as HTMLElement;
+    expect(video.getAttribute('src')).toBeNull();
+    expect(MockIntersectionObserver.instances).toHaveLength(2);
+
+    act(() => {
+      MockIntersectionObserver.instances[0].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
+    });
+    expect(playSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      MockIntersectionObserver.instances[1].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0.4 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    const pauseCount = pauseSpy.mock.calls.length;
+    act(() => {
+      MockIntersectionObserver.instances[1].emit([
+        { target: wrapper, isIntersecting: false, intersectionRatio: 0 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(pauseSpy.mock.calls.length).toBeGreaterThan(pauseCount);
+    });
   });
 
   it('uses poster fallback when reduced-motion is preferred', () => {

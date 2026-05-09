@@ -17,8 +17,11 @@ import type { MenuMediaType } from '@/api/menuTypes';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   MenuMedia - video/image renderer with reduced-motion and error fallbacks
+//   MenuMedia - video/image renderer with viewport/pointer-gated playback
 // END_MODULE_MAP
+
+const DESKTOP_POINTER_PROXIMITY_PX = 64;
+const MOBILE_PRELOAD_ROOT_MARGIN = '240px 0px';
 
 interface MenuMediaSource {
   media_type: MenuMediaType | null;
@@ -34,8 +37,16 @@ interface Props {
   controls?: boolean;
 }
 
-function usePrefersReducedMotion(): boolean {
-  const [reducedMotion, setReducedMotion] = useState(false);
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return false;
+    }
+    return window.matchMedia(query).matches;
+  });
 
   useEffect(() => {
     if (
@@ -45,53 +56,178 @@ function usePrefersReducedMotion(): boolean {
       return;
     }
 
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mediaQuery = window.matchMedia(query);
     if (!mediaQuery) return;
 
-    setReducedMotion(mediaQuery.matches);
+    setMatches(mediaQuery.matches);
 
     function handleChange(event: MediaQueryListEvent) {
-      setReducedMotion(event.matches);
+      setMatches(event.matches);
     }
 
     mediaQuery.addEventListener?.('change', handleChange);
     return () => {
       mediaQuery.removeEventListener?.('change', handleChange);
     };
-  }, []);
+  }, [query]);
 
-  return reducedMotion;
+  return matches;
 }
 
-function useLazyVideo(): [RefObject<HTMLDivElement | null>, boolean] {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
+function usePrefersReducedMotion(): boolean {
+  return useMediaQuery('(prefers-reduced-motion: reduce)');
+}
+
+function isPointNearElement(
+  node: HTMLElement,
+  clientX: number,
+  clientY: number,
+): boolean {
+  const rect = node.getBoundingClientRect();
+  return (
+    clientX >= rect.left - DESKTOP_POINTER_PROXIMITY_PX &&
+    clientX <= rect.right + DESKTOP_POINTER_PROXIMITY_PX &&
+    clientY >= rect.top - DESKTOP_POINTER_PROXIMITY_PX &&
+    clientY <= rect.bottom + DESKTOP_POINTER_PROXIMITY_PX
+  );
+}
+
+function usePointerProximityPlayback(
+  containerRef: RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+): boolean {
+  const [shouldPlay, setShouldPlay] = useState(false);
 
   useEffect(() => {
-    if (shouldLoad) return;
+    if (!enabled) {
+      setShouldPlay(false);
+      return;
+    }
+
+    let frameId: number | null = null;
+    let lastPointer: Pick<PointerEvent, 'clientX' | 'clientY'> | null = null;
+
+    function updateFromPointer() {
+      frameId = null;
+      const node = containerRef.current;
+      const next =
+        node != null &&
+        lastPointer != null &&
+        isPointNearElement(node, lastPointer.clientX, lastPointer.clientY);
+      setShouldPlay((current) => (current === next ? current : next));
+    }
+
+    function scheduleUpdate(event: PointerEvent) {
+      lastPointer = event;
+      if (frameId != null) return;
+      frameId = window.requestAnimationFrame(updateFromPointer);
+    }
+
+    function handleViewportChange() {
+      if (lastPointer == null || frameId != null) return;
+      frameId = window.requestAnimationFrame(updateFromPointer);
+    }
+
+    function pausePlayback() {
+      lastPointer = null;
+      setShouldPlay(false);
+    }
+
+    window.addEventListener('pointermove', scheduleUpdate, { passive: true });
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('blur', pausePlayback);
+
+    return () => {
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+      window.removeEventListener('pointermove', scheduleUpdate);
+      window.removeEventListener('scroll', handleViewportChange);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('blur', pausePlayback);
+    };
+  }, [containerRef, enabled]);
+
+  return shouldPlay;
+}
+
+function useViewportPlayback(
+  containerRef: RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+): [boolean, boolean] {
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [shouldPlay, setShouldPlay] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setShouldLoad(false);
+      setShouldPlay(false);
+      return;
+    }
+
     if (typeof IntersectionObserver === 'undefined') {
       setShouldLoad(true);
+      setShouldPlay(true);
       return;
     }
 
     const node = containerRef.current;
     if (!node) return;
 
-    const observer = new IntersectionObserver(
+    const preloadObserver = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setShouldLoad(true);
-          observer.disconnect();
+          preloadObserver.disconnect();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: MOBILE_PRELOAD_ROOT_MARGIN },
     );
 
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [shouldLoad]);
+    const playbackObserver = new IntersectionObserver(
+      ([entry]) => {
+        const visible =
+          entry.isIntersecting && (entry.intersectionRatio ?? 0) > 0;
+        setShouldPlay(visible);
+      },
+      { threshold: [0, 0.01] },
+    );
 
-  return [containerRef, shouldLoad];
+    preloadObserver.observe(node);
+    playbackObserver.observe(node);
+    return () => {
+      preloadObserver.disconnect();
+      playbackObserver.disconnect();
+    };
+  }, [containerRef, enabled]);
+
+  return [shouldLoad, shouldPlay];
+}
+
+function useVideoPlaybackIntent(
+  controls: boolean,
+): [RefObject<HTMLDivElement | null>, boolean, boolean] {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const finePointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const pointerShouldPlay = usePointerProximityPlayback(
+    containerRef,
+    !controls && finePointer,
+  );
+  const [viewportShouldLoad, viewportShouldPlay] = useViewportPlayback(
+    containerRef,
+    !controls && !finePointer,
+  );
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const requestedLoad =
+    controls || (finePointer ? pointerShouldPlay : viewportShouldLoad);
+  const requestedPlay =
+    !controls && (finePointer ? pointerShouldPlay : viewportShouldPlay);
+
+  useEffect(() => {
+    if (requestedLoad) setHasLoaded(true);
+  }, [requestedLoad]);
+
+  return [containerRef, hasLoaded, hasLoaded && requestedPlay];
 }
 
 function fallbackImage(item: MenuMediaSource): string | null {
@@ -121,8 +257,9 @@ function requestVideoPlayback(video: HTMLVideoElement | null) {
 //            poster, media image, legacy image_url, or branded fallback.
 //   INPUTS:  Props { item media fields, alt, className? }.
 //   OUTPUTS: JSX.Element.
-//   SIDE_EFFECTS: Subscribes to prefers-reduced-motion and IntersectionObserver;
-//                 no network mutation or cart/order state changes.
+//   SIDE_EFFECTS: Subscribes to media queries, IntersectionObserver, and
+//                 pointer proximity events for video playback only; no network
+//                 mutation or cart/order state changes.
 //   LINKS:   PDD §5.2 menu media; INV-004; INV-015.
 // END_CONTRACT: MenuMedia
 export function MenuMedia({
@@ -132,7 +269,8 @@ export function MenuMedia({
   controls = false,
 }: Props) {
   const reducedMotion = usePrefersReducedMotion();
-  const [containerRef, shouldLoadVideo] = useLazyVideo();
+  const [containerRef, shouldLoadVideo, shouldPlayVideo] =
+    useVideoPlaybackIntent(controls);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoFailed, setVideoFailed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -153,12 +291,23 @@ export function MenuMedia({
     .join(' ');
 
   useEffect(() => {
-    if (!canRenderVideo || !shouldLoadVideo || controls) return;
+    if (!canRenderVideo || !shouldLoadVideo) return;
     const video = videoRef.current;
     if (!video) return;
     video.load();
-    requestVideoPlayback(video);
-  }, [canRenderVideo, controls, item.media_url, shouldLoadVideo]);
+  }, [canRenderVideo, item.media_url, shouldLoadVideo]);
+
+  useEffect(() => {
+    if (!canRenderVideo || controls || !shouldLoadVideo) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (shouldPlayVideo) {
+      requestVideoPlayback(video);
+    } else {
+      video.pause();
+    }
+  }, [canRenderVideo, controls, shouldLoadVideo, shouldPlayVideo]);
 
   if (!canRenderVideo && (!imageSrc || imageFailed)) {
     return (
@@ -193,7 +342,6 @@ export function MenuMedia({
           muted
           loop
           playsInline
-          autoPlay
           controls={controls}
           controlsList="nodownload noplaybackrate noremoteplayback"
           disablePictureInPicture
@@ -201,10 +349,14 @@ export function MenuMedia({
           onClick={controls ? (event) => event.stopPropagation() : undefined}
           onContextMenu={(event) => event.preventDefault()}
           onCanPlay={() => {
-            if (!controls) requestVideoPlayback(videoRef.current);
+            if (!controls && shouldPlayVideo) {
+              requestVideoPlayback(videoRef.current);
+            }
           }}
           onLoadedData={() => {
-            if (!controls) requestVideoPlayback(videoRef.current);
+            if (!controls && shouldPlayVideo) {
+              requestVideoPlayback(videoRef.current);
+            }
           }}
           onError={() => setVideoFailed(true)}
         />
