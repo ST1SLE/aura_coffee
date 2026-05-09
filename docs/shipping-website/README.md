@@ -97,7 +97,8 @@ Current status:
   setup exists and the API key is present on the VPS, but staging is deliberately
   back in mock mode as of 2026-05-07: `SMS_BACKEND=log`. This keeps website
   testing unblocked while SMS.ru sender/legal constraints are resolved. Yandex
-  keys exist and Aura supports separate Suggest/Geocoder keys. Yandex
+  keys exist, Aura supports separate Suggest/Geocoder keys, and closed-staging
+  Yandex smoke passed through the server-side `/api/v1/maps/*` proxy. Yandex
   licensing/data storage still blocks delivery launch, not staging skeleton work.
 - Stage 3 menu/media is loaded on closed staging from
   `docs/shipping-website/menu-catalog/`: 11 categories, 53 items, 104 size
@@ -115,8 +116,8 @@ Current public-launch blockers:
 
 - Real YuKassa test-shop and live payment path is not proven.
 - Real SMS.ru OTP path is not proven and is blocked by sender/legal constraints.
-- Yandex production restrictions, quota monitoring, and delivery smoke are not
-  complete.
+- Yandex license/storage decision, production restrictions, quota monitoring, and
+  full delivery checkout smoke are not complete.
 - Backup/restore drill and operational monitoring are not complete.
 - Legal/privacy/offer/refund/consent materials and final menu/media approval are
   owner-blocked.

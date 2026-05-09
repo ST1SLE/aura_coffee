@@ -87,9 +87,13 @@ Last checked: 2026-05-09.
   links. Video playback smoke passed on staging: desktop loads only near-cursor
   product videos, including hybrid cursor/touch devices, and mobile keeps
   offscreen videos paused while visible videos play.
-- Next provider gate: Yandex address smoke can run before SMS/YuKassa because it
-  does not move money and delivery must fail safely when geocoding is
-  unavailable or low precision.
+- Yandex address smoke passed on 2026-05-09: direct provider probes from
+  `core-api`, Aura `/api/v1/maps/*` proxy calls, vague-address low-precision
+  rejection, browser address-form suggest/geocode/save, and cleanup all passed;
+  the frontend bundle and browser network did not expose direct Yandex calls.
+- Next provider gate: SMS.ru controlled OTP smoke when the provider path is
+  ready. If SMS remains blocked, the next Codex-owned launch gate is the
+  backup/restore drill.
 
 ## Phase 0: Freeze Launch Inputs
 
@@ -204,6 +208,12 @@ scripts/production/compose.sh /opt/aura-coffee/.env.production down
 ## Phase 2: Enable Yandex Maps
 
 Goal: prove Suggest and Geocoder through the Core API server-side proxy.
+
+Current closed-staging result as of 2026-05-09: passed. Direct Yandex provider
+probes from `core-api` returned HTTP 200, Aura proxy endpoints returned
+suggestions and street-level geocode, vague input returned `low_precision`, and
+an authenticated browser address-form flow created and deleted a controlled
+saved-address smoke record without direct Yandex browser requests.
 
 Provider dashboard steps:
 

@@ -21,6 +21,11 @@ menu/provider packets.
 - Menu video playback smoke passed on closed staging: desktop cursor-away state
   left all 53 videos paused and unloaded; hovering a product loaded only that
   product video; mobile-path viewport playback paused all offscreen videos.
+- Yandex Maps closed-staging smoke passed: direct provider probes from
+  `core-api` returned HTTP 200 for Suggest and Geocoder, Aura
+  `/api/v1/maps/*` proxy returned suggestions and street-level geocode, vague
+  input returned `422 {"reason": "low_precision"}`, and browser address-form
+  create/delete used only Aura endpoints with no direct Yandex browser request.
 
 ## Current State
 
@@ -38,8 +43,9 @@ payment and SMS modes while provider/legal gates are unresolved:
 - SMS.ru is still log/mock; the real provider path is blocked by sender/legal
   constraints and must be tested only with a controlled phone and redaction
   inspection.
-- Yandex keys can support staging checks, but delivery launch still requires
-  license/quota/billing due diligence and address-flow smoke.
+- Yandex Suggest/Geocoder works through the server-side Aura proxy on closed
+  staging, but delivery launch still requires license/storage/quota/billing due
+  diligence and a full delivery checkout smoke.
 - The menu/media packet is validated and loaded for closed staging, but owner
   approval is still required for final names, prices, sizes, English labels,
   media quality, and alternative-milk pricing caveats.
@@ -69,8 +75,8 @@ Still open before public launch:
   drills.
 - Real SMS.ru OTP delivery with controlled phone, spend limits, and log
   redaction proof.
-- Yandex Suggest/Geocoder production restrictions, quota monitoring, and
-  delivery validation smoke.
+- Yandex production restrictions, quota/billing monitoring, and full delivery
+  checkout smoke.
 - Backup creation, restore drill, retention, and alerting.
 - Staff/admin access token still persists in `localStorage`; refresh tokens are
   HttpOnly, but privileged access-token storage remains a security hardening
