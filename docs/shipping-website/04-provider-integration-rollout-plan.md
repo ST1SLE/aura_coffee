@@ -76,15 +76,17 @@ Codex owns:
 Last checked: 2026-05-09.
 
 - VPS release:
-  `543c08d8407b-codex-cart-prune-20260509T151010Z`, built from a clean Git
-  archive.
+  `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
+  Git archive.
 - Runtime shape: nginx publishes `80/443`; Postgres, Redis, Core API, SMS
   worker, payment worker, and payment webhook are private Docker services.
 - Provider modes: `AURA_ENV=production`, `YUKASSA_BACKEND=fake`,
   `SMS_BACKEND=log`. These are acceptable only for closed staging.
 - Menu/media: `docs/shipping-website/menu-catalog` validates with
   11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
-  links.
+  links. Video playback smoke passed on staging: desktop loads only near-cursor
+  product videos, including hybrid cursor/touch devices, and mobile keeps
+  offscreen videos paused while visible videos play.
 - Next provider gate: Yandex address smoke can run before SMS/YuKassa because it
   does not move money and delivery must fail safely when geocoding is
   unavailable or low precision.

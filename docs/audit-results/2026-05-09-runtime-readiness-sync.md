@@ -6,10 +6,10 @@ menu/provider packets.
 
 ## Evidence Checked
 
-- Local repo head: `543c08d fix: prune stale cart lines`.
+- Local repo head: `72afc03 fix(customer): detect hybrid cursor video playback`.
 - VPS release metadata:
-  `543c08d8407b-codex-cart-prune-20260509T151010Z`, source
-  `git_archive_clean`, packet `cart_stale_line_prune`.
+  `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, source
+  `git_archive_clean`, packet `customer_hybrid_video_playback_gate`.
 - VPS Compose status: nginx publishes only `80/443`; Core API, Postgres, Redis,
   SMS worker, payment worker, and payment webhook are internal Docker services.
 - VPS provider modes: `AURA_ENV=production`, `YUKASSA_BACKEND=fake`,
@@ -18,6 +18,9 @@ menu/provider packets.
 - Menu catalog validation passed for `docs/shipping-website/menu-catalog`:
   11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
   links.
+- Menu video playback smoke passed on closed staging: desktop cursor-away state
+  left all 53 videos paused and unloaded; hovering a product loaded only that
+  product video; mobile-path viewport playback paused all offscreen videos.
 
 ## Current State
 
@@ -56,6 +59,9 @@ Mitigated or resolved since the 2026-05-03 production security audit:
   archives, and local DB/log artifacts.
 - Container restart policies and health checks cover the current production-like
   overlay well enough for closed staging.
+- Customer menu video autoplay is now gated for closed staging: desktop uses
+  cursor proximity, including hybrid cursor/touch devices, while mobile plays
+  visible videos and keeps offscreen videos paused.
 
 Still open before public launch:
 
@@ -89,8 +95,9 @@ smooth public launch:
   provider outage, and customer support call.
 - Lightweight monitoring for disk, container health, TLS expiry, SMS balance,
   Yandex quota, YuKassa webhook failures, and worker queue depth.
-- Mobile/slow-network media checks for video poster fallback, autoplay failure,
-  first-load stall, and card crop.
+- Remaining mobile/slow-network media checks for poster fallback, first-load
+  stall, and card crop. Autoplay/proximity/offscreen playback was smoke-tested
+  on closed staging on 2026-05-09.
 - Accessibility and text-overflow screenshot gates for the final customer and
   staff surfaces after content freezes.
 - A privacy-safe analytics/error-reporting policy before adding any third-party

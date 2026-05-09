@@ -102,11 +102,14 @@ Current status:
 - Stage 3 menu/media is loaded on closed staging from
   `docs/shipping-website/menu-catalog/`: 11 categories, 53 items, 104 size
   options, 4 alternative-milk modifiers, 28 item/modifier links, and media under
-  `/media/menu/`. Owner approval is still required for English names, size-label
-  UX, and cacao/matcha alternative-milk pricing caveats.
+  `/media/menu/`. Video playback is gated on staging: desktop uses cursor
+  proximity, including hybrid cursor/touch devices, and mobile plays only
+  viewport-visible videos while keeping offscreen videos paused. Owner approval
+  is still required for English names, size-label UX, and cacao/matcha
+  alternative-milk pricing caveats.
 - Current VPS release as of 2026-05-09:
-  `543c08d8407b-codex-cart-prune-20260509T151010Z`, built from a clean Git
-  archive at `543c08d fix: prune stale cart lines`.
+  `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
+  Git archive at `72afc03 fix(customer): detect hybrid cursor video playback`.
 
 Current public-launch blockers:
 
