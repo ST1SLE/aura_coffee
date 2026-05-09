@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-import uuid
 from datetime import datetime, timezone
 
 import fakeredis
@@ -104,7 +103,7 @@ def test_get_hydrates_line_with_fresh_prices(cart_redis, db_session) -> None:
         ],
         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
     })
-    cart_redis.set(f"cart:1", payload)
+    cart_redis.set("cart:1", payload)
 
     svc = CartService(session=db_session, redis_client=cart_redis, user_id=1, ttl_seconds=300)
     cart = svc.get()
@@ -220,6 +219,86 @@ def test_get_surfaces_archived_item_as_archived(cart_redis, db_session) -> None:
 
     assert len(cart.items) == 1
     assert cart.items[0].menu_item_snapshot.availability == MenuItemAvailability.ARCHIVED
+
+
+def test_get_prunes_missing_menu_item_and_keeps_valid_lines(cart_redis, db_session) -> None:
+    """get() удаляет устаревшую Redis-строку, если товара уже нет в БД."""
+    from core_api.services.cart import CartService
+    from tests._factories.menu import make_menu_item
+
+    item = make_menu_item(db_session, base_price=15000)
+    db_session.flush()
+
+    payload = json.dumps({
+        "items": [
+            {
+                "menu_item_id": 999999,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            },
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 2,
+            },
+        ],
+        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+    })
+    cart_redis.set("cart:1", payload, ex=300)
+
+    svc = CartService(
+        session=db_session,
+        redis_client=cart_redis,
+        user_id=1,
+        ttl_seconds=300,
+    )
+    cart = svc.get()
+
+    assert len(cart.items) == 1
+    assert cart.items[0].menu_item_id == item.id
+    assert cart.items[0].line_total == 30000
+
+    stored = json.loads(cart_redis.get("cart:1"))
+    assert stored["items"] == [
+        {
+            "menu_item_id": item.id,
+            "size_option_id": None,
+            "modifier_ids": [],
+            "quantity": 2,
+        }
+    ]
+
+
+def test_get_deletes_cart_when_only_missing_menu_items_remain(cart_redis, db_session) -> None:
+    """get() превращает полностью устаревшую Redis-корзину в пустую."""
+    from core_api.services.cart import CartService
+
+    payload = json.dumps({
+        "items": [
+            {
+                "menu_item_id": 999999,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+    })
+    cart_redis.set("cart:1", payload, ex=300)
+
+    svc = CartService(
+        session=db_session,
+        redis_client=cart_redis,
+        user_id=1,
+        ttl_seconds=300,
+    )
+    cart = svc.get()
+
+    assert cart.items == []
+    assert cart.subtotal == 0
+    assert cart_redis.exists("cart:1") == 0
 
 
 # ===========================================================================
@@ -542,7 +621,7 @@ def test_add_item_no_partial_write_on_rejection(cart_redis, db_session) -> None:
 
 def test_update_item_changes_quantity(cart_redis, db_session) -> None:
     """update_item() заменяет quantity строки (не суммирует)."""
-    from core_api.schemas.cart import CartItemCreate, CartItemResponse
+    from core_api.schemas.cart import CartItemCreate
     from core_api.services.cart import CartService
     from tests._factories.menu import make_menu_item
 
@@ -561,7 +640,7 @@ def test_update_item_changes_quantity(cart_redis, db_session) -> None:
 
 def test_update_item_recomputes_line_id_when_modifiers_change(cart_redis, db_session) -> None:
     """Изменение модификаторов меняет line_id строки."""
-    from core_api.schemas.cart import CartItemCreate, CartItemResponse
+    from core_api.schemas.cart import CartItemCreate
     from core_api.services.cart import CartService
     from tests._factories.menu import make_menu_item, make_modifier
 

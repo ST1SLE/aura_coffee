@@ -134,6 +134,42 @@ def test_get_cart_returns_empty_for_fresh_customer(client) -> None:
     assert data["currency"] == "RUB"
 
 
+def test_get_cart_prunes_orphaned_redis_line(db_client, cart_redis) -> None:
+    """GET /api/v1/cart не падает, если Redis ссылается на удалённый товар."""
+    import json as _json
+    from datetime import datetime, timezone
+
+    uid = uuid.uuid4()
+    cart_redis.set(
+        f"cart:{uid}",
+        _json.dumps({
+            "items": [
+                {
+                    "menu_item_id": 999999,
+                    "size_option_id": None,
+                    "modifier_ids": [],
+                    "quantity": 1,
+                }
+            ],
+            "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        }),
+        ex=300,
+    )
+
+    with _patch_jwt():
+        token = _make_token("customer", uid)
+        resp = db_client.get(
+            "/api/v1/cart",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["items"] == []
+    assert data["subtotal"] == 0
+    assert cart_redis.exists(f"cart:{uid}") == 0
+
+
 # ===========================================================================
 # 8.5-8.9 POST /api/v1/cart/items
 # ===========================================================================

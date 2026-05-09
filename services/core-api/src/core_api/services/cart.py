@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import redis
@@ -165,13 +165,15 @@ class CartService:
         if requested_quantity > menu_item.inventory_quantity:
             raise CartValidationError("inventory_insufficient")
 
-    def _hydrate_line(self, raw: dict) -> CartItemResponse:
+    def _hydrate_line(self, raw: dict) -> CartItemResponse | None:
         """Строит CartItemResponse из сырых данных Redis, читая цены из БД."""
         menu_item = self._session.get(MenuItem, raw["menu_item_id"])
 
         if menu_item is None:
-            # Товар удалён — возвращаем заглушку с ARCHIVED
-            raise ValueError(f"MenuItem {raw['menu_item_id']} не найден в БД")
+            # Redis is cache, not source of truth. Hard-deleted catalog rows can
+            # appear after QA resets or rare operational cleanup; callers should
+            # receive a usable cart and the stale line should be pruned.
+            return None
 
         if menu_item.archived:
             availability = MenuItemAvailability.ARCHIVED
@@ -245,10 +247,12 @@ class CartService:
 
     # START_CONTRACT: CartService.get
     #   PURPOSE: Read current cart, hydrate each line with fresh DB prices and
-    #            availability snapshot, refresh TTL on access (design D1).
+    #            availability snapshot, prune hard-deleted catalog rows, and
+    #            refresh TTL on access (design D1).
     #   INPUTS:  none
     #   OUTPUTS: CartResponse — items, subtotal, currency, expires_at.
-    #   SIDE_EFFECTS: Redis GET + SET (TTL refresh) + DB SELECTs for catalog.
+    #   SIDE_EFFECTS: Redis GET + SET/DEL (TTL refresh and stale-line pruning)
+    #                 + DB SELECTs for catalog.
     # END_CONTRACT: CartService.get
     def get(self) -> CartResponse:
         """Возвращает текущую корзину с ценами из БД. Продлевает TTL."""
@@ -256,12 +260,6 @@ class CartService:
         items_raw = payload.get("items", [])
 
         if not items_raw:
-            expires_at = datetime.now(tz=timezone.utc).replace(
-                second=0, microsecond=0
-            ).replace(
-                second=0
-            )
-            from datetime import timedelta
             expires_at = datetime.now(tz=timezone.utc) + timedelta(seconds=self._ttl)
             return CartResponse(
                 items=[],
@@ -270,13 +268,33 @@ class CartService:
                 expires_at=expires_at,
             )
 
-        hydrated = [self._hydrate_line(raw) for raw in items_raw]
+        hydrated: list[CartItemResponse] = []
+        retained_raw: list[dict] = []
+        for raw in items_raw:
+            line = self._hydrate_line(raw)
+            if line is None:
+                continue
+            hydrated.append(line)
+            retained_raw.append(raw)
+
+        if len(retained_raw) != len(items_raw):
+            payload["items"] = retained_raw
+
+        if not hydrated:
+            self._redis.delete(self._key())
+            expires_at = datetime.now(tz=timezone.utc) + timedelta(seconds=self._ttl)
+            return CartResponse(
+                items=[],
+                subtotal=0,
+                currency="RUB",
+                expires_at=expires_at,
+            )
+
         subtotal = compute_subtotal([item.line_total for item in hydrated])
 
-        # Продлеваем TTL при чтении (design D1)
+        # Продлеваем TTL при чтении (design D1) and persist any stale-line prune.
         self._save(payload)
 
-        from datetime import timedelta
         expires_at = datetime.now(tz=timezone.utc) + timedelta(seconds=self._ttl)
 
         return CartResponse(
