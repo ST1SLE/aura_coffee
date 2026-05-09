@@ -361,18 +361,24 @@ Expected:
 Before live customer traffic:
 
 ```bash
-BACKUP="/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
-scripts/production/compose.sh /opt/aura-coffee/.env.production \
-  exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-  | gzip > "$BACKUP"
-ls -lh "$BACKUP"
+scripts/production/backup-postgres.sh \
+  --staging-auth \
+  --weekly \
+  /opt/aura-coffee/.env.production
 ```
 
 Restore drill:
 
-- Restore into a scratch database or staging stack.
-- Run migrations/readiness checks.
-- Confirm representative rows are present.
+```bash
+scripts/production/restore-postgres.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production \
+  /var/backups/aura-coffee/postgres/aura_daily_YYYYMMDDTHHMMSSZ.sql.gz
+```
+
+The restore script restores into a scratch database, runs Alembic `upgrade head`,
+prints non-sensitive representative row counts, and drops the scratch database
+unless `--keep-db` is supplied.
 
 Do not wait for an incident to test restore.
 

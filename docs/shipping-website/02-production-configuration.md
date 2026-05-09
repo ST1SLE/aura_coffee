@@ -353,9 +353,15 @@ Minimum operations:
 Suggested backup command shape:
 
 ```bash
-scripts/production/compose.sh /opt/aura-coffee/.env.production \
-  exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-  | gzip > "/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+scripts/production/backup-postgres.sh \
+  --staging-auth \
+  --weekly \
+  /opt/aura-coffee/.env.production
+
+scripts/production/restore-postgres.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production \
+  /var/backups/aura-coffee/postgres/aura_daily_YYYYMMDDTHHMMSSZ.sql.gz
 ```
 
 Acceptance:
@@ -363,6 +369,9 @@ Acceptance:
 - Backup file exists.
 - Restore into a scratch database succeeds.
 - A readiness check passes after restore.
+
+Closed-staging result on 2026-05-09: passed with Alembic `0011 (head)`,
+representative row counts, scratch DB cleanup, and staging `/health` OK.
 
 ## 11. Legal And Business Launch Checks
 

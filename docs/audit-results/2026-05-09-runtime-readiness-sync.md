@@ -68,6 +68,12 @@ Mitigated or resolved since the 2026-05-03 production security audit:
 - Customer menu video autoplay is now gated for closed staging: desktop uses
   cursor proximity, including hybrid cursor/touch devices, while mobile plays
   visible videos and keeps offscreen videos paused.
+- Backup/restore drill passed on closed staging: daily and weekly Postgres dump
+  files were created under `/var/backups/aura-coffee/postgres`, the daily dump
+  restored into scratch DB `aura_restore_20260509T182218Z`, Alembic reported
+  `0011 (head)`, representative counts returned `table_count=21`,
+  `menu_items=55`, `users=8`, the scratch DB was dropped, no `aura_restore_*`
+  DB remained, and staging `/health` stayed OK.
 
 Still open before public launch:
 
@@ -77,7 +83,7 @@ Still open before public launch:
   redaction proof.
 - Yandex production restrictions, quota/billing monitoring, and full delivery
   checkout smoke.
-- Backup creation, restore drill, retention, and alerting.
+- Recurring backup schedule, retention job wiring, and operational alerting.
 - Staff/admin access token still persists in `localStorage`; refresh tokens are
   HttpOnly, but privileged access-token storage remains a security hardening
   item.

@@ -91,9 +91,13 @@ Last checked: 2026-05-09.
   `core-api`, Aura `/api/v1/maps/*` proxy calls, vague-address low-precision
   rejection, browser address-form suggest/geocode/save, and cleanup all passed;
   the frontend bundle and browser network did not expose direct Yandex calls.
+- Backup/restore drill passed on 2026-05-09: daily and weekly dump files were
+  created, the daily dump restored into a scratch DB, Alembic reported
+  `0011 (head)`, representative row counts passed, the scratch DB was dropped,
+  no `aura_restore_*` DB remained, and staging `/health` stayed OK.
 - Next provider gate: SMS.ru controlled OTP smoke when the provider path is
-  ready. If SMS remains blocked, the next Codex-owned launch gate is the
-  backup/restore drill.
+  ready. If SMS remains blocked, the next Codex-owned launch gate is recurring
+  backup scheduling and operational monitoring.
 
 ## Phase 0: Freeze Launch Inputs
 
@@ -570,10 +574,30 @@ Steps:
 Backup command shape:
 
 ```bash
-scripts/production/compose.sh /opt/aura-coffee/.env.production \
-  exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-  | gzip > "/var/backups/aura-coffee/postgres/aura_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+scripts/production/backup-postgres.sh \
+  --staging-auth \
+  --weekly \
+  /opt/aura-coffee/.env.production
+
+scripts/production/restore-postgres.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production \
+  /var/backups/aura-coffee/postgres/aura_daily_YYYYMMDDTHHMMSSZ.sql.gz
 ```
+
+Current closed-staging result as of 2026-05-09: passed.
+
+- Backup files created:
+  `aura_daily_20260509T182207Z.sql.gz` and
+  `aura_weekly_20260509T182207Z.sql.gz`, both 12,979 bytes.
+- Restore scratch DB: `aura_restore_20260509T182218Z`.
+- Restore checks: `restore_sql=ok`, Alembic `0011 (head)`,
+  `table_count=21`, `menu_items=55`, `users=8`.
+- Cleanup/readiness: scratch DB dropped, no `aura_restore_*` DB remained, and
+  staging `/health` returned `{"status":"ok","yukassa_backend":"fake"}`.
+- Filename/log review: emitted paths, sizes, schema version, row counts, and
+  Compose warnings only; no env secrets, phone numbers, OTPs, JWTs, payment
+  credentials, or address payloads were printed.
 
 Gate:
 

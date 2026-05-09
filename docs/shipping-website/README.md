@@ -108,6 +108,13 @@ Current status:
   viewport-visible videos while keeping offscreen videos paused. Owner approval
   is still required for English names, size-label UX, and cacao/matcha
   alternative-milk pricing caveats.
+- Stage 8 backup/restore drill passed on closed staging on 2026-05-09 using
+  `scripts/production/backup-postgres.sh` and
+  `scripts/production/restore-postgres.sh`: daily and weekly backup files were
+  created under `/var/backups/aura-coffee/postgres`, restored into scratch DB
+  `aura_restore_20260509T182218Z`, Alembic reported `0011 (head)`, row-count
+  checks returned `table_count=21`, `menu_items=55`, `users=8`, the scratch DB
+  was dropped, no `aura_restore_*` DB remained, and staging `/health` stayed OK.
 - Current VPS release as of 2026-05-09:
   `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
   Git archive at `72afc03 fix(customer): detect hybrid cursor video playback`.
@@ -118,7 +125,8 @@ Current public-launch blockers:
 - Real SMS.ru OTP path is not proven and is blocked by sender/legal constraints.
 - Yandex license/storage decision, production restrictions, quota monitoring, and
   full delivery checkout smoke are not complete.
-- Backup/restore drill and operational monitoring are not complete.
+- Backup/restore drill is complete; recurring backup schedule and operational
+  monitoring are not complete.
 - Legal/privacy/offer/refund/consent materials and final menu/media approval are
   owner-blocked.
 - Staff/admin privileged access-token storage still needs hardening before broad
@@ -327,19 +335,25 @@ Do this before live payment acceptance.
 
 Steps:
 
-- Add backup and restore scripts.
-- Run a Postgres backup.
-- Restore into scratch DB or scratch stack.
-- Run readiness checks after restore.
-- Configure retention: at least 7 daily and 4 weekly backups.
+- Add backup and restore scripts. Done:
+  `scripts/production/backup-postgres.sh` and
+  `scripts/production/restore-postgres.sh`.
+- Run a Postgres backup. Done on staging:
+  `aura_daily_20260509T182207Z.sql.gz`.
+- Restore into scratch DB or scratch stack. Done:
+  `aura_restore_20260509T182218Z`.
+- Run readiness checks after restore. Done: Alembic `0011 (head)`, representative
+  row counts, scratch cleanup, and staging `/health`.
+- Configure retention: script defaults retain at least 7 daily and 4 weekly
+  backup files.
 - Add or document checks for disk, container health, TLS expiry, SMS balance,
   Yandex quota, and YuKassa failed webhooks/payments.
 
 Gate:
 
-- Backup file exists.
-- Restore drill succeeds.
-- Readiness check passes after restore.
+- Backup file exists. Passed on 2026-05-09.
+- Restore drill succeeds. Passed on 2026-05-09.
+- Readiness check passes after restore. Passed on 2026-05-09.
 
 ### Stage 9: Full Private End-To-End Smoke
 
