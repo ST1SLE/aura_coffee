@@ -76,9 +76,11 @@ let pauseSpy: ReturnType<typeof vi.spyOn>;
 function mockMediaQueries({
   reducedMotion = false,
   finePointer = false,
+  anyFinePointer = finePointer,
 }: {
   reducedMotion?: boolean;
   finePointer?: boolean;
+  anyFinePointer?: boolean;
 }) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -86,7 +88,9 @@ function mockMediaQueries({
     value: vi.fn().mockImplementation((query: string) => ({
       matches: query.includes('prefers-reduced-motion')
         ? reducedMotion
-        : finePointer,
+        : query.includes('any-pointer')
+          ? anyFinePointer
+          : finePointer,
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -232,6 +236,57 @@ describe('MenuMedia', () => {
 
     await waitFor(() => {
       expect(pauseSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('uses pointer proximity when a fine cursor is available on hybrid desktop devices', async () => {
+    mockMediaQueries({ finePointer: false, anyFinePointer: true });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      writable: true,
+      value: MockIntersectionObserver,
+    });
+
+    render(
+      <MenuMedia
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        alt="Latte"
+      />,
+    );
+
+    const video = screen.getByLabelText('Latte') as HTMLVideoElement;
+    const wrapper = video.parentElement as HTMLElement;
+    Object.defineProperty(wrapper, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 100,
+        right: 200,
+        bottom: 200,
+        left: 100,
+        width: 100,
+        height: 100,
+        x: 100,
+        y: 100,
+        toJSON: () => undefined,
+      }),
+    });
+
+    expect(MockIntersectionObserver.instances).toHaveLength(0);
+    expect(video.getAttribute('src')).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: 150, clientY: 150 }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
+      expect(playSpy).toHaveBeenCalled();
     });
   });
 

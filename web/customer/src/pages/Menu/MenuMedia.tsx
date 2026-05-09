@@ -208,20 +208,24 @@ function useVideoPlaybackIntent(
 ): [RefObject<HTMLDivElement | null>, boolean, boolean] {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const finePointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const anyFinePointer = useMediaQuery(
+    '(any-hover: hover) and (any-pointer: fine)',
+  );
+  const pointerPlayback = finePointer || anyFinePointer;
   const pointerShouldPlay = usePointerProximityPlayback(
     containerRef,
-    !controls && finePointer,
+    !controls && pointerPlayback,
   );
   const [viewportShouldLoad, viewportShouldPlay] = useViewportPlayback(
     containerRef,
-    !controls && !finePointer,
+    !controls && !pointerPlayback,
   );
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const requestedLoad =
-    controls || (finePointer ? pointerShouldPlay : viewportShouldLoad);
+    controls || (pointerPlayback ? pointerShouldPlay : viewportShouldLoad);
   const requestedPlay =
-    !controls && (finePointer ? pointerShouldPlay : viewportShouldPlay);
+    !controls && (pointerPlayback ? pointerShouldPlay : viewportShouldPlay);
 
   useEffect(() => {
     if (requestedLoad) setHasLoaded(true);
