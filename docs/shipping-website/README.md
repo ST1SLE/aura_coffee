@@ -23,6 +23,7 @@ The target shape is a same-origin public website behind nginx:
 | [04-provider-integration-rollout-plan.md](04-provider-integration-rollout-plan.md) | Step-by-step plan for enabling and testing Yandex Maps, SMS.ru, and YuKassa. |
 | [05-stage-0-economical-prerequisites.md](05-stage-0-economical-prerequisites.md) | Economical acquisition guide for Stage 0 domain, VPS, provider, test phone, fiscal, and legal inputs. |
 | [menu-catalog/](menu-catalog/) | Stage 3 menu/media CSV packet and validation instructions. |
+| [../audit-results/2026-05-09-runtime-readiness-sync.md](../audit-results/2026-05-09-runtime-readiness-sync.md) | Current runtime status delta, remaining launch blockers, and UX good-to-have backlog. |
 
 ## Current Production Readiness Summary
 
@@ -88,14 +89,36 @@ Current status:
   SSH works, firewall allows only SSH/HTTP/HTTPS.
 - Stage 2 HTTPS skeleton is deployed on the VPS. HTTP redirects to HTTPS,
   staging is protected with a Basic Auth first prompt and secure cookie handoff,
-  authorized `/health`, `/`, `/admin/`, and placeholder menu media requests
-  return 200 over HTTPS, and Postgres/Redis are private. Providers remain
-  fake/log.
+  authorized `/health`, `/`, `/admin/`, and menu media requests return 200 over
+  HTTPS, and Postgres/Redis are private. YuKassa remains fake and SMS remains
+  log/mock.
 - Stage 0 is effectively ready for engineering work with caveats. YuKassa is
-  intentionally deferred/mocked until owner details are available. SMS.ru is
-  configured for a developer smoke. Yandex keys exist and Aura supports separate
-  Suggest/Geocoder keys. Yandex licensing/data storage still blocks delivery
-  launch, not staging skeleton work.
+  intentionally deferred/mocked until owner details are available. SMS.ru account
+  setup exists and the API key is present on the VPS, but staging is deliberately
+  back in mock mode as of 2026-05-07: `SMS_BACKEND=log`. This keeps website
+  testing unblocked while SMS.ru sender/legal constraints are resolved. Yandex
+  keys exist and Aura supports separate Suggest/Geocoder keys. Yandex
+  licensing/data storage still blocks delivery launch, not staging skeleton work.
+- Stage 3 menu/media is loaded on closed staging from
+  `docs/shipping-website/menu-catalog/`: 11 categories, 53 items, 104 size
+  options, 4 alternative-milk modifiers, 28 item/modifier links, and media under
+  `/media/menu/`. Owner approval is still required for English names, size-label
+  UX, and cacao/matcha alternative-milk pricing caveats.
+- Current VPS release as of 2026-05-09:
+  `543c08d8407b-codex-cart-prune-20260509T151010Z`, built from a clean Git
+  archive at `543c08d fix: prune stale cart lines`.
+
+Current public-launch blockers:
+
+- Real YuKassa test-shop and live payment path is not proven.
+- Real SMS.ru OTP path is not proven and is blocked by sender/legal constraints.
+- Yandex production restrictions, quota monitoring, and delivery smoke are not
+  complete.
+- Backup/restore drill and operational monitoring are not complete.
+- Legal/privacy/offer/refund/consent materials and final menu/media approval are
+  owner-blocked.
+- Staff/admin privileged access-token storage still needs hardening before broad
+  public use.
 
 ### Stage 1: Production Skeleton In Repo
 
@@ -176,6 +199,8 @@ Steps:
   order.
 - Place media under `/media/menu/{slug}/hero.mp4` and
   `/media/menu/{slug}/poster.webp`.
+- Import with the guarded script when replacing the closed-staging draft menu:
+  `ALLOW_MENU_CATALOG_IMPORT=1 python -m database.seeds.menu_catalog --catalog-dir docs/shipping-website/menu-catalog --replace-existing`.
 - Check mobile card crop, detail page crop, poster fallback, and video failure
   fallback.
 

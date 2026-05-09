@@ -71,6 +71,24 @@ Codex owns:
 - GRACE/LDD test additions if implementation fixes are needed.
 - Updating this docs directory when the actual path changes.
 
+## Current Closed-Staging Snapshot
+
+Last checked: 2026-05-09.
+
+- VPS release:
+  `543c08d8407b-codex-cart-prune-20260509T151010Z`, built from a clean Git
+  archive.
+- Runtime shape: nginx publishes `80/443`; Postgres, Redis, Core API, SMS
+  worker, payment worker, and payment webhook are private Docker services.
+- Provider modes: `AURA_ENV=production`, `YUKASSA_BACKEND=fake`,
+  `SMS_BACKEND=log`. These are acceptable only for closed staging.
+- Menu/media: `docs/shipping-website/menu-catalog` validates with
+  11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
+  links.
+- Next provider gate: Yandex address smoke can run before SMS/YuKassa because it
+  does not move money and delivery must fail safely when geocoding is
+  unavailable or low precision.
+
 ## Phase 0: Freeze Launch Inputs
 
 Goal: collect the values that all later phases depend on.
@@ -266,6 +284,25 @@ Provider dashboard steps:
 5. Record balance, limit, and status pages for monitoring.
 6. Review OTP text length to avoid accidental multi-segment messages.
 
+Current staging status as of 2026-05-07:
+
+- VPS is back in safe mock mode: `SMS_BACKEND=log`.
+- VPS has `SMSRU_API_KEY`, but it is not used while `SMS_BACKEND=log`.
+- Local SMS worker safety tests pass for `BLOCK_SMSRU_CALL` and redaction.
+- Use operator-only Redis OTP assistance for closed-staging website testing;
+  do not expose generated OTPs through logs or UI.
+
+Current decision after SMS.ru sender validation on 2026-05-07:
+
+- Branded sender/operator registration is not economical for staging because
+  major operators require a legal entity/IP contract and monthly fees.
+- OTP text uses SMS.ru code/password mode: `Ваш код: {code}`. SMS.ru may strip
+  the text and deliver only the code from the shared `SMS.RU` sender.
+- Keep `SMSRU_SENDER_NAME` empty for this staging path. Use it only after an
+  approved branded sender exists.
+- Real SMS remains blocked until a provider path works without paid/legal
+  operator registration.
+
 Server env:
 
 ```text
@@ -273,18 +310,69 @@ SMS_BACKEND=smsru
 SMSRU_API_KEY=real_api_id
 ```
 
-Restart:
+Safe VPS switch, with the secret entered interactively instead of pasted into
+shell history:
 
 ```bash
-scripts/production/compose.sh /opt/aura-coffee/.env.production \
-  up -d sms-worker core-api-worker core-api
+ssh -i ~/.ssh/aura-vps -o IdentitiesOnly=yes deploy@212.8.226.214
+
+read -rsp "SMSRU_API_KEY: " SMSRU_API_KEY
+echo
+export SMSRU_API_KEY
+ENV=/opt/aura-coffee/.env.production
+cp "$ENV" "$ENV.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+
+python3 - "$ENV" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+path = Path(sys.argv[1])
+key = os.environ["SMSRU_API_KEY"].strip()
+if not key or key == "your-smsru-api-key":
+    raise SystemExit("SMSRU_API_KEY is empty or placeholder")
+
+values = {
+    "SMS_BACKEND": "smsru",
+    "SMSRU_API_KEY": key,
+}
+seen: set[str] = set()
+out: list[str] = []
+for line in path.read_text().splitlines():
+    if "=" in line and not line.lstrip().startswith("#"):
+        name = line.split("=", 1)[0]
+        if name in values:
+            out.append(f"{name}={values[name]}")
+            seen.add(name)
+            continue
+    out.append(line)
+
+for name, value in values.items():
+    if name not in seen:
+        out.append(f"{name}={value}")
+
+path.write_text("\n".join(out) + "\n")
+PY
+
+unset SMSRU_API_KEY
+cd /opt/aura-coffee/app
+scripts/production/validate-env.sh "$ENV"
+scripts/production/compose.sh --tls --staging-auth "$ENV" \
+  up -d --force-recreate sms-worker core-api-worker core-api
+```
+
+Manual editor fallback if the remote terminal says
+`Error opening terminal: xterm-ghostty`:
+
+```bash
+TERM=xterm-256color nano /opt/aura-coffee/.env.production
 ```
 
 Controlled OTP flow:
 
 1. Clear any test-phone rate-limit keys only if needed and only for the
    controlled number.
-2. Request OTP from customer UI.
+2. Request OTP from the customer UI using the controlled personal phone only.
 3. Wait for SMS arrival.
 4. Enter OTP and complete login.
 5. Capture full verify response if using API commands; do not pipe directly to
@@ -297,6 +385,20 @@ Log check:
 ```bash
 scripts/production/compose.sh /opt/aura-coffee/.env.production \
   logs --tail 150 sms-worker
+```
+
+Remote redaction smoke after the controlled UI login attempt:
+
+```bash
+ssh -i ~/.ssh/aura-vps -o IdentitiesOnly=yes deploy@212.8.226.214 '
+cd /opt/aura-coffee/app
+COMPOSE="scripts/production/compose.sh --tls --staging-auth /opt/aura-coffee/.env.production"
+logs=$($COMPOSE logs --tail 250 sms-worker core-api 2>/dev/null || true)
+printf "%s\n" "$logs" | grep -q "BLOCK_SMSRU_CALL" \
+  && echo "block_smsru_call=yes" || echo "block_smsru_call=no"
+printf "%s\n" "$logs" | grep -Eiq "\+7[0-9]{10}|access_token|refresh_token|api_id|secret_key|SMSRU_API_KEY|otp_code|Ваш код|Aura Coffee:" \
+  && echo "sensitive_pattern=yes" || echo "sensitive_pattern=no"
+'
 ```
 
 Expected:
@@ -319,7 +421,13 @@ SMS_BACKEND=log
 SMSRU_API_KEY=
 ```
 
-Then restart `sms-worker`, `core-api-worker`, and `core-api`.
+Then run:
+
+```bash
+scripts/production/validate-env.sh /opt/aura-coffee/.env.production
+scripts/production/compose.sh --tls --staging-auth /opt/aura-coffee/.env.production \
+  up -d --force-recreate sms-worker core-api-worker core-api
+```
 
 ## Phase 4: Enable YuKassa Test-Shop Payments
 
