@@ -133,6 +133,11 @@ Current status:
   Git archive at `331dd36 fix(customer): cap menu video loading`.
   Later ops-script/docs releases update `/opt/aura-coffee/app` without
   rebuilding containers.
+- Repeatable closed-staging customer video smoke exists:
+  `scripts/production/check-staging-customer-video-smoke.mjs`. It drives a
+  fresh cache-disabled Chromium profile through Basic Auth, log-mode OTP login,
+  and menu scrolling, then asserts bounded login warmup and bounded active video
+  requests.
 
 Current public-launch blockers:
 
@@ -387,6 +392,8 @@ Steps:
 - Open customer site on mobile and desktop.
 - Browse menu.
 - Register/login with SMS OTP.
+- Run the cache-disabled customer video smoke:
+  `scripts/production/check-staging-customer-video-smoke.mjs`.
 - Add item to cart.
 - Create pickup order.
 - Pay through YuKassa test path.

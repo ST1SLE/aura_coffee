@@ -392,6 +392,18 @@ scripts/production/check-ops-health.sh \
   /opt/aura-coffee/.env.production
 ```
 
+Closed-staging customer video smoke from an operator machine with Chromium,
+Node, and SSH access to the staging deploy user:
+
+```bash
+scripts/production/check-staging-customer-video-smoke.mjs
+```
+
+The script opens a fresh cache-disabled Chromium profile, passes the first
+Basic Auth challenge, sends a log-mode OTP, reads it through
+`scripts/production/get-staging-otp.sh`, logs in as a customer, scrolls `/menu`,
+and fails if menu video requests exceed the bounded playback budget.
+
 The installer writes a managed deploy-user crontab block. Defaults:
 
 - Daily backup: `17 2 * * 1-6`.
