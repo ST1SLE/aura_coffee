@@ -54,7 +54,8 @@ function isReadableServerDetail(detail: string): boolean {
   return !(
     /subtotal\s+\d+\s+below\s+min_delivery_amount/i.test(text) ||
     /\b[a-z]+(?:_[a-z0-9]+){1,}\b/.test(text) ||
-    /^[\[{]/.test(text) ||
+    text.startsWith('[') ||
+    text.startsWith('{') ||
     /^HTTP\s+\d+/i.test(text)
   );
 }

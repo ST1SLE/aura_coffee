@@ -661,6 +661,377 @@ Verification:
   `/profile/addresses`, protected routes stayed on their expected paths, and no
   protected-route API 4xx/5xx responses or page errors occurred.
 
+### Packet 13 - Menu Deep Link And Media Fallback Cleanup
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/Menu/MenuPage.tsx`
+- `web/customer/src/pages/Menu/MenuMedia.tsx`
+- `web/customer/src/pages/Menu/MenuPage.test.tsx`
+- `web/customer/src/pages/Menu/MenuMedia.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+Follow-up menu review found two residual browsing issues after Packet 11:
+
+- `/menu/:categoryId` was registered in the router but `MenuPage` ignored the
+  category id, so deep links did not activate or scroll to that category.
+- products without media still rendered a plain empty block, which weakened the
+  media-first card treatment for food/merch QA items.
+
+Steps:
+
+1. Read `categoryId` from the route and, after menu load, activate and scroll to
+   the matching non-empty category section.
+2. Keep scroll-driven category synchronization as the active category authority
+   while the customer browses normally.
+3. Replace the no-source or failed-image media block with a branded fallback
+   surface and icon that stays behind the existing product-name/price overlay.
+4. Preserve menu API shape, category ownership, cart behavior, checkout payloads,
+   pricing, auth, order state, and logging behavior.
+
+Acceptance:
+
+- `/menu/2` activates the matching category chip and scrolls to the matching
+  category when the category exists and has public items.
+- invalid or empty category ids fall back to the first visible category.
+- no-media items show a branded fallback instead of a flat blank rectangle.
+- no backend, API, auth, cart, pricing, payment, order-state, or persistence
+  behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/MenuMedia.test.tsx`
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm run build`
+- `cd web/customer && npm test`
+- `git diff --check`
+- Playwright browser smoke against `http://127.0.0.1:240/menu/2` with
+  authenticated QA customer cookies at 1280x720 and 390x844.
+- Browser smoke captured screenshots under
+  `/tmp/aura-customer-menu-deeplink-fallback`.
+- Browser smoke asserted route retention on `/menu/2`, active category
+  `Phase4 QA Food`, food section in viewport, branded fallback media present,
+  and 0px horizontal overflow.
+
+### Packet 14 - Saved Address Delete Dialog And Labels
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/Profile/Addresses/AddressesPage.tsx`
+- `web/customer/src/pages/Profile/Addresses/AddressesPage.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The remaining customer P2 polish backlog still had two saved-address issues in
+the same screen:
+
+- delete used the browser-native `window.confirm`, which breaks the app's visual
+  system and is awkward on mobile.
+- apartment, entrance, and floor details used hardcoded Russian prefixes in the
+  saved-address list.
+
+Steps:
+
+1. Replace `window.confirm` with an in-app modal confirmation on the
+   saved-address screen.
+2. Keep `deleteAddress(id)` as the only destructive call and run it only after
+   explicit confirmation.
+3. Preserve the cancel path without API side effects.
+4. Render apartment, entrance, and floor labels through existing i18n keys.
+5. Preserve address list/create/edit/default APIs, payloads, geocoding behavior,
+   auth enforcement, and PII logging boundaries.
+
+Acceptance:
+
+- tapping "Delete" opens a modal dialog instead of the browser confirm.
+- cancel closes the dialog and does not call `deleteAddress`.
+- confirm calls `deleteAddress(id)`, refreshes the list, and keeps the existing
+  error rendering path.
+- address detail labels are localized in RU and EN.
+- no backend, API contract, auth, profile/address persistence, geocoding, or
+  logging behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/pages/Profile/Addresses/AddressesPage.test.tsx`
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm run build`
+- `cd web/customer && npm test`
+- `git diff --check`
+- Playwright browser smoke against `http://127.0.0.1:240/profile/addresses`
+  with authenticated QA customer cookies at 1280x720 and 390x844.
+- Browser smoke captured screenshots under
+  `/tmp/aura-customer-address-delete-dialog`.
+- Browser smoke asserted the delete dialog opens, cancel closes it without a
+  DELETE request, address context is visible, and horizontal overflow is 0px.
+
+### Packet 15 - Auth And Item Detail Accessibility Labels
+
+Status: complete
+
+Files:
+
+- `web/customer/src/components/auth/OTPInput.tsx`
+- `web/customer/src/components/auth/OTPInput.test.tsx`
+- `web/customer/src/components/auth/PhoneInput.tsx`
+- `web/customer/src/components/auth/PhoneInput.test.tsx`
+- `web/customer/src/pages/Menu/ItemDetail.tsx`
+- `web/customer/src/pages/Menu/ItemDetail.test.tsx`
+- `web/customer/src/i18n/locales/en/common.json`
+- `web/customer/src/i18n/locales/ru/common.json`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The remaining customer accessibility/i18n backlog still had small hardcoded or
+unlabeled controls:
+
+- OTP digit inputs had no accessible per-field labels.
+- the phone input placeholder was hardcoded instead of using existing i18n.
+- the item-detail close button used a hardcoded English ARIA label.
+
+Steps:
+
+1. Add localized per-digit OTP labels with position and total.
+2. Read the phone placeholder from `auth.phone.placeholder`.
+3. Add a localized `menu.close` key and use it for the item-detail close button.
+4. Preserve OTP value handling, auto-advance, paste behavior, verification
+   payloads, phone normalization, item-detail cart payloads, and pricing display.
+
+Acceptance:
+
+- screen readers can distinguish OTP digit inputs.
+- phone placeholder text is sourced from i18n.
+- item-detail close action is localized.
+- no OTP send/verify behavior, auth-token storage, cart API payload, checkout,
+  backend, logging, or PII persistence behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/components/auth/OTPInput.test.tsx src/components/auth/PhoneInput.test.tsx src/pages/Menu/ItemDetail.test.tsx`
+- `cd web/customer && npm run typecheck`
+- `cd web/customer && npm run lint`
+- `cd web/customer && npm run build`
+- `cd web/customer && npm test`
+- `git diff --check`
+
+### Packet 16 - Address Autocomplete Combobox Keyboard Support
+
+Status: complete
+
+Files:
+
+- `web/customer/src/components/AddressAutocomplete/AddressAutocomplete.tsx`
+- `web/customer/src/components/AddressAutocomplete/AddressAutocomplete.test.tsx`
+- `web/customer/src/pages/CheckoutPage.test.tsx`
+- `web/customer/src/pages/Profile/Addresses/AddressForm.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The customer UX audit found that address suggestions were mouse-selectable but
+the input did not expose combobox semantics or keyboard navigation. This made
+saved-address and checkout address entry weaker for keyboard and assistive-tech
+users.
+
+Steps:
+
+1. Add stable listbox/option IDs and connect the input with `role="combobox"`,
+   `aria-autocomplete`, `aria-expanded`, `aria-controls`, and
+   `aria-activedescendant`.
+2. Track an active suggestion and support ArrowDown, ArrowUp, Enter, and Escape.
+3. Reset active suggestion state when the query changes, the list closes, the
+   component enters maps-degraded fallback, or the query becomes too short.
+4. Preserve the existing suggest debounce, stale-response guard, mouse selection,
+   degraded fallback, and typed-address geocoding contract.
+
+Acceptance:
+
+- screen readers can detect the input as a list-backed combobox.
+- keyboard users can move through suggestions and choose one without a pointer.
+- Escape closes the suggestions without changing the typed address.
+- manual text entry still clears coordinates so the server can geocode at order
+  time.
+- no checkout payload, saved-address mutation, maps API contract, backend,
+  logging, auth, payment, or order-state behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/components/AddressAutocomplete/AddressAutocomplete.test.tsx`
+- `cd web/customer && npm test -- src/components/AddressAutocomplete/AddressAutocomplete.test.tsx src/pages/Profile/Addresses/AddressForm.test.tsx`
+- `cd web/customer && npm test -- src/components/AddressAutocomplete/AddressAutocomplete.test.tsx src/pages/Profile/Addresses/AddressForm.test.tsx src/pages/CheckoutPage.test.tsx`
+
+### Packet 17 - Menu Item Native Button Semantics
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/Menu/MenuItemCard.tsx`
+- `web/customer/src/pages/Menu/MenuItemCard.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The customer UX audit still had one small menu accessibility note: menu item
+cards used `div role="button"` with custom keyboard handling. Native button
+semantics are more robust and make disabled unavailable/sold-out cards explicit.
+
+Steps:
+
+1. Replace the custom clickable `div` with a native `button type="button"`.
+2. Use the native `disabled` attribute for unavailable and sold-out items.
+3. Remove custom `tabIndex`, `role`, `aria-disabled`, and keydown activation.
+4. Preserve the media-first visual treatment, price/name overlays, plus icon,
+   badges, click-to-open behavior, and no cart/order mutation from the card.
+
+Acceptance:
+
+- available item cards are native enabled buttons.
+- unavailable and sold-out cards are native disabled buttons and do not call
+  `onOpen`.
+- video/image media clicks still bubble to the available card button.
+- no cart API, menu API, pricing, availability, checkout, backend, logging,
+  auth, payment, or order-state behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/pages/Menu/MenuItemCard.test.tsx`
+
+### Packet 18 - Checkout And Item Detail Focus Flow
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/CheckoutPage.tsx`
+- `web/customer/src/pages/CheckoutPage.test.tsx`
+- `web/customer/src/pages/Menu/ItemDetail.tsx`
+- `web/customer/src/pages/Menu/ItemDetail.test.tsx`
+- `web/customer/src/pages/Menu/MenuItemCard.tsx`
+- `web/customer/src/pages/Menu/MenuPage.tsx`
+- `web/customer/src/pages/Menu/MenuPage.test.tsx`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The remaining current customer accessibility note was focus flow: checkout
+server errors should move focus to the alert, and opening item detail should
+move focus into the modal then restore focus to the originating menu card on
+close.
+
+Steps:
+
+1. Focus the checkout error alert when submit/address validation errors render.
+2. Focus the item-detail close control when the bottom sheet opens.
+3. Pass the originating native menu-card button to `MenuPage` and restore focus
+   after `ItemDetail` closes.
+4. Preserve checkout payloads, cart add payloads, menu API behavior, item
+   pricing display, media rendering, and all backend/order/auth/logging paths.
+
+Acceptance:
+
+- checkout validation or server errors render an alert and move keyboard focus
+  to it.
+- item detail opens with focus inside the dialog.
+- closing item detail returns focus to the card that opened it.
+- no checkout payload, cart API, menu API, backend, logging, auth, payment, or
+  order-state behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/pages/Menu/MenuPage.test.tsx src/pages/Menu/ItemDetail.test.tsx src/pages/Menu/MenuItemCard.test.tsx src/pages/CheckoutPage.test.tsx`
+
+### Packet 19 - Login Submit Loading Label
+
+Status: complete
+
+Files:
+
+- `web/customer/src/pages/LoginPage.tsx`
+- `web/customer/src/pages/LoginPage.test.tsx`
+- `web/customer/src/i18n/locales/en/common.json`
+- `web/customer/src/i18n/locales/ru/common.json`
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The remaining current customer i18n note was a hardcoded `...` loading label on
+the login submit button while the OTP send-code request is pending.
+
+Steps:
+
+1. Add localized `auth.phone.submitting` text in RU and EN.
+2. Use the localized key for the pending submit button label.
+3. Add a pending-promise test so the transient loading state is asserted.
+4. Preserve phone normalization, validation, `login(phone)`, return-url
+   propagation, error rendering, and OTP verify routing.
+
+Acceptance:
+
+- login submit no longer renders a literal `...`.
+- pending send-code state is localized and the button remains disabled.
+- no auth API contract, OTP code flow, token storage, backend, SMS, logging, or
+  PII persistence behavior changes.
+
+Verification:
+
+- `cd web/customer && npm test -- src/pages/LoginPage.test.tsx`
+
+### Packet 20 - Mobile Text Overflow Screenshot Verification
+
+Status: complete
+
+Files:
+
+- `docs/design/aura-customer-redesign-plan.md`
+
+Context:
+
+The remaining customer audit note was verification-oriented: mobile text
+overflow needed screenshot coverage for long Russian checkout/address/profile
+strings.
+
+Steps:
+
+1. Use the existing `tests/e2e` Playwright dependency and canonical nginx URL
+   `http://127.0.0.1:240`.
+2. Authenticate the seeded QA customer with a server-issued refresh cookie and
+   seed one cart item through the API so checkout renders totals.
+3. Force RU locale through `localStorage.i18nextLng`.
+4. Capture `/checkout`, `/profile`, and `/profile/addresses` at 375x812,
+   390x844, 430x932, 768x1024, and 1280x800.
+5. Measure `documentElement/body.scrollWidth` against `window.innerWidth` and
+   scan visible element boxes for viewport overflow.
+
+Acceptance:
+
+- all measured routes have 0px horizontal overflow at all target viewports.
+- no visible element box extends beyond the viewport.
+- checkout/profile/address screenshots are captured for manual inspection.
+- no source code, API, auth flow, cart behavior, backend, logging, payment, or
+  order-state behavior changes.
+
+Verification:
+
+- Headless Chrome smoke against `http://127.0.0.1:240` using the repo's
+  `tests/e2e/node_modules/playwright` install.
+- Screenshots and `results.json` captured under
+  `/tmp/aura-customer-mobile-overflow`.
+- Browser smoke covered 15 combinations: `/checkout`, `/profile`,
+  `/profile/addresses` at 375x812, 390x844, 430x932, 768x1024, and 1280x800.
+- Every combination reported `overflowPx: 0`, `offenderCount: 0`, and no
+  non-favicon HTTP 4xx/5xx responses.
+
 ## Verification Commands
 
 For frontend visual packets:
@@ -700,7 +1071,7 @@ OTP, payment, order transitions, PII logging, or backend marker emission.
 
 Module: `M-WEB-CUSTOMER`
 
-Packet status: Packets 0-12 complete.
+Packet status: Packets 0-20 complete.
 
 Safety double-check:
 
@@ -742,6 +1113,14 @@ Verification commands run:
 - Playwright bold taupe/cream screenshot and computed-color gate listed under
   Packet 10.
 - Packet 12 focused verification listed under Packet 12.
+- Packet 13 focused verification listed under Packet 13.
+- Packet 14 focused verification listed under Packet 14.
+- Packet 15 focused verification listed under Packet 15.
+- Packet 16 focused verification listed under Packet 16.
+- Packet 17 focused verification listed under Packet 17.
+- Packet 18 focused verification listed under Packet 18.
+- Packet 19 focused verification listed under Packet 19.
+- Packet 20 browser overflow/screenshot verification listed under Packet 20.
 
 Residual test cleanup:
 

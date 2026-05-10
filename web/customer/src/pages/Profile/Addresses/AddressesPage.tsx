@@ -13,7 +13,7 @@ import { AddressForm } from './AddressForm';
 // START_MODULE_CONTRACT
 //   PURPOSE: /profile/addresses route — list saved addresses, mark one default,
 //            and switch into create/edit modes that mount AddressForm. Confirms
-//            deletion via window.confirm before calling api/addresses.deleteAddress.
+//            deletion in an in-app dialog before calling api/addresses.deleteAddress.
 //   SCOPE:   AddressesPage component.
 //   DEPENDS: react, react-i18next, @/components/ui/button, @/api/addresses
 //            (listAddresses, deleteAddress, setDefaultAddress), ./AddressForm.
@@ -37,7 +37,7 @@ type Mode =
 //   INPUTS:  none.
 //   OUTPUTS: JSX — loading spinner / list with action buttons / AddressForm.
 //   SIDE_EFFECTS: HTTP listAddresses() on mount and after every mutation;
-//                 deleteAddress() (confirm-gated); setDefaultAddress();
+//                 deleteAddress() (dialog-confirm-gated); setDefaultAddress();
 //                 mounting AddressForm triggers further HTTP calls.
 //                 INV-013 PII handling.
 //   LINKS:   PDD §7.
@@ -48,6 +48,8 @@ export function AddressesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
+  const [deleteTarget, setDeleteTarget] = useState<AddressResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -66,13 +68,18 @@ export function AddressesPage() {
     void refetch();
   }, [refetch]);
 
-  async function handleDelete(id: string) {
-    if (!confirm(t('pages.addresses.confirmDelete'))) return;
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
     try {
-      await deleteAddress(id);
+      await deleteAddress(deleteTarget.id);
+      setDeleteTarget(null);
       await refetch();
     } catch {
       setError(t('pages.profile.saveError'));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -145,9 +152,12 @@ export function AddressesPage() {
                       <div className="mt-1 break-words">{a.address_text}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {[
-                          a.apartment && `кв. ${a.apartment}`,
-                          a.entrance && `подъезд ${a.entrance}`,
-                          a.floor && `этаж ${a.floor}`,
+                          a.apartment &&
+                            `${t('pages.addresses.form.apartment')}: ${a.apartment}`,
+                          a.entrance &&
+                            `${t('pages.addresses.form.entrance')}: ${a.entrance}`,
+                          a.floor &&
+                            `${t('pages.addresses.form.floor')}: ${a.floor}`,
                         ]
                           .filter(Boolean)
                           .join(', ')}
@@ -186,7 +196,7 @@ export function AddressesPage() {
                         size="sm"
                         variant="outline"
                         className="text-destructive"
-                        onClick={() => handleDelete(a.id)}
+                        onClick={() => setDeleteTarget(a)}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                         {t('pages.addresses.delete')}
@@ -219,6 +229,61 @@ export function AddressesPage() {
           }}
           onCancel={() => setMode({ kind: 'list' })}
         />
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-foreground/45 p-4 backdrop-blur-sm sm:items-center"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="address-delete-title"
+            aria-describedby="address-delete-description"
+            className="aura-surface w-full max-w-md rounded-lg bg-card p-4 shadow-[0_22px_60px_rgba(30,24,19,0.34)]"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive">
+                <Trash2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2
+                  id="address-delete-title"
+                  className="font-display text-lg font-semibold"
+                >
+                  {t('pages.addresses.confirmDelete')}
+                </h2>
+                <p
+                  id="address-delete-description"
+                  className="mt-2 break-words text-sm text-muted-foreground"
+                >
+                  {deleteTarget.label
+                    ? `${deleteTarget.label} — ${deleteTarget.address_text}`
+                    : deleteTarget.address_text}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+              >
+                {t('pages.addresses.form.cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {t('pages.addresses.delete')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
