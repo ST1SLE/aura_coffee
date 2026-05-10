@@ -104,13 +104,18 @@ Last checked: 2026-05-10.
   daily backups, weekly backup copies, and a 15-minute ops health check for
   services, public health, TLS expiry, backup freshness, disk usage, provider
   modes, Yandex split-key presence, and the cron marker.
+- Fake/log Stage 9 E2E smoke passed on 2026-05-10 via
+  `scripts/production/check-staging-fake-log-e2e-smoke.mjs`: log-mode customer
+  OTP, menu/cart, pickup order, fake YuKassa callback to `paid`, staff
+  feed/detail, pickup transitions to `completed`, and recent-log phone/OTP
+  redaction scan.
 - Staff/admin access-token storage hardening is complete locally: privileged
   access tokens are memory-only, route guards recover from the HttpOnly refresh
   cookie after reload, and legacy durable browser tokens are cleared.
 - Next provider gate: SMS.ru controlled OTP smoke when the provider path is
   ready. If SMS remains blocked, the residual media and slow-network video checks
-  are complete; the remaining launch gates are provider/account access and final
-  end-to-end smoke.
+  and fake/log E2E smoke are complete; the remaining launch gates are
+  provider/account access and real-provider end-to-end smoke.
 
 ## Phase 0: Freeze Launch Inputs
 

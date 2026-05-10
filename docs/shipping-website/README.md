@@ -138,6 +138,12 @@ Current status:
   fresh cache-disabled Chromium profile through Basic Auth, log-mode OTP login,
   and menu scrolling, then asserts bounded login warmup and bounded active video
   requests.
+- Repeatable closed-staging fake/log E2E smoke exists:
+  `scripts/production/check-staging-fake-log-e2e-smoke.mjs`. It drives the
+  deployed API through staging auth, log-mode customer OTP, menu, cart, pickup
+  order creation, fake YuKassa callback to `paid`, staff feed/detail, pickup
+  status transitions to `completed`, and a recent-log redaction scan for the
+  generated phone/OTP.
 
 Current public-launch blockers:
 
@@ -394,6 +400,8 @@ Steps:
 - Register/login with SMS OTP.
 - Run the cache-disabled customer video smoke:
   `scripts/production/check-staging-customer-video-smoke.mjs`.
+- Run the fake/log API E2E smoke:
+  `scripts/production/check-staging-fake-log-e2e-smoke.mjs`.
 - Add item to cart.
 - Create pickup order.
 - Pay through YuKassa test path.

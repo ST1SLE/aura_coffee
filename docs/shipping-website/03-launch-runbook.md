@@ -404,6 +404,20 @@ Basic Auth challenge, sends a log-mode OTP, reads it through
 `scripts/production/get-staging-otp.sh`, logs in as a customer, scrolls `/menu`,
 and fails if menu video requests exceed the bounded playback budget.
 
+Closed-staging fake/log E2E smoke from an operator machine with Node and SSH
+access to the staging deploy user:
+
+```bash
+scripts/production/check-staging-fake-log-e2e-smoke.mjs
+```
+
+The script drives the deployed API through staging auth, log-mode customer OTP,
+menu, cart, pickup order creation, fake YuKassa callback, staff feed/detail,
+pickup status transitions to `completed`, and a recent-log redaction scan for
+the generated phone/OTP. If the existing staging staff passwords have drifted,
+it creates a temporary barista account with a random password for the run and
+deletes it before exit.
+
 The installer writes a managed deploy-user crontab block. Defaults:
 
 - Daily backup: `17 2 * * 1-6`.
