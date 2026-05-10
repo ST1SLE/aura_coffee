@@ -16,6 +16,7 @@ import type {
   ModifierCreate,
   SizeOptionCreate,
 } from './menu';
+import { clearAuthTokens, setAccessToken } from './client';
 
 describe('api/menu', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -24,8 +25,9 @@ describe('api/menu', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
+    clearAuthTokens();
     // Токен для прохождения authenticatedFetch без авторизации
-    localStorage.setItem('accessToken', 'test');
+    setAccessToken('test');
   });
 
   afterEach(() => {

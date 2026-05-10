@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiError } from '@/api/client';
+import { ApiError, clearAuthTokens, setAccessToken } from '@/api/client';
 import {
   listAvailable,
   takeAssignment,
@@ -34,7 +34,8 @@ describe('courier API client', () => {
       assign: vi.fn(),
     });
     localStorage.clear();
-    localStorage.setItem('accessToken', 'tok');
+    clearAuthTokens();
+    setAccessToken('tok');
   });
 
   afterEach(() => {

@@ -9,6 +9,7 @@ import {
   parseFieldErrors,
   ApiError,
 } from './promocodes';
+import { clearAuthTokens, setAccessToken } from './client';
 import type {
   PromocodeCreateInput,
   PromocodeUpdateInput,
@@ -21,7 +22,8 @@ describe('api/promocodes', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
-    localStorage.setItem('accessToken', 'test');
+    clearAuthTokens();
+    setAccessToken('test');
   });
 
   afterEach(() => {

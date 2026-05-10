@@ -1,14 +1,14 @@
-import { clearRole, setRole } from '@/lib/auth';
+import { clearRole, getRole, setRole } from '@/lib/auth';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Thin HTTP client wrapper for the staff SPA — manages staff JWT
-//            access token in localStorage, keeps refresh tokens in HttpOnly
+//            access token in module memory, keeps refresh tokens in HttpOnly
 //            cookies, attaches Bearer auth, rotates refresh cookies on 401,
 //            revokes refresh on logout, and centralizes typed error wrapping.
 //   SCOPE:   All admin/barista/courier API calls go through authenticatedFetch;
 //            staffLogin/staffRefresh/logout are the auth surfaces here.
-//   DEPENDS: @/lib/auth (clearRole, setRole), browser fetch + localStorage
-//            + window.location.
+//   DEPENDS: @/lib/auth (clearRole, getRole, setRole), browser fetch
+//            + localStorage role hint + window.location.
 //   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §4.5, PDD §6.5,
 //            INV-002, INV-010.
 //   ROLE:    RUNTIME
@@ -16,12 +16,13 @@ import { clearRole, setRole } from '@/lib/auth';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   getAccessToken      - read access token from localStorage
-//   setAccessToken      - persist access token to localStorage
+//   getAccessToken      - read access token from module memory
+//   setAccessToken      - keep access token in module memory only
 //   getRefreshToken     - legacy API, always returns null for browser safety
 //   setRefreshToken     - legacy API, clears old localStorage refresh tokens
-//   clearAuthTokens     - remove staff access token + legacy refresh token
-//   clearAccessToken    - remove access token from localStorage
+//   clearAuthTokens     - clear staff access token + legacy refresh token
+//   clearAccessToken    - clear access token from module memory
+//   ensureStaffSession  - refresh from HttpOnly cookie when memory is empty
 //   logout              - revoke refresh token, clear token + role, navigate login
 //   ApiError            - error class wrapping HTTP status + parsed body
 //   authenticatedFetch  - fetch wrapper that injects Bearer token + refreshes on 401
@@ -30,6 +31,8 @@ import { clearRole, setRole } from '@/lib/auth';
 
 const ACCESS_STORAGE_KEY = 'accessToken';
 const REFRESH_STORAGE_KEY = 'refreshToken';
+let inMemoryAccessToken: string | null = null;
+let refreshInFlight: Promise<StaffAuthTokens | null> | null = null;
 
 // START_CONTRACT: StaffAuthTokens
 //   PURPOSE: Typed token pair and role returned by staff login/refresh endpoints.
@@ -48,23 +51,26 @@ export interface StaffAuthTokens {
 }
 
 // START_CONTRACT: getAccessToken
-//   PURPOSE: Read access token previously persisted by login flow.
+//   PURPOSE: Read access token from module memory.
 //   INPUTS:  none
 //   OUTPUTS: string | null — token or null if absent.
-//   SIDE_EFFECTS: reads localStorage.
+//   SIDE_EFFECTS: removes legacy localStorage accessToken if present.
 // END_CONTRACT: getAccessToken
 export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_STORAGE_KEY);
+  localStorage.removeItem(ACCESS_STORAGE_KEY);
+  return inMemoryAccessToken;
 }
 
 // START_CONTRACT: setAccessToken
-//   PURPOSE: Persist access token returned from staffLogin.
+//   PURPOSE: Store access token returned from staffLogin/refresh in module
+//            memory only, never durable browser storage.
 //   INPUTS:  token: string — JWT access token from /staff/auth/login
 //   OUTPUTS: void
-//   SIDE_EFFECTS: writes localStorage.
+//   SIDE_EFFECTS: updates module memory; removes legacy localStorage token.
 // END_CONTRACT: setAccessToken
 export function setAccessToken(token: string): void {
-  localStorage.setItem(ACCESS_STORAGE_KEY, token);
+  inMemoryAccessToken = token;
+  localStorage.removeItem(ACCESS_STORAGE_KEY);
 }
 
 // START_CONTRACT: getRefreshToken
@@ -91,18 +97,19 @@ export function setRefreshToken(token: string): void {
 }
 
 // START_CONTRACT: clearAccessToken
-//   PURPOSE: Remove access token from localStorage (used on 401 and logout).
+//   PURPOSE: Remove access token from module memory (used on 401 and logout).
 //   INPUTS:  none
 //   OUTPUTS: void
-//   SIDE_EFFECTS: writes localStorage.
+//   SIDE_EFFECTS: updates module memory; removes legacy localStorage token.
 // END_CONTRACT: clearAccessToken
 export function clearAccessToken(): void {
+  inMemoryAccessToken = null;
   localStorage.removeItem(ACCESS_STORAGE_KEY);
 }
 
 // START_CONTRACT: clearAuthTokens
-//   PURPOSE: Remove the staff access token and any legacy refresh token from
-//            localStorage.
+//   PURPOSE: Remove the staff access token from memory and any legacy refresh
+//            token from localStorage.
 //   INPUTS:  none
 //   OUTPUTS: void
 //   SIDE_EFFECTS: writes localStorage.
@@ -225,6 +232,37 @@ async function refreshStaffSession(): Promise<StaffAuthTokens | null> {
   const result = (await response.json()) as StaffAuthTokens;
   persistStaffAuth(result);
   return result;
+}
+
+// START_CONTRACT: ensureStaffSession
+//   PURPOSE: Ensure the SPA has an in-memory staff access token. If a page
+//            reload cleared module memory, rotate the HttpOnly refresh cookie
+//            once and restore access token + role hint.
+//   INPUTS:  none
+//   OUTPUTS: Promise<StaffAuthTokens | null> — current/rotated token payload, or
+//            null when no valid refresh cookie exists.
+//   SIDE_EFFECTS: may POST /staff/auth/refresh; updates in-memory access token
+//            and localStorage staffRole hint; removes legacy localStorage tokens.
+//   LINKS:   INV-002 (server enforces auth); INV-013 (JWT never persisted in
+//            durable browser storage).
+// END_CONTRACT: ensureStaffSession
+export async function ensureStaffSession(): Promise<StaffAuthTokens | null> {
+  const token = getAccessToken();
+  if (token !== null) {
+    return {
+      access_token: token,
+      refresh_token: '',
+      role: getRole() ?? '',
+    };
+  }
+
+  if (refreshInFlight === null) {
+    refreshInFlight = refreshStaffSession().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+
+  return refreshInFlight;
 }
 
 function mergeAuthHeaders(

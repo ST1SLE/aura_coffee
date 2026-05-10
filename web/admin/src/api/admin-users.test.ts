@@ -8,6 +8,7 @@ import {
   parseAdjustError,
   ApiError,
 } from './admin-users';
+import { clearAuthTokens, setAccessToken } from './client';
 
 describe('api/admin-users', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -16,7 +17,8 @@ describe('api/admin-users', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
-    localStorage.setItem('accessToken', 'test');
+    clearAuthTokens();
+    setAccessToken('test');
   });
 
   afterEach(() => {

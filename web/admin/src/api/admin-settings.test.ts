@@ -8,6 +8,7 @@ import {
   ApiError,
 } from './admin-settings';
 import type { ShopSettingsUpdate } from './admin-settings';
+import { clearAuthTokens, setAccessToken } from './client';
 
 function fullPayload(): ShopSettingsUpdate {
   return {
@@ -40,7 +41,8 @@ describe('api/admin-settings', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
-    localStorage.setItem('accessToken', 'test');
+    clearAuthTokens();
+    setAccessToken('test');
   });
 
   afterEach(() => {

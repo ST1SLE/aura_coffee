@@ -8,6 +8,7 @@ import type {
   OrderType,
   StaffOrderDetailResponse,
 } from '@/api/admin-orders';
+import { clearAuthTokens, setAccessToken } from '@/api/client';
 import type { StaffRole } from '@/lib/auth';
 
 // Mock useCurrentRole — тест перезаписывает роль перед каждым блоком.
@@ -58,7 +59,8 @@ describe('OrderDetailDialog', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
-    localStorage.setItem('accessToken', 'test');
+    clearAuthTokens();
+    setAccessToken('test');
     currentRole = 'admin';
   });
 

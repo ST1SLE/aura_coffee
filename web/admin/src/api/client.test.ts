@@ -27,6 +27,7 @@ describe('authenticatedFetch', () => {
       assign: vi.fn(),
     });
     localStorage.clear();
+    clearAuthTokens();
   });
 
   afterEach(() => {
@@ -42,7 +43,7 @@ describe('authenticatedFetch', () => {
   }
 
   it('добавляет Authorization header, если токен есть', async () => {
-    localStorage.setItem('accessToken', 'test-token');
+    setAccessToken('test-token');
     fetchMock.mockResolvedValue(okResponse());
 
     await authenticatedFetch('/test');
@@ -65,7 +66,7 @@ describe('authenticatedFetch', () => {
   });
 
   it('сохраняет caller-supplied заголовки (Content-Type)', async () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     fetchMock.mockResolvedValue(okResponse());
 
     await authenticatedFetch('/test', {
@@ -95,7 +96,7 @@ describe('authenticatedFetch', () => {
 
   // --- 2.2a: 401 на защищённом маршруте — редирект + очистка токена + бросает ApiError ---
   it('401 на /api/v1/admin/menu/categories: вызывает assign, очищает токен, бросает ApiError', async () => {
-    localStorage.setItem('accessToken', 'expired-token');
+    setAccessToken('expired-token');
     vi.stubGlobal('location', {
       pathname: '/admin/menu',
       search: '',
@@ -115,14 +116,15 @@ describe('authenticatedFetch', () => {
     expect(window.location.assign).toHaveBeenCalledWith(
       '/admin/login?returnUrl=%2Fmenu',
     );
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(401);
   });
 
-  it('401 на защищённом маршруте: refreshes from cookie, retries once, stores access token', async () => {
-    localStorage.setItem('accessToken', 'expired-token');
+  it('401 на защищённом маршруте: refreshes from cookie, retries once, stores access token in memory only', async () => {
+    setAccessToken('expired-token');
     localStorage.setItem('staffRole', 'barista');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -161,14 +163,15 @@ describe('authenticatedFetch', () => {
     expect((retryInit.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer access-new',
     );
-    expect(localStorage.getItem('accessToken')).toBe('access-new');
+    expect(getAccessToken()).toBe('access-new');
+    expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBe('admin');
     expect(assignMock).not.toHaveBeenCalled();
   });
 
   it('401 после refresh retry: очищает обе пары токенов и редиректит', async () => {
-    localStorage.setItem('accessToken', 'expired-token');
+    setAccessToken('expired-token');
     localStorage.setItem('staffRole', 'admin');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -203,6 +206,7 @@ describe('authenticatedFetch', () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(401);
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -210,7 +214,7 @@ describe('authenticatedFetch', () => {
   });
 
   it('401 и сетевой сбой refresh: очищает токены и редиректит', async () => {
-    localStorage.setItem('accessToken', 'expired-token');
+    setAccessToken('expired-token');
     localStorage.setItem('staffRole', 'admin');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
@@ -234,6 +238,7 @@ describe('authenticatedFetch', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(401);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -242,7 +247,7 @@ describe('authenticatedFetch', () => {
 
   // --- 2.2b: 401 на /staff/auth/login — НЕ вызывает assign, НЕ очищает токен ---
   it('401 на /api/v1/staff/auth/login: не вызывает assign и не очищает токен', async () => {
-    localStorage.setItem('accessToken', 'some-token');
+    setAccessToken('some-token');
     const assignMock = vi.fn();
     vi.stubGlobal('location', {
       pathname: '/admin/login',
@@ -259,7 +264,8 @@ describe('authenticatedFetch', () => {
     await authenticatedFetch('/api/v1/staff/auth/login').catch(() => {});
 
     expect(assignMock).not.toHaveBeenCalled();
-    expect(localStorage.getItem('accessToken')).toBe('some-token');
+    expect(getAccessToken()).toBe('some-token');
+    expect(localStorage.getItem('accessToken')).toBeNull();
   });
 
   // --- 2.2c: 500 — НЕ вызывает assign ---
@@ -302,11 +308,19 @@ describe('authenticatedFetch', () => {
 describe('token helpers', () => {
   beforeEach(() => {
     localStorage.clear();
+    clearAuthTokens();
   });
 
-  it('setAccessToken / getAccessToken: round-trip', () => {
+  it('setAccessToken / getAccessToken: memory-only round-trip', () => {
     setAccessToken('my-token');
     expect(getAccessToken()).toBe('my-token');
+    expect(localStorage.getItem('accessToken')).toBeNull();
+  });
+
+  it('getAccessToken clears legacy localStorage tokens without trusting them', () => {
+    localStorage.setItem('accessToken', 'legacy-token');
+    expect(getAccessToken()).toBeNull();
+    expect(localStorage.getItem('accessToken')).toBeNull();
   });
 
   it('setRefreshToken / getRefreshToken: never exposes browser refresh tokens', () => {
@@ -342,6 +356,7 @@ describe('logout', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
+    clearAuthTokens();
   });
 
   afterEach(() => {
@@ -375,6 +390,7 @@ describe('logout', () => {
 
     await logout();
 
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -396,6 +412,7 @@ describe('logout', () => {
 
     await logout();
 
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -440,6 +457,7 @@ describe('logout', () => {
     ).toBe('Bearer access-new');
     expect(logoutInit.credentials).toBe('include');
     expect(JSON.parse(logoutInit.body as string)).toEqual({});
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -482,6 +500,7 @@ describe('logout', () => {
     ).toBe('Bearer access-new');
     expect(logoutInit.credentials).toBe('include');
     expect(JSON.parse(logoutInit.body as string)).toEqual({});
+    expect(getAccessToken()).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('staffRole')).toBeNull();
@@ -502,6 +521,7 @@ describe('staffLogin', () => {
       assign: assignMock,
     });
     localStorage.clear();
+    clearAuthTokens();
   });
 
   afterEach(() => {

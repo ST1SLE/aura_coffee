@@ -99,9 +99,12 @@ Last checked: 2026-05-10.
   daily backups, weekly backup copies, and a 15-minute ops health check for
   services, public health, TLS expiry, backup freshness, disk usage, provider
   modes, Yandex split-key presence, and the cron marker.
+- Staff/admin access-token storage hardening is complete locally: privileged
+  access tokens are memory-only, route guards recover from the HttpOnly refresh
+  cookie after reload, and legacy durable browser tokens are cleared.
 - Next provider gate: SMS.ru controlled OTP smoke when the provider path is
-  ready. If SMS remains blocked, remaining Codex-owned launch work is staff/admin
-  access-token storage hardening plus residual media and slow-network checks.
+  ready. If SMS remains blocked, remaining Codex-owned launch work is residual
+  media and slow-network checks.
 
 ## Phase 0: Freeze Launch Inputs
 

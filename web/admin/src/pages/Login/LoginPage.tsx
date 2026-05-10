@@ -11,8 +11,8 @@ import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Staff login form — login + password against /staff/auth/login.
-//            On success stores the access token + role hint, then navigates to
-//            returnUrl (or /, or /courier for couriers).
+//            On success stores the access token in module memory plus a role
+//            hint, then navigates to returnUrl (or /, or /courier for couriers).
 //   SCOPE:   Mounted at /login by App.tsx; the only unauthenticated page.
 //   DEPENDS: react-router-dom, react-i18next, ui primitives, @/api/client,
 //            @/lib/auth.
@@ -29,15 +29,16 @@ import { BrandMark, BrandWordmark } from '@/components/BrandMark';
 
 // START_CONTRACT: LoginPage
 //   PURPOSE: Render staff login form, submit credentials to /staff/auth/login,
-//            store access token + role hint on success, rely on the server-set
-//            HttpOnly refresh cookie for rotation, and navigate the user to the
-//            appropriate landing page (couriers
+//            keep the access token in module memory, store a non-secret role
+//            hint, rely on the server-set HttpOnly refresh cookie for rotation,
+//            and navigate the user to the appropriate landing page (couriers
 //            always go to /courier; others honour the returnUrl query param
 //            or fall back to /).
 //   INPUTS:  none (reads URL query via useSearchParams).
 //   OUTPUTS: JSX.Element.
-//   SIDE_EFFECTS: network POST via staffLogin; setAccessToken/setRole writes
-//            localStorage UX state; navigate() updates browser history.
+//   SIDE_EFFECTS: network POST via staffLogin; setAccessToken updates module
+//            memory; setRole writes localStorage UX state; navigate() updates
+//            browser history.
 //   LINKS:   INV-002 (server is authoritative — bad credentials produce 401),
 //            INV-010 (courier role hard-redirects to /courier — UX guard,
 //            not security; even if a courier tampered with localStorage

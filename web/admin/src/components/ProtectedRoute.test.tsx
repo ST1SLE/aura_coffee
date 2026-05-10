@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
+import { clearAuthTokens, getAccessToken, setAccessToken } from '@/api/client';
 import type { StaffRole } from '@/lib/auth';
 
 interface SetupOpts {
@@ -12,10 +13,9 @@ interface SetupOpts {
 }
 
 function renderWithRouter({ path, token, role, allowedRoles }: SetupOpts) {
+  clearAuthTokens();
   if (token) {
-    localStorage.setItem('accessToken', token);
-  } else {
-    localStorage.removeItem('accessToken');
+    setAccessToken(token);
   }
   if (role) {
     localStorage.setItem('staffRole', role);
@@ -53,6 +53,15 @@ function renderWithRouter({ path, token, role, allowedRoles }: SetupOpts) {
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     localStorage.clear();
+    clearAuthTokens();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('{}', { status: 401 })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('с токеном: рендерит дочерний элемент (без allowedRoles — legacy)', () => {
@@ -60,23 +69,61 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('protected-content')).toBeDefined();
   });
 
-  it('без токена: рендерит страницу логина', () => {
+  it('без токена: рендерит страницу логина', async () => {
     renderWithRouter({ path: '/menu', token: null });
-    expect(screen.getByText('login-page')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('login-page')).toBeDefined();
+    });
   });
 
-  it('без токена даже с allowedRoles: редирект на логин', () => {
+  it('без токена даже с allowedRoles: редирект на логин', async () => {
     renderWithRouter({
       path: '/menu',
       token: null,
       allowedRoles: ['admin'],
     });
-    expect(screen.getByText('login-page')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('login-page')).toBeDefined();
+    });
   });
 
-  it('replace: страница защищена', () => {
+  it('replace: страница защищена', async () => {
     const { container } = renderWithRouter({ path: '/menu', token: null });
-    expect(container.textContent).toContain('login-page');
+    await waitFor(() => {
+      expect(container.textContent).toContain('login-page');
+    });
+  });
+
+  it('без in-memory token: восстанавливает сессию через refresh cookie', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: 'access-new',
+          refresh_token: 'refresh-new',
+          role: 'admin',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithRouter({
+      path: '/menu',
+      token: null,
+      allowedRoles: ['admin'],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('protected-content')).toBeDefined();
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/staff/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({}),
+    });
+    expect(getAccessToken()).toBe('access-new');
+    expect(localStorage.getItem('accessToken')).toBeNull();
   });
 
   it('courier на admin-роуте: редирект на /courier', () => {
@@ -144,7 +191,7 @@ describe('ProtectedRoute', () => {
   // INV-010: barista видит все admin+barista маршруты, но /settings закрыт
   // inner ProtectedRoute allowedRoles={['admin']} → редирект на /.
   it('barista на /settings с inner admin-guard: редирект на /', () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'barista');
 
     render(
@@ -169,7 +216,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('admin на /settings с inner admin-guard: рендерится', () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'admin');
 
     render(

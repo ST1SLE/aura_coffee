@@ -7,6 +7,7 @@ import {
   cancelAdminOrder,
   ApiError,
 } from './admin-orders';
+import { clearAuthTokens, setAccessToken } from './client';
 
 describe('api/admin-orders', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -15,8 +16,9 @@ describe('api/admin-orders', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
+    clearAuthTokens();
     // Токен для прохождения authenticatedFetch без редиректа на login.
-    localStorage.setItem('accessToken', 'test');
+    setAccessToken('test');
   });
 
   afterEach(() => {

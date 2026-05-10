@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getAdminStats, ApiError } from './admin-stats';
 import type { AdminStatsResponse } from './admin-stats';
+import { clearAuthTokens, setAccessToken } from './client';
 
 describe('api/admin-stats', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -9,7 +10,8 @@ describe('api/admin-stats', () => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     localStorage.clear();
-    localStorage.setItem('accessToken', 'test');
+    clearAuthTokens();
+    setAccessToken('test');
   });
 
   afterEach(() => {

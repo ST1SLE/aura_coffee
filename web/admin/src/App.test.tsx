@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n/config';
 import { App, AppRoutes } from '@/App';
+import { clearAuthTokens, setAccessToken } from '@/api/client';
 import * as statsApi from '@/api/admin-stats';
 
 vi.mock('@/api/admin-stats', async () => {
@@ -40,8 +41,31 @@ function renderAt(path: string) {
 }
 
 describe('App', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     localStorage.clear();
+    clearAuthTokens();
+    fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes('/api/v1/admin/orders')
+        ? { orders: [], total_count: 0, page: 1, per_page: 20 }
+        : url.includes('/api/v1/courier/assignments')
+          ? []
+          : {};
+
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   function renderBrowserApp(path = '/admin') {
@@ -49,19 +73,28 @@ describe('App', () => {
     return render(<App />);
   }
 
-  it('рендерится без краша (без токена)', () => {
+  it('рендерится без краша (без токена)', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
     const { container } = renderBrowserApp();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/staff/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+    });
     expect(container).toBeDefined();
   });
 
-  it('рендерится без краша (с токеном в localStorage)', () => {
-    localStorage.setItem('accessToken', 'valid-token');
+  it('рендерится без краша (с in-memory токеном)', () => {
+    setAccessToken('valid-token');
     const { container } = renderBrowserApp();
     expect(container).toBeDefined();
   });
 
   it('/courier с ролью courier рендерит курьерский shell (без sidebar)', async () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'courier');
 
     renderAt('/courier');
@@ -76,7 +109,7 @@ describe('App', () => {
   });
 
   it('/courier с ролью admin не рендерит courier shell', async () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'admin');
 
     renderAt('/courier');
@@ -93,7 +126,7 @@ describe('App', () => {
   });
 
   it('/menu с ролью courier редиректит на /courier', async () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'courier');
 
     renderAt('/menu');
@@ -104,7 +137,7 @@ describe('App', () => {
   });
 
   it('/ с ролью admin рендерит DashboardPage', async () => {
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'admin');
 
     renderAt('/');
@@ -117,7 +150,7 @@ describe('App', () => {
 
   it('/ с ролью barista редиректит на /orders (dashboard не монтируется)', async () => {
     vi.mocked(statsApi.getAdminStats).mockClear();
-    localStorage.setItem('accessToken', 'tok');
+    setAccessToken('tok');
     localStorage.setItem('staffRole', 'barista');
 
     renderAt('/');

@@ -137,10 +137,11 @@ Current public-launch blockers:
 - Backup/restore and server-side recurring health checks are complete; external
   provider dashboard alerts for SMS.ru balance, Yandex quota/billing, and
   YuKassa failures still require provider/account access.
+- Staff/admin privileged access-token storage is hardened: access tokens stay in
+  SPA module memory only, protected routes restore from the HttpOnly refresh
+  cookie after reload, and legacy `localStorage.accessToken` is cleared.
 - Legal/privacy/offer/refund/consent materials and final menu/media approval are
   owner-blocked.
-- Staff/admin privileged access-token storage still needs hardening before broad
-  public use.
 
 ### Stage 1: Production Skeleton In Repo
 
