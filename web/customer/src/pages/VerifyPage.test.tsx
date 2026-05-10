@@ -1,10 +1,11 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import '@/i18n/config';
 import { AuthContext } from '@/auth/AuthProvider';
 import type { AuthContextValue } from '@/auth/AuthProvider';
 import { VerifyPage } from './VerifyPage';
+import { warmCustomerMenuMedia } from '@/media/menuWarmup';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -20,6 +21,15 @@ vi.mock('react-router-dom', async () => {
       key: 'default',
     }),
   };
+});
+
+vi.mock('@/media/menuWarmup', () => ({
+  warmCustomerMenuMedia: vi.fn(),
+}));
+
+beforeEach(() => {
+  mockNavigate.mockClear();
+  vi.mocked(warmCustomerMenuMedia).mockClear();
 });
 
 function renderVerifyPage(authOverrides: Partial<AuthContextValue> = {}) {

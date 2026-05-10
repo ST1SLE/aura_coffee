@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { OTPInput } from '@/components/auth/OTPInput';
@@ -6,6 +6,7 @@ import { ResendTimer } from '@/components/auth/ResendTimer';
 import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
 import { BrandWordmark } from '@/components/BrandMark';
+import { warmCustomerMenuMedia } from '@/media/menuWarmup';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /login/verify route — OTP entry step. Reads phone + returnUrl
@@ -16,7 +17,8 @@ import { BrandWordmark } from '@/components/BrandMark';
 //   SCOPE:   VerifyPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/components/auth/OTPInput,
 //            @/components/auth/ResendTimer, @/components/BrandMark,
-//            @/auth/useAuth, @/api/auth (AuthError).
+//            @/auth/useAuth, @/api/auth (AuthError),
+//            @/media/menuWarmup.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.2 verify-code;
 //            INV-013 (phone is PII — only displayed masked in this UI).
 //   ROLE:    RUNTIME
@@ -39,12 +41,13 @@ function maskPhone(phone: string): string {
 //            <Navigate to="/login"> when no phone is present in state.
 //   SIDE_EFFECTS: useAuth().verifyCode (HTTP POST /auth/verify-code, sets
 //                 tokens + user); useAuth().login on resend (HTTP POST
-//                 /auth/send-code); navigate(returnUrl, { replace: true }) on
-//                 success. INV-013 — phone shown masked only.
+//                 /auth/send-code); starts bounded menu media warmup;
+//                 navigate(returnUrl, { replace: true }) on success.
+//                 INV-013 — phone shown masked only.
 //   LINKS:   PDD §6.2; pairs with LoginPage and OTPInput.
 // END_CONTRACT: VerifyPage
 export function VerifyPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { verifyCode, login } = useAuth();
@@ -56,6 +59,11 @@ export function VerifyPage() {
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
+
+  useEffect(() => {
+    warmCustomerMenuMedia(lang);
+  }, [lang]);
 
   const handleComplete = useCallback(
     async (submittedCode: string) => {

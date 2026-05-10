@@ -5,6 +5,7 @@ import '@/i18n/config';
 import { AuthContext } from '@/auth/AuthProvider';
 import type { AuthContextValue } from '@/auth/AuthProvider';
 import { LoginPage } from './LoginPage';
+import { warmCustomerMenuMedia } from '@/media/menuWarmup';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -21,6 +22,10 @@ vi.mock('react-router-dom', async () => {
     }),
   };
 });
+
+vi.mock('@/media/menuWarmup', () => ({
+  warmCustomerMenuMedia: vi.fn(),
+}));
 
 function renderLoginPage(authOverrides: Partial<AuthContextValue> = {}) {
   const auth: AuthContextValue = {
@@ -44,6 +49,7 @@ function renderLoginPage(authOverrides: Partial<AuthContextValue> = {}) {
 
 beforeEach(() => {
   mockNavigate.mockClear();
+  vi.mocked(warmCustomerMenuMedia).mockClear();
 });
 
 describe('LoginPage', () => {

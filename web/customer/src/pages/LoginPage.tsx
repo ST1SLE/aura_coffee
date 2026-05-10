@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PhoneInput, isValidPhone } from '@/components/auth/PhoneInput';
@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/useAuth';
 import { AuthError } from '@/api/auth';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/BrandMark';
+import { warmCustomerMenuMedia } from '@/media/menuWarmup';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: /login route — phone entry step of the OTP flow. Validates with
@@ -14,7 +15,8 @@ import { BrandWordmark } from '@/components/BrandMark';
 //            the original `returnUrl` carried via location.state.
 //   SCOPE:   LoginPage component.
 //   DEPENDS: react, react-router-dom, react-i18next, @/components/auth/PhoneInput,
-//            @/auth/useAuth, @/api/auth (AuthError), @/components/ui/button.
+//            @/auth/useAuth, @/api/auth (AuthError), @/components/ui/button,
+//            @/media/menuWarmup.
 //   LINKS:   docs/development-plan.xml M-WEB-CUSTOMER, PDD §6.1 send-code;
 //            INV-013 — phone is PII; do not log raw values.
 //   ROLE:    RUNTIME
@@ -32,11 +34,12 @@ import { BrandWordmark } from '@/components/BrandMark';
 //   INPUTS:  none.
 //   OUTPUTS: JSX — phone form with error/loading state.
 //   SIDE_EFFECTS: useAuth().login (HTTP POST /auth/send-code via api/auth);
-//                 navigate('/login/verify') on success. INV-013 PII handling.
+//                 starts bounded menu media warmup; navigate('/login/verify')
+//                 on success. INV-013 PII handling.
 //   LINKS:   PDD §6.1; pairs with VerifyPage.
 // END_CONTRACT: LoginPage
 export function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -46,6 +49,11 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const valid = isValidPhone(phone);
+  const lang = i18n.language.startsWith('ru') ? 'ru' : 'en';
+
+  useEffect(() => {
+    warmCustomerMenuMedia(lang);
+  }, [lang]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
