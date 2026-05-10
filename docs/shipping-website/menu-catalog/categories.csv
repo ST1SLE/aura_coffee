@@ -1,3 +1,12 @@
 category_code,type,name_ru,name_en,sort_order,is_visible
-coffee,drink,REPLACE_RU_COFFEE,Coffee,0,true
-bakery,food,REPLACE_RU_BAKERY,Bakery,10,true
+coffee-classic,drink,Кофе классика,Classic Coffee,0,true
+cacao,drink,Какао,Cacao,10,true
+matcha,drink,Матча,Matcha,20,true
+tea-drinks,drink,Чайные напитки,Tea Drinks,30,true
+tea,drink,Чай,Tea,40,true
+iced-coffee,drink,Айс кофе,Iced Coffee,50,true
+iced-matcha,drink,Айс матча,Iced Matcha,60,true
+mors,drink,Морс,Mors,70,true
+lemonade,drink,Лимонад,Lemonade,80,true
+fresh,drink,Фреш,Fresh Juice,90,true
+milkshake,drink,Молочные коктейли,Milkshakes,100,true

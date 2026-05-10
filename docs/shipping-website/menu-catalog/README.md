@@ -13,6 +13,8 @@ we can validate it before any database import.
 | `sizes.csv` | Optional size prices for items. |
 | `modifiers.csv` | Optional add-ons such as milk or syrup. |
 | `item_modifiers.csv` | Allowed item-to-modifier links. |
+| `media_manifest.csv` | Source video filename mapped to each public media path. |
+| `SOURCE_NOTES.md` | Transformation notes and caveats from the owner spreadsheet. |
 
 ## Rules
 
@@ -45,3 +47,17 @@ scripts/production/validate-menu-catalog.py \
 
 Passing validation means the spreadsheet shape is safe to review or import. It
 does not mean prices, names, media quality, or legal text are owner-approved.
+
+## Import
+
+After validation, load the catalog into a guarded database environment:
+
+```bash
+ALLOW_MENU_CATALOG_IMPORT=1 python -m database.seeds.menu_catalog \
+  --catalog-dir docs/shipping-website/menu-catalog \
+  --replace-existing
+```
+
+`--replace-existing` archives/hides existing menu rows before loading this
+packet. It does not delete or mutate orders, order items, customers, staff,
+payments, providers, or secrets.

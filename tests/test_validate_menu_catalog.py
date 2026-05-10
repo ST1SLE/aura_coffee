@@ -26,11 +26,11 @@ def test_menu_catalog_template_validates() -> None:
 
     assert errors == []
     assert counts == {
-        "categories": 2,
-        "items": 2,
-        "sizes": 3,
-        "modifiers": 2,
-        "item_modifier_links": 2,
+        "categories": 11,
+        "items": 53,
+        "sizes": 104,
+        "modifiers": 4,
+        "item_modifier_links": 28,
     }
 
 
