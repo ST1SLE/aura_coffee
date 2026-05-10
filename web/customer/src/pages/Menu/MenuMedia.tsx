@@ -21,7 +21,7 @@ import type { MenuMediaType } from '@/api/menuTypes';
 // END_MODULE_MAP
 
 const DESKTOP_POINTER_PROXIMITY_PX = 64;
-const MOBILE_PRELOAD_ROOT_MARGIN = '240px 0px';
+const VIDEO_PRELOAD_ROOT_MARGIN = '640px 0px';
 
 interface MenuMediaSource {
   media_type: MenuMediaType | null;
@@ -150,55 +150,63 @@ function usePointerProximityPlayback(
   return shouldPlay;
 }
 
-function useViewportPlayback(
+function useViewportVideoIntent(
   containerRef: RefObject<HTMLDivElement | null>,
-  enabled: boolean,
+  loadEnabled: boolean,
+  playbackEnabled: boolean,
 ): [boolean, boolean] {
   const [shouldLoad, setShouldLoad] = useState(false);
   const [shouldPlay, setShouldPlay] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!loadEnabled && !playbackEnabled) {
       setShouldLoad(false);
       setShouldPlay(false);
       return;
     }
 
     if (typeof IntersectionObserver === 'undefined') {
-      setShouldLoad(true);
-      setShouldPlay(true);
+      setShouldLoad(loadEnabled);
+      setShouldPlay(playbackEnabled);
       return;
     }
 
     const node = containerRef.current;
     if (!node) return;
 
-    const preloadObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldLoad(true);
-          preloadObserver.disconnect();
-        }
-      },
-      { rootMargin: MOBILE_PRELOAD_ROOT_MARGIN },
-    );
+    let preloadObserver: IntersectionObserver | null = null;
+    let playbackObserver: IntersectionObserver | null = null;
 
-    const playbackObserver = new IntersectionObserver(
-      ([entry]) => {
-        const visible =
-          entry.isIntersecting && (entry.intersectionRatio ?? 0) > 0;
-        setShouldPlay(visible);
-      },
-      { threshold: [0, 0.01] },
-    );
+    if (loadEnabled) {
+      preloadObserver = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setShouldLoad(true);
+            preloadObserver?.disconnect();
+          }
+        },
+        { rootMargin: VIDEO_PRELOAD_ROOT_MARGIN },
+      );
+      preloadObserver.observe(node);
+    }
 
-    preloadObserver.observe(node);
-    playbackObserver.observe(node);
+    if (playbackEnabled) {
+      playbackObserver = new IntersectionObserver(
+        ([entry]) => {
+          const visible =
+            entry.isIntersecting && (entry.intersectionRatio ?? 0) > 0;
+          setShouldPlay(visible);
+        },
+        { threshold: [0, 0.01] },
+      );
+      playbackObserver.observe(node);
+    }
+
     return () => {
-      preloadObserver.disconnect();
-      playbackObserver.disconnect();
+      preloadObserver?.disconnect();
+      playbackObserver?.disconnect();
     };
-  }, [containerRef, enabled]);
+  }, [containerRef, loadEnabled, playbackEnabled]);
 
   return [shouldLoad, shouldPlay];
 }
@@ -216,14 +224,14 @@ function useVideoPlaybackIntent(
     containerRef,
     !controls && pointerPlayback,
   );
-  const [viewportShouldLoad, viewportShouldPlay] = useViewportPlayback(
+  const [viewportShouldLoad, viewportShouldPlay] = useViewportVideoIntent(
     containerRef,
+    !controls,
     !controls && !pointerPlayback,
   );
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const requestedLoad =
-    controls || (pointerPlayback ? pointerShouldPlay : viewportShouldLoad);
+  const requestedLoad = controls || viewportShouldLoad || pointerShouldPlay;
   const requestedPlay =
     !controls && (pointerPlayback ? pointerShouldPlay : viewportShouldPlay);
 
@@ -244,7 +252,7 @@ function fallbackImage(item: MenuMediaSource): string | null {
   return item.image_url;
 }
 
-function requestVideoPlayback(video: HTMLVideoElement | null) {
+function requestVideoPlayback(video: HTMLVideoElement | null): void {
   if (!video) return;
   try {
     const result = video.play();
@@ -276,8 +284,12 @@ export function MenuMedia({
   const [containerRef, shouldLoadVideo, shouldPlayVideo] =
     useVideoPlaybackIntent(controls);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playbackRequestedRef = useRef(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoWaiting, setVideoWaiting] = useState(false);
 
   const canRenderVideo =
     item.media_type === 'video' &&
@@ -287,6 +299,12 @@ export function MenuMedia({
     !videoFailed;
 
   const imageSrc = fallbackImage(item);
+  const showPosterOverlay =
+    canRenderVideo &&
+    !controls &&
+    imageSrc != null &&
+    !imageFailed &&
+    (!videoPlaying || videoWaiting);
   const videoClassName = [
     'h-full w-full object-cover',
     controls ? '' : 'pointer-events-none',
@@ -295,9 +313,22 @@ export function MenuMedia({
     .join(' ');
 
   useEffect(() => {
+    setVideoFailed(false);
+    setImageFailed(false);
+    setVideoReady(false);
+    setVideoPlaying(false);
+    setVideoWaiting(false);
+    playbackRequestedRef.current = false;
+  }, [item.image_url, item.media_poster_url, item.media_url, item.media_type]);
+
+  useEffect(() => {
     if (!canRenderVideo || !shouldLoadVideo) return;
     const video = videoRef.current;
     if (!video) return;
+    setVideoReady(false);
+    setVideoPlaying(false);
+    setVideoWaiting(false);
+    playbackRequestedRef.current = false;
     video.load();
   }, [canRenderVideo, item.media_url, shouldLoadVideo]);
 
@@ -307,10 +338,49 @@ export function MenuMedia({
     if (!video) return;
 
     if (shouldPlayVideo) {
+      playbackRequestedRef.current = true;
       requestVideoPlayback(video);
     } else {
-      video.pause();
+      if (playbackRequestedRef.current) {
+        video.pause();
+      }
+      playbackRequestedRef.current = false;
+      setVideoPlaying(false);
+      setVideoWaiting(false);
     }
+  }, [canRenderVideo, controls, shouldLoadVideo, shouldPlayVideo]);
+
+  useEffect(() => {
+    if (!canRenderVideo || controls || !shouldLoadVideo || !shouldPlayVideo) {
+      return;
+    }
+    if (!videoWaiting) return;
+
+    const retryId = window.setTimeout(() => {
+      playbackRequestedRef.current = true;
+      requestVideoPlayback(videoRef.current);
+    }, 700);
+
+    return () => window.clearTimeout(retryId);
+  }, [canRenderVideo, controls, shouldLoadVideo, shouldPlayVideo, videoWaiting]);
+
+  useEffect(() => {
+    if (!canRenderVideo || controls || !shouldLoadVideo || !shouldPlayVideo) {
+      return;
+    }
+
+    function retryVisiblePlayback() {
+      if (document.visibilityState === 'hidden') return;
+      playbackRequestedRef.current = true;
+      requestVideoPlayback(videoRef.current);
+    }
+
+    document.addEventListener('visibilitychange', retryVisiblePlayback);
+    window.addEventListener('focus', retryVisiblePlayback);
+    return () => {
+      document.removeEventListener('visibilitychange', retryVisiblePlayback);
+      window.removeEventListener('focus', retryVisiblePlayback);
+    };
   }, [canRenderVideo, controls, shouldLoadVideo, shouldPlayVideo]);
 
   if (!canRenderVideo && (!imageSrc || imageFailed)) {
@@ -337,33 +407,92 @@ export function MenuMedia({
       className={['overflow-hidden', className].join(' ')}
     >
       {canRenderVideo ? (
-        <video
-          ref={videoRef}
-          aria-label={alt}
-          className={videoClassName}
-          src={shouldLoadVideo ? (item.media_url ?? undefined) : undefined}
-          poster={item.media_poster_url ?? undefined}
-          muted
-          loop
-          playsInline
-          controls={controls}
-          controlsList="nodownload noplaybackrate noremoteplayback"
-          disablePictureInPicture
-          preload={shouldLoadVideo ? 'auto' : 'metadata'}
-          onClick={controls ? (event) => event.stopPropagation() : undefined}
-          onContextMenu={(event) => event.preventDefault()}
-          onCanPlay={() => {
-            if (!controls && shouldPlayVideo) {
-              requestVideoPlayback(videoRef.current);
-            }
-          }}
-          onLoadedData={() => {
-            if (!controls && shouldPlayVideo) {
-              requestVideoPlayback(videoRef.current);
-            }
-          }}
-          onError={() => setVideoFailed(true)}
-        />
+        <div className="relative h-full w-full">
+          <video
+            ref={videoRef}
+            aria-label={alt}
+            className={videoClassName}
+            src={shouldLoadVideo ? (item.media_url ?? undefined) : undefined}
+            poster={item.media_poster_url ?? undefined}
+            muted
+            loop
+            playsInline
+            controls={controls}
+            controlsList="nodownload noplaybackrate noremoteplayback"
+            disablePictureInPicture
+            preload={shouldLoadVideo ? 'auto' : 'metadata'}
+            onClick={controls ? (event) => event.stopPropagation() : undefined}
+            onContextMenu={(event) => event.preventDefault()}
+            onLoadStart={() => {
+              setVideoReady(false);
+              setVideoPlaying(false);
+              setVideoWaiting(shouldPlayVideo);
+            }}
+            onCanPlay={() => {
+              setVideoReady(true);
+              setVideoWaiting(false);
+              if (!controls && shouldPlayVideo) {
+                playbackRequestedRef.current = true;
+                requestVideoPlayback(videoRef.current);
+              }
+            }}
+            onLoadedData={() => {
+              setVideoReady(true);
+              setVideoWaiting(false);
+              if (!controls && shouldPlayVideo) {
+                playbackRequestedRef.current = true;
+                requestVideoPlayback(videoRef.current);
+              }
+            }}
+            onPlaying={() => {
+              playbackRequestedRef.current = true;
+              setVideoReady(true);
+              setVideoPlaying(true);
+              setVideoWaiting(false);
+            }}
+            onPause={() => {
+              if (!shouldPlayVideo) {
+                playbackRequestedRef.current = false;
+              }
+              setVideoPlaying(false);
+            }}
+            onWaiting={() => {
+              if (shouldPlayVideo) {
+                setVideoWaiting(true);
+                setVideoPlaying(false);
+              }
+            }}
+            onStalled={() => {
+              if (shouldPlayVideo) {
+                setVideoWaiting(true);
+                setVideoPlaying(false);
+              }
+            }}
+            onSuspend={() => {
+              if (shouldPlayVideo && !videoReady) {
+                setVideoWaiting(true);
+              }
+            }}
+            onError={() => {
+              playbackRequestedRef.current = false;
+              setVideoFailed(true);
+            }}
+          />
+          {imageSrc && !imageFailed ? (
+            <img
+              src={imageSrc}
+              alt=""
+              aria-hidden="true"
+              data-testid="menu-media-poster-overlay"
+              className={[
+                'pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-200',
+                showPosterOverlay ? 'opacity-100' : 'opacity-0',
+              ].join(' ')}
+              loading="eager"
+              onError={() => setImageFailed(true)}
+            />
+          ) : null}
+        </div>
       ) : (
         <img
           src={imageSrc ?? undefined}

@@ -134,7 +134,7 @@ describe('MenuMedia', () => {
       .spyOn(window.HTMLMediaElement.prototype, 'play')
       .mockResolvedValue(undefined);
     pauseSpy = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .spyOn(window.HTMLVideoElement.prototype, 'pause')
       .mockImplementation(() => undefined);
   });
 
@@ -186,6 +186,11 @@ describe('MenuMedia', () => {
 
   it('plays desktop video only while the pointer is near the product', async () => {
     mockMediaQueries({ finePointer: true });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      writable: true,
+      value: MockIntersectionObserver,
+    });
 
     render(
       <MenuMedia
@@ -199,7 +204,7 @@ describe('MenuMedia', () => {
     );
 
     const video = screen.getByLabelText('Latte') as HTMLVideoElement;
-    const wrapper = video.parentElement as HTMLElement;
+    const wrapper = video.parentElement?.parentElement as HTMLElement;
     Object.defineProperty(wrapper, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({
@@ -216,6 +221,18 @@ describe('MenuMedia', () => {
     });
 
     expect(video.getAttribute('src')).toBeNull();
+    expect(MockIntersectionObserver.instances).toHaveLength(1);
+
+    act(() => {
+      MockIntersectionObserver.instances[0].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
+    });
+    expect(playSpy).not.toHaveBeenCalled();
 
     act(() => {
       window.dispatchEvent(
@@ -224,7 +241,6 @@ describe('MenuMedia', () => {
     });
 
     await waitFor(() => {
-      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
       expect(playSpy).toHaveBeenCalled();
     });
 
@@ -259,7 +275,7 @@ describe('MenuMedia', () => {
     );
 
     const video = screen.getByLabelText('Latte') as HTMLVideoElement;
-    const wrapper = video.parentElement as HTMLElement;
+    const wrapper = video.parentElement?.parentElement as HTMLElement;
     Object.defineProperty(wrapper, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({
@@ -275,8 +291,19 @@ describe('MenuMedia', () => {
       }),
     });
 
-    expect(MockIntersectionObserver.instances).toHaveLength(0);
+    expect(MockIntersectionObserver.instances).toHaveLength(1);
     expect(video.getAttribute('src')).toBeNull();
+
+    act(() => {
+      MockIntersectionObserver.instances[0].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
+    });
+    expect(playSpy).not.toHaveBeenCalled();
 
     act(() => {
       window.dispatchEvent(
@@ -285,7 +312,6 @@ describe('MenuMedia', () => {
     });
 
     await waitFor(() => {
-      expect(video.getAttribute('src')).toContain('/media/menu/latte/hero.mp4');
       expect(playSpy).toHaveBeenCalled();
     });
   });
@@ -344,6 +370,58 @@ describe('MenuMedia', () => {
 
     await waitFor(() => {
       expect(pauseSpy.mock.calls.length).toBeGreaterThan(pauseCount);
+    });
+  });
+
+  it('keeps the poster visible while requested playback is buffering', async () => {
+    mockMediaQueries({ finePointer: false });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      writable: true,
+      value: MockIntersectionObserver,
+    });
+
+    render(
+      <MenuMedia
+        item={makeItem({
+          media_type: 'video',
+          media_url: '/media/menu/latte/hero.mp4',
+          media_poster_url: '/media/menu/latte/poster.webp',
+        })}
+        alt="Latte"
+      />,
+    );
+
+    const video = screen.getByLabelText('Latte') as HTMLVideoElement;
+    const wrapper = video.parentElement?.parentElement as HTMLElement;
+    const posterOverlay = screen.getByTestId('menu-media-poster-overlay');
+
+    act(() => {
+      MockIntersectionObserver.instances[0].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0 },
+      ]);
+      MockIntersectionObserver.instances[1].emit([
+        { target: wrapper, isIntersecting: true, intersectionRatio: 0.4 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(playSpy).toHaveBeenCalled();
+    });
+    expect(posterOverlay.className).toContain('opacity-100');
+
+    fireEvent.canPlay(video);
+    const playCountAfterCanPlay = playSpy.mock.calls.length;
+    expect(playCountAfterCanPlay).toBeGreaterThan(1);
+
+    fireEvent.playing(video);
+    await waitFor(() => {
+      expect(posterOverlay.className).toContain('opacity-0');
+    });
+
+    fireEvent.waiting(video);
+    await waitFor(() => {
+      expect(posterOverlay.className).toContain('opacity-100');
     });
   });
 
