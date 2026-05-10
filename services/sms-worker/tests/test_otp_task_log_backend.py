@@ -72,7 +72,7 @@ def test_send_otp_sms_emits_ldd_marker_and_redacts_logs(fake_redis) -> None:
     phone_hash = "testhash_ldd"
     encrypted = _encrypt_phone(phone, key)
     code = "987654"
-    sms_body = f"Код подтверждения: {code}. Aura Coffee"
+    sms_body = f"Ваш код: {code}"
     jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sensitive.signature"
     api_key = "smsru_api_key_secret"
 

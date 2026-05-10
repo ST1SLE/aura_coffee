@@ -28,7 +28,7 @@ _PLACEHOLDER = "your-smsru-api-key"
 #            Selects between dev `log` transport and production `smsru` transport,
 #            and refuses to boot if SMS.ru credentials look fake (INV-015).
 #   INPUTS:  Environment variables (REDIS_URL, DATABASE_URL, SMSRU_API_KEY,
-#            ENCRYPTION_KEY, SMS_BACKEND).
+#            SMSRU_SENDER_NAME, ENCRYPTION_KEY, SMS_BACKEND).
 #   OUTPUTS: Settings instance with validated fields.
 #   SIDE_EFFECTS: Reads process environment on instantiation; raises ValueError
 #            on invalid SMS.ru credentials (fail-fast at startup).
@@ -38,17 +38,19 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     database_url: str = "postgresql://aura:aura_secret@postgres:5432/aura_coffee"
     smsru_api_key: str = ""
+    smsru_sender_name: str = ""
     encryption_key: str = ""
     sms_backend: Literal["log", "smsru"] = "log"
 
     @model_validator(mode="after")
     def _validate_smsru_key(self) -> "Settings":
-        if self.sms_backend == "smsru":
-            if not self.smsru_api_key or self.smsru_api_key == _PLACEHOLDER:
-                raise ValueError(
-                    "SMSRU_API_KEY must be a real api_id when SMS_BACKEND=smsru "
-                    "(INV-015: secrets must not be empty or placeholder values)"
-                )
+        if self.sms_backend == "smsru" and (
+            not self.smsru_api_key or self.smsru_api_key == _PLACEHOLDER
+        ):
+            raise ValueError(
+                "SMSRU_API_KEY must be a real api_id when SMS_BACKEND=smsru "
+                "(INV-015: secrets must not be empty or placeholder values)"
+            )
         return self
 
 

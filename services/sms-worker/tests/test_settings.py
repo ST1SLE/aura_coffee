@@ -24,3 +24,12 @@ def test_log_backend_accepts_empty_key() -> None:
 def test_smsru_backend_accepts_real_key() -> None:
     s = Settings(sms_backend="smsru", smsru_api_key="abc123real")
     assert s.sms_backend == "smsru"
+
+
+def test_smsru_sender_name_loads_from_settings() -> None:
+    s = Settings(
+        sms_backend="smsru",
+        smsru_api_key="abc123real",
+        smsru_sender_name="AURACOFFEE",
+    )
+    assert s.smsru_sender_name == "AURACOFFEE"

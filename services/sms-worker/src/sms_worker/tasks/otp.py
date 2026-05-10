@@ -23,12 +23,11 @@ import logging
 
 import redis
 
+from shared.grace.logging import get_grace_logger
 from sms_worker.clients.log import send_via_log
 from sms_worker.clients.smsru import send_via_smsru
 from sms_worker.main import celery_app
 from sms_worker.settings import settings
-
-from shared.grace.logging import get_grace_logger
 
 _grace_log = get_grace_logger("SmsWorker")
 
@@ -96,7 +95,7 @@ def send_otp_sms(
 ) -> None:
     """Отправка OTP SMS. Retry 3x с backoff 2s/8s/32s."""
     phone = _decrypt_phone(encrypted_phone_hex)
-    message = f"Код подтверждения: {code}. Aura Coffee"
+    message = f"Ваш код: {code}"
 
     _grace_log.block("send_otp", "BLOCK_SMSRU_CALL")
     success = _TRANSPORT(phone, message)

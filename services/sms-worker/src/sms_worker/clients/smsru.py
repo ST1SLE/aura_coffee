@@ -52,6 +52,26 @@ def _smsru_error_fields(data: object) -> tuple[object, object]:
     return status, status_text
 
 
+def _smsru_recipient_fields(data: object) -> tuple[object, object, object, object]:
+    if not isinstance(data, dict):
+        return None, None, None, None
+
+    sms_items = data.get("sms")
+    if not isinstance(sms_items, dict):
+        return None, None, None, None
+
+    for sms_item in sms_items.values():
+        if isinstance(sms_item, dict):
+            return (
+                sms_item.get("status"),
+                sms_item.get("status_code"),
+                sms_item.get("status_text"),
+                sms_item.get("sms_id"),
+            )
+
+    return None, None, None, None
+
+
 def _redact_provider_text(value: object, phone: str, message: str) -> object:
     if not isinstance(value, str):
         return value
@@ -83,28 +103,55 @@ def _redact_provider_text(value: object, phone: str, message: str) -> object:
 def send_via_smsru(phone: str, message: str) -> bool:
     """Отправка SMS через SMS.ru API. Возвращает True при успехе."""
     try:
+        payload: dict[str, object] = {
+            "api_id": settings.smsru_api_key,
+            "to": phone,
+            "msg": message,
+            "json": 1,
+        }
+        if settings.smsru_sender_name:
+            payload["from"] = settings.smsru_sender_name
+
         response = httpx.post(
             SMSRU_SEND_URL,
-            data={
-                "api_id": settings.smsru_api_key,
-                "to": phone,
-                "msg": message,
-                "json": 1,
-            },
+            data=payload,
             timeout=10.0,
         )
         response.raise_for_status()
         data = response.json()
 
-        if data.get("status") == "OK":
+        if data.get("status") != "OK":
+            status, status_text = _smsru_error_fields(data)
+            logger.error(
+                "SMS.ru error: recipient_ref=%s status=%r status_text=%r",
+                _recipient_ref(phone),
+                _redact_provider_text(status, phone, message),
+                _redact_provider_text(status_text, phone, message),
+            )
+            return False
+
+        (
+            recipient_status,
+            recipient_status_code,
+            recipient_status_text,
+            sms_id,
+        ) = _smsru_recipient_fields(data)
+        if recipient_status == "OK":
+            logger.info(
+                "SMS.ru accepted message: recipient_ref=%s status_code=%r sms_id=%r",
+                _recipient_ref(phone),
+                recipient_status_code,
+                sms_id,
+            )
             return True
 
-        status, status_text = _smsru_error_fields(data)
         logger.error(
-            "SMS.ru error: recipient_ref=%s status=%r status_text=%r",
+            "SMS.ru recipient error: recipient_ref=%s status=%r "
+            "status_code=%r status_text=%r",
             _recipient_ref(phone),
-            _redact_provider_text(status, phone, message),
-            _redact_provider_text(status_text, phone, message),
+            _redact_provider_text(recipient_status, phone, message),
+            recipient_status_code,
+            _redact_provider_text(recipient_status_text, phone, message),
         )
         return False
     except Exception:

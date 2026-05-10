@@ -25,7 +25,7 @@ This module is responsible for:
   - OTP: mark as `FAILED`, client sees "Не удалось отправить код"
   - Notifications: mark as `failed`, log error, do NOT block order processing
 - **SMS content:** Minimal, ≤ 70 characters (1 SMS segment for Cyrillic).
-  - OTP: `"Код подтверждения: {code}. Aura Coffee"`
+  - OTP: `"Ваш код: {code}"` — intentionally unbranded so SMS.ru can classify it as a code/password message and use the shared `SMS.RU` sender before a legal/branded sender is approved.
   - Notifications: `"{status_text}. Заказ #{short_id}. Aura Coffee"`
 - **OTP codes:** This worker does NOT store or generate OTP codes. It only delivers them via SMS. Codes are stored in Redis by core-api.
 - **Sender name:** Configurable via `SMSRU_SENDER_NAME` env var (requires SMS.ru verification).
