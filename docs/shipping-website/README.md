@@ -104,13 +104,16 @@ Current status:
   `docs/shipping-website/menu-catalog/`: 11 categories, 53 items, 104 size
   options, 4 alternative-milk modifiers, 28 item/modifier links, and media under
   `/media/menu/`. Video playback is gated on staging: desktop uses cursor
-  proximity, including hybrid cursor/touch devices, and mobile plays only
-  viewport-visible videos while keeping offscreen videos paused. As of
-  2026-05-10, video cards keep the poster visible while autoplay is buffering,
-  all 54 staging `hero.mp4` files pass faststart validation, and byte-range
-  smoke for `/media/menu/ice-americano/hero.mp4` returns `206 video/mp4`. Owner
-  approval is still required for English names, size-label UX, and cacao/matcha
-  alternative-milk pricing caveats.
+  proximity, including hybrid cursor/touch devices, and mobile/no-pointer
+  browsers play only one settled viewport video at a time while keeping
+  offscreen videos unloaded. As of 2026-05-10, video cards keep the poster
+  visible while autoplay is buffering, all 54 staging `hero.mp4` files pass
+  faststart validation, byte-range smoke for
+  `/media/menu/ice-americano/hero.mp4` returns `206 video/mp4`, and a fresh
+  authenticated cache-disabled browser smoke showed bounded login warmup plus
+  no menu video request storm while scrolling. Owner approval is still required
+  for English names, size-label UX, and cacao/matcha alternative-milk pricing
+  caveats.
 - Stage 8 backup/restore drill passed on closed staging on 2026-05-09 using
   `scripts/production/backup-postgres.sh` and
   `scripts/production/restore-postgres.sh`: daily and weekly backup files were
@@ -126,8 +129,8 @@ Current status:
   daily backup age, disk usage, provider modes, Yandex split-key presence, and
   the managed cron marker. Logs write under `/opt/aura-coffee/ops-logs`.
 - Most recent customer-facing runtime rebuild as of 2026-05-10:
-  `bbea3f268b98-codex-video-buffering-20260510T091654Z`, built from a clean
-  Git archive at `bbea3f2 fix(customer): harden menu video playback`.
+  `331dd3689bb0-codex-video-budget-20260510T100815Z`, built from a clean
+  Git archive at `331dd36 fix(customer): cap menu video loading`.
   Later ops-script/docs releases update `/opt/aura-coffee/app` without
   rebuilding containers.
 

@@ -76,8 +76,8 @@ Codex owns:
 Last checked: 2026-05-10.
 
 - VPS release:
-  `bbea3f268b98-codex-video-buffering-20260510T091654Z`, built from a clean
-  Git archive.
+  `331dd3689bb0-codex-video-budget-20260510T100815Z`, built from a clean
+  Git archive at `331dd36 fix(customer): cap menu video loading`.
 - Runtime shape: nginx publishes `80/443`; Postgres, Redis, Core API, SMS
   worker, payment worker, and payment webhook are private Docker services.
 - Provider modes: `AURA_ENV=production`, `YUKASSA_BACKEND=fake`,
@@ -85,11 +85,13 @@ Last checked: 2026-05-10.
 - Menu/media: `docs/shipping-website/menu-catalog` validates with
   11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
   links. Video playback smoke passed on staging: desktop loads only near-cursor
-  product videos, including hybrid cursor/touch devices, and mobile keeps
-  offscreen videos paused while visible videos play. As of 2026-05-10, video
-  cards keep the poster visible while autoplay buffers, all 54 staging
-  `hero.mp4` files pass faststart validation, and byte-range smoke for
-  `/media/menu/ice-americano/hero.mp4` returns `206 video/mp4`.
+  product videos, including hybrid cursor/touch devices, and mobile/no-pointer
+  browsers play only one settled viewport video at a time while offscreen videos
+  are unloaded. As of 2026-05-10, video cards keep the poster visible while
+  autoplay buffers, all 54 staging `hero.mp4` files pass faststart validation,
+  byte-range smoke for `/media/menu/ice-americano/hero.mp4` returns
+  `206 video/mp4`, and a fresh authenticated cache-disabled browser smoke showed
+  bounded login warmup plus no menu video request storm while scrolling.
 - Yandex address smoke passed on 2026-05-09: direct provider probes from
   `core-api`, Aura `/api/v1/maps/*` proxy calls, vague-address low-precision
   rejection, browser address-form suggest/geocode/save, and cleanup all passed;
