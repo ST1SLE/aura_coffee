@@ -76,7 +76,7 @@ Codex owns:
 Last checked: 2026-05-10.
 
 - VPS release:
-  `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
+  `bbea3f268b98-codex-video-buffering-20260510T091654Z`, built from a clean
   Git archive.
 - Runtime shape: nginx publishes `80/443`; Postgres, Redis, Core API, SMS
   worker, payment worker, and payment webhook are private Docker services.
@@ -86,7 +86,10 @@ Last checked: 2026-05-10.
   11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
   links. Video playback smoke passed on staging: desktop loads only near-cursor
   product videos, including hybrid cursor/touch devices, and mobile keeps
-  offscreen videos paused while visible videos play.
+  offscreen videos paused while visible videos play. As of 2026-05-10, video
+  cards keep the poster visible while autoplay buffers, all 54 staging
+  `hero.mp4` files pass faststart validation, and byte-range smoke for
+  `/media/menu/ice-americano/hero.mp4` returns `206 video/mp4`.
 - Yandex address smoke passed on 2026-05-09: direct provider probes from
   `core-api`, Aura `/api/v1/maps/*` proxy calls, vague-address low-precision
   rejection, browser address-form suggest/geocode/save, and cleanup all passed;
@@ -103,8 +106,9 @@ Last checked: 2026-05-10.
   access tokens are memory-only, route guards recover from the HttpOnly refresh
   cookie after reload, and legacy durable browser tokens are cleared.
 - Next provider gate: SMS.ru controlled OTP smoke when the provider path is
-  ready. If SMS remains blocked, remaining Codex-owned launch work is residual
-  media and slow-network checks.
+  ready. If SMS remains blocked, the residual media and slow-network video checks
+  are complete; the remaining launch gates are provider/account access and final
+  end-to-end smoke.
 
 ## Phase 0: Freeze Launch Inputs
 

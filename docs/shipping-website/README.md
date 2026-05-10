@@ -105,8 +105,11 @@ Current status:
   options, 4 alternative-milk modifiers, 28 item/modifier links, and media under
   `/media/menu/`. Video playback is gated on staging: desktop uses cursor
   proximity, including hybrid cursor/touch devices, and mobile plays only
-  viewport-visible videos while keeping offscreen videos paused. Owner approval
-  is still required for English names, size-label UX, and cacao/matcha
+  viewport-visible videos while keeping offscreen videos paused. As of
+  2026-05-10, video cards keep the poster visible while autoplay is buffering,
+  all 54 staging `hero.mp4` files pass faststart validation, and byte-range
+  smoke for `/media/menu/ice-americano/hero.mp4` returns `206 video/mp4`. Owner
+  approval is still required for English names, size-label UX, and cacao/matcha
   alternative-milk pricing caveats.
 - Stage 8 backup/restore drill passed on closed staging on 2026-05-09 using
   `scripts/production/backup-postgres.sh` and
@@ -122,9 +125,9 @@ Current status:
   script checks required Compose services, public `/health`, TLS expiry, latest
   daily backup age, disk usage, provider modes, Yandex split-key presence, and
   the managed cron marker. Logs write under `/opt/aura-coffee/ops-logs`.
-- Most recent customer-facing runtime rebuild as of 2026-05-09:
-  `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
-  Git archive at `72afc03 fix(customer): detect hybrid cursor video playback`.
+- Most recent customer-facing runtime rebuild as of 2026-05-10:
+  `bbea3f268b98-codex-video-buffering-20260510T091654Z`, built from a clean
+  Git archive at `bbea3f2 fix(customer): harden menu video playback`.
   Later ops-script/docs releases update `/opt/aura-coffee/app` without
   rebuilding containers.
 
