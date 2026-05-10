@@ -361,6 +361,10 @@ Expected:
 Before live customer traffic:
 
 ```bash
+scripts/production/install-ops-cron.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production
+
 scripts/production/backup-postgres.sh \
   --staging-auth \
   --weekly \
@@ -379,6 +383,22 @@ scripts/production/restore-postgres.sh \
 The restore script restores into a scratch database, runs Alembic `upgrade head`,
 prints non-sensitive representative row counts, and drops the scratch database
 unless `--keep-db` is supplied.
+
+Operations health:
+
+```bash
+scripts/production/check-ops-health.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production
+```
+
+The installer writes a managed deploy-user crontab block. Defaults:
+
+- Daily backup: `17 2 * * 1-6`.
+- Weekly backup copy: `17 2 * * 0`.
+- Ops health check: `*/15 * * * *`.
+- Logs: `/opt/aura-coffee/ops-logs/backup-postgres.log` and
+  `/opt/aura-coffee/ops-logs/ops-health.log`.
 
 Do not wait for an incident to test restore.
 
@@ -444,7 +464,8 @@ scripts/production/compose.sh /opt/aura-coffee/.env.production up -d --build
 
 First day:
 
-- Check `/health` every 5 minutes manually or with uptime monitor.
+- Check `/health` manually or with uptime monitor; deploy-user cron also runs
+  `check-ops-health.sh` every 15 minutes.
 - Watch SMS.ru balance and error rates.
 - Watch Yandex quota and 4xx/5xx responses.
 - Watch YuKassa failed webhooks and payment/refund states.
@@ -453,7 +474,8 @@ First day:
 
 First week:
 
-- Confirm backups run daily.
+- Confirm backups run daily by checking `/opt/aura-coffee/ops-logs` and
+  `/var/backups/aura-coffee/postgres`.
 - Restore one backup into a scratch environment.
 - Rotate initial admin password if it was shared during launch.
 - Review failed checkout/order/payment logs.

@@ -74,6 +74,10 @@ Mitigated or resolved since the 2026-05-03 production security audit:
   `0011 (head)`, representative counts returned `table_count=21`,
   `menu_items=55`, `users=8`, the scratch DB was dropped, no `aura_restore_*`
   DB remained, and staging `/health` stayed OK.
+- Recurring server-side ops are configured: deploy-user cron runs daily backups,
+  weekly backup copies, and a 15-minute `check-ops-health.sh` covering Compose
+  services, public health, TLS expiry, backup freshness, disk usage, provider
+  modes, Yandex split-key presence, and the managed cron marker.
 
 Still open before public launch:
 
@@ -83,7 +87,8 @@ Still open before public launch:
   redaction proof.
 - Yandex production restrictions, quota/billing monitoring, and full delivery
   checkout smoke.
-- Recurring backup schedule, retention job wiring, and operational alerting.
+- External provider dashboard alerting for SMS.ru balance, Yandex quota/billing,
+  and YuKassa failed webhooks/payments.
 - Staff/admin access token still persists in `localStorage`; refresh tokens are
   HttpOnly, but privileged access-token storage remains a security hardening
   item.
@@ -105,8 +110,8 @@ smooth public launch:
   retries, and stuck order states.
 - Operator runbook for one-order drills: pickup, delivery, cancellation, refund,
   provider outage, and customer support call.
-- Lightweight monitoring for disk, container health, TLS expiry, SMS balance,
-  Yandex quota, YuKassa webhook failures, and worker queue depth.
+- Provider-account monitoring for SMS balance, Yandex quota, YuKassa webhook
+  failures, and worker queue depth.
 - Remaining mobile/slow-network media checks for poster fallback, first-load
   stall, and card crop. Autoplay/proximity/offscreen playback was smoke-tested
   on closed staging on 2026-05-09.

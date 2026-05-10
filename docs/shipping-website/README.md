@@ -115,9 +115,18 @@ Current status:
   `aura_restore_20260509T182218Z`, Alembic reported `0011 (head)`, row-count
   checks returned `table_count=21`, `menu_items=55`, `users=8`, the scratch DB
   was dropped, no `aura_restore_*` DB remained, and staging `/health` stayed OK.
-- Current VPS release as of 2026-05-09:
+- Stage 8 recurring ops are configured by
+  `scripts/production/install-ops-cron.sh`: deploy-user cron runs daily backups
+  Monday-Saturday at `02:17 UTC`, a weekly backup copy on Sunday at `02:17 UTC`,
+  and `scripts/production/check-ops-health.sh` every 15 minutes. The health
+  script checks required Compose services, public `/health`, TLS expiry, latest
+  daily backup age, disk usage, provider modes, Yandex split-key presence, and
+  the managed cron marker. Logs write under `/opt/aura-coffee/ops-logs`.
+- Most recent customer-facing runtime rebuild as of 2026-05-09:
   `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
   Git archive at `72afc03 fix(customer): detect hybrid cursor video playback`.
+  Later ops-script/docs releases update `/opt/aura-coffee/app` without
+  rebuilding containers.
 
 Current public-launch blockers:
 
@@ -125,8 +134,9 @@ Current public-launch blockers:
 - Real SMS.ru OTP path is not proven and is blocked by sender/legal constraints.
 - Yandex license/storage decision, production restrictions, quota monitoring, and
   full delivery checkout smoke are not complete.
-- Backup/restore drill is complete; recurring backup schedule and operational
-  monitoring are not complete.
+- Backup/restore and server-side recurring health checks are complete; external
+  provider dashboard alerts for SMS.ru balance, Yandex quota/billing, and
+  YuKassa failures still require provider/account access.
 - Legal/privacy/offer/refund/consent materials and final menu/media approval are
   owner-blocked.
 - Staff/admin privileged access-token storage still needs hardening before broad
@@ -347,13 +357,17 @@ Steps:
 - Configure retention: script defaults retain at least 7 daily and 4 weekly
   backup files.
 - Add or document checks for disk, container health, TLS expiry, SMS balance,
-  Yandex quota, and YuKassa failed webhooks/payments.
+  Yandex quota, and YuKassa failed webhooks/payments. Done for server-side
+  checks via `check-ops-health.sh`; provider dashboard balance/quota/failure
+  alerts remain owner/provider-account work.
 
 Gate:
 
 - Backup file exists. Passed on 2026-05-09.
 - Restore drill succeeds. Passed on 2026-05-09.
 - Readiness check passes after restore. Passed on 2026-05-09.
+- Recurring backup schedule exists. Passed on 2026-05-10.
+- Server-side ops health check passes. Passed on 2026-05-10.
 
 ### Stage 9: Full Private End-To-End Smoke
 

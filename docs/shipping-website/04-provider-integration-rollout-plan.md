@@ -73,7 +73,7 @@ Codex owns:
 
 ## Current Closed-Staging Snapshot
 
-Last checked: 2026-05-09.
+Last checked: 2026-05-10.
 
 - VPS release:
   `72afc0334716-codex-hybrid-video-gate-20260509T170604Z`, built from a clean
@@ -95,9 +95,13 @@ Last checked: 2026-05-09.
   created, the daily dump restored into a scratch DB, Alembic reported
   `0011 (head)`, representative row counts passed, the scratch DB was dropped,
   no `aura_restore_*` DB remained, and staging `/health` stayed OK.
+- Recurring server-side ops passed on 2026-05-10: deploy-user cron installs
+  daily backups, weekly backup copies, and a 15-minute ops health check for
+  services, public health, TLS expiry, backup freshness, disk usage, provider
+  modes, Yandex split-key presence, and the cron marker.
 - Next provider gate: SMS.ru controlled OTP smoke when the provider path is
-  ready. If SMS remains blocked, the next Codex-owned launch gate is recurring
-  backup scheduling and operational monitoring.
+  ready. If SMS remains blocked, remaining Codex-owned launch work is staff/admin
+  access-token storage hardening plus residual media and slow-network checks.
 
 ## Phase 0: Freeze Launch Inputs
 
@@ -598,12 +602,22 @@ Current closed-staging result as of 2026-05-09: passed.
 - Filename/log review: emitted paths, sizes, schema version, row counts, and
   Compose warnings only; no env secrets, phone numbers, OTPs, JWTs, payment
   credentials, or address payloads were printed.
+- Recurring schedule command:
+  `scripts/production/install-ops-cron.sh --staging-auth
+  /opt/aura-coffee/.env.production`.
+- Cron defaults: daily backup `17 2 * * 1-6`, weekly backup copy
+  `17 2 * * 0`, ops health check `*/15 * * * *`.
+- Ops health check:
+  `scripts/production/check-ops-health.sh --staging-auth
+  /opt/aura-coffee/.env.production`.
 
 Gate:
 
 - Backup exists.
 - Restore drill succeeds.
 - Readiness check passes after restore.
+- Recurring backup schedule is installed.
+- Server-side ops health check exits 0.
 
 Rollback:
 

@@ -353,6 +353,10 @@ Minimum operations:
 Suggested backup command shape:
 
 ```bash
+scripts/production/install-ops-cron.sh \
+  --staging-auth \
+  /opt/aura-coffee/.env.production
+
 scripts/production/backup-postgres.sh \
   --staging-auth \
   --weekly \
@@ -369,9 +373,14 @@ Acceptance:
 - Backup file exists.
 - Restore into a scratch database succeeds.
 - A readiness check passes after restore.
+- Deploy-user cron contains the managed `AURA_COFFEE_OPS` block.
+- `scripts/production/check-ops-health.sh --staging-auth
+  /opt/aura-coffee/.env.production` exits 0.
 
 Closed-staging result on 2026-05-09: passed with Alembic `0011 (head)`,
 representative row counts, scratch DB cleanup, and staging `/health` OK.
+Recurring ops schedule result on 2026-05-10: deploy-user cron installed daily
+and weekly backups plus a 15-minute ops health check.
 
 ## 11. Legal And Business Launch Checks
 
