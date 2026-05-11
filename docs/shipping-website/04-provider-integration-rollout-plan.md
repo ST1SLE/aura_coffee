@@ -133,6 +133,8 @@ Last checked: 2026-05-11.
   `docs/shipping-website/07-smsru-controlled-otp-smoke.md`.
 - The YuKassa test-shop execution packet and evidence log are in
   `docs/shipping-website/08-yukassa-test-payment-smoke.md`.
+- The Yandex delivery decision and checkout smoke packet is in
+  `docs/shipping-website/09-yandex-delivery-decision-smoke.md`.
 
 ## Phase 0: Freeze Launch Inputs
 

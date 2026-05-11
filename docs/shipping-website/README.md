@@ -25,6 +25,7 @@ The target shape is a same-origin public website behind nginx:
 | [06-owner-decision-packet.md](06-owner-decision-packet.md) | Owner-facing decision packet for the launch blockers that require business/provider input. |
 | [07-smsru-controlled-otp-smoke.md](07-smsru-controlled-otp-smoke.md) | Operator runbook and evidence log for the first real SMS.ru OTP smoke. |
 | [08-yukassa-test-payment-smoke.md](08-yukassa-test-payment-smoke.md) | Operator runbook and evidence log for YuKassa test-shop payment, webhook, refund, and rejection drills. |
+| [09-yandex-delivery-decision-smoke.md](09-yandex-delivery-decision-smoke.md) | Operator runbook and evidence log for the Yandex storage/license decision and delivery checkout smoke. |
 | [menu-catalog/](menu-catalog/) | Stage 3 menu/media CSV packet and validation instructions. |
 | [../audit-results/2026-05-11-staging-deployment-security-audit.md](../audit-results/2026-05-11-staging-deployment-security-audit.md) | Current closed-staging security audit and post-remediation status. |
 | [../audit-results/2026-05-09-runtime-readiness-sync.md](../audit-results/2026-05-09-runtime-readiness-sync.md) | Earlier runtime-readiness baseline and UX good-to-have backlog. |
