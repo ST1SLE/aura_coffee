@@ -22,6 +22,21 @@ def test_core_api_production_command_suppresses_uvicorn_access_logs() -> None:
     assert "--no-access-log" in compose
 
 
+def test_nginx_access_logs_use_no_query_format_per_server() -> None:
+    """Nginx must not inherit the default $request access log with query text."""
+    expected_server_counts = {
+        "deploy/nginx/nginx.production.conf": 1,
+        "deploy/nginx/nginx.production.tls.conf.template": 2,
+    }
+
+    for relative, server_count in expected_server_counts.items():
+        conf = _read(relative)
+        assert '"$request_method $uri $server_protocol"' in conf
+        assert conf.count("access_log /var/log/nginx/access.log aura_no_query;") == (
+            server_count
+        )
+
+
 def test_tls_nginx_template_sets_browser_security_headers() -> None:
     """Public TLS entry point carries baseline browser hardening headers."""
     template = _read("deploy/nginx/nginx.production.tls.conf.template")
