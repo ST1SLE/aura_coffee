@@ -171,6 +171,9 @@ test-shop payment/refund/rejection checklist when step 2 is unblocked.
 Use `docs/shipping-website/09-yandex-delivery-decision-smoke.md` for the Yandex
 delivery/pickup-first decision and delivery checkout smoke when step 3 is
 unblocked.
+Use `docs/shipping-website/10-menu-media-final-approval.md` for the final
+menu/media approval, validation, guarded import, and rollback checklist when
+step 4 is unblocked.
 
 ## Stop Conditions
 

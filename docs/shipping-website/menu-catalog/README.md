@@ -47,6 +47,9 @@ scripts/production/validate-menu-catalog.py \
 
 Passing validation means the spreadsheet shape is safe to review or import. It
 does not mean prices, names, media quality, or legal text are owner-approved.
+Use `../10-menu-media-final-approval.md` for the final approval, import,
+staging smoke, and rollback evidence packet before replacing the closed-staging
+draft menu.
 
 ## Import
 
