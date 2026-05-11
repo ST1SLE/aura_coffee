@@ -164,6 +164,9 @@ position before public traffic.
 5. Full private end-to-end smoke with real SMS and YuKassa test payments.
 6. Controlled live cutover with one owner-approved real pickup order.
 
+Use `docs/shipping-website/07-smsru-controlled-otp-smoke.md` for the SMS.ru
+operator checklist and evidence log when step 1 is unblocked.
+
 ## Stop Conditions
 
 Do not open public traffic if any of these are still true:

@@ -23,6 +23,7 @@ The target shape is a same-origin public website behind nginx:
 | [04-provider-integration-rollout-plan.md](04-provider-integration-rollout-plan.md) | Step-by-step plan for enabling and testing Yandex Maps, SMS.ru, and YuKassa. |
 | [05-stage-0-economical-prerequisites.md](05-stage-0-economical-prerequisites.md) | Economical acquisition guide for Stage 0 domain, VPS, provider, test phone, fiscal, and legal inputs. |
 | [06-owner-decision-packet.md](06-owner-decision-packet.md) | Owner-facing decision packet for the launch blockers that require business/provider input. |
+| [07-smsru-controlled-otp-smoke.md](07-smsru-controlled-otp-smoke.md) | Operator runbook and evidence log for the first real SMS.ru OTP smoke. |
 | [menu-catalog/](menu-catalog/) | Stage 3 menu/media CSV packet and validation instructions. |
 | [../audit-results/2026-05-11-staging-deployment-security-audit.md](../audit-results/2026-05-11-staging-deployment-security-audit.md) | Current closed-staging security audit and post-remediation status. |
 | [../audit-results/2026-05-09-runtime-readiness-sync.md](../audit-results/2026-05-09-runtime-readiness-sync.md) | Earlier runtime-readiness baseline and UX good-to-have backlog. |

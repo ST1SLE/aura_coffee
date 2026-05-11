@@ -129,6 +129,8 @@ Last checked: 2026-05-11.
   provider/account access and real-provider end-to-end smoke.
 - Owner/provider questions are consolidated in
   `docs/shipping-website/06-owner-decision-packet.md`.
+- The SMS.ru execution packet and evidence log are in
+  `docs/shipping-website/07-smsru-controlled-otp-smoke.md`.
 
 ## Phase 0: Freeze Launch Inputs
 
