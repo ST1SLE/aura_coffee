@@ -22,8 +22,10 @@ The target shape is a same-origin public website behind nginx:
 | [03-launch-runbook.md](03-launch-runbook.md) | Dry-run, staging, go-live, rollback, and post-launch verification commands. |
 | [04-provider-integration-rollout-plan.md](04-provider-integration-rollout-plan.md) | Step-by-step plan for enabling and testing Yandex Maps, SMS.ru, and YuKassa. |
 | [05-stage-0-economical-prerequisites.md](05-stage-0-economical-prerequisites.md) | Economical acquisition guide for Stage 0 domain, VPS, provider, test phone, fiscal, and legal inputs. |
+| [06-owner-decision-packet.md](06-owner-decision-packet.md) | Owner-facing decision packet for the launch blockers that require business/provider input. |
 | [menu-catalog/](menu-catalog/) | Stage 3 menu/media CSV packet and validation instructions. |
-| [../audit-results/2026-05-09-runtime-readiness-sync.md](../audit-results/2026-05-09-runtime-readiness-sync.md) | Current runtime status delta, remaining launch blockers, and UX good-to-have backlog. |
+| [../audit-results/2026-05-11-staging-deployment-security-audit.md](../audit-results/2026-05-11-staging-deployment-security-audit.md) | Current closed-staging security audit and post-remediation status. |
+| [../audit-results/2026-05-09-runtime-readiness-sync.md](../audit-results/2026-05-09-runtime-readiness-sync.md) | Earlier runtime-readiness baseline and UX good-to-have backlog. |
 
 ## Current Production Readiness Summary
 
@@ -91,7 +93,10 @@ Current status:
   staging is protected with a Basic Auth first prompt and secure cookie handoff,
   authorized `/health`, `/`, `/admin/`, and menu media requests return 200 over
   HTTPS, and Postgres/Redis are private. YuKassa remains fake and SMS remains
-  log/mock.
+  log/mock. The 2026-05-11 staging security remediation is deployed: SSH is
+  key-only for deploy access, nginx emits no-query access logs per server,
+  Core API production access logs are disabled, baseline browser security
+  headers are present, and common scanner paths return 404.
 - Stage 0 is effectively ready for engineering work with caveats. YuKassa is
   intentionally deferred/mocked until owner details are available. SMS.ru account
   setup exists and the API key is present on the VPS, but staging is deliberately
@@ -121,6 +126,9 @@ Current status:
   `aura_restore_20260509T182218Z`, Alembic reported `0011 (head)`, row-count
   checks returned `table_count=21`, `menu_items=55`, `users=8`, the scratch DB
   was dropped, no `aura_restore_*` DB remained, and staging `/health` stayed OK.
+  A fresh daily backup exists as of 2026-05-11:
+  `aura_daily_20260511T145554Z.sql.gz`, and the staging DB schema is now
+  `0012`.
 - Stage 8 recurring ops are configured by
   `scripts/production/install-ops-cron.sh`: deploy-user cron runs daily backups
   Monday-Saturday at `02:17 UTC`, a weekly backup copy on Sunday at `02:17 UTC`,
@@ -128,11 +136,13 @@ Current status:
   script checks required Compose services, public `/health`, TLS expiry, latest
   daily backup age, disk usage, provider modes, Yandex split-key presence, and
   the managed cron marker. Logs write under `/opt/aura-coffee/ops-logs`.
-- Most recent customer-facing runtime rebuild as of 2026-05-10:
-  `331dd3689bb0-codex-video-budget-20260510T100815Z`, built from a clean
-  Git archive at `331dd36 fix(customer): cap menu video loading`.
-  Later ops-script/docs releases update `/opt/aura-coffee/app` without
-  rebuilding containers.
+  The most recent 2026-05-11 ops health check had `failures=0` and one expected
+  warning for manual provider dashboard alerts.
+- Active staging release as of 2026-05-11:
+  `3c8bacc-codex-no-query-logs-20260511T150202Z`, built from
+  `3c8bacc fix(security): enforce no-query nginx logs`. The last
+  customer-facing media rebuild remains
+  `331dd3689bb0-codex-video-budget-20260510T100815Z`.
 - Repeatable closed-staging customer video smoke exists:
   `scripts/production/check-staging-customer-video-smoke.mjs`. It drives a
   fresh cache-disabled Chromium profile through Basic Auth, log-mode OTP login,
@@ -144,6 +154,10 @@ Current status:
   order creation, fake YuKassa callback to `paid`, staff feed/detail, pickup
   status transitions to `completed`, and a recent-log redaction scan for the
   generated phone/OTP.
+- Latest waiting-room check on 2026-05-11: ops health passed with
+  `failures=0` and the expected provider-dashboard warning, fake/log E2E passed
+  through a completed pickup order with no sensitive log hits, and the customer
+  video smoke passed login/menu video budget assertions.
 
 Current public-launch blockers:
 
@@ -159,6 +173,14 @@ Current public-launch blockers:
   cookie after reload, and legacy `localStorage.accessToken` is cleared.
 - Legal/privacy/offer/refund/consent materials and final menu/media approval are
   owner-blocked.
+
+Current waiting-room work:
+
+- Keep the closed-staging health, backup, and fake/log E2E checks green.
+- Keep provider modes fake/log until SMS.ru and YuKassa gates are explicitly
+  opened.
+- Use [06-owner-decision-packet.md](06-owner-decision-packet.md) to collect the
+  owner/provider answers needed for the next smoke.
 
 ### Stage 1: Production Skeleton In Repo
 
@@ -277,6 +299,8 @@ Gate:
 - Suggest works through Aura API.
 - Typed delivery address geocodes or blocks delivery safely.
 - Yandex key is not visible in frontend bundles or browser network calls.
+- Production delivery launch has an approved Yandex storage/license decision
+  and quota/billing alert path.
 
 ### Stage 5: SMS.ru OTP
 
@@ -367,11 +391,13 @@ Steps:
   `scripts/production/backup-postgres.sh` and
   `scripts/production/restore-postgres.sh`.
 - Run a Postgres backup. Done on staging:
-  `aura_daily_20260509T182207Z.sql.gz`.
+  `aura_daily_20260509T182207Z.sql.gz`; latest daily backup seen on
+  2026-05-11: `aura_daily_20260511T145554Z.sql.gz`.
 - Restore into scratch DB or scratch stack. Done:
   `aura_restore_20260509T182218Z`.
-- Run readiness checks after restore. Done: Alembic `0011 (head)`, representative
-  row counts, scratch cleanup, and staging `/health`.
+- Run readiness checks after restore. Done: Alembic `0011 (head)` during the
+  restore drill, representative row counts, scratch cleanup, and staging
+  `/health`. Current staging schema after later migrations: `0012`.
 - Configure retention: script defaults retain at least 7 daily and 4 weekly
   backup files.
 - Add or document checks for disk, container health, TLS expiry, SMS balance,
@@ -385,7 +411,8 @@ Gate:
 - Restore drill succeeds. Passed on 2026-05-09.
 - Readiness check passes after restore. Passed on 2026-05-09.
 - Recurring backup schedule exists. Passed on 2026-05-10.
-- Server-side ops health check passes. Passed on 2026-05-10.
+- Server-side ops health check passes. Passed on 2026-05-11 with one expected
+  provider-dashboard-alert warning.
 
 ### Stage 9: Full Private End-To-End Smoke
 

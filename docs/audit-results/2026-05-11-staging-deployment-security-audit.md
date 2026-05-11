@@ -16,13 +16,41 @@ Postgres/Redis/Core API/payment-webhook/Vite ports are not externally reachable,
 and the recurring ops health check is green.
 
 This is acceptable for closed staging, but it is not yet ready for public launch
-against malicious traffic. The main open risks are host SSH hardening, address
-PII in Core API access logs, intentionally mocked provider modes, and a few
-HTTP/header/application hardening items.
+against malicious traffic. The main launch-blocking risks are intentionally
+mocked provider modes, provider-dashboard alerting, owner-controlled legal and
+business approvals, and real-provider end-to-end smoke.
+
+## Post-Remediation Status
+
+Updated after deployment of release
+`3c8bacc-codex-no-query-logs-20260511T150202Z`. Spot verification ran at
+`2026-05-11T18:20:50+03:00` local time / `2026-05-11T15:20:52Z` VPS time.
+
+Resolved after the initial audit snapshot:
+
+- SSH effective policy is key-only deploy access:
+  `PermitRootLogin no`, `PasswordAuthentication no`,
+  `KbdInteractiveAuthentication no`, `X11Forwarding no`, and
+  `AllowTcpForwarding no`.
+- Core API production access logs are disabled, and nginx access logs use the
+  no-query `aura_no_query` format on each HTTP/TLS server.
+- The TLS nginx template includes CSP, anti-framing, permissions policy,
+  nosniff, referrer policy, and HSTS headers.
+- Common scanner paths such as `/.env`, `/.git/config`, `/server-status`,
+  `/docs`, `/redoc`, and `/openapi.json` return `404`.
+- The PII sentinel/redaction smoke passed after the nginx no-query-log fix.
+
+Still open before public launch:
+
+- Keep the site closed while `SMS_BACKEND=log` and `YUKASSA_BACKEND=fake`.
+- Add or record provider dashboard alerts for SMS.ru balance, Yandex
+  quota/billing, and YuKassa failed payments/webhooks.
+- Complete SMS.ru, YuKassa, Yandex, legal, and menu/media owner gates recorded
+  in `docs/shipping-website/06-owner-decision-packet.md`.
 
 ## Evidence Collected
 
-Fresh probe time:
+Initial probe time before remediation:
 
 - Local operator time: `2026-05-11T17:09:20+03:00`.
 - VPS time: `2026-05-11T14:09:21+00:00`.
@@ -80,7 +108,10 @@ Runtime config posture:
 
 ## Findings
 
-### High: SSH Allows Password And Root Login At The Policy Level
+### Historical High, Resolved: SSH Allowed Password And Root Login At The Policy Level
+
+Post-remediation note: resolved in effective `sshd -T` policy after the initial
+audit snapshot.
 
 Evidence:
 
@@ -110,7 +141,12 @@ Required remediation:
 - Consider locking the root password after confirming the provider console and
   deploy sudo recovery path.
 
-### High: Core API Access Logs Contain Map Query Strings With Address PII
+### Historical High, Resolved: Core API Access Logs Contained Map Query Strings With Address PII
+
+Post-remediation note: resolved for production logging by disabling Core API
+access logs and enforcing no-query nginx logs. Moving map routes from GET query
+parameters to POST bodies remains optional defense-in-depth if we want to remove
+address text from URLs themselves, not only from production logs.
 
 Evidence:
 
@@ -156,7 +192,10 @@ Required remediation:
   duplicate-webhook, and invalid-source drills.
 - Keep provider dashboard alerting in the launch checklist.
 
-### Medium: Security Headers Are Minimal
+### Historical Medium, Resolved: Security Headers Were Minimal
+
+Post-remediation note: resolved in the TLS nginx template after the initial
+audit snapshot.
 
 Evidence:
 
@@ -195,7 +234,10 @@ Recommended remediation:
   Yandex quota/billing, and YuKassa failed payments/webhooks before public
   launch.
 
-### Low: Common Sensitive Paths Fall Through To SPA HTML
+### Historical Low, Resolved: Common Sensitive Paths Fell Through To SPA HTML
+
+Post-remediation note: resolved by explicit nginx 404 handling after the initial
+audit snapshot.
 
 Evidence:
 
@@ -231,16 +273,16 @@ Recommended remediation:
 
 ## Recommended Next Actions
 
-1. Harden SSH first: disable password authentication and root login, validate
-   with a new key-based session, then reload SSH.
-2. Stop address PII from entering Core API logs by moving map search/geocode to
-   POST bodies and redacting or suppressing access logs for those paths.
-3. Add CSP, anti-framing, and permissions headers in the TLS nginx template.
-4. Keep the site closed while `SMS_BACKEND=log` and `YUKASSA_BACKEND=fake` are
-   active.
-5. Add explicit nginx denies for common sensitive scanner paths.
-6. Add provider dashboard/alert checks for SMS.ru, Yandex, and YuKassa before
-   public launch.
+1. Done: harden SSH and validate effective key-only deploy access.
+2. Done: stop map/address query strings from entering production Core API and
+   nginx access logs.
+3. Done: add CSP, anti-framing, permissions, HSTS, nosniff, and referrer
+   headers to the TLS nginx template.
+4. Continue: keep the site closed while `SMS_BACKEND=log` and
+   `YUKASSA_BACKEND=fake` are active.
+5. Done: add explicit nginx 404 handling for common sensitive scanner paths.
+6. Pending owner/provider access: add or record provider dashboard/alert checks
+   for SMS.ru, Yandex, and YuKassa before public launch.
 
 ## Verification Commands Run
 

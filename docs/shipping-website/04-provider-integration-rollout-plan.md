@@ -73,15 +73,19 @@ Codex owns:
 
 ## Current Closed-Staging Snapshot
 
-Last checked: 2026-05-10.
+Last checked: 2026-05-11.
 
 - VPS release:
-  `331dd3689bb0-codex-video-budget-20260510T100815Z`, built from a clean
-  Git archive at `331dd36 fix(customer): cap menu video loading`.
+  `3c8bacc-codex-no-query-logs-20260511T150202Z`, built from
+  `3c8bacc fix(security): enforce no-query nginx logs`.
 - Runtime shape: nginx publishes `80/443`; Postgres, Redis, Core API, SMS
   worker, payment worker, and payment webhook are private Docker services.
 - Provider modes: `AURA_ENV=production`, `YUKASSA_BACKEND=fake`,
   `SMS_BACKEND=log`. These are acceptable only for closed staging.
+- Security posture: SSH is key-only for deploy access, nginx logs omit query
+  strings per server, production Core API access logs are disabled, TLS
+  responses carry baseline browser security headers, and common scanner paths
+  return 404.
 - Menu/media: `docs/shipping-website/menu-catalog` validates with
   11 categories, 53 items, 104 size options, 4 modifiers, and 28 item-modifier
   links. Video playback smoke passed on staging: desktop loads only near-cursor
@@ -99,16 +103,23 @@ Last checked: 2026-05-10.
 - Backup/restore drill passed on 2026-05-09: daily and weekly dump files were
   created, the daily dump restored into a scratch DB, Alembic reported
   `0011 (head)`, representative row counts passed, the scratch DB was dropped,
-  no `aura_restore_*` DB remained, and staging `/health` stayed OK.
+  no `aura_restore_*` DB remained, and staging `/health` stayed OK. A fresh
+  daily backup exists as of 2026-05-11:
+  `aura_daily_20260511T145554Z.sql.gz`, and current staging schema is `0012`.
 - Recurring server-side ops passed on 2026-05-10: deploy-user cron installs
   daily backups, weekly backup copies, and a 15-minute ops health check for
   services, public health, TLS expiry, backup freshness, disk usage, provider
-  modes, Yandex split-key presence, and the cron marker.
+  modes, Yandex split-key presence, and the cron marker. The 2026-05-11 check
+  had `failures=0` and one expected provider-dashboard-alert warning.
 - Fake/log Stage 9 E2E smoke passed on 2026-05-10 via
   `scripts/production/check-staging-fake-log-e2e-smoke.mjs`: log-mode customer
   OTP, menu/cart, pickup order, fake YuKassa callback to `paid`, staff
   feed/detail, pickup transitions to `completed`, and recent-log phone/OTP
-  redaction scan.
+  redaction scan. The same fake/log E2E smoke passed again on 2026-05-11 with
+  no sensitive log hits.
+- Customer video smoke passed again on 2026-05-11:
+  login warmup, menu active-video budget, active-drain, attached-video budget,
+  request-storm, and menu-presence assertions were all green.
 - Staff/admin access-token storage hardening is complete locally: privileged
   access tokens are memory-only, route guards recover from the HttpOnly refresh
   cookie after reload, and legacy durable browser tokens are cleared.
@@ -116,6 +127,8 @@ Last checked: 2026-05-10.
   ready. If SMS remains blocked, the residual media and slow-network video checks
   and fake/log E2E smoke are complete; the remaining launch gates are
   provider/account access and real-provider end-to-end smoke.
+- Owner/provider questions are consolidated in
+  `docs/shipping-website/06-owner-decision-packet.md`.
 
 ## Phase 0: Freeze Launch Inputs
 
@@ -624,6 +637,10 @@ Current closed-staging result as of 2026-05-09: passed.
 - Ops health check:
   `scripts/production/check-ops-health.sh --staging-auth
   /opt/aura-coffee/.env.production`.
+- Fresh backup/status check on 2026-05-11:
+  `aura_daily_20260511T145554Z.sql.gz`, 9 running services, staging schema
+  `0012`, and ops health `failures=0` with the expected manual provider-alert
+  warning.
 
 Gate:
 

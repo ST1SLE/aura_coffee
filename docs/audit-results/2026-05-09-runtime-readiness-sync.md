@@ -4,6 +4,11 @@ Date: 2026-05-09
 Scope: closed-staging documentation sync after the clean VPS release and current
 menu/provider packets.
 
+Status note: this is now an earlier readiness baseline. For the current
+closed-staging release/security status, use
+`docs/audit-results/2026-05-11-staging-deployment-security-audit.md` and
+`docs/shipping-website/README.md`.
+
 ## Evidence Checked
 
 - Local repo head: `72afc03 fix(customer): detect hybrid cursor video playback`.

@@ -377,10 +377,15 @@ Acceptance:
 - `scripts/production/check-ops-health.sh --staging-auth
   /opt/aura-coffee/.env.production` exits 0.
 
-Closed-staging result on 2026-05-09: passed with Alembic `0011 (head)`,
+Closed-staging restore drill on 2026-05-09: passed with Alembic `0011 (head)`,
 representative row counts, scratch DB cleanup, and staging `/health` OK.
 Recurring ops schedule result on 2026-05-10: deploy-user cron installed daily
-and weekly backups plus a 15-minute ops health check.
+and weekly backups plus a 15-minute ops health check. Fresh status on
+2026-05-11: latest daily backup
+`aura_daily_20260511T145554Z.sql.gz`, current staging schema `0012`, and ops
+health `failures=0` with the expected manual provider-alert warning.
+Waiting-room smoke on 2026-05-11: fake/log E2E and customer video budget checks
+passed against closed staging.
 
 ## 11. Legal And Business Launch Checks
 
