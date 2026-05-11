@@ -24,7 +24,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from core_api.deps.database import SessionLocal
+from core_api.deps import database as _database_dep
 from core_api.rbac_matrix import PUBLIC_ROUTES, ROUTE_MATRIX
 from core_api.services.auth import AuthService
 from core_api.services.session_subjects import is_subject_active
@@ -91,7 +91,7 @@ class RBACMiddleware(BaseHTTPMiddleware):
         except (KeyError, TypeError, ValueError):
             return False
 
-        with SessionLocal() as db:
+        with _database_dep.SessionLocal() as db:
             return is_subject_active(
                 db, subject_id, role, require_present=False
             )

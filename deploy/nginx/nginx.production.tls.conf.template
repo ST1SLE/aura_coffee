@@ -55,10 +55,22 @@ server {
 
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
+    add_header Strict-Transport-Security "max-age=15552000" always;
 
     auth_basic $aura_basic_auth_realm;
     auth_basic_user_file ${AURA_BASIC_AUTH_USER_FILE};
     add_header Set-Cookie $aura_staging_set_cookie always;
+
+    location ~ /\.(?!well-known/acme-challenge/) {
+        return 404;
+    }
+
+    location ~* ^/(?:server-status|docs|redoc|openapi\.json)(?:/|$) {
+        return 404;
+    }
 
     # Readiness probe through the canonical nginx entry point.
     location = /health {

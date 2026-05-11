@@ -39,7 +39,16 @@ services:
     env_file: !override
       - ${AURA_ENV_FILE:-.env.production}
     volumes: !reset []
-    command: ["uvicorn", "core_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command:
+      [
+        "uvicorn",
+        "core_api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--no-access-log",
+      ]
     restart: unless-stopped
     healthcheck:
       test:

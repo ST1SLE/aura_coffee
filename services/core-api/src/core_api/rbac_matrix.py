@@ -95,7 +95,9 @@ ROUTE_MATRIX: dict[tuple[str, str], set[str]] = {
     ("POST", "/api/v1/orders/{order_id}/repeat"):     {CUSTOMER},
     # Yandex.Maps-прокси (PDD §7.3, §8.3) — только CUSTOMER
     ("GET", "/api/v1/maps/suggest"):                  {CUSTOMER},
+    ("POST", "/api/v1/maps/suggest"):                 {CUSTOMER},
     ("GET", "/api/v1/maps/geocode"):                  {CUSTOMER},
+    ("POST", "/api/v1/maps/geocode"):                 {CUSTOMER},
     # ── Admin orders feed (PDD §4.5, INV-010) — admin + barista ───────────
     ("GET", "/api/v1/admin/orders"):              {ADMIN, BARISTA},
     ("GET", "/api/v1/admin/orders/{order_id}"):   {ADMIN, BARISTA},

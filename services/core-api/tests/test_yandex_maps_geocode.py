@@ -111,6 +111,28 @@ def test_geocode_happy_path_returns_canonical_fields(
 
 
 @respx.mock
+def test_geocode_post_keeps_address_text_out_of_request_url(
+    client: TestClient,
+    customer_headers: dict[str, str],
+    cart_redis: fakeredis.FakeRedis,
+) -> None:
+    route = respx.get(YANDEX_GEOCODER_BASE).mock(
+        return_value=httpx.Response(200, json=_geocoder_response())
+    )
+
+    resp = client.post(
+        "/api/v1/maps/geocode",
+        json={"text": "Москва, Красная площадь", "lang": "ru_RU"},
+        headers=customer_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert route.called
+    assert "Красная" not in str(resp.request.url)
+    assert "text=" not in str(resp.request.url)
+
+
+@respx.mock
 def test_geocode_forwards_geocoder_api_key(
     client: TestClient,
     customer_headers: dict[str, str],

@@ -139,7 +139,9 @@ class TestOrderCustomerRbac:
 
 _YANDEX_MAPS_ROUTES = [
     ("GET", "/api/v1/maps/suggest"),
+    ("POST", "/api/v1/maps/suggest"),
     ("GET", "/api/v1/maps/geocode"),
+    ("POST", "/api/v1/maps/geocode"),
 ]
 
 

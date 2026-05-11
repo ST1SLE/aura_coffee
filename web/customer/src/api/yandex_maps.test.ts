@@ -32,16 +32,19 @@ beforeEach(() => {
 });
 
 describe('suggest', () => {
-  it('builds URL with text and lang', async () => {
+  it('posts text and lang in the body', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(asOk({ items: [] }));
 
     await suggest('Нев', 'ru_RU');
 
     expect(authenticatedFetch).toHaveBeenCalledOnce();
-    const [url] = (authenticatedFetch as Mock).mock.calls[0];
-    expect(url).toContain('/api/v1/maps/suggest');
-    expect(url).toContain('text=%D0%9D%D0%B5%D0%B2'); // URL-encoded "Нев"
-    expect(url).toContain('lang=ru_RU');
+    const [url, init] = (authenticatedFetch as Mock).mock.calls[0];
+    expect(url).toBe('/api/v1/maps/suggest');
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(JSON.parse(init.body)).toEqual({ text: 'Нев', lang: 'ru_RU' });
   });
 
   it('returns items from bare-array server response', async () => {
@@ -96,22 +99,29 @@ describe('suggest', () => {
 
     await suggest('Nevs', 'en_US');
 
-    const [url] = (authenticatedFetch as Mock).mock.calls[0];
-    expect(url).toContain('lang=en_US');
+    const [, init] = (authenticatedFetch as Mock).mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({ text: 'Nevs', lang: 'en_US' });
   });
 });
 
 describe('geocode', () => {
-  it('defaults to lang=ru_RU', async () => {
+  it('posts text with default lang=ru_RU', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(
       asOk({ canonical_text: 'x', lat: 1, lon: 2, precision: 'exact' }),
     );
 
     await geocode('Невский 1');
 
-    const [url] = (authenticatedFetch as Mock).mock.calls[0];
-    expect(url).toContain('/api/v1/maps/geocode');
-    expect(url).toContain('lang=ru_RU');
+    const [url, init] = (authenticatedFetch as Mock).mock.calls[0];
+    expect(url).toBe('/api/v1/maps/geocode');
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      text: 'Невский 1',
+      lang: 'ru_RU',
+    });
   });
 
   it('passes explicit lang when provided', async () => {
@@ -121,8 +131,11 @@ describe('geocode', () => {
 
     await geocode('Nevskiy 1', 'en_US');
 
-    const [url] = (authenticatedFetch as Mock).mock.calls[0];
-    expect(url).toContain('lang=en_US');
+    const [, init] = (authenticatedFetch as Mock).mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({
+      text: 'Nevskiy 1',
+      lang: 'en_US',
+    });
   });
 
   it('returns canonical geocode payload from server', async () => {

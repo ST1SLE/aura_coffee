@@ -10,11 +10,13 @@ def test_main_registers_yandex_maps_router(client: TestClient) -> None:
 
     paths = schema.get("paths", {})
     assert "/api/v1/maps/suggest" in paths, (
-        "GET /api/v1/maps/suggest не зарегистрирован в OpenAPI"
+        "/api/v1/maps/suggest не зарегистрирован в OpenAPI"
     )
     assert "/api/v1/maps/geocode" in paths, (
-        "GET /api/v1/maps/geocode не зарегистрирован в OpenAPI"
+        "/api/v1/maps/geocode не зарегистрирован в OpenAPI"
     )
-    # Оба endpoint'а — GET.
+    # POST is the PII-safe browser path; GET remains for compatibility probes.
     assert "get" in paths["/api/v1/maps/suggest"]
+    assert "post" in paths["/api/v1/maps/suggest"]
     assert "get" in paths["/api/v1/maps/geocode"]
+    assert "post" in paths["/api/v1/maps/geocode"]

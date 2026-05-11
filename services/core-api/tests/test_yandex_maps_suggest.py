@@ -121,6 +121,28 @@ def test_suggest_happy_path_returns_four_field_items(
 
 
 @respx.mock
+def test_suggest_post_keeps_address_text_out_of_request_url(
+    client: TestClient,
+    customer_headers: dict[str, str],
+    cart_redis: fakeredis.FakeRedis,
+) -> None:
+    route = respx.get(YANDEX_SUGGEST_BASE).mock(
+        return_value=httpx.Response(200, json=_suggest_response_two_matches())
+    )
+
+    resp = client.post(
+        "/api/v1/maps/suggest",
+        json={"text": "Москва, Тверская улица", "lang": "ru_RU"},
+        headers=customer_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert route.called
+    assert "Тверская" not in str(resp.request.url)
+    assert "text=" not in str(resp.request.url)
+
+
+@respx.mock
 def test_suggest_keeps_text_only_geosuggest_results(
     client: TestClient,
     customer_headers: dict[str, str],

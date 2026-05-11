@@ -19,12 +19,12 @@ import { authenticatedFetch } from './client';
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-//   MapsLang                - 'ru_RU' | 'en_US' query-string locale
+//   MapsLang                - 'ru_RU' | 'en_US' locale hint
 //   SuggestResult           - one address suggestion (text + optional coords)
 //   GeocodeResult           - canonical address resolution result
 //   MapsUnavailableError    - thrown on 503/network so caller degrades gracefully
-//   suggest                 - GET /maps/suggest — autocomplete suggestions
-//   geocode                 - GET /maps/geocode — resolve text to coords
+//   suggest                 - POST /maps/suggest — autocomplete suggestions
+//   geocode                 - POST /maps/geocode — resolve text to coords
 // END_MODULE_MAP
 
 export type MapsLang = 'ru_RU' | 'en_US';
@@ -68,18 +68,21 @@ export class MapsUnavailableError extends Error {
 //   INPUTS:  query: string  — partial address string (INV-013 PII; do not log)
 //            lang: MapsLang — 'ru_RU' | 'en_US' for language hint.
 //   OUTPUTS: Promise<SuggestResult[]> — possibly empty array.
-//   SIDE_EFFECTS: HTTP GET /api/v1/maps/suggest. Throws MapsUnavailableError on
-//                 5xx / network failure; throws plain Error on other non-2xx.
+//   SIDE_EFFECTS: HTTP POST /api/v1/maps/suggest. Throws MapsUnavailableError
+//                 on 5xx / network failure; throws plain Error on other non-2xx.
 //   LINKS:   PDD §8.3; AddressAutocomplete is the only caller.
 // END_CONTRACT: suggest
 export async function suggest(
   query: string,
   lang: MapsLang,
 ): Promise<SuggestResult[]> {
-  const url = `/api/v1/maps/suggest?text=${encodeURIComponent(query)}&lang=${lang}`;
   let res: Response;
   try {
-    res = await authenticatedFetch(url);
+    res = await authenticatedFetch('/api/v1/maps/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: query, lang }),
+    });
   } catch {
     throw new MapsUnavailableError();
   }
@@ -109,18 +112,21 @@ export async function suggest(
 //            lang?: MapsLang — defaults to 'ru_RU'
 //   OUTPUTS: Promise<GeocodeResult | null> — null when server returns 404
 //            (address not found).
-//   SIDE_EFFECTS: HTTP GET /api/v1/maps/geocode; throws MapsUnavailableError on
-//                 5xx / network; plain Error on other non-2xx.
+//   SIDE_EFFECTS: HTTP POST /api/v1/maps/geocode; throws MapsUnavailableError
+//                 on 5xx / network; plain Error on other non-2xx.
 //   LINKS:   PDD §8.3 geocode fallback.
 // END_CONTRACT: geocode
 export async function geocode(
   text: string,
   lang: MapsLang = 'ru_RU',
 ): Promise<GeocodeResult | null> {
-  const url = `/api/v1/maps/geocode?text=${encodeURIComponent(text)}&lang=${lang}`;
   let res: Response;
   try {
-    res = await authenticatedFetch(url);
+    res = await authenticatedFetch('/api/v1/maps/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, lang }),
+    });
   } catch {
     throw new MapsUnavailableError();
   }

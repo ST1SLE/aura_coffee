@@ -5,8 +5,9 @@
 """
 # START_MODULE_CONTRACT
 #   PURPOSE: DTOs for the Yandex.Maps proxy endpoints (suggest + geocode).
-#            extra='forbid' enforces strict shape contract.
-#   SCOPE:   Suggestion, GeocodeResult Pydantic models.
+#            Request bodies keep address PII out of URLs; extra='forbid'
+#            enforces strict shape contract.
+#   SCOPE:   SuggestRequest, GeocodeRequest, Suggestion, GeocodeResult models.
 #   DEPENDS: pydantic v2.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §7.3, §8.3
 #   ROLE:    TYPES
@@ -14,13 +15,29 @@
 # END_MODULE_CONTRACT
 #
 # START_MODULE_MAP
-#   Suggestion     - one entry of GET /maps/suggest response array
-#   GeocodeResult  - GET /maps/geocode response body
+#   SuggestRequest - POST /maps/suggest request body
+#   GeocodeRequest - POST /maps/geocode request body
+#   Suggestion     - one entry of /maps/suggest response array
+#   GeocodeResult  - /maps/geocode response body
 # END_MODULE_MAP
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class SuggestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    lang: str = "ru_RU"
+
+
+class GeocodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    lang: str = "ru_RU"
 
 
 class Suggestion(BaseModel):
