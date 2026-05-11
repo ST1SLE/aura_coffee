@@ -131,6 +131,8 @@ Last checked: 2026-05-11.
   `docs/shipping-website/06-owner-decision-packet.md`.
 - The SMS.ru execution packet and evidence log are in
   `docs/shipping-website/07-smsru-controlled-otp-smoke.md`.
+- The YuKassa test-shop execution packet and evidence log are in
+  `docs/shipping-website/08-yukassa-test-payment-smoke.md`.
 
 ## Phase 0: Freeze Launch Inputs
 

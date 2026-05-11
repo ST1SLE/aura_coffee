@@ -166,6 +166,8 @@ position before public traffic.
 
 Use `docs/shipping-website/07-smsru-controlled-otp-smoke.md` for the SMS.ru
 operator checklist and evidence log when step 1 is unblocked.
+Use `docs/shipping-website/08-yukassa-test-payment-smoke.md` for the YuKassa
+test-shop payment/refund/rejection checklist when step 2 is unblocked.
 
 ## Stop Conditions
 
