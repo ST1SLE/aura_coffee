@@ -141,7 +141,14 @@ export interface MinimumDeliveryAmountDetail {
   min_delivery_amount: number;
 }
 
-export type OrderApiErrorDetail = string | MinimumDeliveryAmountDetail;
+export interface OrderingPausedDetail {
+  code: 'ordering_paused';
+}
+
+export type OrderApiErrorDetail =
+  | string
+  | MinimumDeliveryAmountDetail
+  | OrderingPausedDetail;
 
 function isMinimumDeliveryAmountDetail(
   detail: unknown,
@@ -153,6 +160,14 @@ function isMinimumDeliveryAmountDetail(
     typeof (detail as { subtotal?: unknown }).subtotal === 'number' &&
     typeof (detail as { min_delivery_amount?: unknown }).min_delivery_amount ===
       'number'
+  );
+}
+
+function isOrderingPausedDetail(detail: unknown): detail is OrderingPausedDetail {
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    (detail as { code?: unknown }).code === 'ordering_paused'
   );
 }
 
@@ -202,6 +217,8 @@ async function parseError(res: Response): Promise<OrderApiError> {
     if (typeof body?.detail === 'string') {
       detail = parseMinimumDeliveryAmountString(body.detail) ?? body.detail;
     } else if (isMinimumDeliveryAmountDetail(body?.detail)) {
+      detail = body.detail;
+    } else if (isOrderingPausedDetail(body?.detail)) {
       detail = body.detail;
     }
   } catch {

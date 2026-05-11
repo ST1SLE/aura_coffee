@@ -190,6 +190,23 @@ describe('CheckoutPage default pickup', () => {
       }),
     );
   });
+
+  it('shows ordering pause from estimate and disables submit', async () => {
+    (estimateOrder as Mock).mockRejectedValue(
+      new OrderApiError(409, { code: 'ordering_paused' }),
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/временно приостановлено|temporarily paused/i),
+      ).toBeTruthy();
+    });
+    expect(
+      (screen.getByRole('button', { name: /оформить|place/i }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
 });
 
 describe('CheckoutPage delivery with saved', () => {

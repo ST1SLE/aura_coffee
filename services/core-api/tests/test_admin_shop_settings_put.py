@@ -77,6 +77,7 @@ def _valid_put_payload(**overrides):
         "default_prep_time_minutes": 20,
         "estimated_delivery_time_minutes": 45,
         "auto_close_minutes": 90,
+        "ordering_paused": True,
         "working_hours": {
             "mon": {"open": "09:00", "close": "21:00"},
             "tue": {"open": "09:00", "close": "21:00"},
@@ -130,6 +131,7 @@ def test_admin_put_updates_all_fields(
     assert body["default_prep_time_minutes"] == 20
     assert body["estimated_delivery_time_minutes"] == 45
     assert body["auto_close_minutes"] == 90
+    assert body["ordering_paused"] is True
     # working_hours уехали
     assert body["working_hours"]["mon"] == {"open": "09:00", "close": "21:00"}
     # updated_at присутствует и валиден (строгое неравенство не проверяем:
@@ -157,6 +159,7 @@ def test_singleton_check_rejects_second_row(db_session) -> None:
         default_prep_time_minutes=15,
         estimated_delivery_time_minutes=30,
         auto_close_minutes=60,
+        ordering_paused=False,
         working_hours={
             day: {"open": "08:00", "close": "22:00"}
             for day in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")

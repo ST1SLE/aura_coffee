@@ -174,7 +174,7 @@
   <DataFlow>
     <DF-Order-Place NAME="Order placement" TRIGGER="Customer submits checkout">
       <step-1>web-customer POSTs /orders with cart payload</step-1>
-      <step-2>core-api validates auth (INV-002), validates menu items, checks finite inventory caps, computes total in kopecks</step-2>
+      <step-2>core-api validates auth (INV-002), rejects early if shop_settings.ordering_paused=true, validates menu items, checks finite inventory caps, computes total in kopecks</step-2>
       <step-3>core-api opens DB transaction (INV-004): lock finite-inventory menu rows, create Order(CREATED) + OrderItems(immutable) + Payment(PENDING), decrement finite inventory</step-3>
       <step-4>core-api dispatches Celery task to payment-worker for YuKassa intent</step-4>
       <step-5>core-api dispatches Celery task to sms-worker for confirmation SMS</step-5>

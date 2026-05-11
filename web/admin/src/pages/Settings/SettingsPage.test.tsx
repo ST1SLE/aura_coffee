@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import i18n from '@/i18n/config';
 import { SettingsPage } from './SettingsPage';
@@ -7,10 +7,21 @@ import { ApiError } from '@/api/client';
 import * as api from '@/api/admin-settings';
 import { baseResponse } from './testUtils';
 
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 describe('SettingsPage', () => {
   beforeEach(async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     await i18n.changeLanguage('en');
     vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('mount: поля заполнены, Save disabled пока !isDirty', async () => {
@@ -25,6 +36,10 @@ describe('SettingsPage', () => {
 
     const saveBtn = screen.getByRole('button', { name: /^Save$/i });
     expect(saveBtn).toBeDisabled();
+
+    expect(
+      screen.getByRole('switch', { name: /Pause order placement/i }),
+    ).toHaveAttribute('aria-checked', 'false');
 
     fireEvent.change(screen.getByLabelText(/Delivery fee/i), {
       target: { value: '200' },

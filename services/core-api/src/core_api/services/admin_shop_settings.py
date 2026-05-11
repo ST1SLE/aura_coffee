@@ -1,6 +1,7 @@
 # START_MODULE_CONTRACT
 #   PURPOSE: Admin-only read/update for the singleton ShopSettings row that
-#            governs delivery geometry, working hours, loyalty %, prep timers.
+#            governs delivery geometry, working hours, loyalty %, prep timers,
+#            and ordering pause mode.
 #   SCOPE:   get_settings (read), update_settings (replace mutable fields).
 #   DEPENDS: M-SHARED (ShopSettings model), M-DATABASE, schemas.shop_settings
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §7.1 Phase 6/3, INV-010
@@ -53,7 +54,7 @@ def get_settings(db: Session) -> ShopSettings:
 
 # START_CONTRACT: update_settings
 #   PURPOSE: Overwrite mutable fields of ShopSettings (geometry, hours, loyalty %,
-#            prep & autoclose timers) from validated admin payload.
+#            prep/autoclose timers, ordering pause) from validated admin payload.
 #   INPUTS:  db: Session
 #            payload: ShopSettingsUpdate
 #   OUTPUTS: ShopSettings (updated, in-session)
@@ -73,6 +74,7 @@ def update_settings(db: Session, payload: ShopSettingsUpdate) -> ShopSettings:
     row.default_prep_time_minutes = payload.default_prep_time_minutes
     row.estimated_delivery_time_minutes = payload.estimated_delivery_time_minutes
     row.auto_close_minutes = payload.auto_close_minutes
+    row.ordering_paused = payload.ordering_paused
     row.working_hours = {
         day: (slot.model_dump() if slot is not None else None)
         for day, slot in payload.working_hours.items()

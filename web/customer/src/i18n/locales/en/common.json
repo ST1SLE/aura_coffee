@@ -191,6 +191,7 @@
       "geocodePrecision": "Unable to determine the exact address. Please specify further.",
       "belowMinAmount": "Order total is below the minimum for delivery",
       "minimumAmount": "Delivery orders start at {{min}}. Your cart is {{subtotal}}.",
+      "orderingPaused": "Order placement is temporarily paused. The menu and cart remain available; please try later.",
       "mapsUnavailable": "Address validation service is temporarily unavailable. Try later or choose pickup.",
       "generic": "Failed to submit the delivery"
     }

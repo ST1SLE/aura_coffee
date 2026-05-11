@@ -12,6 +12,7 @@ import {
 import { SectionCoords } from './SectionCoords';
 import { SectionDelivery } from './SectionDelivery';
 import { SectionLoyalty } from './SectionLoyalty';
+import { SectionOperations } from './SectionOperations';
 import { SectionTiming } from './SectionTiming';
 import { SectionWorkingHours } from './SectionWorkingHours';
 import {
@@ -26,12 +27,12 @@ import {
 // START_MODULE_CONTRACT
 //   PURPOSE: Admin shop-settings page — load current settings, run client-side
 //            validation, submit a full ShopSettingsUpdate payload, and surface
-//            FastAPI 422 server errors per-field.
+//            FastAPI 422 server errors per-field, including ordering pause.
 //   SCOPE:   Admin-only route (gated client-side via ProtectedRoute and server-
 //            side via INV-002).
 //   DEPENDS: react, react-i18next, @/api/admin-settings, @/components/ui/*,
 //            sibling Section* components, ./validation.
-//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §6.6 shop settings,
+//   LINKS:   docs/development-plan.xml M-WEB-ADMIN, PDD §5.2, §7.2,
 //            INV-002 (admin scope server-enforced).
 //   ROLE:    RUNTIME
 //   MAP_MODE: EXPORTS
@@ -42,7 +43,7 @@ import {
 // END_MODULE_MAP
 
 // START_CONTRACT: SettingsPage
-//   PURPOSE: Load shop settings on mount, render five form sections, run client
+//   PURPOSE: Load shop settings on mount, render six form sections, run client
 //            validation, submit updates and merge server-side 422 errors into
 //            the form state. Disables the Save button when nothing is dirty
 //            or the form is invalid.
@@ -119,6 +120,17 @@ export function SettingsPage() {
     }
   }
 
+  function setOrderingPaused(value: boolean) {
+    setForm((prev) => (prev ? { ...prev, ordering_paused: value } : prev));
+    if (serverErrors.ordering_paused) {
+      setServerErrors((prev) => {
+        const rest = { ...prev };
+        delete rest.ordering_paused;
+        return rest;
+      });
+    }
+  }
+
   function setDay(day: DayKey, next: WorkingHoursDayInput) {
     setForm((prev) =>
       prev
@@ -182,6 +194,11 @@ export function SettingsPage() {
         <SectionCoords form={form} onChange={setField} errors={errors} />
         <SectionDelivery form={form} onChange={setField} errors={errors} />
         <SectionLoyalty form={form} onChange={setField} errors={errors} />
+        <SectionOperations
+          form={form}
+          onOrderingPausedChange={setOrderingPaused}
+          errors={errors}
+        />
         <SectionTiming form={form} onChange={setField} errors={errors} />
         <SectionWorkingHours form={form} onDayChange={setDay} errors={errors} />
 

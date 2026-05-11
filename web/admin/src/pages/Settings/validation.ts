@@ -25,6 +25,7 @@ import { DAYS } from '@/api/admin-settings';
 //   validateCoords        - lat/lon range checks
 //   validateDelivery      - radius/min/free/fee checks + cross-field rule
 //   validateLoyalty       - 0..100 percent integer check
+//   validateOperations    - boolean operational toggles
 //   validateTiming        - prep/delivery/auto-close minute checks
 //   validateWorkingHours  - per-day open<close + format checks
 //   validateAll           - merge of all validators
@@ -46,6 +47,7 @@ export interface SettingsFormState {
   default_prep_time_minutes: string;
   estimated_delivery_time_minutes: string;
   auto_close_minutes: string;
+  ordering_paused: boolean;
   working_hours: Record<DayKey, WorkingHoursDayInput>;
 }
 
@@ -164,6 +166,20 @@ export function validateLoyalty(form: SettingsFormState): ErrorMap {
   return e;
 }
 
+// START_CONTRACT: validateOperations
+//   PURPOSE: Validate boolean operational toggles such as ordering_paused.
+//   INPUTS:  form: SettingsFormState
+//   OUTPUTS: ErrorMap
+//   SIDE_EFFECTS: none.
+// END_CONTRACT: validateOperations
+export function validateOperations(form: SettingsFormState): ErrorMap {
+  const e: ErrorMap = {};
+  if (typeof form.ordering_paused !== 'boolean') {
+    e.ordering_paused = 'invalid_boolean';
+  }
+  return e;
+}
+
 // START_CONTRACT: validateTiming
 //   PURPOSE: Validate prep/delivery/auto-close fields are positive integers
 //            (auto-close additionally capped at 1440 minutes).
@@ -235,6 +251,7 @@ export function validateAll(form: SettingsFormState): ErrorMap {
     ...validateCoords(form),
     ...validateDelivery(form),
     ...validateLoyalty(form),
+    ...validateOperations(form),
     ...validateTiming(form),
     ...validateWorkingHours(form),
   };
@@ -284,6 +301,7 @@ export function responseToForm(r: ShopSettingsResponse): SettingsFormState {
     default_prep_time_minutes: String(r.default_prep_time_minutes),
     estimated_delivery_time_minutes: String(r.estimated_delivery_time_minutes),
     auto_close_minutes: String(r.auto_close_minutes),
+    ordering_paused: Boolean(r.ordering_paused),
     working_hours: wh,
   };
 }
@@ -318,6 +336,7 @@ export function formToPayload(form: SettingsFormState): ShopSettingsUpdate {
     default_prep_time_minutes: Number(form.default_prep_time_minutes),
     estimated_delivery_time_minutes: Number(form.estimated_delivery_time_minutes),
     auto_close_minutes: Number(form.auto_close_minutes),
+    ordering_paused: form.ordering_paused,
     working_hours: wh,
   };
 }

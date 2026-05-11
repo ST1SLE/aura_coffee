@@ -2,7 +2,8 @@
 #   PURPOSE: Atomic Cart → Order checkout — orchestrates validators, pricing
 #            chain, and persistence of orders/order_items/payments/loyalty/
 #            promocode_usage in a single DB transaction. Drives Order initial
-#            state (CREATED or PAID for zero-total) per PDD §6.1.
+#            state (CREATED or PAID for zero-total) per PDD §6.1. Respects
+#            shop_settings.ordering_paused before checkout writes.
 #   SCOPE:   create_order and estimate_order entry-points + injectable
 #            validator/enqueue stubs (patched by tests), pricing helpers
 #            (subtotal, promo, loyalty, delivery_fee, total, accrual), Redis
@@ -19,6 +20,7 @@
 # START_MODULE_MAP
 #   EmptyCartError              - raised when Redis cart is missing or empty
 #   InventoryInsufficientError  - raised when finite stock cannot satisfy cart
+#   OrderingPausedError         - raised when shop settings pause ordering
 #   validate_stop_list          - INV-006 stub (test-patchable)
 #   validate_time_slot          - working-hours validator stub
 #   validate_delivery_address   - delegates to validators.delivery (Haversine)
@@ -130,6 +132,18 @@ class EmptyCartError(Exception):
 # END_CONTRACT: InventoryInsufficientError
 class InventoryInsufficientError(Exception):
     """Недостаточно конечного остатка для оформления корзины."""
+
+
+# START_CONTRACT: OrderingPausedError
+#   PURPOSE: Raised when ShopSettings.ordering_paused blocks checkout before
+#            order/payment/inventory writes; routers map it to structured 409.
+#   INPUTS:  message: str
+#   OUTPUTS: Exception instance.
+#   SIDE_EFFECTS: none
+#   LINKS:   PDD §7.1 ordering pause, INV-004
+# END_CONTRACT: OrderingPausedError
+class OrderingPausedError(Exception):
+    """Оформление заказов временно приостановлено оператором."""
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +571,8 @@ def _build_checkout_quote(
     shop_settings = db_session.get(ShopSettings, 1)
     if shop_settings is None:
         raise RuntimeError("ShopSettings row id=1 is missing")
+    if shop_settings.ordering_paused:
+        raise OrderingPausedError("ordering_paused")
 
     validate_stop_list(cart_items, db_session)
     estimated_ready_at = validate_time_slot(

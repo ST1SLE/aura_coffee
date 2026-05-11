@@ -4,7 +4,7 @@
 #   PURPOSE: ORM declaration of the `shop_settings` table — singleton row
 #            (CHECK id = 1) holding shop-wide configuration: location,
 #            delivery economics, loyalty percent, prep/auto-close timers,
-#            working_hours JSONB.
+#            ordering pause flag, working_hours JSONB.
 #   SCOPE:   Exactly one row at id=1 (enforced by ck_shop_settings_singleton).
 #            Read by core-api during pricing and delivery quoting; written
 #            only by admin endpoints. No PII.
@@ -50,6 +50,12 @@ class ShopSettings(Base):
         nullable=False,
         default=60,
         server_default=sa.text("60"),
+    )
+    ordering_paused: Mapped[bool] = mapped_column(
+        sa.Boolean(),
+        nullable=False,
+        default=False,
+        server_default=sa.text("false"),
     )
     working_hours: Mapped[dict] = mapped_column(
         JSONB().with_variant(sa.JSON(), "sqlite"),

@@ -317,11 +317,12 @@ PostgreSQL — единственный источник истины. Redis —
 
 | Таблица | Назначение | Ключевые поля | Связи |
 |---------|-----------|---------------|-------|
-| `shop_settings` | Настройки кофейни (singleton) | `id` (всегда 1), `shop_lat`, `shop_lon`, `delivery_radius_km` (numeric), `min_delivery_amount` (int, копейки), `free_delivery_threshold` (int, копейки), `delivery_fee` (int, копейки), `loyalty_percent` (int), `default_prep_time_minutes` (int), `estimated_delivery_time_minutes` (int, default 30), `working_hours` (JSONB: `{"mon": {"open": "08:00", "close": "22:00"}, ...}`), `updated_at` | — |
+| `shop_settings` | Настройки кофейни (singleton) | `id` (всегда 1), `shop_lat`, `shop_lon`, `delivery_radius_km` (numeric), `min_delivery_amount` (int, копейки), `free_delivery_threshold` (int, копейки), `delivery_fee` (int, копейки), `loyalty_percent` (int), `default_prep_time_minutes` (int), `estimated_delivery_time_minutes` (int, default 30), `auto_close_minutes` (int, default 60), `ordering_paused` (bool, default false), `working_hours` (JSONB: `{"mon": {"open": "08:00", "close": "22:00"}, ...}`), `updated_at` | — |
 
 **Примечания:**
 - Singleton-таблица: всегда 1 строка, `CHECK (id = 1)`. Обновляется через `UPDATE`, не `INSERT`.
 - `working_hours` — JSONB, потому что расписание по дням недели имеет переменную структуру (выходные могут отличаться, возможны перерывы).
+- `ordering_paused = true` — операторский режим обслуживания: меню и корзина остаются доступны, но estimate/checkout/order creation возвращают управляемую ошибку до любых записей заказа, оплаты, баллов, промокодов или списания конечного остатка.
 
 ### 5.3. Redis-схема ключей
 
@@ -633,6 +634,8 @@ PostgreSQL — единственный источник истины. Redis —
 ### 7.2. Order Pricing Chain
 
 Определяет порядок расчёта итоговой стоимости заказа. Агент ОБЯЗАН реализовать шаги в указанном порядке. Каждый шаг зависит от результата предыдущего.
+
+0. **Операторская пауза заказов** — если `shop_settings.ordering_paused = true`, отклонить checkout до pricing chain и любых записей заказа/оплаты. Клиент остаётся в меню/корзине и видит сообщение, что оформление временно приостановлено.
 
 1. **Subtotal** — сумма всех позиций в корзине.
    Для каждого Cart Item: `line_total = (size_price ИЛИ base_price + Σ modifier_prices) × quantity`.

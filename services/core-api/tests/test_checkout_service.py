@@ -78,6 +78,7 @@ def _upsert_shop_settings(
     free_delivery_threshold: int = 100000,
     delivery_fee: int = 15000,
     loyalty_percent: int = 5,
+    ordering_paused: bool = False,
     working_hours: dict[str, dict[str, str]] | None = None,
 ) -> Any:
     from shared.models import ShopSettings
@@ -95,6 +96,7 @@ def _upsert_shop_settings(
             loyalty_percent=loyalty_percent,
             default_prep_time_minutes=15,
             estimated_delivery_time_minutes=30,
+            ordering_paused=ordering_paused,
             working_hours=working_hours or _working_hours_always_open(),
         )
         db_session.add(settings)
@@ -108,6 +110,7 @@ def _upsert_shop_settings(
         settings.loyalty_percent = loyalty_percent
         settings.default_prep_time_minutes = 15
         settings.estimated_delivery_time_minutes = 30
+        settings.ordering_paused = ordering_paused
         settings.working_hours = working_hours or _working_hours_always_open()
     db_session.flush()
     return settings
@@ -498,6 +501,56 @@ def test_create_order_delivery_minimum_fails_before_persistence(
 
 
 @pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_create_order_ordering_paused_fails_before_persistence_and_asserts_ldd(
+    cart_redis, db_session, _checkout_user, grace_logs
+) -> None:
+    """GRACE-LDD: ordering_paused blocks checkout before writes or commit."""
+    from tests._factories.menu import make_menu_item
+
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import OrderingPausedError, create_order
+    from shared.enums import OrderType
+    from shared.models import Order, Payment
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session, ordering_paused=True)
+    item = make_menu_item(db_session, base_price=20000, inventory_quantity=3)
+    db_session.flush()
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": item.id,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 2,
+            }
+        ],
+    )
+
+    with pytest.raises(OrderingPausedError):
+        create_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    db_session.refresh(item)
+    assert item.inventory_quantity == 3
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_BEGIN")
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_STATE_TRANSITION") == []
+    assert grace_logs.blocks(fn="orders.create", blk="BLOCK_TX_COMMIT") == []
+    assert grace_logs.beliefs(status="MISMATCH") == []
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
 def test_create_order_promocode_validator_uses_subtotal_before_persistence(
     cart_redis, db_session, _checkout_user, grace_logs
 ) -> None:
@@ -673,6 +726,46 @@ def test_estimate_order_rejects_insufficient_inventory_without_decrement(
 
     db_session.refresh(item)
     assert item.inventory_quantity == 1
+
+
+@pytest.mark.skipif(_IS_SQLITE, reason="Требует PostgreSQL")
+def test_estimate_order_ordering_paused_writes_nothing(
+    cart_redis, db_session, _checkout_user
+) -> None:
+    """Read-only estimate returns the same ordering pause guard without writes."""
+    from core_api.schemas.order import CreateOrderRequest
+    from core_api.services.checkout import OrderingPausedError, estimate_order
+    from shared.enums import OrderType
+    from shared.models import Order, Payment
+
+    user_id, _ = _checkout_user
+    _upsert_shop_settings(db_session, ordering_paused=True)
+    _seed_cart(
+        cart_redis,
+        user_id,
+        [
+            {
+                "menu_item_id": 999999,
+                "size_option_id": None,
+                "modifier_ids": [],
+                "quantity": 1,
+            }
+        ],
+    )
+
+    with pytest.raises(OrderingPausedError):
+        estimate_order(
+            user_id,
+            CreateOrderRequest(type=OrderType.PICKUP),
+            cart_redis,
+            db_session,
+        )
+
+    assert db_session.query(Order).filter(Order.user_id == user_id).count() == 0
+    assert (
+        db_session.query(Payment).join(Order).filter(Order.user_id == user_id).count()
+        == 0
+    )
 
 
 # ---------------------------------------------------------------------------

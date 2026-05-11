@@ -11,7 +11,7 @@
 #   PURPOSE: One-shot seed that upserts the singleton shop_settings row
 #            (id=1) with canonical defaults from PDD §5.2 — coordinates,
 #            delivery radius, fees, loyalty %, prep / delivery times,
-#            working hours.
+#            ordering pause flag, working hours.
 #   SCOPE:   Invoked at deploy time (and re-invoked by phase4_manual_test
 #            seed) to guarantee the singleton row exists before any
 #            checkout / Haversine validation runs.
@@ -55,6 +55,7 @@ DEFAULTS = {
     "default_prep_time_minutes": 15,
     "estimated_delivery_time_minutes": 30,
     "auto_close_minutes": 60,
+    "ordering_paused": False,
     "working_hours": json.dumps(DEFAULT_WORKING_HOURS),
 }
 
@@ -90,12 +91,13 @@ def run(database_url: str | None = None) -> None:
                         min_delivery_amount, free_delivery_threshold, delivery_fee,
                         loyalty_percent, default_prep_time_minutes,
                         estimated_delivery_time_minutes, auto_close_minutes,
-                        working_hours, updated_at
+                        ordering_paused, working_hours, updated_at
                     ) VALUES (
                         :id, :shop_lat, :shop_lon, :delivery_radius_km,
                         :min_delivery_amount, :free_delivery_threshold, :delivery_fee,
                         :loyalty_percent, :default_prep_time_minutes,
                         :estimated_delivery_time_minutes, :auto_close_minutes,
+                        :ordering_paused,
                         CAST(:working_hours AS jsonb), now()
                     )
                     ON CONFLICT (id) DO UPDATE SET
@@ -109,6 +111,7 @@ def run(database_url: str | None = None) -> None:
                         default_prep_time_minutes = EXCLUDED.default_prep_time_minutes,
                         estimated_delivery_time_minutes = EXCLUDED.estimated_delivery_time_minutes,
                         auto_close_minutes = EXCLUDED.auto_close_minutes,
+                        ordering_paused = EXCLUDED.ordering_paused,
                         working_hours = EXCLUDED.working_hours,
                         updated_at = now()
                     """

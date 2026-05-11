@@ -82,7 +82,7 @@ def test_get_route_registered() -> None:
 def test_admin_get_returns_default_snapshot(
     settings_client, admin_headers, db_session
 ) -> None:
-    """3.1b — admin получает полный snapshot с auto_close_minutes=60."""
+    """3.1b — admin получает полный snapshot with operational flags."""
     _seed_default_row(db_session)
 
     response = settings_client.get("/api/v1/admin/settings", headers=admin_headers)
@@ -100,6 +100,7 @@ def test_admin_get_returns_default_snapshot(
         "loyalty_percent",
         "default_prep_time_minutes",
         "estimated_delivery_time_minutes",
+        "ordering_paused",
         "working_hours",
         "updated_at",
     ):
@@ -107,6 +108,7 @@ def test_admin_get_returns_default_snapshot(
 
     # Новое поле миграции 0008
     assert body["auto_close_minutes"] == 60
+    assert body["ordering_paused"] is False
 
     # working_hours — 7 дней, каждый с open/close
     assert set(body["working_hours"].keys()) == {

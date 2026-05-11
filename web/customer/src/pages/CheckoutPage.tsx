@@ -28,6 +28,7 @@ import {
   type CreateOrderPayload,
   type InlineDeliveryAddress,
   type MinimumDeliveryAmountDetail,
+  type OrderingPausedDetail,
 } from '@/api/orders';
 import {
   geocode,
@@ -46,6 +47,19 @@ function isMinimumDeliveryAmountDetail(
     typeof maybe.subtotal === 'number' &&
     typeof maybe.min_delivery_amount === 'number'
   );
+}
+
+function isOrderingPausedDetail(detail: unknown): detail is OrderingPausedDetail {
+  const maybe = detail as Partial<OrderingPausedDetail> | null;
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    maybe?.code === 'ordering_paused'
+  );
+}
+
+function isOrderingPausedError(err: unknown): boolean {
+  return err instanceof OrderApiError && isOrderingPausedDetail(err.detail);
 }
 
 function isReadableServerDetail(detail: string): boolean {
@@ -170,6 +184,7 @@ export function CheckoutPage() {
   );
   const [estimating, setEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+  const [orderingPaused, setOrderingPaused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLParagraphElement | null>(null);
@@ -243,6 +258,9 @@ export function CheckoutPage() {
   const renderError = useCallback(
     (err: unknown): string => {
       if (err instanceof OrderApiError) {
+        if (isOrderingPausedDetail(err.detail)) {
+          return t('errors.delivery.orderingPaused');
+        }
         const minimumDetail =
           typeof err.detail === 'string'
             ? parseLegacyMinimumDeliveryDetail(err.detail)
@@ -328,6 +346,7 @@ export function CheckoutPage() {
       setEstimate(null);
       setEstimateError(null);
       setEstimating(false);
+      setOrderingPaused(false);
       return;
     }
 
@@ -339,11 +358,13 @@ export function CheckoutPage() {
           if (cancelled) return;
           setEstimate(next);
           setEstimateError(null);
+          setOrderingPaused(false);
         })
         .catch((err) => {
           if (cancelled) return;
           setEstimate(null);
           setEstimateError(renderError(err));
+          setOrderingPaused(isOrderingPausedError(err));
         })
         .finally(() => {
           if (!cancelled) setEstimating(false);
@@ -430,6 +451,7 @@ export function CheckoutPage() {
       navigate(`/orders/${order.id}`);
     } catch (err) {
       setError(renderError(err));
+      setOrderingPaused(isOrderingPausedError(err));
     } finally {
       setSubmitting(false);
     }
@@ -739,7 +761,11 @@ export function CheckoutPage() {
         </p>
       )}
 
-      <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+      <Button
+        type="submit"
+        disabled={submitting || orderingPaused}
+        className="w-full sm:w-auto"
+      >
         {t('pages.checkout.submit')}
       </Button>
     </form>

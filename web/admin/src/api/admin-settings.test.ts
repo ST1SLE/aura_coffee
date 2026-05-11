@@ -22,6 +22,7 @@ function fullPayload(): ShopSettingsUpdate {
     default_prep_time_minutes: 10,
     estimated_delivery_time_minutes: 30,
     auto_close_minutes: 60,
+    ordering_paused: false,
     working_hours: {
       mon: { open: '08:00', close: '22:00' },
       tue: { open: '08:00', close: '22:00' },
@@ -78,6 +79,7 @@ describe('api/admin-settings', () => {
     expect(body.loyalty_percent).toBe(5);
     expect(body.working_hours.sun).toBeNull();
     expect(body.auto_close_minutes).toBe(60);
+    expect(body.ordering_paused).toBe(false);
   });
 
   it('updateSettings — throws ApiError on 422', async () => {

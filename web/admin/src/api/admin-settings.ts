@@ -6,8 +6,8 @@ import { authenticatedFetch, ApiError } from './client';
 
 // START_MODULE_CONTRACT
 //   PURPOSE: Typed client for admin shop settings — working hours, delivery
-//            radius/fees, loyalty percent, timing thresholds — plus rubles<>kopecks
-//            converters and FastAPI 422 deep-error parser.
+//            radius/fees, loyalty percent, ordering pause, timing thresholds
+//            — plus rubles<>kopecks converters and FastAPI 422 deep-error parser.
 //   SCOPE:   Wraps GET/PUT /api/v1/admin/settings (admin only). UI works in
 //            rubles, wire format is kopecks.
 //   DEPENDS: ./client (authenticatedFetch, ApiError).
@@ -68,6 +68,7 @@ export interface ShopSettingsResponse {
   default_prep_time_minutes: number;
   estimated_delivery_time_minutes: number;
   auto_close_minutes: number;
+  ordering_paused: boolean;
   working_hours: WorkingHours;
   updated_at: string;
 }
@@ -83,6 +84,7 @@ export interface ShopSettingsUpdate {
   default_prep_time_minutes: number;
   estimated_delivery_time_minutes: number;
   auto_close_minutes: number;
+  ordering_paused: boolean;
   working_hours: WorkingHours;
 }
 

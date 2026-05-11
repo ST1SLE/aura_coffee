@@ -6,7 +6,7 @@ ShopSettingsUpdate — full-snapshot body для PUT /api/v1/admin/settings.
 # START_MODULE_CONTRACT
 #   PURPOSE: ShopSettings DTOs (read snapshot + full-snapshot update body)
 #            with cross-field invariants on working hours and delivery
-#            thresholds.
+#            thresholds. Includes ordering_paused for launch/maintenance holds.
 #   SCOPE:   ShopSettingsResponse, WorkingHoursSlot, ShopSettingsUpdate.
 #   DEPENDS: pydantic v2.
 #   LINKS:   docs/development-plan.xml M-CORE-API, PDD §5.2, §6.1,
@@ -54,6 +54,7 @@ class ShopSettingsResponse(BaseModel):
     default_prep_time_minutes: int
     estimated_delivery_time_minutes: int
     auto_close_minutes: int
+    ordering_paused: bool
     working_hours: dict
     updated_at: datetime
 
@@ -97,6 +98,7 @@ class ShopSettingsUpdate(BaseModel):
     default_prep_time_minutes: int = Field(ge=1)
     estimated_delivery_time_minutes: int = Field(ge=1)
     auto_close_minutes: int = Field(ge=1, le=1440)
+    ordering_paused: bool
     working_hours: dict[str, WorkingHoursSlot | None]
 
     @model_validator(mode="after")

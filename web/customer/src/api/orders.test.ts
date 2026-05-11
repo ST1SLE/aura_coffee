@@ -188,6 +188,27 @@ describe('createOrder errors', () => {
     }
   });
 
+  it('preserves structured ordering pause detail', async () => {
+    (authenticatedFetch as Mock).mockResolvedValue(
+      asError(409, {
+        detail: {
+          code: 'ordering_paused',
+        },
+      }),
+    );
+
+    try {
+      await createOrder({ type: 'pickup' });
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(OrderApiError);
+      const err = e as OrderApiError;
+      expect(err.status).toBe(409);
+      expect(err.detail).toEqual({ code: 'ordering_paused' });
+      expect(err.message).toBe('HTTP 409');
+    }
+  });
+
   it('drops unknown object detail instead of stringifying it for display', async () => {
     (authenticatedFetch as Mock).mockResolvedValue(
       asError(422, {

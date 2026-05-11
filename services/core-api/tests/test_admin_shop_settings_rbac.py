@@ -53,6 +53,7 @@ def _put_payload():
         "default_prep_time_minutes": 15,
         "estimated_delivery_time_minutes": 30,
         "auto_close_minutes": 60,
+        "ordering_paused": False,
         "working_hours": {
             day: {"open": "08:00", "close": "22:00"}
             for day in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")

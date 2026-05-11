@@ -121,6 +121,7 @@ def _ensure_shop_settings(db_session) -> None:
             default_prep_time_minutes=10,
             estimated_delivery_time_minutes=30,
             auto_close_minutes=60,
+            ordering_paused=False,
             working_hours={},
         )
     )
@@ -268,6 +269,35 @@ def test_post_order_estimate_minimum_delivery_error_is_structured(client) -> Non
     assert "Hidden user address" not in resp.text
 
 
+def test_post_order_estimate_ordering_paused_error_is_structured(client) -> None:
+    """Estimate route reports operator pause without exposing checkout payload."""
+    from core_api.services.checkout import OrderingPausedError
+
+    with (
+        _patch_jwt(),
+        patch(
+            "core_api.routers.orders.estimate_order",
+            side_effect=OrderingPausedError("ordering_paused"),
+        ),
+    ):
+        resp = client.post(
+            "/api/v1/orders/estimate",
+            json={
+                "type": "delivery",
+                "delivery_address": {
+                    "text": "Hidden user address",
+                    "lat": 55.7558,
+                    "lon": 37.6173,
+                },
+            },
+            headers=_auth("customer"),
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == {"code": "ordering_paused"}
+    assert "Hidden user address" not in resp.text
+
+
 def test_post_order_minimum_delivery_error_is_structured(client) -> None:
     """Order create route uses the same user-safe delivery minimum envelope."""
     from core_api.services.validators.exceptions import MinimumDeliveryAmountError
@@ -301,6 +331,35 @@ def test_post_order_minimum_delivery_error_is_structured(client) -> None:
         "subtotal": 21000,
         "min_delivery_amount": 50000,
     }
+    assert "Hidden user address" not in resp.text
+
+
+def test_post_order_ordering_paused_error_is_structured(client) -> None:
+    """Order create route reports operator pause as a stable structured 409."""
+    from core_api.services.checkout import OrderingPausedError
+
+    with (
+        _patch_jwt(),
+        patch(
+            "core_api.routers.orders.create_order",
+            side_effect=OrderingPausedError("ordering_paused"),
+        ),
+    ):
+        resp = client.post(
+            "/api/v1/orders",
+            json={
+                "type": "delivery",
+                "delivery_address": {
+                    "text": "Hidden user address",
+                    "lat": 55.7558,
+                    "lon": 37.6173,
+                },
+            },
+            headers=_auth("customer"),
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == {"code": "ordering_paused"}
     assert "Hidden user address" not in resp.text
 
 

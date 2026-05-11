@@ -408,6 +408,7 @@
         "coords": "Shop coordinates",
         "delivery": "Delivery",
         "loyalty": "Loyalty program",
+        "operations": "Operations",
         "timing": "Timings",
         "working_hours": "Working hours"
       },
@@ -422,8 +423,12 @@
         "default_prep_time_minutes": "Preparation time",
         "estimated_delivery_time_minutes": "Delivery time",
         "auto_close_minutes": "Pickup auto-close",
+        "ordering_paused": "Pause order placement",
         "open": "Open",
         "close": "Close"
+      },
+      "help": {
+        "ordering_paused": "The menu and cart stay available, but checkout is blocked."
       },
       "units": {
         "km": "km",
@@ -452,6 +457,7 @@
         "open_after_close": "Opening time must be earlier than closing time",
         "empty_time": "Enter a time or mark as closed",
         "invalid_time": "Invalid time format",
+        "invalid_boolean": "Invalid switch value",
         "generic": "Could not save. Please try again."
       }
     },

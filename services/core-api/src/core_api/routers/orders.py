@@ -53,6 +53,7 @@ from core_api.schemas.order import (
 from core_api.services.checkout import (
     EmptyCartError,
     InventoryInsufficientError,
+    OrderingPausedError,
     create_order,
     estimate_order,
 )
@@ -69,6 +70,10 @@ def _minimum_delivery_error_detail(exc: MinimumDeliveryAmountError) -> dict[str,
         "subtotal": int(exc.subtotal or 0),
         "min_delivery_amount": int(exc.min_amount or 0),
     }
+
+
+def _ordering_paused_error_detail() -> dict[str, str]:
+    return {"code": "ordering_paused"}
 
 
 # Обёртки: обращаемся к атрибутам модуля в момент вызова — чтобы тесты
@@ -142,6 +147,11 @@ def post_order(
         )
     except InventoryInsufficientError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except OrderingPausedError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_ordering_paused_error_detail(),
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -189,6 +199,11 @@ def post_order_estimate(
         )
     except InventoryInsufficientError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except OrderingPausedError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_ordering_paused_error_detail(),
+        )
     except HTTPException:
         raise
     except Exception as exc:

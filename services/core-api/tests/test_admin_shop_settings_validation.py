@@ -75,6 +75,7 @@ def _valid_payload(**overrides):
         "default_prep_time_minutes": 15,
         "estimated_delivery_time_minutes": 30,
         "auto_close_minutes": 60,
+        "ordering_paused": False,
         "working_hours": {
             "mon": {"open": "08:00", "close": "22:00"},
             "tue": {"open": "08:00", "close": "22:00"},
