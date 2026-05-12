@@ -174,6 +174,9 @@ unblocked.
 Use `docs/shipping-website/10-menu-media-final-approval.md` for the final
 menu/media approval, validation, guarded import, and rollback checklist when
 step 4 is unblocked.
+Use `docs/shipping-website/11-full-private-e2e-smoke.md` for the full private
+customer, staff, provider, delivery, refund, marker, and redaction rehearsal
+when step 5 is unblocked.
 
 ## Stop Conditions
 

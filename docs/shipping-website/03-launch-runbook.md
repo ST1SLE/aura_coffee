@@ -314,6 +314,9 @@ Expected:
 
 ## Full End-To-End Launch Smoke
 
+Use `docs/shipping-website/11-full-private-e2e-smoke.md` as the detailed
+closed-staging evidence packet for this section.
+
 Run from a real browser on mobile width and desktop width:
 
 1. Load `https://DOMAIN/`.
