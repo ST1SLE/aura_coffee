@@ -1,0 +1,59 @@
+<GraceChangeSpec graceVersion="4.0" status="approved">
+  <C-REQUIRED-EVIDENCE-GATE>
+    <Summary>Introduce fail-closed, revision-bound verification evidence for GRACE completion and CI acceptance, preserving existing mandatory business, LDD and redaction obligations.</Summary>
+    <Goals>
+      <Goal>Require explicit scenario evidence for claims of implementation, replacement, verification or retirement, including read-only investigations of UI behavior.</Goal>
+      <Goal>Reject missing, stale, skipped, failed, incomplete or substituted mandatory evidence before GRACE applied/archive and in an independent CI acceptance check.</Goal>
+      <Goal>Reuse pytest, Vitest, Playwright and GRACE MustPassCommand; distinguish browser, backend business outcomes and LDD rather than treating one as proof of another.</Goal>
+    </Goals>
+    <Constraints>
+      <Constraint>User approved the design on 2026-11-09 and currently authorizes only creation of this specification, design context and plan. Implementation, business-code changes, GitHub settings, staging, commits and push are not authorized by this documentation step.</Constraint>
+      <Constraint>Preserve PDD, INV rules, existing tests, required markers, redaction and the deferred broader StrictBusinessGate. This is an evidence enforcement increment, not implementation of all deferred business E2E or logging correlation.</Constraint>
+      <Constraint>Run future tests only in disposable copies with synthetic settings and substituted providers. Never read the working checkout .env or use real customer/provider state. Reports must not contain credentials or raw sensitive payloads.</Constraint>
+      <Constraint>Approved obligations cannot be removed or weakened in the same change merely to obtain success. Protect policy, scenario selection, adapters, checker, workflow and test definitions through a trusted base and independently approved changes.</Constraint>
+      <Constraint>Do not rewrite historical archives, invent retroactive bundles, add lifecycle status names or silently repin the project CLI. Existing local CLI pin remains authoritative.</Constraint>
+      <Constraint>No claim of unbypassable local enforcement: a writer can edit XML or chat text. CI must independently detect lifecycle bypass; actual remote merge enforcement requires separately authorized and verified GitHub protection.</Constraint>
+    </Constraints>
+    <NonGoals>
+      <NonGoal>Fix the IN_DELIVERY cancellation UI defect, change product behavior, import old UI branches, extend full business E2E, change logger behavior or implement provider integrations.</NonGoal>
+      <NonGoal>Enable branch protections, CODEOWNERS assignments, publish a test PR or change GitHub settings during this change without separate explicit authorization. Preparation of repository workflow files is future implementation scope only.</NonGoal>
+      <NonGoal>Certify correctness of assertions by green results alone or treat a local unsigned evidence file as a trusted CI attestation.</NonGoal>
+    </NonGoals>
+    <AcceptanceCriteria>
+      <Criterion>Approved requirements map to stable scenario identities, exact test selectors, required profiles, evidence layer and allowed mock boundaries. Required scenarios are derived from claims plus affected components; empty selectors and unknown changed scope fail closed. Explicit non-applicability requires a reason under trusted policy, not a generic skip.</Criterion>
+      <Criterion>The runner records actual collected and executed tests, exit status, skips, expected failures, retries, tool/runtime identity, commands and artifact hashes. Required failures, skips, expected failures and failure-then-success retries cannot silently count as success. All required profile combinations must be accounted for.</Criterion>
+      <Criterion>Evidence binds to a canonical content snapshot covering application code, tests, requirements, checker, configuration and dependency locks, including relevant dirty and untracked inputs. Capture before and after execution and reject concurrent changes. Never hash secrets or arbitrary ignored files. CI independently recreates evidence for the exact candidate and base identity.</Criterion>
+      <Criterion>Only explicitly enumerated lifecycle status fields and the active-to-archive relocation of the same bundle may be normalized during closure. Changes to any other spec, plan, scope, scenario or assertion content invalidate evidence. Reports and generated output are excluded by a fixed allowlist to avoid recursive hashes, not broad directory exclusions.</Criterion>
+      <Criterion>TargetAssertions use a leaf evidence-check command. The controller runs selected final lint with run-commands before applied/archive. CI compares against trusted base inventory to reject direct applied edits, bundle disappearance, premature archival or removal of the gate from the candidate plan.</Criterion>
+      <Criterion>A uniquely named Required Evidence Gate runs as an unconditional final aggregator and requires explicit success and complete matching evidence from every mandatory producer. Existing full verification stays required; missing, skipped, cancelled or failed dependencies block. No local artifact, old run, different SHA, path filter or zero-test run may substitute.</Criterion>
+      <Criterion>Candidate changes cannot approve their own weakened checker, workflow, test expectations or scenario requirements. Validate against protected base policy; changes to that trust base need independent owner approval and a staged bootstrap, not execution of untrusted PR code with privileged credentials.</Criterion>
+      <Criterion>Repository implementation readiness and remote enforcement activation are reported separately. Remote activation remains blocked until required-check permissions/settings are verified, bypass is excluded for agent credentials and real positive/negative PR probes demonstrate merge denial. Do not mark remote activation complete from YAML alone.</Criterion>
+      <Criterion>Every negative scenario in this specification has an executable rejection test and an attributable reason code; the matching unchanged positive control passes.</Criterion>
+      <Criterion>The existing IN_DELIVERY UI failure is retained as a real negative witness. A test of the gate passes by observing rejection of this failed scenario; it must not reclassify the product scenario as passed or exempt it. Activating that product scenario as mandatory can block integration until a separately authorized product fix.</Criterion>
+    </AcceptanceCriteria>
+    <AffectedAreas>
+      <M-WEB-ADMIN /><M-WEB-CUSTOMER /><M-CORE-API /><M-SHARED />
+      <Policy>Cross-module verification policy and tooling; runtime modules are read-only. Proposed implementation areas: tools/verification, tests/verification, .github/workflows, current GRACE principles/verification and agent entry instructions.</Policy>
+    </AffectedAreas>
+    <VerificationIntent>
+      <ExpectedCommand>Future isolated gate contract/adversarial tests; adapter fixture tests; pinned GRACE baseline/target/final checks; workflow aggregation simulation. Remote PR/ruleset probes require separate authorization.</ExpectedCommand>
+      <ExpectedEvidence>Exact-content manifests, test collection and results, signed-by-context CI run provenance, permitted mock boundaries, redacted artifacts, failure reasons and scope-preservation checks. Current plan validation supplies no runtime or remote enforcement evidence.</ExpectedEvidence>
+      <NegativeScenarios>
+        <N-MISSING-REPORT>Remove the mandatory report or its referenced artifact: reject.</N-MISSING-REPORT>
+        <N-ZERO-TESTS>A selector collects zero tests or omits the required test identity: reject even if the runner exits zero.</N-ZERO-TESTS>
+        <N-SKIP-XFAIL>Skip, deselect or mark a mandatory test expected-to-fail: reject; an initially failed retry cannot silently satisfy the obligation.</N-SKIP-XFAIL>
+        <N-OLD-SNAPSHOT>Replay a valid report from another source snapshot, CI candidate, base or run context: reject.</N-OLD-SNAPSHOT>
+        <N-INPUT-CHANGE>Mutate source, test, requirement, lockfile or checker after evidence generation, or during the test run: reject.</N-INPUT-CHANGE>
+        <N-WRONG-LAYER>Supply a unit test for a browser obligation, mocked HTTP for a real-backend obligation or ordinary tests for mandatory LDD: reject.</N-WRONG-LAYER>
+        <N-PROFILE-GAP>Omit a required role/state/locale/viewport combination: reject.</N-PROFILE-GAP>
+        <N-TAMPER>Alter artifact content, inject a handwritten passed report, duplicate a scenario identity or supply malformed/unsupported evidence: reject.</N-TAMPER>
+        <N-LIFECYCLE-BYPASS>Write applied directly, archive before checks, delete the active bundle or remove MustPassCommand from it: trusted-base CI rejects.</N-LIFECYCLE-BYPASS>
+        <N-POLICY-WEAKENING>Delete or relax scenario, assertion, test expectation, workflow or checker in the same candidate without independently approved policy change: reject.</N-POLICY-WEAKENING>
+        <N-CI-INCOMPLETE>Missing, skipped, cancelled, failed or timed-out producer, missing artifacts, or attempted workflow filtering: no successful required check.</N-CI-INCOMPLETE>
+        <N-CLOSURE-NORMALIZATION>Legitimate status-and-location-only closure preserves evidence identity; any additional XML change invalidates it.</N-CLOSURE-NORMALIZATION>
+        <N-UI-IN-DELIVERY>All existing frontend tests pass while the mandatory real-browser admin IN_DELIVERY cancellation scenario fails: reject completion and integration.</N-UI-IN-DELIVERY>
+        <P-COMPLETE-EVIDENCE>All declared obligations pass on the exact permitted snapshot, with complete unmodified artifacts and approved policy: accept. Preserve this positive control alongside every rejection family.</P-COMPLETE-EVIDENCE>
+      </NegativeScenarios>
+    </VerificationIntent>
+  </C-REQUIRED-EVIDENCE-GATE>
+</GraceChangeSpec>

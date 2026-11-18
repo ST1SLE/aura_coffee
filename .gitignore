@@ -34,3 +34,4 @@ __pycache__/
 *.sqlite
 *.sqlite3
 .migration-staging/
+.verification-results/
