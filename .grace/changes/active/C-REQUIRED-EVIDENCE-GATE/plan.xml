@@ -1,0 +1,61 @@
+<GraceChangePlan graceVersion="4.0" status="approved">
+  <C-REQUIRED-EVIDENCE-GATE>
+    <IntentSummary>Approval-ready implementation proposal; status remains draft pending user approval. Current authorization covers plan refinement and isolated existing-runner probes only. Future command interfaces and hard acceptance budgets are specified below; they are not measured implementation performance. Repository tooling delivery and remote protection activation are distinct milestones. No implementation task or GitHub setting change has executed.</IntentSummary>
+    <BaselineAssertions>
+      <MustExist><Value>.github/workflows/verify.yml</Value><Value>scripts/verify-full.sh</Value><Value>tools/grace/package.json</Value><Value>.grace/context/principles.xml</Value><Value>.grace/verification/main.xml</Value></MustExist>
+      <MustContain><File>.grace/context/principles.xml</File><Text>WorkflowDecisions</Text></MustContain>
+      <MustContain><File>.grace/verification/main.xml</File><Text>accepted-direction-deferred-not-implemented</Text></MustContain>
+      <MustNotExist><Value>tools/verification/gate.py</Value></MustNotExist>
+    </BaselineAssertions>
+    <TargetAssertions>
+      <MustExist><Value>tools/verification/gate.py</Value><Value>tests/verification/test_required_evidence.py</Value></MustExist>
+      <MustContain><File>.github/workflows/verify.yml</File><Text>Required Evidence Gate</Text></MustContain>
+      <MustContain><File>.grace/verification/main.xml</File><Text>RequiredEvidenceGate</Text></MustContain>
+      <MustPassCommand><Command budgetSeconds="120">python3 -m pytest tests/verification/test_required_evidence.py -q -ra --strict-markers</Command><Command budgetSeconds="30">python3 tools/verification/gate.py check --change C-REQUIRED-EVIDENCE-GATE --evidence-dir .verification-results/C-REQUIRED-EVIDENCE-GATE</Command></MustPassCommand>
+    </TargetAssertions>
+    <DurableScope>
+      <ContextArtifact>principles.xml</ContextArtifact>
+      <VerificationDocuments><VD-MAIN /></VerificationDocuments>
+    </DurableScope>
+    <ObservedWriteScope>
+      <Glob>tools/verification/**</Glob><Glob>tests/verification/**</Glob>
+      <File>.github/workflows/verify.yml</File>
+      <File>.gitignore</File>
+      <File>.grace/context/principles.xml</File><File>.grace/verification/main.xml</File>
+      <File>AGENTS.md</File><File>.agents/skills/aura-grace/SKILL.md</File>
+      <Glob>.grace/changes/active/C-REQUIRED-EVIDENCE-GATE/**</Glob><Glob>.grace/changes/archive/C-REQUIRED-EVIDENCE-GATE/**</Glob>
+    </ObservedWriteScope>
+    <ImplementationPlan>
+      <T-001>
+        <Title>Define scenario obligations, canonical evidence schema, input fingerprint and trust bootstrap</Title><DependsOn></DependsOn>
+        <AcceptanceCriteria><Criterion>Specify collected test identity, required profiles/layers, permitted mock boundaries, producer provenance and artifact digests. Freeze input paths/modes/content and exact closure normalization; do not rely on authored passed flags. Store generated evidence in ignored .verification-results/C-ID; absence of that directory blocks the final checker.</Criterion><Criterion>Implement the declared interface: python3 tools/verification/gate.py run --change C-ID --evidence-dir DIRECTORY collects and executes approved obligations; check with the same arguments verifies existing evidence without starting services. Independent pytest contract tests invoke the checker as a subprocess and verify exit and reason codes, rather than trusting its own self-test declaration.</Criterion><Criterion>Use explicit proposed acceptance caps: run is an acceptance-stage command with 900-second limit for the narrow pilot; contract pytest leaf 120 seconds; evidence check leaf 30 seconds. Existing Full Verification Gate retains its separate 60-minute workflow cap. Measure actual new-tool timings after implementation; exceedance fails and requires optimization or reviewed plan revision, never silent timeout increase. No claim that unimplemented command timings were measured.</Criterion><Criterion>Trust bootstrap is a separately owner-reviewed checker/policy revision on the protected base. CI aggregator runs that revision in a separate job without executing candidate source, parses only bounded declarative reports, checks run/candidate/base identities and hashes, and verifies obligations from base plus independently approved additions. Candidate tests run without privileged credentials. No candidate artifact may become executable input to the trusted job.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_schema.py -q -ra --strict-markers</Command><Command>Review schema and trust-boundary examples against every spec NegativeScenarios anchor; no GitHub mutation. Planning probes on 2026-11-09: Vitest collection 5.028s exit0, empty selector 1.626s exit1, Playwright collection 2.529s exit0 in disposable frontend copy. These do not test the future gate.</Command></Verification>
+      </T-001>
+      <T-002>
+        <Title>Implement isolated execution adapters and evidence collection</Title><DependsOn>T-001</DependsOn>
+        <AcceptanceCriteria><Criterion>Use existing pytest, Vitest and Playwright. Validate collection, actual outcomes, profiles, exit statuses and redacted artifacts; detect before/after content drift. CI uses fresh candidate runs, never imports local self-authored evidence as authoritative.</Criterion><Criterion>Keep application tests and code read-only in this tooling change. Fixtures may simulate runner outputs; real negative witness executes only in disposable copies.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_adapters.py -q -ra --strict-markers</Command><Command>Run scoped isolated positive/negative producer fixtures; inspect artifacts for secret leakage and verify no real checkout .env or external provider access.</Command></Verification>
+      </T-002>
+      <T-003>
+        <Title>Implement fail-closed checker and complete adversarial suite</Title><DependsOn>T-002</DependsOn>
+        <AcceptanceCriteria><Criterion>Cover N-MISSING-REPORT, N-ZERO-TESTS, N-SKIP-XFAIL, N-OLD-SNAPSHOT, N-INPUT-CHANGE, N-WRONG-LAYER, N-PROFILE-GAP, N-TAMPER and P-COMPLETE-EVIDENCE. Rejection returns nonzero with specific reasons; no warn-only mode or fallback to aggregate green counts.</Criterion><Criterion>All mandatory cases are rejected for missing evidence even when unrelated tests pass. A test that expects gate rejection is distinguished from the failed product scenario.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_required_evidence.py -q -ra --strict-markers</Command><Command>Compare generated artifacts and verdicts with independent fixture expectations, including controlled failure-then-pass retries and concurrent edits.</Command></Verification>
+      </T-003>
+      <T-004>
+        <Title>Integrate leaf gate and lifecycle comparison with GRACE</Title><DependsOn>T-003</DependsOn>
+        <AcceptanceCriteria><Criterion>Register current policy/evidence navigation and instructions without duplicating product authority. MustPassCommand checks evidence only; outer selected final lint remains controller-owned. Reject N-LIFECYCLE-BYPASS and N-CLOSURE-NORMALIZATION against base bundle inventory, including removed bundles and removed assertions.</Criterion><Criterion>Do not rewrite old archives or repin CLI. Local enforcement limits and the distinction between repository implementation and remote activation remain explicit.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_lifecycle.py -q -ra --strict-markers</Command><Command>In disposable GRACE fixtures, execute selected target/final lint with run-commands and test approved-to-applied/archive transitions plus tampered XML. No recursive GRACE command inside MustPassCommand.</Command></Verification>
+      </T-004>
+      <T-005>
+        <Title>Prepare independent CI producers and unconditional acceptance aggregation</Title><DependsOn>T-003</DependsOn>
+        <AcceptanceCriteria><Criterion>Preserve Full Verification Gate and add uniquely named Required Evidence Gate. Explicitly reject every mandatory dependency outcome other than success and missing/corrupt artifacts. Require fresh candidate/base identity and protected-base policy; N-CI-INCOMPLETE and N-POLICY-WEAKENING have rejection coverage.</Criterion><Criterion>Use least-privilege execution for candidate code; never privileged pull_request_target execution of untrusted code. Workflow/config protection and approved owner review are activation prerequisites, not claimed settings.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_ci.py -q -ra --strict-markers</Command><Command>Simulate producer success/failure/skip/cancel/timeout/missing report, old SHA and candidate workflow/policy deletion. Inspect workflow events and dependency aggregation; do not push or alter GitHub settings.</Command></Verification>
+      </T-005>
+      <T-006>
+        <Title>Run isolated acceptance pilot and document remaining activation blockers</Title><DependsOn>T-004, T-005</DependsOn>
+        <AcceptanceCriteria><Criterion>All rejection families plus positive controls pass on the exact tooling snapshot. Reproduce N-UI-IN-DELIVERY using the real built admin SPA with synthetic APIs; four profiles must block the product obligation despite green existing frontend tests. Do not fix or exempt the defect.</Criterion><Criterion>Record actual commands, runtime budgets, snapshot and limitations. Existing applicable LDD remains mandatory; synthetic UI proof cannot substitute for backend/LDD. Independently review final checker bypass resistance and evidence identity before authorized implementation closure.</Criterion></AcceptanceCriteria>
+        <Verification><Command>Future: python3 -m pytest tests/verification/test_acceptance.py -q -ra --strict-markers</Command><Command>After implementation authorization, run isolated browser witness and inspect traces/screenshots plus verifier rejection; use controlled passing fixtures for acceptance controls.</Command><Command>Externally run pinned verify-pin, selected final lint with run-commands and status. Preserve Git/source scope and retain evidence outside tracked sources.</Command></Verification>
+      </T-006>
+    </ImplementationPlan>
+  </C-REQUIRED-EVIDENCE-GATE>
+</GraceChangePlan>

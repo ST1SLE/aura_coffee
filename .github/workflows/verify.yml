@@ -1,5 +1,8 @@
 name: Verify
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
@@ -59,3 +62,110 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  evidence-producer:
+    permissions:
+      contents: read
+      actions: read
+    name: Required evidence producer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AURA_CANDIDATE_SHA: ${{ github.sha }}
+      AURA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      AURA_RUN_ID: ${{ github.run_id }}
+      AURA_RUN_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.AURA_BASE_SHA }}
+          path: trusted
+          persist-credentials: false
+      - name: Require owner-bootstrapped base
+        run: test -f trusted/tools/verification/ci_produce.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install contract runner
+        run: python3 -m pip install pytest==8.3.5
+      - name: Verify previous approval using base controller
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 trusted/tools/verification/ci_produce.py --prepare candidate --candidate-root candidate --authority-file "$RUNNER_TEMP/authority.json"
+      - name: Produce in disposable copy using base controller
+        shell: bash
+        run: |
+          audit_root=$(mktemp -d /tmp/aura-coffee-audit-ci-XXXXXX)
+          git -C candidate archive HEAD | tar -x -C "$audit_root"
+          echo "AURA_AUDIT_ROOT=$audit_root" >> "$GITHUB_ENV"
+          python3 trusted/tools/verification/ci_produce.py --candidate-root "$audit_root" --authority-file "$RUNNER_TEMP/authority.json"
+      - name: Upload only producer evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: required-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.AURA_AUDIT_ROOT }}/.verification-results/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  required-evidence-gate:
+    permissions:
+      contents: read
+      actions: read
+    name: Required Evidence Gate
+    if: ${{ always() }}
+    needs: [full-gate, evidence-producer]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      AURA_CANDIDATE_SHA: ${{ github.sha }}
+      AURA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      AURA_RUN_ID: ${{ github.run_id }}
+      AURA_RUN_ATTEMPT: ${{ github.run_attempt }}
+      AURA_JOB_RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - name: Reject incomplete dependencies
+        run: |
+          python3 - <<'PY'
+          import json, os
+          jobs = json.loads(os.environ['AURA_JOB_RESULTS'])
+          assert set(jobs) == {'full-gate', 'evidence-producer'}
+          assert all(job['result'] == 'success' for job in jobs.values())
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.AURA_BASE_SHA }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require owner-bootstrapped base
+        run: test -f trusted/tools/verification/ci_check.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: required-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - name: Evaluate with base checker, never candidate imports
+        id: verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 trusted/tools/verification/ci_check.py --base-root trusted --candidate-root candidate --evidence-dir evidence --issue authorization.json
+      - name: Upload approved authorization
+        if: steps.verdict.outputs.digest != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: closure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: authorization.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Issued closure ${{ steps.verdict.outputs.digest }}
+        if: steps.verdict.outputs.digest != ''
+        run: echo "Approved authorization uploaded"
